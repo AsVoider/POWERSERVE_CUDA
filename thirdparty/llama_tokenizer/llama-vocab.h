@@ -278,5 +278,5 @@ int32_t llama_detokenize_impl(
                             bool   remove_special,
                             bool   unparse_special);
 
-void llm_load_vocab(llama_vocab & vocab, struct gguf_context * ctx, llm_arch arch);
+void llm_load_vocab(llama_vocab & vocab, struct gguf_context * ctx);
 std::string llama_token_to_piece(const struct llama_vocab & vocab, llama_token token, bool special = true);

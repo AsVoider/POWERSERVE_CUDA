@@ -324,6 +324,16 @@ struct LLM_KV {
     }
 };
 
+static llm_arch llm_arch_from_string(const std::string & name) {
+    for (const auto & kv : LLM_ARCH_NAMES) { // NOLINT
+        if (kv.second == name) {
+            return kv.first;
+        }
+    }
+
+    return LLM_ARCH_UNKNOWN;
+}
+
 struct naive_trie {
     naive_trie() : has_value(false), value(0) {
     }
@@ -2172,11 +2182,16 @@ std::string llama_token_to_piece(const struct llama_vocab & vocab, llama_token t
     return piece;
 }
 
-void llm_load_vocab(
-    llama_vocab & vocab,
-    struct gguf_context * ctx,
-    llm_arch arch) {
-    const auto kv = LLM_KV(arch);
+void llm_load_vocab(llama_vocab & vocab, struct gguf_context * ctx) {
+    llm_arch arch = LLM_ARCH_UNKNOWN;
+    LLM_KV kv = LLM_KV(arch);
+
+    auto key_id = gguf_find_key(ctx, kv(LLM_KV_GENERAL_ARCHITECTURE).c_str());
+    if (key_id != -1) {
+        std::string arch_name = gguf_get_val_str(ctx, key_id);
+        arch = llm_arch_from_string(arch_name);
+        kv = LLM_KV(arch);
+    }
 
     // determine vocab type
     {

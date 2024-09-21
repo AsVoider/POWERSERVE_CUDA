@@ -1,7 +1,6 @@
 #include "llama_tokenizer.hpp"
 
 #include "ggml.h"
-#include "llama-vocab.h"
 
 namespace smart {
 
@@ -15,7 +14,7 @@ LlamaTokenizer::LlamaTokenizer(const Path &vocab_path) {
     struct gguf_context *meta = gguf_init_from_file(vocab_path.c_str(), params);
     SMART_ASSERT(meta);
 
-    llm_load_vocab(vocab, meta, LLM_ARCH_LLAMA);
+    llm_load_vocab(vocab, meta);
 
     gguf_free(meta);
 }
