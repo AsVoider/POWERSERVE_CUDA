@@ -45,7 +45,7 @@ unzip /data/android-ndk-r27b-linux.zip -d /data
 export NDK=/data/android-ndk-r27b
 ```
 
-重新加载`.bashrc`
+重新加载`.bashrc`：
 
 ```bash
 source ~/.bashrc
