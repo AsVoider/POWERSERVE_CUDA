@@ -28,7 +28,7 @@ auto LlamaTokenizer::bos_token() const -> Token {
 }
 
 auto LlamaTokenizer::tokenize(const std::string &text, bool add_special) const -> std::vector<Token> {
-    return llama_tokenize_internal(vocab, text, add_special);
+    return llama_tokenize_internal(vocab, text, add_special, true);
 }
 
 auto LlamaTokenizer::to_string(Token token) const -> std::string {

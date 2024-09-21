@@ -6,7 +6,7 @@ int main(int argc, char *argv[]) {
     Path vocab_path;
     std::string text;
 
-    CLI::App app("Test program for SmartServing");
+    CLI::App app("Test program for LlamaTokenizer");
     app.add_option("--vocab-path", vocab_path)->required();
     app.add_option("--text", text)->required();
     CLI11_PARSE(app, argc, argv);
