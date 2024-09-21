@@ -1,9 +1,9 @@
 # `llama_tokenize.cpp`
 
-首先需要准备vocab数据。这里复用llama.cpp的`convert_hf_to_gguf.py`：
+首先准备vocab数据：
 
 ```bash
-python convert_hf_to_gguf.py /data/llama_3.1_8b --outtype f16 --vocab-only --outfile /data/llama_3.1_8b_vocab.gguf
+python tools/generate_llama_vocab.py /data/llama_3.1_8b -o /data/llama_3.1_8b_vocab.gguf
 ```
 
 编译：
