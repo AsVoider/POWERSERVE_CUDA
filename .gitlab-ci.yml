@@ -1,0 +1,66 @@
+stages:
+  - setup
+  - build
+  - convert
+  - deploy
+
+variables:
+  IMAGE_NAME: ubuntu:22.04
+  CONTAINER_NAME: ndk
+  HF_TOKEN: "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"
+
+setup:
+  stage: setup
+  script:
+    - cd ~
+    - sudo podman stop $CONTAINER_NAME || true
+    - sudo podman rm $CONTAINER_NAME || true
+    - sudo rm -rf ~/llama.cpp
+    - sudo rm -rf ~/Downloads
+    - sudo mkdir ~/Downloads
+    - git clone https://github.com/ggerganov/llama.cpp.git 
+    - export https_proxy=http://ipads:ipads123@202.120.40.82:11235 
+    # - sudo podman rmi $IMAGE_NAME || true
+    - sudo -E podman run -v $(realpath ./llama.cpp):/code -v $(realpath ~/Downloads):/data -dit --name ndk ubuntu:22.04
+    - sudo podman exec -it $CONTAINER_NAME bash -c "apt update && apt upgrade -y && apt install -y sudo vim cmake unzip git python-is-python3 python3-pip build-essential"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "pip install -r /code/requirements/requirements-convert_hf_to_gguf.txt"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "git config --global --add safe.directory /code"
+    - sudo wget https://dl.google.com/android/repository/android-ndk-r27b-linux.zip?hl=zh-cn  -O ~/Downloads/android-ndk-r27b-linux.zip
+
+build:
+  stage: build
+  script:
+    - sudo podman exec -it $CONTAINER_NAME bash -c "unzip /data/android-ndk-r27b-linux.zip -d /data"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "echo 'export NDK=/data/android-ndk-r27b' >> ~/.bashrc"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "source ~/.bashrc"
+    - sleep 1
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake \
+          -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+          -DANDROID_ABI=arm64-v8a \
+          -DANDROID_PLATFORM=android-34 \
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DGGML_OPENMP=OFF \
+          -S . -B build_android
+      "
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake --build /code/build_android --config RelWithDebInfo --target llama-cli"
+
+convert:
+  stage: convert
+  script:
+    - sudo podman exec -it $CONTAINER_NAME bash -c "pip install 'huggingface_hub[cli]'" || true
+    - sudo podman exec -it $CONTAINER_NAME bash -c "pip install 'huggingface_hub[cli]'" || true
+    - sudo podman exec -it $CONTAINER_NAME bash -c "pip install 'huggingface_hub[cli]'" || true
+    - sudo podman exec -it $CONTAINER_NAME bash -c "huggingface-cli login --token $HF_TOKEN"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && export HF_ENDPOINT=https://hf-mirror.com"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && huggingface-cli download --cache-dir /data/hf_cache --resume-download meta-llama/Meta-Llama-3.1-8B --exclude original/ --local-dir /data/llama_3.1_8b"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && python convert_hf_to_gguf.py /data/llama_3.1_8b --outtype f16 --outfile /data/llama_3.1_8b.gguf"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake -DCMAKE_BUILD_TYPE=Release -S . -B build_native"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake --build build_native --config Release --target llama-quantize"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && ./build_native/bin/llama-quantize --pure /data/llama_3.1_8b.gguf /data/llama_3.1_8b_q4_0.gguf q4_0"
+
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploy the binaries and models to your Android device using adb or scp."
+
