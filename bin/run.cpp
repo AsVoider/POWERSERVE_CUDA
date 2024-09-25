@@ -435,6 +435,12 @@ float* forward(Transformer* transformer, int token, int pos) {
     return s->logits;
 }
 
+long time_in_ms() {
+    // return time in milliseconds, for benchmarking the model speed
+    struct timespec time;
+    clock_gettime(CLOCK_REALTIME, &time);
+    return time.tv_sec * 1000 + time.tv_nsec / 1000000;
+}
 
 void generate(Transformer *transformer, smart::LlamaTokenizer *tokenizer, Sampler *sampler, std::string prompt, int steps) {
 
@@ -477,8 +483,18 @@ void generate(Transformer *transformer, smart::LlamaTokenizer *tokenizer, Sample
         safe_printf(piece); // same as printf("%s", piece), but skips "unsafe" bytes
         fflush(stdout);
         token = next;
+
+        // init the timer here because the first iteration can be slower
+        if (start == 0) { 
+            start = time_in_ms(); 
+        }
     }
     printf("\n");
+
+    if (pos > 1) {
+        long end = time_in_ms();
+        fprintf(stderr, "achieved tok/s: %f\n", (pos-1) / (double)(end-start)*1000);
+    }
 }
 
 int main(int argc, char *argv[]) {
