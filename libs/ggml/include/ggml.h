@@ -615,6 +615,23 @@ extern "C" {
         // char padding[4];
     };
 
+        struct OpTensor {
+    void* data;
+    const enum ggml_type type;
+    int64_t ne[GGML_MAX_DIMS]; // number of elements
+    size_t nb[GGML_MAX_DIMS]; // stride in bytes
+};
+
+struct op_compute_params {
+    // ith = thread index, nth = number of threads
+    // int ith, nth;
+
+    // work buffer for all threads
+    size_t wsize;
+    void * wdata;
+
+    // struct ggml_threadpool * threadpool;
+};
     static const size_t GGML_TENSOR_SIZE = sizeof(struct ggml_tensor);
 
     // Abort callback
@@ -714,6 +731,12 @@ extern "C" {
     GGML_API GGML_CALL int64_t ggml_nrows       (const struct ggml_tensor * tensor);
     GGML_API GGML_CALL size_t  ggml_nbytes      (const struct ggml_tensor * tensor);
     GGML_API           size_t  ggml_nbytes_pad  (const struct ggml_tensor * tensor); // same as ggml_nbytes() but padded to GGML_MEM_ALIGN
+        GGML_API GGML_CALL void ggml_compute_forward_op_mul_mat(
+        const struct op_compute_params * params,
+              const struct OpTensor * dst,
+              const struct OpTensor * src0, // weight
+              const struct OpTensor * src1  // activation
+              );
 
     GGML_API GGML_CALL int64_t ggml_blck_size(enum ggml_type type);
     GGML_API GGML_CALL size_t  ggml_type_size(enum ggml_type type);             // size in bytes for all elements in a block
