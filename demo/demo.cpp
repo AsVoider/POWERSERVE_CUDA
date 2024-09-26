@@ -1011,69 +1011,6 @@ int main(int argc, char *argv[]) {
         build_sampler(config.vocab_size, temperature, topp, rng_seed);
         generate(tokenizer);
 
-        {
-            // fmt::println("WQ");
-            // for (auto j = 0; j < config.n_layers; j++) {
-            //     f32_w.wq = (float *)(f32_w.w_ptr + weights[j].attn_q->offset);
-            //     for (auto i = 0; i < config.dim * config.dim; i++) {
-            //         fmt::println("{}: {}", i, f32_w.wq[i]);
-            //     }
-            // }
-            // fmt::println("WK");
-            // for (auto j = 0; j < config.n_layers; j++) {
-            //     f32_w.wk = (float *)(f32_w.w_ptr + weights[j].attn_k->offset);
-            //     for (auto i = 0; i < config.dim * config.dim; i++) {
-            //         fmt::println("{}: {}", i, f32_w.wk[i]);
-            //     }
-            // }
-            // fmt::println("WV");
-            // for (auto j = 0; j < config.n_layers; j++) {
-            //     f32_w.wv = (float *)(f32_w.w_ptr + weights[j].attn_v->offset);
-            //     for (auto i = 0; i < config.dim * config.dim; i++) {
-            //         fmt::println("{}: {}", i, f32_w.wv[i]);
-            //     }
-            // }
-            // fmt::println("WO");
-            // for (auto j = 0; j < config.n_layers; j++) {
-            //     f32_w.wo = (float *)(f32_w.w_ptr + weights[j].attn_output->offset);
-            //     for (auto i = 0; i < config.dim * config.dim; i++) {
-            //         fmt::println("{}: {}", i, f32_w.wo[i]);
-            //     }
-            // }
-
-            // fmt::println("W1");
-            // for (auto j = 0; j < config.n_layers; j++) {
-            //     f32_w.w1 = (float *)(f32_w.w_ptr + weights[j].ffn_gate->offset);
-            //     for (auto i = 0; i < config.hidden_dim * config.dim; i++) {
-            //         fmt::println("{}: {}", i, f32_w.w1[i]);
-            //     }
-            // }
-            // fmt::println("W2");
-            // for (auto j = 0; j < config.n_layers; j++) {
-            //     f32_w.w2 = (float *)(f32_w.w_ptr + weights[j].ffn_down->offset);
-            //     for (auto i = 0; i < config.hidden_dim * config.dim; i++) {
-            //         fmt::println("{}: {}", i, f32_w.w2[i]);
-            //     }
-            // }
-            // fmt::println("W3");
-            // for (auto j = 0; j < config.n_layers; j++) {
-            //     f32_w.w3 = (float *)(f32_w.w_ptr + weights[j].ffn_up->offset);
-            //     for (auto i = 0; i < config.hidden_dim * config.dim; i++) {
-            //         fmt::println("{}: {}", i, f32_w.w3[i]);
-            //     }
-            // }
-            // fmt::println("RMS FINAL WEIGHT");
-            // for (auto i = 0; i < config.dim; i++) {
-            //     fmt::println("{}: {}", i, f32_w.rms_final_weight[i]);
-            // }
-            // fmt::println("RMS Weights");
-            // for (auto i = 0; i < config.vocab_size * config.dim; i++)
-            //     fmt::println("{}: {}", i, f32_w.final_weight[i]);
-            // fmt::println("embeding");
-            // for (auto i = 0; i < config.vocab_size * config.dim; i++)
-            //     fmt::println("{}: {}", i, f32_w.token_embedding_table[i]);
-        }
-
         free_sampler();
         free_run_state();
         unmapping_weights();
