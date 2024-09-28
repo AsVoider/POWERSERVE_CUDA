@@ -20,8 +20,8 @@ using namespace smart;
 
 // -------------------
 ssize_t file_size = 0;
-std::string file_path = "/home/zwb/SS/models/Llama-2-7b-chat-hf/llama-2-7b.f32.gguf";
-std::string tokenizer_path = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama2_7b_vocab.gguf";
+std::string file_path = "/home/zwb/SS/models/Meta-Llama-3.1-8B/Llama-3.1-8B-FP32.gguf";
+std::string tokenizer_path = "/home/zwb/SS/models/Meta-Llama-3.1-8B/llama3.1_8b_vocab.gguf";
 GGUFContext ctx = {};
 float temperature = 1.0f;
 float topp = 0.9f;
@@ -62,6 +62,8 @@ std::vector<LayerWeights> weights;
 GGUFTensorInfo * token_embd_weight = nullptr;  // (4096, 32000)
 GGUFTensorInfo * output_norm_weight = nullptr;      // (4096, )
 GGUFTensorInfo * output_weight = nullptr;      // (4096, 32000)
+// llama3.1 new tensor
+GGUFTensorInfo * rope_freqs_weight = nullptr; // (64,) "rope_freqs.weight"
 
 struct TransformerWeights_F32 {
     char *w_ptr; // weight data start pointer
@@ -283,7 +285,7 @@ void unmapping_weights() {
 void malloc_run_state() {
     // we calloc instead of malloc to keep valgrind happy
     auto &p = config;
-    int kv_dim = (p.dim * p.n_kv_heads) / p.n_heads;
+    size_t kv_dim = (p.dim * p.n_kv_heads) / p.n_heads;
     state.x = (float *)calloc(p.dim, sizeof(float));
     state.xb = (float *)calloc(p.dim, sizeof(float));
     state.xb2 = (float *)calloc(p.dim, sizeof(float));
@@ -343,12 +345,12 @@ int sample_argmax(float* probabilities, int n) {
     return max_i;
 }
 
-int sample(float* logits) {
-    // sample the token given the logits and some hyperparameters
-    int next;
-    next = sample_argmax(logits, sampler.vocab_size);
-    return next;
-}
+// int sample(float* logits) {
+//     // sample the token given the logits and some hyperparameters
+//     int next;
+//     next = sample_argmax(logits, sampler.vocab_size);
+//     return next;
+// }
 
 void safe_printf(std::string piece) {
     // piece might be a raw byte token, and we only want to print printable chars or whitespace
@@ -489,32 +491,32 @@ int sample_topp(float* probabilities, int n, float topp, ProbIndex* probindex, f
     return probindex[last_idx].index; // in case of rounding errors
 }
 
-// int sample(float* logits) {
-//     // sample the token given the logits and some hyperparameters
-//     int next;
-//     if (sampler.temperature == 0.0f) {
-//         // greedy argmax sampling: take the token with the highest probability
-//         next = sample_argmax(logits, sampler.vocab_size);
-//     } else {
-//         // apply the temperature to the logits
-//         for (int q=0; q<sampler.vocab_size; q++) { 
-//             logits[q] /= sampler.temperature; 
-//         }
-//         // apply softmax to the logits to get the probabilities for next token
-//         softmax(logits, sampler.vocab_size);
-//         // flip a (float) coin (this is our source of entropy for sampling)
-//         float coin = random_f32(&sampler.rng_state);
-//         // we sample from this distribution to get the next token
-//         if (sampler.topp <= 0 || sampler.topp >= 1) {
-//             // simply sample from the predicted probability distribution
-//             next = sample_mult(logits, sampler.vocab_size, coin);
-//         } else {
-//             // top-p (nucleus) sampling, clamping the least likely tokens to zero
-//             next = sample_topp(logits, sampler.vocab_size, sampler.topp, sampler.probindex, coin);
-//         }
-//     }
-//     return next;
-// }
+int sample(float* logits) {
+    // sample the token given the logits and some hyperparameters
+    int next;
+    if (sampler.temperature == 0.0f) {
+        // greedy argmax sampling: take the token with the highest probability
+        next = sample_argmax(logits, sampler.vocab_size);
+    } else {
+        // apply the temperature to the logits
+        for (int q=0; q<sampler.vocab_size; q++) { 
+            logits[q] /= sampler.temperature; 
+        }
+        // apply softmax to the logits to get the probabilities for next token
+        softmax(logits, sampler.vocab_size);
+        // flip a (float) coin (this is our source of entropy for sampling)
+        float coin = random_f32(&sampler.rng_state);
+        // we sample from this distribution to get the next token
+        if (sampler.topp <= 0 || sampler.topp >= 1) {
+            // simply sample from the predicted probability distribution
+            next = sample_mult(logits, sampler.vocab_size, coin);
+        } else {
+            // top-p (nucleus) sampling, clamping the least likely tokens to zero
+            next = sample_topp(logits, sampler.vocab_size, sampler.topp, sampler.probindex, coin);
+        }
+    }
+    return next;
+}
 
 void build_sampler(int vocab_size, float temperature, float topp, unsigned long long rng_seed) {
     sampler.vocab_size = vocab_size;
@@ -562,9 +564,9 @@ float* forward(int token, int pos) {
         rmsnorm(s->xb, x, w->rms_att_weight, dim);
 
         // key and value point to the kv cache
-        int loff = l * p->seq_len * kv_dim; // kv cache layer offset for convenience
-        s->k = s->key_cache + loff + pos * kv_dim;
-        s->v = s->value_cache + loff + pos * kv_dim;
+        auto loff = l * p->seq_len * kv_dim; // kv cache layer offset for convenience
+        s->k = (float *)((char *)s->key_cache + loff + pos * kv_dim);
+        s->v = (float *)((char *)s->value_cache + loff + pos * kv_dim);
 
         // qkv matmuls for this position
         matmul(s->q, s->xb, w->wq, dim, dim);
@@ -709,8 +711,8 @@ void generate(smart::LlamaTokenizer &tokenizer) {
         }
         pos++;
 
-        // data-dependent terminating condition: the BOS (=1) token delimits sequences
-        if (next == 1) { 
+        // data-dependent terminating condition: the BOS token delimits sequences
+        if (next == tokenizer.bos_token()) { 
             break; 
         }
 
@@ -949,6 +951,7 @@ int main(int argc, char *argv[]) {
                 if (name == "token_embd.weight") { token_embd_weight = &tensor_infos[name]; } 
                 else if (name == "output_norm.weight") { output_norm_weight = &tensor_infos[name]; } 
                 else if (name == "output.weight"){ output_weight = &tensor_infos[name]; } 
+                else if (name == "rope_freqs.weight") { rope_freqs_weight = &tensor_infos[name]; }
                 else {
                     std::vector<std::string> toks;
                     string_split(name, '.', toks);
@@ -1003,7 +1006,6 @@ int main(int argc, char *argv[]) {
 
     // load the tensor data
     {
-        // alloc_weights();
         file.close();
         mapping_weights();
         malloc_run_state();
@@ -1014,7 +1016,6 @@ int main(int argc, char *argv[]) {
         free_sampler();
         free_run_state();
         unmapping_weights();
-        // free_weights();
     }
 
     return 0;
