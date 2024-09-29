@@ -4,23 +4,29 @@
 #include "sampler.hpp"
 #include "generate.hpp"
 #include "debug.hpp"
+#include "CLI/CLI.hpp"
 
 
 using namespace smart;
 
-int main() {
+int main(int argc, char *argv[]) {
+
     // 0. load config
-    // std::string file_path = "./llama3-8b_Q4_0.gguf";
-    // std::string tokenizer_path = "./llama3.1_8b_vocab.gguf";
-    std::string file_path = "/home/zwb/Downloads/Meta-Llama-3.1-8B/llama3-8b_Q4_0.gguf";
-    std::string tokenizer_path = "/home/zwb/Downloads/Meta-Llama-3.1-8B/llama3.1_8b_vocab.gguf";
-    // std::string file_path = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama2-7b_Q4_0.gguf";
-    // std::string tokenizer_path = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama2_7b_vocab.gguf";
+    std::string file_path = "../model/Meta-Llama-3.1-8B/llama3-8b_Q4_0.gguf";
+    std::string tokenizer_path = "../model/Meta-Llama-3.1-8B/llama3.1_8b_vocab.gguf";
     float temperature = 1.0f;                // 0.0 = greedy deterministic. 1.0 = original. don't set higher
     float topp = 0.9f;                       // top-p in nucleus sampling. 1.0 = off. 0.9 works well, but slower
     int steps = 64;                          // number of steps to run for
     std::string prompt = "One day,";         // prompt string
     unsigned long long rng_seed = 2024927;
+
+    CLI::App app("Demo program for llama3");
+    
+    app.add_option("--file-path", file_path)->required();
+    app.add_option("--vocab-path", tokenizer_path)->required();
+    app.add_option("--prompt", prompt)->required();
+    app.add_option("--steps", steps)->required();
+    CLI11_PARSE(app, argc, argv);
 
     // 1. load model
     Transformer transformer;

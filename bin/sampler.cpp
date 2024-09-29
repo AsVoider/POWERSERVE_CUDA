@@ -25,7 +25,7 @@ void build_sampler(Sampler* sampler, int vocab_size, float temperature, float to
 }
 
 void free_sampler(Sampler* sampler) {
-    delete sampler->probindex;
+    delete[] sampler->probindex;
 }
 
 int sample(Sampler* sampler, float* logits) {

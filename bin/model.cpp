@@ -4,6 +4,7 @@
 #include "model.hpp"
 #include "fmt/base.h"
 #include "fmt/format.h"
+#include "ggml.h"
 #include "tensor.hpp"
 
 namespace smart {
@@ -24,10 +25,11 @@ OpTensor *get_optensor_from_ggml(ggml_tensor *t) {
 void free_optensor_deep(OpTensor *opt) {
     if (opt->data != nullptr) {
         switch (opt->type) {
-            case GGML_TYPE_F32: delete (float *)opt->data; break;
+            case GGML_TYPE_F32: delete[] (float *)(opt->data); break;
             default: break;
         }
     }
+    opt->data = nullptr;
     delete opt;
 }
 
@@ -64,10 +66,10 @@ void prepare_state(Transformer *t) {
     float *hb          = new float[hidden_dim];
     float *hb2         = new float[hidden_dim];
     float *q           = new float[dim];
-    // float *key_cache   = new float[n_layers * p.seq_len * kv_dim];
-    // float *value_cache = new float[n_layers * p.seq_len * kv_dim];
-    float *key_cache   = (float *)malloc( large_size* sizeof(float));
-    float *value_cache = (float *)malloc(large_size * sizeof(float));
+    float *key_cache   = new float[large_size];
+    float *value_cache = new float[large_size];
+    // float *key_cache   = (float *)malloc( large_size* sizeof(float));
+    // float *value_cache = (float *)malloc(large_size * sizeof(float));
     float *att         = new float[p.n_heads * p.seq_len];
     float *logits      = new float[p.vocab_size];
 
@@ -149,12 +151,13 @@ void free_state(Transformer *t) {
     free_optensor_deep(s.hb);
     free_optensor_deep(s.hb2);
     free_optensor_deep(s.q);
-    free_optensor_deep(s.k);
-    free_optensor_deep(s.v);
     free_optensor_deep(s.att);
     free_optensor_deep(s.logits);
     free_optensor_deep(s.key_cache);
     free_optensor_deep(s.value_cache);
+
+    free_optensor(s.k);
+    free_optensor(s.v);
 }
 
 void prepare_weights(Transformer *t) {
@@ -189,7 +192,7 @@ void free_weights(Transformer *t) {
     free_optensor(w.token_embedding_table);
     free_optensor(w.output_weight);
     free_optensor(w.rms_final_weight);
-    delete w.fp32_embd_table;
+    delete[] w.fp32_embd_table;
 
     for (int layer = 0; layer < t->config.n_layers; layer++) {
         free_optensor(w.lw[layer].attn_norm);
@@ -235,6 +238,7 @@ void build_transformer(Transformer *t, std::string checkpoint_path) {
 void free_transformer(Transformer *t) {
     free_weights(t);
     free_state(t);
+    gguf_free(t->gguf_ctx);
 }
 
 } // namespace smart

@@ -34,6 +34,9 @@ if (SMART_ENABLE_LTO)
     endif()
 endif()
 
+message("CMAKE_CXX_FLAGS: " ${CMAKE_CXX_FLAGS})
+message("SMART_ENABLE_SANITIZERS: " ${SMART_ENABLE_SANITIZERS})
+
 add_subdirectory(libs)
 add_subdirectory(src)
 add_subdirectory(bin)
