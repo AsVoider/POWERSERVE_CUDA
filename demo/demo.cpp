@@ -20,7 +20,7 @@ using namespace smart;
 
 // -------------------
 ssize_t file_size = 0;
-std::string file_path = "/home/zwb/SS/models/Meta-Llama-3.1-8B/Llama-3.1-8B-FP32.gguf";
+std::string file_path = "/home/zwb/SS/models/Meta-Llama-3.1-8B/Llama-3.1-8B-no-rope-scale-F32.gguf";
 std::string tokenizer_path = "/home/zwb/SS/models/Meta-Llama-3.1-8B/llama3.1_8b_vocab.gguf";
 GGUFContext ctx = {};
 float temperature = 1.0f;
@@ -72,6 +72,7 @@ struct TransformerWeights_F32 {
     // weights for rmsnorms
     float *rms_att_weight;  // (layer, 4096, )
     float *rms_ffn_weight;   // (layer, 4096, )
+    float *rope_freqs_weight; // (64,) "rope_freqs.weight"
 
     // weights for matmuls. not dim == n_heads * head_size
     float *wq;      // (layer, 4096, 4096)
@@ -102,6 +103,7 @@ typedef struct {
     int n_kv_heads; // number of key/value heads (can be < query heads because of multiquery)
     int vocab_size; // vocabulary size, usually 256 (byte-level)
     int seq_len; // max sequence length
+    uint32_t rope_dim_count; // rope_freqs.weight
 } Config;
 
 Config config;
@@ -272,6 +274,8 @@ void mapping_weights() {
         f32_w.token_embedding_table = (float *)(f32_w.w_ptr + token_embd_weight->offset);
         f32_w.wcls = (float *)(f32_w.w_ptr + output_weight->offset);
         f32_w.rms_final_weight = (float *)(f32_w.w_ptr + output_norm_weight->offset);
+        // llama3.1 new tensor
+        f32_w.rope_freqs_weight = rope_freqs_weight ? (float *)(f32_w.w_ptr + rope_freqs_weight->offset) : nullptr;
     }
 }
 
@@ -565,8 +569,8 @@ float* forward(int token, int pos) {
 
         // key and value point to the kv cache
         auto loff = l * p->seq_len * kv_dim; // kv cache layer offset for convenience
-        s->k = (float *)((char *)s->key_cache + loff + pos * kv_dim);
-        s->v = (float *)((char *)s->value_cache + loff + pos * kv_dim);
+        s->k = s->key_cache + loff + pos * kv_dim;
+        s->v = s->value_cache + loff + pos * kv_dim;
 
         // qkv matmuls for this position
         matmul(s->q, s->xb, w->wq, dim, dim);
@@ -574,21 +578,74 @@ float* forward(int token, int pos) {
         matmul(s->v, s->xb, w->wv, dim, kv_dim);
 
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
-        for (int i = 0; i < dim; i+=2) {
-            int head_dim = i % head_size;
-            float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
-            float val = pos * freq;
-            float fcr = cosf(val);
-            float fci = sinf(val);
-            int rotn = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
-            for (int v = 0; v < rotn; v++) {
-                float* vec = v == 0 ? s->q : s->k; // the vector to rotate (query or key)
-                float v0 = vec[i];
-                float v1 = vec[i+1];
-                vec[i]   = v0 * fcr - v1 * fci;
-                vec[i+1] = v0 * fci + v1 * fcr;
+        // rope_freqs is ggml_compute_forward_rope_f32's freq_factors(src2) in llama.cpp
+        // float *rope_freqs = w->rope_freqs_weight;
+        
+        float freq_base = 500000.0f; // TODO:How to get this value?
+        // float freq_scale = 1.0f;
+        // float theta_base = 1.0f; // TODO: 0 / 1 how to choose -> pos -> KQ_pos
+        // float mscale = 1.0f;
+        // float theta = theta_base;
+        // float theta_scale = powf(freq_base, -2.0f / rope_dim_count);
+        // // fmt::println("theta_scale: {0}, n_dim: {1}", theta_scale, rope_dim_count);
+
+        // for (int i = 0; i < dim; i+=2) {
+        //     int head_dim = i % head_size;
+        //     // ggml_rope_cache_init in llama.cpp
+        //     float ff = rope_freqs ? rope_freqs[head_dim / 2] : 1.0f;
+        //     auto theta_extrap = theta / ff;
+        //     auto theta_interp = freq_scale * theta_extrap;
+        //     // float freq = 1.0f / powf(theta_base / ff, head_dim / (float)head_size);
+        //     // float val = pos * freq;
+        //     fmt::println("theta: {0}, theta_interp: {1}, ff: {2}, theta_scale: {3}", theta, theta_interp, ff, theta_scale);
+        //     float val = theta_interp;
+        //     float fcr = cosf(val) * mscale;
+        //     float fci = sinf(val) * mscale;
+        //     int rotn = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
+        //     for (int v = 0; v < rotn; v++) {
+        //         float* vec = v == 0 ? s->q : s->k; // the vector to rotate (query or key)
+        //         float v0 = vec[i];
+        //         float v1 = vec[i+1];
+        //         vec[i]   = v0 * fcr - v1 * fci;
+        //         vec[i+1] = v0 * fci + v1 * fcr;
+        //     }
+        //     theta *= theta_scale;
+        // }
+
+        for (int i = 0; i < p->n_heads; i++) {
+            for (int j = 0; j < head_size; j += 2) {
+                float freq = 1.0f / powf(freq_base, (float)j / (float)head_size);
+                float val = pos * freq;
+                float fcr = cosf(val);
+                float fci = sinf(val);
+                float q0 = s->q[i * head_size + j];
+                float q1 = s->q[i * head_size + j + 1];
+                s->q[i * head_size + j] = q0 * fcr - q1 * fci;
+                s->q[i * head_size + j + 1] = q0 * fci + q1 * fcr;
+                if (i < p->n_kv_heads) {
+                    float k0 = s->k[i * head_size + j];
+                    float k1 = s->k[i * head_size + j + 1];
+                    s->k[i * head_size + j] = k0 * fcr - k1 * fci;
+                    s->k[i * head_size + j + 1] = k0 * fci + k1 * fcr;
+                }
             }
         }
+
+        // for (int i = 0; i < dim; i+=2) {
+        //     int head_dim = i % head_size;
+        //     float freq = 1.0f / powf(500000.0f, head_dim / (float)head_size);
+        //     float val = pos * freq;
+        //     float fcr = cosf(val);
+        //     float fci = sinf(val);
+        //     int rotn = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
+        //     for (int v = 0; v < rotn; v++) {
+        //         float* vec = v == 0 ? s->q : s->k; // the vector to rotate (query or key)
+        //         float v0 = vec[i];
+        //         float v1 = vec[i+1];
+        //         vec[i]   = v0 * fcr - v1 * fci;
+        //         vec[i+1] = v0 * fci + v1 * fcr;
+        //     }
+        // }
 
         // multihead attention. iterate over all heads
         int h;
@@ -893,14 +950,6 @@ int main(int argc, char *argv[]) {
         }
 
         {
-            // fmt::println("[{:2}]: {:30}: {}", max_seq_len_idx, ctx.kv[max_seq_len_idx].key, GGUFValue2Str(ctx.kv[max_seq_len_idx].value, ctx.kv[max_seq_len_idx].type));
-            // fmt::println("[{:2}]: {:30}: {}", dim_idx, ctx.kv[dim_idx].key, GGUFValue2Str(ctx.kv[dim_idx].value, ctx.kv[dim_idx].type));
-            // fmt::println("[{:2}]: {:30}: {}", hidden_dim_idx, ctx.kv[hidden_dim_idx].key, GGUFValue2Str(ctx.kv[hidden_dim_idx].value, ctx.kv[hidden_dim_idx].type));
-            // fmt::println("[{:2}]: {:30}: {}", n_layers_idx, ctx.kv[n_layers_idx].key, GGUFValue2Str(ctx.kv[n_layers_idx].value, ctx.kv[n_layers_idx].type));
-            // fmt::println("[{:2}]: {:30}: {}", n_heads_idx, ctx.kv[n_heads_idx].key, GGUFValue2Str(ctx.kv[n_heads_idx].value, ctx.kv[n_heads_idx].type));
-            // fmt::println("[{:2}]: {:30}: {}", n_kv_heads_idx, ctx.kv[n_kv_heads_idx].key, GGUFValue2Str(ctx.kv[n_kv_heads_idx].value, ctx.kv[n_kv_heads_idx].type));
-            // fmt::println("[{:2}]: {:30}: {}", rope_dim_count_idx, ctx.kv[rope_dim_count_idx].key, GGUFValue2Str(ctx.kv[rope_dim_count_idx].value, ctx.kv[rope_dim_count_idx].type));
-
             config.dim = ctx.kv[dim_idx].value.uint32;
             config.hidden_dim = ctx.kv[hidden_dim_idx].value.uint32;
             config.n_layers = ctx.kv[n_layers_idx].value.uint32;
@@ -908,6 +957,16 @@ int main(int argc, char *argv[]) {
             config.n_kv_heads = ctx.kv[n_kv_heads_idx].value.uint32;
             config.vocab_size = ctx.kv[vocab_size_idx].value.uint32;
             config.seq_len = ctx.kv[max_seq_len_idx].value.uint32;
+            config.rope_dim_count = ctx.kv[rope_dim_count_idx].value.uint32;
+
+            fmt::println("[{:2}]: {:10}: {}", max_seq_len_idx, "seq_len", GGUFValue2Str(ctx.kv[max_seq_len_idx].value, ctx.kv[max_seq_len_idx].type));
+            fmt::println("[{:2}]: {:10}: {}", dim_idx, "dim", GGUFValue2Str(ctx.kv[dim_idx].value, ctx.kv[dim_idx].type));
+            fmt::println("[{:2}]: {:10}: {}", hidden_dim_idx, "hidden_dim", GGUFValue2Str(ctx.kv[hidden_dim_idx].value, ctx.kv[hidden_dim_idx].type));
+            fmt::println("[{:2}]: {:10}: {}", n_layers_idx, "n_layers", GGUFValue2Str(ctx.kv[n_layers_idx].value, ctx.kv[n_layers_idx].type));
+            fmt::println("[{:2}]: {:10}: {}", n_heads_idx, "n_heads", GGUFValue2Str(ctx.kv[n_heads_idx].value, ctx.kv[n_heads_idx].type));
+            fmt::println("[{:2}]: {:10}: {}", n_kv_heads_idx, "n_kv_heads", GGUFValue2Str(ctx.kv[n_kv_heads_idx].value, ctx.kv[n_kv_heads_idx].type));
+            fmt::println("[{:2}]: {:10}: {}", rope_dim_count_idx, "rope_dim_count", GGUFValue2Str(ctx.kv[rope_dim_count_idx].value, ctx.kv[rope_dim_count_idx].type));
+            fmt::println("[{:2}]: {:10}: {}", "--", "head_size", config.dim / config.n_heads);
         }
     }
 
