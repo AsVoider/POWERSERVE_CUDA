@@ -171,9 +171,9 @@ float* forward(Transformer* tf, int token, int pos) {
     memcpy(s->x->data, content_row, dim*sizeof(float));
 
     // TODO: temp buffer for compute, not use hard-coded
-    void *w_data = malloc(dim * 16 * p->vocab_size);
+    void *w_data = malloc(dim * 32);
     struct op_compute_params params = {
-        .wsize = (size_t) dim * 16 * p->vocab_size,
+        .wsize = (size_t) dim * 32,
         .wdata = w_data
     };
 

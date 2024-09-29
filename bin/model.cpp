@@ -101,16 +101,16 @@ void prepare_state(Transformer *t) {
             .nb = {sizeof(float), sizeof(float)*dim, sizeof(float)*dim, sizeof(float)*dim}
         };
         state.key_cache = new OpTensor{.data = key_cache, .type = GGML_TYPE_F32,
-            .ne = {n_layers, p.seq_len, kv_dim, 1},
-            .nb = {sizeof(float), sizeof(float)*n_layers, sizeof(float)*n_layers*p.seq_len, sizeof(float)*n_layers*p.seq_len*kv_dim}
+            .ne = {kv_dim, p.seq_len, n_layers, 1},
+            .nb = {sizeof(float), sizeof(float)*kv_dim, sizeof(float)*kv_dim*p.seq_len, sizeof(float)*kv_dim*p.seq_len*n_layers}
         };
         state.value_cache = new OpTensor{.data = value_cache, .type = GGML_TYPE_F32,
-            .ne = {n_layers, p.seq_len, kv_dim, 1},
-            .nb = {sizeof(float), sizeof(float)*n_layers, sizeof(float)*n_layers*p.seq_len, sizeof(float)*n_layers*p.seq_len*kv_dim}
+            .ne = {kv_dim, p.seq_len, n_layers, 1},
+            .nb = {sizeof(float), sizeof(float)*kv_dim, sizeof(float)*kv_dim*p.seq_len, sizeof(float)*kv_dim*p.seq_len*n_layers}
         };
         state.att = new OpTensor{.data = att, .type = GGML_TYPE_F32,
-            .ne = {p.n_heads, p.seq_len, kv_dim, 1},
-            .nb = {sizeof(float), sizeof(float)*p.n_heads, sizeof(float)*p.n_heads*p.seq_len, sizeof(float)*p.n_heads*p.seq_len}
+            .ne = {p.seq_len, p.n_heads, 1,1},
+            .nb = {sizeof(float), sizeof(float)*p.seq_len, sizeof(float)*p.n_heads*p.seq_len, sizeof(float)*p.n_heads*p.seq_len}
         };
         state.logits = new OpTensor{.data = logits, .type = GGML_TYPE_F32,
             .ne = {p.vocab_size, 1, 1, 1},
@@ -118,12 +118,12 @@ void prepare_state(Transformer *t) {
         };
         // variable pointer, no data buffer
         state.k = new OpTensor{.data = nullptr, .type = GGML_TYPE_F32,
-            .ne = {dim, 1, 1, 1},
-            .nb = {sizeof(float), sizeof(float)*dim, sizeof(float)*dim, sizeof(float)*dim}
+            .ne = {kv_dim, 1, 1, 1},
+            .nb = {sizeof(float), sizeof(float)*kv_dim, sizeof(float)*kv_dim, sizeof(float)*kv_dim}
         };
         state.v = new OpTensor{.data = nullptr, .type = GGML_TYPE_F32,
-            .ne = {dim, 1, 1, 1},
-            .nb = {sizeof(float), sizeof(float)*dim, sizeof(float)*dim, sizeof(float)*dim}
+            .ne = {kv_dim, 1, 1, 1},
+            .nb = {sizeof(float), sizeof(float)*kv_dim, sizeof(float)*kv_dim, sizeof(float)*kv_dim}
         };
 
         // ensure all mallocs went fine
