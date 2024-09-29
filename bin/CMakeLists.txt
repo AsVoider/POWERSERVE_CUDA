@@ -6,6 +6,7 @@ add_executable(run
     model.hpp model.cpp
     sampler.hpp sampler.cpp
     tensor.hpp
+    debug.hpp debug.cpp
     run.cpp
 )
 target_link_libraries(run PRIVATE smart_serving CLI11::CLI11)
