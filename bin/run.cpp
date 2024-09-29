@@ -3,12 +3,15 @@
 #include "llama_tokenizer.hpp"
 #include "sampler.hpp"
 #include "generate.hpp"
+#include "debug.hpp"
 
 
 using namespace smart;
 
 int main() {
     // 0. load config
+    // std::string file_path = "./llama3-8b_Q4_0.gguf";
+    // std::string tokenizer_path = "./llama3.1_8b_vocab.gguf";
     std::string file_path = "/home/zwb/Downloads/Meta-Llama-3.1-8B/llama3-8b_Q4_0.gguf";
     std::string tokenizer_path = "/home/zwb/Downloads/Meta-Llama-3.1-8B/llama3.1_8b_vocab.gguf";
     // std::string file_path = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama2-7b_Q4_0.gguf";
@@ -29,6 +32,13 @@ int main() {
     // 3. load sampler
     Sampler sampler;
     build_sampler(&sampler, transformer.config.vocab_size, temperature, topp, rng_seed);
+
+    {
+        debug_meta_info(transformer.gguf_ctx, transformer.ggml_ctx);
+        debug_tensors_info(transformer.gguf_ctx, transformer.ggml_ctx);
+        debug_config_info(&transformer.config);
+        debug_weights_info(&transformer.weights);
+    }
 
     // 4. generate
     generate(&transformer, &tokenizer, &sampler, prompt, steps);

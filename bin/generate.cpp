@@ -295,7 +295,7 @@ void generate(Transformer *tf, smart::LlamaTokenizer *tk, Sampler *sampler, std:
 
     if (pos > 1) {
         long end = time_in_ms();
-        fmt::println(stderr, "achieved tok/s: %f\n", (pos-1) / (double)(end-start)*1000);
+        fmt::println(stderr, "achieved tok/s: {}\n", (pos-1) / (double)(end-start)*1000);
     }
 }
 
