@@ -190,14 +190,28 @@ void Transformer::free_state() {
 void Transformer::prepare_weights() {
     auto &w = this->weights;
     auto ctx = this->ggml_ctx;
-
-    w.token_embedding_table = get_optensor_from_ggml(ggml_get_tensor(ctx, "token_embd.weight"));
+    auto embedding = ggml_get_tensor(ctx, "token_embd.weight");
+    w.token_embedding_table = get_optensor_from_ggml(embedding);
     w.output_weight         = get_optensor_from_ggml(ggml_get_tensor(ctx, "output.weight"));
     w.rms_final_weight      = get_optensor_from_ggml(ggml_get_tensor(ctx, "output_norm.weight"));
-    w.fp32_embd_table       = new float[ggml_nelements(ggml_get_tensor(ctx, "token_embd.weight"))];
+    // w.fp32_embd_table = new float[ggml_nelements(embedding)];
+    
+    if (embedding->type != GGML_TYPE_F32) {
+        w.fp32_embd_table = new float[ggml_nelements(embedding)];
+    } else {
+        w.fp32_embd_table = (float *)embedding->data;
+    }
 
-    // dequantize_row_q8_0((block_q8_0 *)w.token_embedding_table->data, w.fp32_embd_table, ggml_nelements(ggml_get_tensor(ctx, "token_embd.weight")));
-    dequantize_row_q4_0((block_q4_0 *)w.token_embedding_table->data, w.fp32_embd_table, ggml_nelements(ggml_get_tensor(ctx, "token_embd.weight")));
+    switch (embedding->type) {
+        case GGML_TYPE_Q4_0:
+            dequantize_row_q4_0((block_q4_0 *)w.token_embedding_table->data, w.fp32_embd_table, ggml_nelements(embedding));
+            break;
+        case GGML_TYPE_Q8_0:
+            dequantize_row_q8_0((block_q8_0 *)w.token_embedding_table->data, w.fp32_embd_table, ggml_nelements(embedding));
+            break;
+        default: 
+            break;
+    }
 
     w.lw.resize(this->config.n_layers);
     for (int layer = 0; layer < this->config.n_layers; layer++) {
@@ -215,11 +229,16 @@ void Transformer::prepare_weights() {
 
 void Transformer::free_weights() {
     auto &w = this->weights;
+    
+    auto embedding = ggml_get_tensor(this->ggml_ctx, "token_embd.weight");
+    if (embedding->type != GGML_TYPE_F32) {
+        delete[] w.fp32_embd_table;
+    }
 
     free_optensor(w.token_embedding_table);
     free_optensor(w.output_weight);
     free_optensor(w.rms_final_weight);
-    delete[] w.fp32_embd_table;
+    
 
     for (int layer = 0; layer < this->config.n_layers; layer++) {
         free_optensor(w.lw[layer].attn_norm);
