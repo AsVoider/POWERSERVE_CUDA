@@ -1,45 +1,72 @@
-#include <fstream>
-#include <cassert>
-
 #include "model.hpp"
-#include "fmt/base.h"
-#include "fmt/format.h"
-#include "ggml.h"
-#include "tensor.hpp"
 
 namespace smart {
 
-OpTensor *get_optensor_from_ggml(ggml_tensor *t) {
-    assert(t != nullptr);
-    OpTensor *opt = new OpTensor({
-        .data = t->data,
-        .type = t->type
-    });
-    for (int i = 0; i < GGML_MAX_DIMS; i++) {
-        opt->ne[i] = t->ne[i];
-        opt->nb[i] = t->nb[i];
-    }
-    return opt;
+// common funcs
+long time_in_ms() {
+    // return time in milliseconds, for benchmarking the model speed
+    struct timespec time;
+    clock_gettime(CLOCK_REALTIME, &time);
+    return time.tv_sec * 1000 + time.tv_nsec / 1000000;
 }
 
-void free_optensor_deep(OpTensor *opt) {
-    if (opt->data != nullptr) {
-        switch (opt->type) {
-            case GGML_TYPE_F32: delete[] (float *)(opt->data); break;
-            default: break;
+void safe_printf(std::string piece) {
+    // piece might be a raw byte token, and we only want to print printable chars or whitespace
+    // because some of the other bytes can be various control codes, backspace, etc.
+    if (piece.empty()) { return; }
+    if (piece[0] == '\0') { return; }
+    if (piece[1] == '\0') {
+        unsigned char byte_val = piece[0];
+        if (!(isprint(byte_val) || isspace(byte_val))) {
+            return; // bad byte, don't print it
         }
     }
-    opt->data = nullptr;
-    delete opt;
+    fmt::print("{}", piece.c_str());
 }
 
-void free_optensor(OpTensor *opt) {
-    delete opt;
+
+Transformer::Transformer(std::string checkpoint_path) {
+    this->filename = checkpoint_path;
+
+    // 1. get file size
+    {
+        std::ifstream file(checkpoint_path, std::ios::binary | std::ios::ate);
+        assert(file.is_open());
+        this->file_size = file.tellg();
+        file.close();
+    }
+    // 2. load file meta data
+    {
+        gguf_init_params params = {
+            .no_alloc = false,
+            .ctx = &this->ggml_ctx
+        };
+        this->gguf_ctx = gguf_init_from_file(this->filename.c_str(), params);
+        assert(this->gguf_ctx != nullptr);
+        assert(this->ggml_ctx != nullptr);
+    }
+    // 3. prepare data
+    {
+        fill_config();
+        prepare_state();
+        prepare_weights();
+        params = {
+            .wsize = (size_t) config.dim * 32,
+            .wdata = new char[config.dim * 32]
+        };
+    }
 }
 
-void fill_config(Transformer *t) {
-    Config &c = t->config;
-    gguf_context *ctx = t->gguf_ctx;
+Transformer::~Transformer() {
+    delete[] (char *)params.wdata;
+    free_weights();
+    free_state();
+    gguf_free(this->gguf_ctx);
+}
+
+void Transformer::fill_config() {
+    Config &c = this->config;
+    gguf_context *ctx = this->gguf_ctx;
     c.dim            = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.embedding_length"));
     c.hidden_dim     = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.feed_forward_length"));
     c.n_heads        = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.attention.head_count"));
@@ -47,12 +74,12 @@ void fill_config(Transformer *t) {
     c.n_layers       = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.block_count"));
     c.seq_len        = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.context_length"));
     c.vocab_size     = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.vocab_size"));
-    c.rope_dim_count = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.rope.dimension_count"));
+    c.rope_dim_count = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.rope.dimension_count"));    
 }
 
-void prepare_state(Transformer *t) {
-    auto &p = t->config;
-    auto &state = t->state;
+void Transformer::prepare_state() {
+    auto &p = this->config;
+    auto &state = this->state;
     uint64_t kv_dim = (p.dim * p.n_kv_heads) / p.n_heads;
     uint64_t dim = p.dim;
     uint64_t hidden_dim = p.hidden_dim;
@@ -143,8 +170,8 @@ void prepare_state(Transformer *t) {
 
 }
 
-void free_state(Transformer *t) {
-    auto s = t->state;
+void Transformer::free_state() {
+    auto s = this->state;
     free_optensor_deep(s.x);
     free_optensor_deep(s.xb);
     free_optensor_deep(s.xb2);
@@ -160,9 +187,9 @@ void free_state(Transformer *t) {
     free_optensor(s.v);
 }
 
-void prepare_weights(Transformer *t) {
-    auto &w = t->weights;
-    auto ctx = t->ggml_ctx;
+void Transformer::prepare_weights() {
+    auto &w = this->weights;
+    auto ctx = this->ggml_ctx;
 
     w.token_embedding_table = get_optensor_from_ggml(ggml_get_tensor(ctx, "token_embd.weight"));
     w.output_weight         = get_optensor_from_ggml(ggml_get_tensor(ctx, "output.weight"));
@@ -172,8 +199,8 @@ void prepare_weights(Transformer *t) {
     // dequantize_row_q8_0((block_q8_0 *)w.token_embedding_table->data, w.fp32_embd_table, ggml_nelements(ggml_get_tensor(ctx, "token_embd.weight")));
     dequantize_row_q4_0((block_q4_0 *)w.token_embedding_table->data, w.fp32_embd_table, ggml_nelements(ggml_get_tensor(ctx, "token_embd.weight")));
 
-    w.lw.resize(t->config.n_layers);
-    for (int layer = 0; layer < t->config.n_layers; layer++) {
+    w.lw.resize(this->config.n_layers);
+    for (int layer = 0; layer < this->config.n_layers; layer++) {
         w.lw[layer].attn_norm   = get_optensor_from_ggml(ggml_get_tensor(ctx, fmt::format("blk.{}.attn_norm.weight", layer).c_str()));
         w.lw[layer].ffn_norm    = get_optensor_from_ggml(ggml_get_tensor(ctx, fmt::format("blk.{}.ffn_norm.weight", layer).c_str()));
         w.lw[layer].attn_q      = get_optensor_from_ggml(ggml_get_tensor(ctx, fmt::format("blk.{}.attn_q.weight", layer).c_str()));
@@ -186,15 +213,15 @@ void prepare_weights(Transformer *t) {
     }
 }
 
-void free_weights(Transformer *t) {
-    auto &w = t->weights;
+void Transformer::free_weights() {
+    auto &w = this->weights;
 
     free_optensor(w.token_embedding_table);
     free_optensor(w.output_weight);
     free_optensor(w.rms_final_weight);
     delete[] w.fp32_embd_table;
 
-    for (int layer = 0; layer < t->config.n_layers; layer++) {
+    for (int layer = 0; layer < this->config.n_layers; layer++) {
         free_optensor(w.lw[layer].attn_norm);
         free_optensor(w.lw[layer].ffn_norm);
         free_optensor(w.lw[layer].attn_q);
@@ -208,37 +235,201 @@ void free_weights(Transformer *t) {
     w.lw.clear();
 }
 
-void build_transformer(Transformer *t, std::string checkpoint_path) {
-    // 1. get file size
-    {
-        std::ifstream file(checkpoint_path, std::ios::binary | std::ios::ate);
-        assert(file.is_open());
-        t->file_size = file.tellg();
-        file.close();
-    }
-    // 2. load file meta data
-    {
-        t->filename = checkpoint_path;
-        gguf_init_params params = {
-            .no_alloc = false,
-            .ctx = &t->ggml_ctx
-        };
-        t->gguf_ctx = gguf_init_from_file(t->filename.c_str(), params);
-        assert(t->gguf_ctx != nullptr);
-        assert(t->ggml_ctx != nullptr);
-    }
-    // 3. prepare data
-    {
-        fill_config(t);
-        prepare_state(t);
-        prepare_weights(t);
+void Transformer::multihead_attention(
+    OpTensor* q_tensor, 
+    OpTensor* k_cache_tensor, 
+    OpTensor* attn_tensor, 
+    OpTensor* v_cache_tensor, 
+    OpTensor* xb_tensor, 
+    uint32_t pos, 
+    uint64_t loff) 
+{
+    auto p = &this->config;
+    auto dim = p->dim;
+    auto kv_dim = (p->dim * p->n_kv_heads) / p->n_heads;
+    auto kv_mul = p->n_heads / p->n_kv_heads;
+    auto head_size = dim / p->n_heads;
+
+    uint32_t h = 0;
+    for (h = 0; h < p->n_heads; h++) {
+        auto q   = (float *)q_tensor->data + h *head_size;
+        auto att = (float *)attn_tensor->data + h * p->seq_len;
+        
+        for (auto t = 0; t <= pos; t++) {
+            auto k = (float *)k_cache_tensor->data + loff + t * kv_dim + (h / kv_mul) * head_size;
+            auto score = 0.0f;
+            
+            for (auto i = 0; i < head_size; i++) {
+                score += q[i] * k[i];
+            }
+        
+            score /= sqrtf(head_size);
+            att[t] = score;
+        }
+
+        softmax_internal(att, pos + 1);
+
+        auto xb = (float *)xb_tensor->data + h * head_size;
+        memset(xb, 0, head_size * sizeof(float));
+
+        for (auto t = 0; t <= pos; t++) {
+            auto v = (float *)v_cache_tensor->data + loff + t * kv_dim + (h / kv_mul) * head_size;
+            auto a = att[t];
+
+            for (auto i = 0; i < head_size; i++) {
+                xb[i] += a * v[i];
+            }
+        
+        }
+
     }
 }
 
-void free_transformer(Transformer *t) {
-    free_weights(t);
-    free_state(t);
-    gguf_free(t->gguf_ctx);
+void rope(
+    uint32_t dim, 
+    uint32_t head_size, 
+    int pos, 
+    uint32_t kv_dim, 
+    OpTensor *q_tensor,
+    OpTensor *k_tensor) 
+{
+
+    for (int i = 0; i < dim; i+=2) {
+        int head_dim = i % head_size;
+        float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
+        float val = pos * freq;
+        float fcr = cosf(val);
+        float fci = sinf(val);
+        int rotn = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
+        for (int v = 0; v < rotn; v++) {
+            float* vec = v == 0 ? (float *)q_tensor->data : (float *)k_tensor->data; // the vector to rotate (query or key)
+            float v0 = vec[i];
+            float v1 = vec[i+1];
+            vec[i]   = v0 * fcr - v1 * fci;
+            vec[i+1] = v0 * fci + v1 * fcr;
+        }
+    }
+}
+
+float* Transformer::forward(int token, int pos) {
+    auto p = &this->config;
+    auto w = &this->weights;
+    auto s = &this->state;
+
+    auto dim = p->dim;
+    auto kv_dim =  (p->dim * p->n_kv_heads) / p->n_heads;
+    auto kv_mul = p->n_heads / p->n_kv_heads;
+    auto hidden_dim =  p->hidden_dim;
+    auto head_size = dim / p->n_heads;
+
+    float* content_row = w->fp32_embd_table + token * dim;
+    memcpy(s->x->data, content_row, dim*sizeof(float));
+
+    for(auto L = 0; L < p->n_layers; L++) {
+        rmsnorm(s->xb, s->x, w->lw[L].attn_norm);
+
+        uint64_t loff = L * p->seq_len * kv_dim;
+        s->k->data = (float*)s->key_cache->data + loff + pos * kv_dim;
+        s->v->data = (float*)s->value_cache->data + loff + pos * kv_dim;
+
+        ggml_compute_forward_op_mul_mat(&params, s->q, w->lw[L].attn_q, s->xb);
+        ggml_compute_forward_op_mul_mat(&params, s->k, w->lw[L].attn_k, s->xb);
+        ggml_compute_forward_op_mul_mat(&params, s->v, w->lw[L].attn_v, s->xb);
+
+        rope(dim, head_size, pos, kv_dim, s->q, s->k);
+
+        multihead_attention(s->q, s->key_cache, s->att, s->value_cache, s->xb, pos, loff);
+
+        ggml_compute_forward_op_mul_mat(&params, s->xb2, w->lw[L].attn_output, s->xb);
+
+        // residual connection
+        for (auto i = 0; i < dim; i++) {
+            ((float*)s->x->data)[i] += ((float *)s->xb2->data)[i];
+        }
+
+        rmsnorm(s->xb, s->x, w->lw[L].ffn_norm);
+
+        ggml_compute_forward_op_mul_mat(&params, s->hb, w->lw[L].ffn_gate, s->xb);
+        ggml_compute_forward_op_mul_mat(&params, s->hb2, w->lw[L].ffn_up, s->xb);
+
+        for (auto i = 0; i < hidden_dim; i++) {
+            float val = ((float *)s->hb->data)[i];
+            // silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
+            val *= (1.0f / (1.0f + expf(-val)));
+            // elementwise multiply with w3(x)
+            val *= ((float *)s->hb2->data)[i];
+            ((float *)s->hb->data)[i] = val;
+        }
+
+        ggml_compute_forward_op_mul_mat(&params, s->xb, w->lw[L].ffn_down, s->hb);
+        
+        // residual connection
+        for (int i = 0; i < dim; i++) {
+            ((float *)s->x->data)[i] += ((float *)s->xb->data)[i];
+        }
+
+    }
+
+    rmsnorm(s->x, s->x, w->rms_final_weight);
+
+    ggml_compute_forward_op_mul_mat(&params, s->logits, w->output_weight, s->x);
+
+    return (float *)s->logits->data;
+}
+
+void Transformer::generate(LlamaTokenizer *tk, Sampler *sampler, std::string prompt, int steps) {
+
+    // encode the (string) prompt into tokens sequence
+    int num_prompt_tokens = 0;
+    auto prompt_tokens = tk->tokenize(prompt, true);
+    num_prompt_tokens = prompt_tokens.size();
+    
+    if (num_prompt_tokens < 1) {
+        fmt::println(stderr, "something is wrong, expected at least 1 prompt token\n");
+        exit(EXIT_FAILURE);
+    }
+    // start the main loop
+    long start = 0;  // used to time our code, only initialized after first iteration
+    int next;        // will store the next token in the sequence
+    auto token = prompt_tokens[0]; // kick off with the first token in the prompt
+    int pos = 0;     // position in the sequence
+    while (pos < steps) {
+
+        // forward the transformer to get logits for the next token
+        float* logits = forward(token, pos);
+
+        // advance the state machine
+        if (pos < num_prompt_tokens - 1) {
+            // if we are still processing the input prompt, force the next prompt token
+            next = prompt_tokens[pos + 1];
+        } else {
+            // otherwise sample the next token from the logits
+            next = sampler->sample(logits);
+        }
+        pos++;
+
+        // data-dependent terminating condition: the BOS token delimits sequences
+        if (next == tk->bos_token()) { 
+            break; 
+        }
+
+        // print the token as string, decode it with the Tokenizer object
+        auto piece = tk->to_string(next);
+        safe_printf(piece); // same as printf("%s", piece), but skips "unsafe" bytes
+        fflush(stdout);
+        token = next;
+
+        // init the timer here because the first iteration can be slower
+        if (start == 0) { 
+            start = time_in_ms(); 
+        }
+    }
+    fmt::println("");
+
+    if (pos > 1) {
+        long end = time_in_ms();
+        fmt::println(stderr, "achieved tok/s: {}\n", (pos-1) / (double)(end-start)*1000);
+    }
 }
 
 } // namespace smart

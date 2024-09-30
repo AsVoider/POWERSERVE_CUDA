@@ -1,9 +1,8 @@
 add_library(smart_serving STATIC
     "llama_tokenizer.cpp"
-    "generate.hpp" "generate.cpp"
     "model.hpp" "model.cpp"
     "sampler.hpp" "sampler.cpp"
-    "tensor.hpp"
+    "tensor.hpp" "tensor.cpp"
     "debug.hpp" "debug.cpp"
 )
 target_link_libraries(smart_serving PUBLIC fmt::fmt ggml llama_tokenizer)

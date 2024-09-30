@@ -19,43 +19,17 @@ struct block_q4_0{
     uint8_t  qs[QK4_0 / 2]; // nibbles / quants
 };
 
+OpTensor *get_optensor_from_ggml(ggml_tensor *t);
+void free_optensor_deep(OpTensor *opt);
+void free_optensor(OpTensor *opt);
 
-inline void dequantize_row_q8_0(const block_q8_0 *x, float * y, int64_t k) {
-    static const int qk = QK8_0;
+void dequantize_row_q8_0(const block_q8_0 *x, float * y, int64_t k);
+void dequantize_row_q4_0(const block_q4_0 * x, float * y, int64_t k);
 
-    assert(k % qk == 0);
-
-    const int nb = k / qk;
-
-    for (int i = 0; i < nb; i++) {
-        const float d = ggml_fp16_to_fp32(x[i].d);
-
-        for (int j = 0; j < qk; ++j) {
-            y[i*qk + j] = x[i].qs[j]*d;
-        }
-    }
-}
-
-inline void dequantize_row_q4_0(const block_q4_0 * x, float * y, int64_t k) {
-    static const int qk = QK4_0;
-
-    assert(k % qk == 0);
-
-    const int nb = k / qk;
-
-    for (int i = 0; i < nb; i++) {
-        const float d = ggml_fp16_to_fp32(x[i].d);
-
-        for (int j = 0; j < qk/2; ++j) {
-            const int x0 = (x[i].qs[j] & 0x0F) - 8;
-            const int x1 = (x[i].qs[j] >>   4) - 8;
-
-            y[i*qk + j + 0   ] = x0*d;
-            y[i*qk + j + qk/2] = x1*d;
-        }
-    }
-}
-
-
+void rmsnorm_internal(float* o, float* x, float* weight, int64_t size);
+void rmsnorm(OpTensor *o, OpTensor *x, OpTensor *weight);
+void softmax_internal(float* x, int64_t size);
+void softmax(OpTensor *x, int64_t size);
+void matmul(float* xout, float* x, float* w, int n, int d);
 
 } // namespace smart

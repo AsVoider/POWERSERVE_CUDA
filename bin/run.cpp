@@ -2,7 +2,6 @@
 #include "model.hpp"
 #include "llama_tokenizer.hpp"
 #include "sampler.hpp"
-#include "generate.hpp"
 #include "debug.hpp"
 #include "CLI/CLI.hpp"
 
@@ -29,15 +28,13 @@ int main(int argc, char *argv[]) {
     CLI11_PARSE(app, argc, argv);
 
     // 1. load model
-    Transformer transformer;
-    build_transformer(&transformer, file_path);
+    Transformer transformer(file_path);
 
     // 2. load tokenizer
     smart::LlamaTokenizer tokenizer(tokenizer_path);
 
     // 3. load sampler
-    Sampler sampler;
-    build_sampler(&sampler, transformer.config.vocab_size, temperature, topp, rng_seed);
+    Sampler sampler(transformer.config.vocab_size, temperature, topp, rng_seed);
 
     {
         debug_meta_info(transformer.gguf_ctx, transformer.ggml_ctx);
@@ -47,9 +44,6 @@ int main(int argc, char *argv[]) {
     }
 
     // 4. generate
-    generate(&transformer, &tokenizer, &sampler, prompt, steps);
+    transformer.generate(&tokenizer, &sampler, prompt, steps);
 
-    // 5. free resources
-    free_sampler(&sampler);
-    free_transformer(&transformer);
 }

@@ -56,7 +56,7 @@ void debug_tensors_info(gguf_context *gguf_ctx, ggml_context * ggml_ctx) {
 
 }
 
-void debug_config_info(Config *c) {
+void debug_config_info(Transformer::Config *c) {
     fmt::println("dim       :{:6}", c->dim);
     fmt::println("hidden_dim:{:6}", c->hidden_dim);
     fmt::println("n_heads   :{:6}", c->n_heads);
@@ -71,7 +71,7 @@ void debug_weight_info(std::string name, OpTensor *opt) {
     fmt::println("{:15}: {}", name, out);
 }
 
-void debug_weights_info(TransformerWeights *w) {
+void debug_weights_info(Transformer::TransformerWeights *w) {
     debug_weight_info("token embd", w->token_embedding_table);
     debug_weight_info("rms output", w->rms_final_weight);
     debug_weight_info("output", w->output_weight);

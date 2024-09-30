@@ -15,23 +15,10 @@ int sample_argmax(float* probabilities, int n) {
     return max_i;
 }
 
-void build_sampler(Sampler* sampler, int vocab_size, float temperature, float topp, unsigned long long rng_seed) {
-    sampler->vocab_size = vocab_size;
-    sampler->temperature = temperature;
-    sampler->topp = topp;
-    sampler->rng_state = rng_seed;
-    // buffer only used with nucleus sampling; may not need but it's ~small
-    sampler->probindex = new ProbIndex[sampler->vocab_size];
-}
-
-void free_sampler(Sampler* sampler) {
-    delete[] sampler->probindex;
-}
-
-int sample(Sampler* sampler, float* logits) {
+int Sampler::sample(float* logits) {
     // sample the token given the logits and some hyperparameters
     int next;
-    next = sample_argmax(logits, sampler->vocab_size);
+    next = sample_argmax(logits, this->vocab_size);
     return next;
 }
 
