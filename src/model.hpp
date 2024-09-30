@@ -95,15 +95,10 @@ private:
     void prepare_weights();
     void free_weights();
 
-    void multihead_attention(
-        OpTensor* q_tensor, 
-        OpTensor* k_cache_tensor, 
-        OpTensor* attn_tensor, 
-        OpTensor* v_cache_tensor, 
-        OpTensor* xb_tensor, 
-        uint32_t pos, 
-        uint64_t loff
-    );
+    void multihead_attention(uint32_t pos, uint64_t loff);
+    void rope(int pos);
+    void attention(int pos, int L);
+    void ffn(int L);
     float* forward(int token, int pos);
 };
 

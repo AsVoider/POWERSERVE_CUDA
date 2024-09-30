@@ -254,16 +254,10 @@ void Transformer::free_weights() {
     w.lw.clear();
 }
 
-void Transformer::multihead_attention(
-    OpTensor* q_tensor, 
-    OpTensor* k_cache_tensor, 
-    OpTensor* attn_tensor, 
-    OpTensor* v_cache_tensor, 
-    OpTensor* xb_tensor, 
-    uint32_t pos, 
-    uint64_t loff) 
-{
+void Transformer::multihead_attention(uint32_t pos, uint64_t loff) {
     auto p = &this->config;
+    auto s = &state;
+    
     auto dim = p->dim;
     auto kv_dim = (p->dim * p->n_kv_heads) / p->n_heads;
     auto kv_mul = p->n_heads / p->n_kv_heads;
@@ -271,11 +265,11 @@ void Transformer::multihead_attention(
 
     uint32_t h = 0;
     for (h = 0; h < p->n_heads; h++) {
-        auto q   = (float *)q_tensor->data + h *head_size;
-        auto att = (float *)attn_tensor->data + h * p->seq_len;
+        auto q   = (float *)s->q->data + h *head_size;
+        auto att = (float *)s->att->data + h * p->seq_len;
         
         for (auto t = 0; t <= pos; t++) {
-            auto k = (float *)k_cache_tensor->data + loff + t * kv_dim + (h / kv_mul) * head_size;
+            auto k = (float *)s->key_cache->data + loff + t * kv_dim + (h / kv_mul) * head_size;
             auto score = 0.0f;
             
             for (auto i = 0; i < head_size; i++) {
@@ -288,11 +282,11 @@ void Transformer::multihead_attention(
 
         softmax_internal(att, pos + 1);
 
-        auto xb = (float *)xb_tensor->data + h * head_size;
+        auto xb = (float *)s->xb->data + h * head_size;
         memset(xb, 0, head_size * sizeof(float));
 
         for (auto t = 0; t <= pos; t++) {
-            auto v = (float *)v_cache_tensor->data + loff + t * kv_dim + (h / kv_mul) * head_size;
+            auto v = (float *)s->value_cache->data + loff + t * kv_dim + (h / kv_mul) * head_size;
             auto a = att[t];
 
             for (auto i = 0; i < head_size; i++) {
@@ -304,14 +298,13 @@ void Transformer::multihead_attention(
     }
 }
 
-void rope(
-    uint32_t dim, 
-    uint32_t head_size, 
-    int pos, 
-    uint32_t kv_dim, 
-    OpTensor *q_tensor,
-    OpTensor *k_tensor) 
-{
+void Transformer::rope(int pos) {
+    auto p = &config;
+    auto s = &state;
+
+    auto dim = p->dim;
+    auto head_size = dim / p->n_heads;
+    auto kv_dim =  (p->dim * p->n_kv_heads) / p->n_heads;
 
     for (int i = 0; i < dim; i+=2) {
         int head_dim = i % head_size;
@@ -321,12 +314,68 @@ void rope(
         float fci = sinf(val);
         int rotn = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
         for (int v = 0; v < rotn; v++) {
-            float* vec = v == 0 ? (float *)q_tensor->data : (float *)k_tensor->data; // the vector to rotate (query or key)
+            float* vec = v == 0 ? (float *)s->q->data : (float *)s->k->data; // the vector to rotate (query or key)
             float v0 = vec[i];
             float v1 = vec[i+1];
             vec[i]   = v0 * fcr - v1 * fci;
             vec[i+1] = v0 * fci + v1 * fcr;
         }
+    }
+}
+
+void Transformer::attention(int pos, int L) {
+    auto p = &config;
+    auto s = &state;
+    auto w = &weights;
+
+    auto kv_dim =  (p->dim * p->n_kv_heads) / p->n_heads;
+
+    rmsnorm(s->xb, s->x, w->lw[L].attn_norm);
+
+    uint64_t loff = L * p->seq_len * kv_dim;
+    s->k->data = (float*)s->key_cache->data + loff + pos * kv_dim;
+    s->v->data = (float*)s->value_cache->data + loff + pos * kv_dim;
+
+    ggml_compute_forward_op_mul_mat(&params, s->q, w->lw[L].attn_q, s->xb);
+    ggml_compute_forward_op_mul_mat(&params, s->k, w->lw[L].attn_k, s->xb);
+    ggml_compute_forward_op_mul_mat(&params, s->v, w->lw[L].attn_v, s->xb);
+
+    rope(pos);
+
+    multihead_attention(pos, loff);
+
+    ggml_compute_forward_op_mul_mat(&params, s->xb2, w->lw[L].attn_output, s->xb);
+
+    // residual connection
+    for (auto i = 0; i < p->dim; i++) {
+        ((float*)s->x->data)[i] += ((float *)s->xb2->data)[i];
+    }
+}
+
+void Transformer::ffn(int L) {
+    auto p = &this->config;
+    auto w = &this->weights;
+    auto s = &this->state;
+
+    rmsnorm(s->xb, s->x, w->lw[L].ffn_norm);
+
+    ggml_compute_forward_op_mul_mat(&params, s->hb, w->lw[L].ffn_gate, s->xb);
+    ggml_compute_forward_op_mul_mat(&params, s->hb2, w->lw[L].ffn_up, s->xb);
+
+    for (auto i = 0; i < p->hidden_dim; i++) {
+        float val = ((float *)s->hb->data)[i];
+        // silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
+        val *= (1.0f / (1.0f + expf(-val)));
+        // elementwise multiply with w3(x)
+        val *= ((float *)s->hb2->data)[i];
+        ((float *)s->hb->data)[i] = val;
+    }
+
+    ggml_compute_forward_op_mul_mat(&params, s->xb, w->lw[L].ffn_down, s->hb);
+    
+    // residual connection
+    for (int i = 0; i < p->dim; i++) {
+        ((float *)s->x->data)[i] += ((float *)s->xb->data)[i];
     }
 }
 
@@ -336,61 +385,19 @@ float* Transformer::forward(int token, int pos) {
     auto s = &this->state;
 
     auto dim = p->dim;
-    auto kv_dim =  (p->dim * p->n_kv_heads) / p->n_heads;
-    auto kv_mul = p->n_heads / p->n_kv_heads;
-    auto hidden_dim =  p->hidden_dim;
-    auto head_size = dim / p->n_heads;
 
+    // 1. input embedding
     float* content_row = w->fp32_embd_table + token * dim;
     memcpy(s->x->data, content_row, dim*sizeof(float));
 
     for(auto L = 0; L < p->n_layers; L++) {
-        rmsnorm(s->xb, s->x, w->lw[L].attn_norm);
-
-        uint64_t loff = L * p->seq_len * kv_dim;
-        s->k->data = (float*)s->key_cache->data + loff + pos * kv_dim;
-        s->v->data = (float*)s->value_cache->data + loff + pos * kv_dim;
-
-        ggml_compute_forward_op_mul_mat(&params, s->q, w->lw[L].attn_q, s->xb);
-        ggml_compute_forward_op_mul_mat(&params, s->k, w->lw[L].attn_k, s->xb);
-        ggml_compute_forward_op_mul_mat(&params, s->v, w->lw[L].attn_v, s->xb);
-
-        rope(dim, head_size, pos, kv_dim, s->q, s->k);
-
-        multihead_attention(s->q, s->key_cache, s->att, s->value_cache, s->xb, pos, loff);
-
-        ggml_compute_forward_op_mul_mat(&params, s->xb2, w->lw[L].attn_output, s->xb);
-
-        // residual connection
-        for (auto i = 0; i < dim; i++) {
-            ((float*)s->x->data)[i] += ((float *)s->xb2->data)[i];
-        }
-
-        rmsnorm(s->xb, s->x, w->lw[L].ffn_norm);
-
-        ggml_compute_forward_op_mul_mat(&params, s->hb, w->lw[L].ffn_gate, s->xb);
-        ggml_compute_forward_op_mul_mat(&params, s->hb2, w->lw[L].ffn_up, s->xb);
-
-        for (auto i = 0; i < hidden_dim; i++) {
-            float val = ((float *)s->hb->data)[i];
-            // silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
-            val *= (1.0f / (1.0f + expf(-val)));
-            // elementwise multiply with w3(x)
-            val *= ((float *)s->hb2->data)[i];
-            ((float *)s->hb->data)[i] = val;
-        }
-
-        ggml_compute_forward_op_mul_mat(&params, s->xb, w->lw[L].ffn_down, s->hb);
-        
-        // residual connection
-        for (int i = 0; i < dim; i++) {
-            ((float *)s->x->data)[i] += ((float *)s->xb->data)[i];
-        }
-
+        // 2. attention
+        attention(pos, L);
+        // 3. ffn
+        ffn(L);
     }
 
     rmsnorm(s->x, s->x, w->rms_final_weight);
-
     ggml_compute_forward_op_mul_mat(&params, s->logits, w->output_weight, s->x);
 
     return (float *)s->logits->data;
