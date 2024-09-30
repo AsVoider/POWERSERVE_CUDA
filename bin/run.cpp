@@ -39,8 +39,8 @@ int main(int argc, char *argv[]) {
     {
         debug_meta_info(transformer.gguf_ctx, transformer.ggml_ctx);
         debug_tensors_info(transformer.gguf_ctx, transformer.ggml_ctx);
-        debug_config_info(&transformer.config);
-        debug_weights_info(&transformer.weights);
+        transformer.debug_config_info();
+        transformer.debug_weights_info();
     }
 
     // 4. generate

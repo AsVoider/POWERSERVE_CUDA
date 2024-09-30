@@ -11,6 +11,7 @@
 #include "tensor.hpp"
 #include "llama_tokenizer.hpp"
 #include "sampler.hpp"
+#include "debug.hpp"
 
 namespace smart {
 
@@ -82,6 +83,8 @@ struct Transformer {
     ~Transformer();
 
     void generate(LlamaTokenizer *tk, Sampler *sampler, std::string prompt, int steps);
+    void debug_config_info();
+    void debug_weights_info();
 
 private:
     op_compute_params params; // temp buffer for compute

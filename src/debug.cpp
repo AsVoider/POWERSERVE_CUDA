@@ -56,38 +56,10 @@ void debug_tensors_info(gguf_context *gguf_ctx, ggml_context * ggml_ctx) {
 
 }
 
-void debug_config_info(Transformer::Config *c) {
-    fmt::println("dim       :{:6}", c->dim);
-    fmt::println("hidden_dim:{:6}", c->hidden_dim);
-    fmt::println("n_heads   :{:6}", c->n_heads);
-    fmt::println("n_kv_heads:{:6}", c->n_kv_heads);
-    fmt::println("n_layers  :{:6}", c->n_layers);
-    fmt::println("seq_len   :{:6}", c->seq_len);
-    fmt::println("vocab_size:{:6}", c->vocab_size);
-}
 
 void debug_weight_info(std::string name, OpTensor *opt) {
     auto out = fmt::format("{:5}|{:15}", ggml_type_name(opt->type), opt->data);
     fmt::println("{:15}: {}", name, out);
-}
-
-void debug_weights_info(Transformer::TransformerWeights *w) {
-    debug_weight_info("token embd", w->token_embedding_table);
-    debug_weight_info("rms output", w->rms_final_weight);
-    debug_weight_info("output", w->output_weight);
-    int layer = 0;
-    for (auto &l: w->lw) {
-        debug_weight_info(fmt::format("[{}]attn_norm", layer), l.attn_norm);
-        debug_weight_info(fmt::format("[{}]ffn_norm", layer), l.ffn_norm);
-        debug_weight_info(fmt::format("[{}]attn_q", layer), l.attn_q);
-        debug_weight_info(fmt::format("[{}]attn_k", layer), l.attn_k);
-        debug_weight_info(fmt::format("[{}]attn_v", layer), l.attn_v);
-        debug_weight_info(fmt::format("[{}]attn_output", layer), l.attn_output);
-        debug_weight_info(fmt::format("[{}]ffn_gate", layer), l.ffn_gate);
-        debug_weight_info(fmt::format("[{}]ffn_up", layer), l.ffn_up);
-        debug_weight_info(fmt::format("[{}]ffn_down", layer), l.ffn_down);
-        layer += 1;
-    }
 }
 
 }
