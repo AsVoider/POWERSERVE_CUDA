@@ -21,18 +21,17 @@ void safe_printf(std::string piece) {
             return; // bad byte, don't print it
         }
     }
-    fmt::print("{}", piece.c_str());
+    fmt::print("{}", piece);
 }
 
 
-Transformer::Transformer(std::string checkpoint_path) {
-    this->filename = checkpoint_path;
+Transformer::Transformer(std::string checkpoint_path): filename(checkpoint_path) {
 
     // 1. get file size
     {
         std::ifstream file(checkpoint_path, std::ios::binary | std::ios::ate);
         assert(file.is_open());
-        this->file_size = file.tellg();
+        file_size = file.tellg();
         file.close();
     }
     // 2. load file meta data
@@ -42,8 +41,8 @@ Transformer::Transformer(std::string checkpoint_path) {
             .ctx = &this->ggml_ctx
         };
         this->gguf_ctx = gguf_init_from_file(this->filename.c_str(), params);
-        assert(this->gguf_ctx != nullptr);
-        assert(this->ggml_ctx != nullptr);
+        SMART_ASSERT(this->gguf_ctx != nullptr);
+        SMART_ASSERT(this->ggml_ctx != nullptr);
     }
     // 3. prepare data
     {
