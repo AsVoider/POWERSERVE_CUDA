@@ -34,8 +34,6 @@ if (SMART_ENABLE_LTO)
     endif()
 endif()
 
-message("SMART_ENABLE_SANITIZERS: " ${SMART_ENABLE_SANITIZERS})
-
 add_subdirectory(libs)
 add_subdirectory(src)
 add_subdirectory(bin)
