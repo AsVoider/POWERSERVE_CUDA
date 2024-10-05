@@ -24,11 +24,11 @@ Transformer::Transformer(std::string checkpoint_path): filename(checkpoint_path)
     {
         gguf_init_params params = {
             .no_alloc = false,
-            .ctx = &this->ggml_ctx
+            .ctx = &ggml_ctx
         };
-        this->gguf_ctx = gguf_init_from_file(this->filename.c_str(), params);
-        SMART_ASSERT(this->gguf_ctx != nullptr);
-        SMART_ASSERT(this->ggml_ctx != nullptr);
+        gguf_ctx = gguf_init_from_file(filename.c_str(), params);
+        SMART_ASSERT(gguf_ctx != nullptr);
+        SMART_ASSERT(ggml_ctx != nullptr);
     }
     // 3. prepare data
     {
@@ -46,12 +46,12 @@ Transformer::~Transformer() {
     delete[] (char *)params.wdata;
     free_weights();
     free_state();
-    gguf_free(this->gguf_ctx);
+    gguf_free(gguf_ctx);
 }
 
 void Transformer::fill_config() {
-    Config &c = this->config;
-    gguf_context *ctx = this->gguf_ctx;
+    Config &c = config;
+    gguf_context *ctx = gguf_ctx;
     c.dim            = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.embedding_length"));
     c.hidden_dim     = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.feed_forward_length"));
     c.n_heads        = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.attention.head_count"));
@@ -63,8 +63,8 @@ void Transformer::fill_config() {
 }
 
 void Transformer::prepare_state() {
-    auto &p = this->config;
-    auto &state = this->state;
+    auto &p = config;
+
     uint64_t kv_dim = (p.dim * p.n_kv_heads) / p.n_heads;
     uint64_t dim = p.dim;
     uint64_t hidden_dim = p.hidden_dim;
@@ -156,7 +156,7 @@ void Transformer::prepare_state() {
 }
 
 void Transformer::free_state() {
-    auto s = this->state;
+    auto s = state;
     free_optensor_deep(s.x);
     free_optensor_deep(s.xb);
     free_optensor_deep(s.xb2);
@@ -173,8 +173,8 @@ void Transformer::free_state() {
 }
 
 void Transformer::prepare_weights() {
-    auto &w = this->weights;
-    auto ctx = this->ggml_ctx;
+    auto &w = weights;
+    auto ctx = ggml_ctx;
     auto embedding = ggml_get_tensor(ctx, "token_embd.weight");
     w.token_embedding_table = get_optensor_from_ggml(embedding);
     w.output_weight         = get_optensor_from_ggml(ggml_get_tensor(ctx, "output.weight"));
@@ -198,8 +198,8 @@ void Transformer::prepare_weights() {
             break;
     }
 
-    w.lw.resize(this->config.n_layers);
-    for (int layer = 0; layer < this->config.n_layers; layer++) {
+    w.lw.resize(config.n_layers);
+    for (int layer = 0; layer < config.n_layers; layer++) {
         w.lw[layer].attn_norm   = get_optensor_from_ggml(ggml_get_tensor(ctx, fmt::format("blk.{}.attn_norm.weight", layer).c_str()));
         w.lw[layer].ffn_norm    = get_optensor_from_ggml(ggml_get_tensor(ctx, fmt::format("blk.{}.ffn_norm.weight", layer).c_str()));
         w.lw[layer].attn_q      = get_optensor_from_ggml(ggml_get_tensor(ctx, fmt::format("blk.{}.attn_q.weight", layer).c_str()));
@@ -213,9 +213,9 @@ void Transformer::prepare_weights() {
 }
 
 void Transformer::free_weights() {
-    auto &w = this->weights;
+    auto &w = weights;
     
-    auto embedding = ggml_get_tensor(this->ggml_ctx, "token_embd.weight");
+    auto embedding = ggml_get_tensor(ggml_ctx, "token_embd.weight");
     if (embedding->type != GGML_TYPE_F32) {
         delete[] w.fp32_embd_table;
     }
@@ -225,7 +225,7 @@ void Transformer::free_weights() {
     free_optensor(w.rms_final_weight);
     
 
-    for (int layer = 0; layer < this->config.n_layers; layer++) {
+    for (int layer = 0; layer < config.n_layers; layer++) {
         free_optensor(w.lw[layer].attn_norm);
         free_optensor(w.lw[layer].ffn_norm);
         free_optensor(w.lw[layer].attn_q);
@@ -240,7 +240,7 @@ void Transformer::free_weights() {
 }
 
 void Transformer::multihead_attention(uint32_t pos, uint64_t loff) {
-    auto p = &this->config;
+    auto p = &config;
     auto s = &state;
     
     auto dim = p->dim;
@@ -338,9 +338,9 @@ void Transformer::attention(int pos, int L) {
 }
 
 void Transformer::ffn(int L) {
-    auto p = &this->config;
-    auto w = &this->weights;
-    auto s = &this->state;
+    auto p = &config;
+    auto w = &weights;
+    auto s = &state;
 
     rmsnorm(s->xb, s->x, w->lw[L].ffn_norm);
 
@@ -365,9 +365,9 @@ void Transformer::ffn(int L) {
 }
 
 float* Transformer::forward(int token, int pos) {
-    auto p = &this->config;
-    auto w = &this->weights;
-    auto s = &this->state;
+    auto p = &config;
+    auto w = &weights;
+    auto s = &state;
 
     auto dim = p->dim;
 
@@ -444,7 +444,7 @@ void Transformer::generate(LlamaTokenizer *tk, Sampler *sampler, std::string pro
 }
 
 void Transformer::debug_config_info() {
-    auto &c = this->config;
+    auto &c = config;
     fmt::println("dim       :{:6}", c.dim);
     fmt::println("hidden_dim:{:6}", c.hidden_dim);
     fmt::println("n_heads   :{:6}", c.n_heads);
@@ -455,7 +455,7 @@ void Transformer::debug_config_info() {
 }
 
 void Transformer::debug_weights_info() {
-    auto &w = this->weights;
+    auto &w = weights;
     debug_weight_info("token embd", w.token_embedding_table);
     debug_weight_info("rms output", w.rms_final_weight);
     debug_weight_info("output", w.output_weight);

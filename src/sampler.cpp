@@ -18,7 +18,7 @@ int sample_argmax(float* probabilities, int n) {
 int Sampler::sample(float* logits) {
     // sample the token given the logits and some hyperparameters
     int next;
-    next = sample_argmax(logits, this->vocab_size);
+    next = sample_argmax(logits, vocab_size);
     return next;
 }
 

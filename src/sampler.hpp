@@ -22,11 +22,11 @@ struct Sampler{
           topp(topp),
           rng_state(rng_seed)
     {
-        this->probindex = new ProbIndex[this->vocab_size];
+        probindex = new ProbIndex[vocab_size];
     }
 
     ~Sampler() {
-        delete[] this->probindex;
+        delete[] probindex;
     }
 
     int sample(float* logits);
