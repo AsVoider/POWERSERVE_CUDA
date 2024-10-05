@@ -1,4 +1,5 @@
 #include "model.hpp"
+#include "fmt/ostream.h"
 
 namespace smart {
 
@@ -9,21 +10,6 @@ long time_in_ms() {
     clock_gettime(CLOCK_REALTIME, &time);
     return time.tv_sec * 1000 + time.tv_nsec / 1000000;
 }
-
-void safe_printf(std::string piece) {
-    // piece might be a raw byte token, and we only want to print printable chars or whitespace
-    // because some of the other bytes can be various control codes, backspace, etc.
-    if (piece.empty()) { return; }
-    if (piece[0] == '\0') { return; }
-    if (piece[1] == '\0') {
-        unsigned char byte_val = piece[0];
-        if (!(isprint(byte_val) || isspace(byte_val))) {
-            return; // bad byte, don't print it
-        }
-    }
-    fmt::print("{}", piece);
-}
-
 
 Transformer::Transformer(std::string checkpoint_path): filename(checkpoint_path) {
 
@@ -440,7 +426,7 @@ void Transformer::generate(LlamaTokenizer *tk, Sampler *sampler, std::string pro
 
         // print the token as string, decode it with the Tokenizer object
         auto piece = tk->to_string(next);
-        safe_printf(piece); // same as printf("%s", piece), but skips "unsafe" bytes
+        fmt::print("{}", piece);
         fflush(stdout);
         token = next;
 

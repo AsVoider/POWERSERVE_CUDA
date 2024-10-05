@@ -16,7 +16,6 @@
 namespace smart {
 
 long time_in_ms();
-void safe_printf(std::string piece);
 
 struct Transformer {
 
