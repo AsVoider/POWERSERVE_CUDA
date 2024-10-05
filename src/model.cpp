@@ -1,5 +1,5 @@
 #include "model.hpp"
-#include "fmt/ostream.h"
+#include "common.hpp"
 
 namespace smart {
 
@@ -16,7 +16,7 @@ Transformer::Transformer(std::string checkpoint_path): filename(checkpoint_path)
     // 1. get file size
     {
         std::ifstream file(checkpoint_path, std::ios::binary | std::ios::ate);
-        assert(file.is_open());
+        SMART_ASSERT(file.is_open());
         file_size = file.tellg();
         file.close();
     }

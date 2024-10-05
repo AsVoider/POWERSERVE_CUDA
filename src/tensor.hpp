@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ggml.h"
-#include <cassert>
 #include <cstdint>
 namespace smart {
 

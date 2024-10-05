@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include <cassert>
 #include <fstream>
 
 #include "ggml.h"

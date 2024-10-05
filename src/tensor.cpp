@@ -1,10 +1,11 @@
 #include "tensor.hpp"
+#include "common.hpp"
 #include <cmath>
 
 namespace smart {
 
 OpTensor *get_optensor_from_ggml(ggml_tensor *t) {
-    assert(t != nullptr);
+    SMART_ASSERT(t != nullptr);
     OpTensor *opt = new OpTensor({
         .data = t->data,
         .type = t->type
@@ -34,7 +35,7 @@ void free_optensor(OpTensor *opt) {
 void dequantize_row_q8_0(const block_q8_0 *x, float * y, int64_t k) {
     static const int qk = QK8_0;
 
-    assert(k % qk == 0);
+    SMART_ASSERT(k % qk == 0);
 
     const int nb = k / qk;
 
@@ -50,7 +51,7 @@ void dequantize_row_q8_0(const block_q8_0 *x, float * y, int64_t k) {
 void dequantize_row_q4_0(const block_q4_0 * x, float * y, int64_t k) {
     static const int qk = QK4_0;
 
-    assert(k % qk == 0);
+    SMART_ASSERT(k % qk == 0);
 
     const int nb = k / qk;
 
@@ -83,9 +84,9 @@ void rmsnorm_internal(float* o, float* x, float* weight, int64_t size) {
 }
 
 void rmsnorm(OpTensor *o, OpTensor *x, OpTensor *weight) {
-    assert(o != nullptr && o->type == GGML_TYPE_F32 && o->data != nullptr);
-    assert(x != nullptr && x->type == GGML_TYPE_F32 && x->data != nullptr);
-    assert(weight != nullptr && weight->type == GGML_TYPE_F32 && weight->data != nullptr);
+    SMART_ASSERT(o != nullptr && o->type == GGML_TYPE_F32 && o->data != nullptr);
+    SMART_ASSERT(x != nullptr && x->type == GGML_TYPE_F32 && x->data != nullptr);
+    SMART_ASSERT(weight != nullptr && weight->type == GGML_TYPE_F32 && weight->data != nullptr);
 
     auto size = x->ne[0];
 
@@ -113,7 +114,7 @@ void softmax_internal(float* x, int64_t size) {
 }
 
 void softmax(OpTensor *x, int64_t size) {
-    assert(x != nullptr && x->type == GGML_TYPE_F32 && x->data != nullptr);
+    SMART_ASSERT(x != nullptr && x->type == GGML_TYPE_F32 && x->data != nullptr);
     softmax_internal((float *)x->data, size);
 }
 
