@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 namespace smart {
 
 
@@ -11,7 +12,7 @@ struct Sampler{
     };
 
     int vocab_size;
-    ProbIndex* probindex; // buffer used in top-p sampling
+    std::vector<ProbIndex> probindex; // buffer used in top-p sampling
     float temperature;
     float topp;
     unsigned long long rng_state;
@@ -22,12 +23,10 @@ struct Sampler{
           topp(topp),
           rng_state(rng_seed)
     {
-        probindex = new ProbIndex[vocab_size];
+        probindex = std::vector<ProbIndex>(vocab_size);
     }
 
-    ~Sampler() {
-        delete[] probindex;
-    }
+    ~Sampler() {}
 
     int sample(float* logits);
 };
