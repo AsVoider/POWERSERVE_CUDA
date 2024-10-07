@@ -1,0 +1,15 @@
+BasedOnStyle: LLVM
+AccessModifierOffset: -4
+UseTab: Always
+IndentWidth: 4
+ContinuationIndentWidth: 4
+TabWidth: 4
+AllowShortIfStatementsOnASingleLine: false
+ColumnLimit: 0
+BreakBeforeBraces: Attach
+AlignConsecutiveAssignments: true
+AlignConsecutiveBitFields: true
+AlignConsecutiveMacros: true
+AllowShortBlocksOnASingleLine: Always
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: All
