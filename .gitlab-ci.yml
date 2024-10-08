@@ -1,7 +1,7 @@
 stages:
   - setup
-  - build
   - convert
+  - build
   - deploy
   - test
 
@@ -9,28 +9,40 @@ variables:
   IMAGE_NAME: ubuntu:22.04
   CONTAINER_NAME: ndk
   HF_TOKEN: "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"
-  REBUILD_ENV: "false" # Set to "true" to rebuild the environment
+  REBUILD_ENV: "true" # Set to "true" to rebuild the environment
   # NDK: "/data/android-ndk-r27b"
 
 setup:
   stage: setup
   script:
-    - cd ~
+    - pwd
     - if [ "$REBUILD_ENV" = "true" ]; then
       sudo podman stop $CONTAINER_NAME || true;
       sudo podman rm $CONTAINER_NAME || true;
-      sudo rm -rf ~/llama.cpp;
       sudo rm -rf ~/Downloads;
       sudo mkdir ~/Downloads;
       export https_proxy=http://ipads:ipads123@202.120.40.82:11235;
-      git clone https://github.com/ggerganov/llama.cpp.git;
-      sudo -E podman run -v $(realpath ./llama.cpp):/code -v $(realpath ~/Downloads):/data -dit --name ndk ubuntu:22.04;
+      sudo -E podman run -v $(realpath .):/code -v $(realpath ~/Downloads):/data -dit --name ndk ubuntu:22.04;
       sudo podman exec -it $CONTAINER_NAME bash -c "apt update && apt upgrade -y && apt install -y sudo vim cmake unzip git python-is-python3 python3-pip build-essential";
-      sudo podman exec -it $CONTAINER_NAME bash -c "pip install -r /code/requirements/requirements-convert_hf_to_gguf.txt";
+      sudo podman exec -it $CONTAINER_NAME bash -c "pip install -r /code/requirements.txt";
       sudo podman exec -it $CONTAINER_NAME bash -c "git config --global --add safe.directory /code";
       sudo wget https://dl.google.com/android/repository/android-ndk-r27b-linux.zip?hl=zh-cn  -O ~/Downloads/android-ndk-r27b-linux.zip;
       fi
     - export https_proxy=http://ipads:ipads123@202.120.40.82:11235;
+
+convert:
+  stage: convert
+  script:
+    - if [ "$REBUILD_ENV" = "true" ]; then
+      sudo podman exec -it $CONTAINER_NAME bash -c "pip install 'huggingface_hub[cli]'";
+      sudo podman exec -it $CONTAINER_NAME bash -c "huggingface-cli login --token $HF_TOKEN";
+      sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && export HF_ENDPOINT=https://hf-mirror.com";
+      sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && huggingface-cli download --cache-dir /data/hf_cache --resume-download meta-llama/Meta-Llama-3.1-8B --exclude original/ --local-dir /data/llama_3.1_8b";
+      sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && python convert_hf_to_gguf.py /data/llama_3.1_8b --outtype f16 --outfile /data/llama_3.1_8b.gguf";
+      fi
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake -DCMAKE_BUILD_TYPE=Release -S . -B build_native"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake --build build_native --config Release --target llama-quantize"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && ./build_native/bin/llama-quantize --pure /data/llama_3.1_8b.gguf /data/llama_3.1_8b_q4_0.gguf q4_0"
 
 build:
   stage: build
@@ -49,41 +61,29 @@ build:
     #   -DBUILD_SHARED_LIBS=OFF \
     #   -DGGML_OPENMP=OFF \
     #   -S . -B build_android"
-    - sudo podman exec -it $CONTAINER_NAME bash -c "rm -rf /code/build_android"
-    - sudo podman exec -it $CONTAINER_NAME bash -c "cat /data/android-ndk-r27b/build/cmake/android.toolchain.cmake"
-    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake -DCMAKE_TOOLCHAIN_FILE=/data/android-ndk-r27b/build/cmake/android.toolchain.cmake  -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF -DGGML_OPENMP=OFF -S . -B build_android"
-    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake --build build_android --config RelWithDebInfo --parallel 12 --target llama-cli"
+    # - sudo podman exec -it $CONTAINER_NAME bash -c "rm -rf /code/build_android"
+    # for llama:
+    - sudo podman exec -it $CONTAINER_NAME bash -c "python /code/tools/generate_llama_vocab.py /data/llama_3.1_8b -o /data/llama_3.1_8b_vocab.gguf"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF -DGGML_OPENMP=OFF -S . -B build_android"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake --build build_android --config RelWithDebInfo --parallel 12"
     # 如果从容器里对/code/build_android_bin/llama-cli做readelf -h，读不到AArch64，说明错误
-    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && readelf -h /code/build_android/bin/llama-cli"
+    # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && readelf -h /code/build_android/bin/llama-cli"
     # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF -DGGML_OPENMP=OFF -S . -B build_android"
     # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake --build build_android --config RelWithDebInfo --parallel 12"
-
-convert:
-  stage: convert
-  script:
-    - if [ "$REBUILD_ENV" = "true" ]; then
-      sudo podman exec -it $CONTAINER_NAME bash -c "pip install 'huggingface_hub[cli]'";
-      sudo podman exec -it $CONTAINER_NAME bash -c "huggingface-cli login --token $HF_TOKEN";
-      sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && export HF_ENDPOINT=https://hf-mirror.com";
-      sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && huggingface-cli download --cache-dir /data/hf_cache --resume-download meta-llama/Meta-Llama-3.1-8B --exclude original/ --local-dir /data/llama_3.1_8b";
-      sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && python convert_hf_to_gguf.py /data/llama_3.1_8b --outtype f16 --outfile /data/llama_3.1_8b.gguf";
-      fi
-    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake -DCMAKE_BUILD_TYPE=Release -S . -B build_native"
-    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake --build build_native --config Release --target llama-quantize"
-    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && ./build_native/bin/llama-quantize --pure /data/llama_3.1_8b.gguf /data/llama_3.1_8b_q4_0.gguf q4_0"
 
 deploy:
   stage: deploy
   script:
     - echo "Deploying binaries and models to your Android device."
     # Use adb to push files
-    - cd ~
-    - adb push ~/llama.cpp/build_android/bin/llama-cli /data/local/tmp/
+    - adb push ~/Downloads/llama_3.1_8b_vocab.gguf /data/local/tmp/
+    # - adb push ~/llama.cpp/build_android/bin/llama-cli /data/local/tmp/
     - adb push ~/Downloads/llama_3.1_8b_q4_0.gguf /data/local/tmp/
+    - adb push build_android/bin/run /data/local/tmp/
 
 test:
   stage: test
   script:
     # Run the command on the Android device
-    - adb shell "su -c '/data/local/tmp/llama-cli --no-warmup -c 1024 -m /data/local/tmp/llama_3.1_8b_q4_0.gguf -s 42 -p \"Penguins are superbly adapted to aquatic life.\" -t 6 -n 128'"
+    - adb shell "su -c '/data/local/tmp/run --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.1_8b_vocab.gguf --prompt \"One day\" --steps 64'"
     # - ./test-result.exp
