@@ -15,20 +15,20 @@ namespace ggml {
 
 #define QK8_0 32
 
-struct block_q8_0{
-    uint16_t d;        // delta
-    int8_t   qs[QK8_0]; // quants
+struct block_q8_0 {
+	uint16_t d;		  // delta
+	int8_t qs[QK8_0]; // quants
 };
 
 #define QK4_0 32
 
-struct block_q4_0{
-    uint16_t d;           // delta
-    uint8_t  qs[QK4_0 / 2]; // nibbles / quants
+struct block_q4_0 {
+	uint16_t d;			   // delta
+	uint8_t qs[QK4_0 / 2]; // nibbles / quants
 };
 
-void dequantize_row_q8_0(const block_q8_0 *x, float * y, int64_t k);
-void dequantize_row_q4_0(const block_q4_0 * x, float * y, int64_t k);
+void dequantize_row_q8_0(const block_q8_0 *x, float *y, int64_t k);
+void dequantize_row_q4_0(const block_q4_0 *x, float *y, int64_t k);
 
 static ggml_type convert_datatype_to_ggml(DataType dtp) {
 	return ggml_type(static_cast<std::underlying_type_t<DataType>>(dtp));
@@ -41,8 +41,8 @@ static DataType conovrt_datatype_from_ggml(ggml_type tp) {
 static Tensor *convert_from_ggml(ggml_tensor *t) {
 	SMART_ASSERT(t != nullptr);
 	Tensor *opt = new Tensor();
-	opt->data = (float *)t->data;
-	opt->dtype = conovrt_datatype_from_ggml(t->type);
+	opt->data	= (float *)t->data;
+	opt->dtype	= conovrt_datatype_from_ggml(t->type);
 	for (int i = 0; i < GGML_MAX_DIMS; i++) {
 		opt->ne[i] = t->ne[i];
 		opt->nb[i] = t->nb[i];
@@ -64,8 +64,7 @@ public:
 		wdata  = std::vector<char>(config->dim * 32);
 		params = {
 			.wsize = (size_t)config->dim * 32,
-			.wdata = wdata.data()
-		};
+			.wdata = wdata.data()};
 	}
 
 	~GGMLBackend() = default;
@@ -75,7 +74,7 @@ public:
 	void softmax(const Tensor *x, int64_t size);
 	void rope(const Tensor *q, const Tensor *k, const int64_t pos);
 	void multihead_attention(const Tensor *q, const Tensor *att, const Tensor *key_cache, const Tensor *val_cache, const Tensor *xb, const int64_t pos, const int64_t L);
-	void residual_connection(const Tensor* x, const Tensor *xb2);
+	void residual_connection(const Tensor *x, const Tensor *xb2);
 	void silu_hadamard(const Tensor *hb, const Tensor *hb2);
 };
 

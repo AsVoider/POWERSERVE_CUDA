@@ -11,7 +11,7 @@ public:
 	virtual Graph *prefill() = 0;
 	virtual Graph *decode()	 = 0;
 
-	Model() = default;
+	Model()	 = default;
 	~Model() = default;
 };
 

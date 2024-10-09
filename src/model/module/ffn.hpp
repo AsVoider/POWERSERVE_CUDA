@@ -4,9 +4,15 @@
 #include "model/module/module.hpp"
 namespace smart {
 
-class FFN: public Module {
+class FFN : public Module {
 public:
-    void build_graph(Graph &g) override;
+	void build_graph(
+		Graph &g,
+		std::shared_ptr<LlamaConfig> config,
+		std::shared_ptr<LlamaWeight> weights,
+		std::shared_ptr<LlamaBuffer> buffer,
+		int64_t L,
+		int64_t pos) override;
 };
 
 } // namespace smart

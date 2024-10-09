@@ -32,7 +32,6 @@ private:
 	// global buffer
 	std::shared_ptr<LlamaBuffer> buffer;
 
-
 public:
 	Graph *prefill() override;
 	Graph *decode() override;

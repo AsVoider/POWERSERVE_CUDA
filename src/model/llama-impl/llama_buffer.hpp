@@ -45,8 +45,8 @@ struct LlamaBuffer {
 
 		q = std::vector<float>(dim);
 
-		att			= std::vector<float>(config->n_heads * config->seq_len);
-		logits		= std::vector<float>(config->vocab_size);
+		att	   = std::vector<float>(config->n_heads * config->seq_len);
+		logits = std::vector<float>(config->vocab_size);
 		key_cache.reserve(large_size);
 		value_cache.reserve(large_size);
 		// key_cache	= std::vector<float>(large_size);  // + 16G
@@ -141,11 +141,11 @@ struct LlamaBuffer {
 
 	std::shared_ptr<Tensor> get_new_node_int64(int64_t val) {
 
-		auto t =  std::make_shared<Tensor>(Tensor{
-			1 * sizeof(int64_t),
-			{1, 1, 1, 1},
-			{sizeof(int64_t), sizeof(int64_t), sizeof(int64_t), sizeof(int64_t)},
-			DataType::I64});
+		auto t							  = std::make_shared<Tensor>(Tensor{
+			   1 * sizeof(int64_t),
+									   {1, 1, 1, 1},
+									   {sizeof(int64_t), sizeof(int64_t), sizeof(int64_t), sizeof(int64_t)},
+			   DataType::I64});
 		*((int64_t *)t->container.data()) = val;
 		return t;
 	}

@@ -10,10 +10,10 @@ namespace smart {
 
 class Platform {
 public:
-    GGMLBackend ggml_backend;
+	GGMLBackend ggml_backend;
 
-    Platform(std::shared_ptr<LlamaConfig> config_) : ggml_backend(config_) {}
-    ~Platform() = default;
+	Platform(std::shared_ptr<LlamaConfig> config_) : ggml_backend(config_) {}
+	~Platform() = default;
 };
 
 } // namespace smart

@@ -6,7 +6,6 @@
 #include "tokenizer/tokenizer.hpp"
 #include <string>
 
-
 int main(int argc, char *argv[]) {
 	// 0. load config
 	std::string file_path		= "../models/Meta-Llama-3.1-8B/llama3-8b_Q4_0.gguf";

@@ -5,7 +5,6 @@ namespace smart {
 
 class Backend {
 public:
-
 };
 
 } // namespace smart
