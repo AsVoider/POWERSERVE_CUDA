@@ -1,10 +1,10 @@
-#include "llama_tokenizer.hpp"
+#include "tokenizer.hpp"
 
 #include "ggml.h"
 
 namespace smart {
 
-LlamaTokenizer::LlamaTokenizer(const Path &vocab_path) {
+Tokenizer::Tokenizer(const Path &vocab_path) {
     struct ggml_context *ctx = nullptr;
     struct gguf_init_params params = {
         .no_alloc = true,
@@ -19,19 +19,19 @@ LlamaTokenizer::LlamaTokenizer(const Path &vocab_path) {
     gguf_free(meta);
 }
 
-size_t LlamaTokenizer::n_vocabs() const {
+size_t Tokenizer::n_vocabs() const {
     return vocab.n_vocab;
 }
 
-auto LlamaTokenizer::bos_token() const -> Token {
+auto Tokenizer::bos_token() const -> Token {
     return vocab.special_bos_id;
 }
 
-auto LlamaTokenizer::tokenize(const std::string &text, bool add_special) const -> std::vector<Token> {
+auto Tokenizer::tokenize(const std::string &text, bool add_special) const -> std::vector<Token> {
     return llama_tokenize_internal(vocab, text, add_special, true);
 }
 
-auto LlamaTokenizer::to_string(Token token) const -> std::string {
+auto Tokenizer::to_string(Token token) const -> std::string {
     return llama_token_to_piece(vocab, token);
 }
 

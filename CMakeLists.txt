@@ -6,7 +6,7 @@ option(SMART_ENABLE_LTO "Enable link-time optimization" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED true)
@@ -37,4 +37,3 @@ endif()
 add_subdirectory(libs)
 add_subdirectory(src)
 add_subdirectory(bin)
-add_subdirectory(demo)
