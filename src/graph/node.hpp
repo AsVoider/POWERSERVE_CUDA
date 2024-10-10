@@ -4,6 +4,8 @@
 #include <string>
 
 #include "core/tensor.hpp"
+#include "graph/op_type.hpp"
+#include "graph/op_params.hpp"
 
 namespace smart {
 
@@ -38,11 +40,11 @@ struct Node {
         return this;
     }
 
-    auto tensor() -> TensorNode *;
+    auto tensor() -> Tensor *;
     auto op() -> OpNode *;
 };
 
-struct TensorNode : Node, Tensor {
+struct TensorNode : Tensor, Node {
     TensorNode(const Tensor &tensor) :
         Node(NodeType::TENSOR),
         Tensor(tensor)
@@ -58,24 +60,6 @@ struct TensorNode : Node, Tensor {
         return prev[0]->op();
     }
 };
-
-enum class OpType {
-	NONE = 0,
-
-	ADD,
-	MAT_MUL,
-	SIN,
-	COS,
-	SUM,
-	RMS_NORM,
-	SILU_HADAMARD,
-	ROPE,
-	SOFT_MAX,
-
-	MHA,
-};
-
-struct OpParams {};
 
 struct OpNode : Node {
     OpType op;
@@ -100,17 +84,22 @@ struct OpNode : Node {
         return this;
     }
 
-    template <typename TParams>
-    auto set_params(const TParams &params) {
-        this->params.reset(new TParams(params));
+    template <typename Params>
+    auto set_params(const Params &params) {
+        this->params.reset(new Params(params));
         return this;
+    }
+
+    template <typename Params>
+    auto get_params() const {
+        return *static_cast<Params *>(params.get());
     }
 
     size_t n_outputs() const {
         return next.size();
     }
 
-    auto output() const -> TensorNode * {
+    auto output() const -> Tensor * {
         SMART_ASSERT(n_outputs() == 1);
         return next[0]->tensor();
     }

@@ -2,8 +2,8 @@
 
 namespace smart {
 
-auto Node::tensor() -> TensorNode * {
-    return dynamic_cast<TensorNode *>(this);
+auto Node::tensor() -> Tensor * {
+    return dynamic_cast<Tensor *>(this);
 }
 
 auto Node::op() -> OpNode * {
