@@ -1,4 +1,5 @@
 #include "ggml.hpp"
+#include "backend/ggml/buffer.hpp"
 #include "ggml.h"
 #include "graph/node.hpp"
 #include <cmath>
@@ -47,21 +48,9 @@ void dequantize_row_q4_0(const block_q4_0 *x, float *y, int64_t k) {
 void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) {
 	// W (d,n) @ x (n,) -> xout (d,)
 	// by far the most amount of time is spent inside this little function
-	OpTensor dst_ = {
-		(void *)dst->data,
-		ggml::convert_datatype_to_ggml(dst->dtype),
-		{dst->ne[0], dst->ne[1], dst->ne[2], dst->ne[3]},
-		{dst->nb[0], dst->nb[1], dst->nb[2], dst->nb[3]}};
-	OpTensor src0_ = {
-		(void *)src0->data,
-		ggml::convert_datatype_to_ggml(src0->dtype),
-		{src0->ne[0], src0->ne[1], src0->ne[2], src0->ne[3]},
-		{src0->nb[0], src0->nb[1], src0->nb[2], src0->nb[3]}};
-	OpTensor src1_ = {
-		(void *)src1->data,
-		ggml::convert_datatype_to_ggml(src1->dtype),
-		{src1->ne[0], src1->ne[1], src1->ne[2], src1->ne[3]},
-		{src1->nb[0], src1->nb[1], src1->nb[2], src1->nb[3]}};
+	OpTensor dst_ = ggml::convert_to_optensor(dst);
+	OpTensor src0_ = ggml::convert_to_optensor(src0);
+	OpTensor src1_ = ggml::convert_to_optensor(src1);
 
 	ggml_compute_forward_op_mul_mat(&params, &dst_, &src0_, &src1_);
 }
@@ -82,7 +71,7 @@ void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t si
 }
 
 void GGMLBackend::rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) {
-	auto size = x->ne[0];
+	auto size = x->shape[0];
 
 	rmsnorm_internal((float *)o->data, (float *)x->data, (float *)weight->data, size);
 }
@@ -108,26 +97,50 @@ void GGMLBackend::softmax_internal(float *x, int64_t size) {
 }
 
 void GGMLBackend::softmax(const Tensor *x, int64_t size) {
-	softmax_internal((float *)x->data, size);
+	softmax_internal((float *)x->data, x->shape[0]);
 }
 
-void GGMLBackend::rope(const Tensor *q, const Tensor *k, const int64_t pos) {
-	auto dim	   = config->dim;
+// void GGMLBackend::rope(const Tensor *q, const Tensor *k, const int64_t pos) {
+// 	auto dim	   = config->dim;
+// 	auto head_size = dim / config->n_heads;
+// 	auto kv_dim	   = (config->dim * config->n_kv_heads) / config->n_heads;
+
+// 	for (int i = 0; i < dim; i += 2) {
+// 		int head_dim = i % head_size;
+// 		float freq	 = 1.0f / powf(10000.0f, head_dim / (float)head_size);
+// 		float val	 = pos * freq;
+// 		float fcr	 = cosf(val);
+// 		float fci	 = sinf(val);
+// 		int rotn	 = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
+// 		for (int v = 0; v < rotn; v++) {
+// 			float *vec = v == 0 ? (float *)q->data : (float *)k->data; // the vector to rotate (query or key)
+// 			float v0   = vec[i];
+// 			float v1   = vec[i + 1];
+// 			vec[i]	   = v0 * fcr - v1 * fci;
+// 			vec[i + 1] = v0 * fci + v1 * fcr;
+// 		}
+// 	}
+// }
+
+// TODO: Rope's pos should be a tensor and we need rope_base (llama2 = 10000, llama3 = 300000 ...)
+void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) {
+	auto dim = q->shape[0];
 	auto head_size = dim / config->n_heads;
 	auto kv_dim	   = (config->dim * config->n_kv_heads) / config->n_heads;
+	auto pos_data = (int32_t *)((ggml::Buffer *)pos->data)->data;
 
 	for (int i = 0; i < dim; i += 2) {
 		int head_dim = i % head_size;
-		float freq	 = 1.0f / powf(10000.0f, head_dim / (float)head_size);
-		float val	 = pos * freq;
-		float fcr	 = cosf(val);
-		float fci	 = sinf(val);
+		float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
+		float val	 = pos_data[0] * freq;
+		float fcr = cosf(val);
+		float fci = sinf(val);
 		int rotn	 = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
 		for (int v = 0; v < rotn; v++) {
-			float *vec = v == 0 ? (float *)q->data : (float *)k->data; // the vector to rotate (query or key)
-			float v0   = vec[i];
-			float v1   = vec[i + 1];
-			vec[i]	   = v0 * fcr - v1 * fci;
+			float *vec = v == 0 ? (float *)q_out->data : (float *)k_out->data;
+			float v0 = vec[i];
+			float v1 = vec[i + 1];
+			vec[i] = v0 * fcr - v1 * fci;
 			vec[i + 1] = v0 * fci + v1 * fcr;
 		}
 	}
@@ -175,20 +188,19 @@ void GGMLBackend::multihead_attention(const Tensor *q, const Tensor *att, const 
 	}
 }
 
-void GGMLBackend::residual_connection(const Tensor *x, const Tensor *xb2) {
+void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1) {
 	for (auto i = 0; i < config->dim; i++) {
-		((float *)x->data)[i] += ((float *)xb2->data)[i];
+		((float *)dst->data)[i] = ((float *)src0->data)[i] + ((float *)src1->data)[i];
 	}
 }
-
-void GGMLBackend::silu_hadamard(const Tensor *hb, const Tensor *hb2) {
+void GGMLBackend::silu_hadamard(const Tensor *out,const Tensor *hb, const Tensor *hb2) {
 	for (auto i = 0; i < config->hidden_dim; i++) {
 		float val = ((float *)hb->data)[i];
 		// silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
 		val *= (1.0f / (1.0f + expf(-val)));
 		// elementwise multiply with w3(x)
 		val *= ((float *)hb2->data)[i];
-		((float *)hb->data)[i] = val;
+		((float *)out->data)[i] = val;
 	}
 }
 
