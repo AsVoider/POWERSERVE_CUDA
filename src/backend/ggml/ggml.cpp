@@ -183,16 +183,4 @@ void GGMLBackend::silu_hadamard(const Tensor *out,const Tensor *hb, const Tensor
 	}
 }
 
-auto GGMLBackend::create_float_buffer(Tensor::Shape shape) -> BufferPtr {
-	Buffer::Stride stride;
-	stride[0] = sizeof(float);
-	for (size_t i = 1; i < shape.size(); i++) {
-		stride[i] = stride[i - 1] * shape[i - 1];
-	}
-
-	size_t size = stride.back() * shape.back();
-
-	return std::make_shared<Buffer>(stride, malloc(size), true);
-}
-
 } // namespace smart

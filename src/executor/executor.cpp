@@ -8,8 +8,18 @@ void Executor::allocate_buffers() {
         if (tensor->data) {
             continue;
         }
-        fmt::println("tensor: {}", tensor->shape);
-        tensor->data = platform.ggml_backend.create_float_buffer(tensor->shape);
+
+        switch (tensor->dtype) {
+            case DataType::FP32: {
+                tensor->data = platform.ggml_backend.create_buffer<float>(tensor->shape);
+            } break;
+
+            case DataType::INT32: {
+                tensor->data = platform.ggml_backend.create_buffer<int32_t>(tensor->shape);
+            } break;
+
+            default: SMART_ASSERT(false);
+        }
     }
 }
 

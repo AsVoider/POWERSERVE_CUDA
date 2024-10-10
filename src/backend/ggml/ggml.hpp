@@ -103,7 +103,18 @@ struct GGMLBackend : Backend {
 	void silu_hadamard(const Tensor *out,const Tensor *hb, const Tensor *hb2) const;
 	void add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
 
-	auto create_float_buffer(Tensor::Shape shape) -> BufferPtr;
+	template <typename T>
+	auto create_buffer(Tensor::Shape shape) -> BufferPtr {
+		Buffer::Stride stride;
+		stride[0] = sizeof(T);
+		for (size_t i = 1; i < shape.size(); i++) {
+			stride[i] = stride[i - 1] * shape[i - 1];
+		}
+
+		size_t size = stride.back() * shape.back();
+
+		return std::make_shared<Buffer>(stride, malloc(size), true);
+	}
 
 private:
 	op_compute_params params;
