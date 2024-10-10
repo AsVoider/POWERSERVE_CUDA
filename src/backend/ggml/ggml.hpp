@@ -104,6 +104,8 @@ struct GGMLBackend : Backend {
 	void silu_hadamard(const Tensor *out,const Tensor *hb, const Tensor *hb2) const;
 	void add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
 
+	auto create_float_buffer(Tensor::Shape shape) -> BufferPtr;
+
 private:
 	op_compute_params params;
 	std::vector<char> wdata;

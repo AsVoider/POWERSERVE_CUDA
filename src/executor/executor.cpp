@@ -2,7 +2,17 @@
 
 namespace smart {
 
-void Executor::run(const Platform &platform, const Graph &graph) {
+void Executor::allocate_buffers() {
+    for (auto tensor : graph.tensors) {
+        if (tensor->data) {
+            continue;
+        }
+
+        tensor->data = platform.ggml_backend.create_float_buffer(tensor->shape);
+    }
+}
+
+void Executor::run() {
     for (auto op : graph.ops) {
         switch (op->op) {
             case OpType::ADD: {
