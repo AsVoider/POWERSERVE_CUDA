@@ -75,8 +75,11 @@ enum class OpType {
 	MHA,
 };
 
+struct OpParams {};
+
 struct OpNode : Node {
     OpType op;
+    std::unique_ptr<OpParams> params;
 
     OpNode(OpType op_) :
         Node(NodeType::OPERATOR),
@@ -94,6 +97,12 @@ struct OpNode : Node {
         for (auto tensor : tensors) {
             connect(tensor);
         }
+        return this;
+    }
+
+    template <typename TParams>
+    auto set_params(const TParams &params) {
+        this->params.reset(new TParams(params));
         return this;
     }
 
