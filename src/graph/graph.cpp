@@ -33,8 +33,6 @@ auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
 
 auto Graph::mat_mul(TensorNode *x, TensorNode *weight) -> TensorNode * {
     // TODO: Add checks
-    fmt::println("x: {}", x->shape);
-    fmt::println("weight: {}", weight->shape);
     SMART_ASSERT(x->shape[0] == weight->shape[0]);
 
     auto shape = x->shape;
@@ -103,6 +101,12 @@ auto Graph::mha(TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, Ten
         ->set_params(MHAParams{.layer_id = layer_id});
 
     return out;
+}
+
+auto Graph::copy(TensorNode *dst, TensorNode *src, int64_t off) -> void {
+    new_op(OpType::COPY)
+        ->set_inputs({dst, src})
+        ->set_params(CopyParams{.off = off});
 }
 
 }

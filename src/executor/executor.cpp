@@ -72,12 +72,19 @@ void Executor::run() {
 
             case OpType::MHA: {
                 auto q = op->prev[0]->tensor();
-                auto key_cache = op->prev[2]->tensor();
-                auto val_cache = op->prev[3]->tensor();
-                auto pos = op->prev[5]->tensor();
+                auto key_cache = op->prev[1]->tensor();
+                auto val_cache = op->prev[2]->tensor();
+                auto pos = op->prev[3]->tensor();
                 auto out = op->output();
                 auto [layer_id] = op->get_params<MHAParams>();
                 platform.ggml_backend.multihead_attention(out, q, key_cache, val_cache, pos, layer_id);
+            } break;
+
+            case OpType::COPY: {
+                auto dst = op->prev[0]->tensor();
+                auto src = op->prev[1]->tensor();
+                auto off = op->get_params<CopyParams>().off;
+                platform.ggml_backend.copy(dst, src, off);
             } break;
 
             default: SMART_ASSERT(false);

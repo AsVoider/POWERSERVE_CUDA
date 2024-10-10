@@ -1,6 +1,8 @@
 #pragma once
 
 #include "core/tensor.hpp"
+#include <cstddef>
+#include <cstdint>
 
 namespace smart::ggml {
 

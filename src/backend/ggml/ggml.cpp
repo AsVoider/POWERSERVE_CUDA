@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 namespace smart::ggml {
 
@@ -105,6 +106,14 @@ void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tens
 	auto head_size = dim / config->n_heads;
 	auto kv_dim	   = (config->dim * config->n_kv_heads) / config->n_heads;
 	auto pos_data = (int32_t *)pos->get<Buffer>().data;
+	// if (pos_data[0] == 0) {
+	// 	for(int i = 0; i < kv_dim; i++) {
+	// 		fmt::println(stderr, "kcache[{}][{}] {}", i, pos_data[0], ((float *)k->get<ggml::Buffer>().data)[i + pos_data[0] * kv_dim]);
+	// 	}
+	// 	exit(0);
+	// }
+	memcpy(q_out->get<Buffer>().data, q->get<Buffer>().data, q->n_elements() * sizeof(float));
+	memcpy(k_out->get<Buffer>().data, k->get<Buffer>().data, k->n_elements() * sizeof(float));
 
 	for (int i = 0; i < dim; i += 2) {
 		int head_dim = i % head_size;
@@ -121,10 +130,14 @@ void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tens
 			vec[i + 1] = v0 * fci + v1 * fcr;
 		}
 	}
+	// if (pos_data[0] == 0) {
+	// 	for(int i = 0; i < kv_dim; i++) {
+	// 		fmt::println(stderr, "kcache[{}][{}] {}", i, pos_data[0], ((float *)k_out->get<ggml::Buffer>().data)[i + pos_data[0] * kv_dim]);
+	// 	}
+	// 	exit(0);
+	// }
 }
 
-// TODO: Need to be split
-// prev: q, att, key_cache, val_cache, xb, pos, L; next: {att, xb}
 void GGMLBackend::multihead_attention(const Tensor *out, const Tensor *q, const Tensor *key_cache, const Tensor *val_cache, const Tensor *pos, const int64_t L) const {
 	auto dim	   = config->dim;
 	auto kv_dim	   = (config->dim * config->n_kv_heads) / config->n_heads;
@@ -133,6 +146,17 @@ void GGMLBackend::multihead_attention(const Tensor *out, const Tensor *q, const 
 	uint64_t loff  = L * config->seq_len * kv_dim;
 	auto pos_data = (int32_t *)pos->get<Buffer>().data;
 	auto att = std::vector<float>(config->n_heads * config->seq_len);
+
+	// if (pos_data[0] == 1) {
+	// 	for(int i = 0; i < kv_dim; i++) {
+	// 		for(int j = 0; j <= pos_data[0]; j++) {
+	// 			for(int k = 0; k < config->n_layers; k++) {
+	// 				fmt::println(stderr, "kcache[{}][{}][{}] {}", i, j, k, ((float *)key_cache->get<ggml::Buffer>().data)[i + j * kv_dim + k * kv_dim * config->seq_len]);
+	// 			}
+	// 		}
+	// 	}
+	// 	exit(0);
+	// }
 
 	uint32_t h = 0;
 	for (h = 0; h < config->n_heads; h++) {
@@ -180,6 +204,15 @@ void GGMLBackend::silu_hadamard(const Tensor *out,const Tensor *hb, const Tensor
 		// elementwise multiply with w3(x)
 		val *= ((float *)hb2->get<Buffer>().data)[i];
 		((float *)out->get<Buffer>().data)[i] = val;
+	}
+}
+
+void GGMLBackend::copy(const Tensor *dst, const Tensor *src, const int64_t off) const {
+	// if (off < 4000) {
+	// 	fmt::println("copy: dst: {}, src: {}, off: {}, src size: {}, dst size: {}", dst->get<Buffer>().data, src->get<Buffer>().data, off, src->n_elements(), dst->n_elements());
+	// }
+	for (auto i = 0; i < src->n_elements(); i++) {
+		((float *)dst->get<Buffer>().data + off)[i] = ((float *)src->get<Buffer>().data)[i];
 	}
 }
 

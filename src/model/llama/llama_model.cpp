@@ -55,11 +55,11 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
 	SMART_ASSERT(token * dim + dim <= weights->fp32_embd_table.size());
 	auto x = g.new_tensor(DataType::FP32, {dim});
 	TensorNode *tensor_embd = x;
-
+	auto pos_tensor = g.new_tensor(DataType::INT32, {1});
 	// attention and ffn
 	for (auto L = 0; L < config->n_layers; L++) {
-		auto att_o = attn->build(g, x, L, pos);
-		auto ffn_o = ffn->build(g, att_o, L, pos);
+		auto att_o = attn->build(g, x, L, pos_tensor, pos);
+		auto ffn_o = ffn->build(g, att_o, L);
 		x = ffn_o;
 	}
 
@@ -74,8 +74,10 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
 	Executor executor(plat, g);
 	executor.allocate_buffers();
 	memcpy(tensor_embd->get<ggml::Buffer>().data, (void *)(weights->fp32_embd_table.data() + token * dim), dim * sizeof(float));
+	((int32_t *)pos_tensor->get<ggml::Buffer>().data)[0] = pos;
 
 	executor.run();
+	attn->update_cache(pos_tensor);
 	float *logits_data = (float *)(logits->get<ggml::Buffer>().data);
 
 	return std::vector<float>(logits_data, logits_data + dim);

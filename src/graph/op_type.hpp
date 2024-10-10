@@ -11,6 +11,7 @@ enum class OpType {
 	SILU_HADAMARD,
 	ROPE,
 	SOFTMAX,
+	COPY,
 
 	MHA,
 };

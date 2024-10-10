@@ -102,6 +102,7 @@ struct GGMLBackend : Backend {
 	void multihead_attention(const Tensor *out, const Tensor *q, const Tensor *key_cache, const Tensor *val_cache, const Tensor *pos, const int64_t L) const;
 	void silu_hadamard(const Tensor *out,const Tensor *hb, const Tensor *hb2) const;
 	void add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
+	void copy(const Tensor *dst, const Tensor *src, const int64_t off) const;
 
 	template <typename T>
 	auto create_buffer(Tensor::Shape shape) -> BufferPtr {
@@ -110,7 +111,6 @@ struct GGMLBackend : Backend {
 		for (size_t i = 1; i < shape.size(); i++) {
 			stride[i] = stride[i - 1] * shape[i - 1];
 		}
-
 		size_t size = stride.back() * shape.back();
 
 		return std::make_shared<Buffer>(stride, malloc(size), true);

@@ -4,7 +4,10 @@
 #include "core/buffer.hpp"
 #include "core/data_type.hpp"
 
+#include <algorithm>
 #include <array>
+#include <cstddef>
+#include <initializer_list>
 #include <numeric>
 
 namespace smart {
@@ -22,10 +25,10 @@ struct Tensor {
     Tensor &operator=(const Tensor &) = default;
 
     Tensor(DataType dtype_, const Shape &shape_) : dtype(dtype_) {
-        std::fill(std::begin(shape), std::end(shape), 1);
-
         SMART_ASSERT(shape_.size() <= max_n_dims);
-        std::copy(shape_.begin(), shape_.end(), std::begin(shape));
+        for (size_t i = 0; i < shape_.size(); i++) {
+            shape[i] = std::max(shape_[i], size_t(1));
+        }
     }
 
     size_t n_dims() const {
@@ -38,7 +41,7 @@ struct Tensor {
     }
 
     size_t n_elements() const {
-        return std::reduce(std::begin(shape), std::end(shape), 1, std::multiplies());
+        return static_cast<size_t>(std::reduce(std::begin(shape), std::end(shape), uint64_t(1), std::multiplies<uint64_t>()));
     }
 
     template <typename Buffer>

@@ -17,6 +17,7 @@ struct Graph {
     auto mat_mul(TensorNode *x, TensorNode *weight) -> TensorNode *;
     auto rms_norm(TensorNode *x, TensorNode *weight) -> TensorNode *;
     auto silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode *;
+    auto copy(TensorNode *dst, TensorNode *src, int64_t off) -> void;
 
     struct RopeResult {
         TensorNode *q_out;
