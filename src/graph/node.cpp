@@ -3,11 +3,11 @@
 namespace smart {
 
 auto Node::tensor() -> TensorNode * {
-    return static_cast<TensorNode *>(this);
+    return dynamic_cast<TensorNode *>(this);
 }
 
 auto Node::op() -> OpNode * {
-    return static_cast<OpNode *>(this);
+    return dynamic_cast<OpNode *>(this);
 }
 
 }
