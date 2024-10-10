@@ -48,6 +48,11 @@ struct TensorNode : Node, Tensor {
         Tensor(tensor)
     {}
 
+    TensorNode(DataType dtype, Tensor::Shape shape) :
+        Node(NodeType::TENSOR),
+        Tensor(dtype, shape)
+    {}
+
     auto prev_op() const -> OpNode * {
         SMART_ASSERT(prev.size() == 1);
         return prev[0]->op();
