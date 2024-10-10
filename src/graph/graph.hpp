@@ -1,21 +1,28 @@
 #pragma once
 
 #include "graph/node.hpp"
-#include <map>
-#include <memory>
-#include <vector>
+
 namespace smart {
 
-// DAG
-class Graph {
-public:
-	std::vector<std::shared_ptr<Node>> nodes; // manage all locals nodes lifecycle
-	// x, +wei, op1, xo
-	std::map<int, std::vector<std::shared_ptr<Operator>>> DAG;
-	std::shared_ptr<Node> root;
+struct Graph {
+    std::vector<std::shared_ptr<TensorNode>> tensors;
+    std::vector<std::shared_ptr<OpNode>> ops;
 
-	Graph() : root(std::make_shared<Operator>(OpType::OP_NONE)) { nodes.push_back(root); };
-	~Graph() = default;
+    auto add_tensor(const Tensor &tensor) -> TensorNode *;
+    auto new_tensor(DataType dtype, Tensor::Shape shape) -> TensorNode *;
+    auto new_op(OpType type) -> OpNode *;
+
+    struct Builder {
+        Graph &graph;
+
+        Builder(Graph &graph_) : graph(graph_) {}
+
+        auto add(TensorNode *a, TensorNode *b) -> TensorNode *;
+    };
+
+    Builder builder;
+
+    Graph() : builder(*this) {}
 };
 
-} // namespace smart
+}

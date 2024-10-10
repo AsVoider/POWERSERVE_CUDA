@@ -3,8 +3,7 @@
 
 namespace smart {
 
-class Backend {
-public:
+struct Backend {
 };
 
 } // namespace smart

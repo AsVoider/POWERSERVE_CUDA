@@ -51,15 +51,7 @@ static Tensor *convert_from_ggml(ggml_tensor *t) {
 }
 } // namespace ggml
 
-class GGMLBackend : public Backend {
-private:
-	op_compute_params params;
-	std::vector<char> wdata;
-	void rmsnorm_internal(float *o, float *x, float *weight, int64_t size);
-	void softmax_internal(float *x, int64_t size);
-	std::shared_ptr<LlamaConfig> config;
-
-public:
+struct GGMLBackend : Backend {
 	GGMLBackend(std::shared_ptr<LlamaConfig> config_) : config(config_) {
 		wdata  = std::vector<char>(config->dim * 32);
 		params = {
@@ -76,6 +68,13 @@ public:
 	void multihead_attention(const Tensor *q, const Tensor *att, const Tensor *key_cache, const Tensor *val_cache, const Tensor *xb, const int64_t pos, const int64_t L);
 	void residual_connection(const Tensor *x, const Tensor *xb2);
 	void silu_hadamard(const Tensor *hb, const Tensor *hb2);
+
+private:
+	op_compute_params params;
+	std::vector<char> wdata;
+	void rmsnorm_internal(float *o, float *x, float *weight, int64_t size);
+	void softmax_internal(float *x, int64_t size);
+	std::shared_ptr<LlamaConfig> config;
 };
 
 } // namespace smart

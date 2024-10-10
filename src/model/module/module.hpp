@@ -6,8 +6,7 @@
 #include "model/llama-impl/llama_weight.hpp"
 namespace smart {
 
-class Module {
-public:
+struct Module {
 	virtual void build_graph(
 		Graph &g,
 		std::shared_ptr<LlamaConfig> config,

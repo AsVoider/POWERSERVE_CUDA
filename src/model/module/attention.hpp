@@ -7,8 +7,7 @@
 #include "model/module/module.hpp"
 namespace smart {
 
-class Attention : public Module {
-public:
+struct Attention : Module {
 	void build_graph(
 		Graph &g,
 		std::shared_ptr<LlamaConfig> config,

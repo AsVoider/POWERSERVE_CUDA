@@ -4,8 +4,7 @@
 #include "model/module/module.hpp"
 namespace smart {
 
-class FFN : public Module {
-public:
+struct FFN : Module {
 	void build_graph(
 		Graph &g,
 		std::shared_ptr<LlamaConfig> config,

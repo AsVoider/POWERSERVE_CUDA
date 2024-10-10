@@ -8,8 +8,7 @@
 
 namespace smart {
 
-class Platform {
-public:
+struct Platform {
 	GGMLBackend ggml_backend;
 
 	Platform(std::shared_ptr<LlamaConfig> config_) : ggml_backend(config_) {}

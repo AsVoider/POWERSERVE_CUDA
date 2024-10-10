@@ -6,15 +6,14 @@
 #include <memory>
 namespace smart {
 
-class Sched {
-private:
-	void execute_op(std::shared_ptr<Operator> op, Platform &platform);
-
-public:
+struct Sched {
 	void run(Graph &graph, Platform &platform); // DAG -> platform.ggml_tensor.xxx
 
 	Sched()	 = default;
 	~Sched() = default;
+
+private:
+	void execute_op(std::shared_ptr<Operator> op, Platform &platform);
 };
 
 } // namespace smart

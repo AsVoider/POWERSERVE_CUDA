@@ -4,8 +4,7 @@
 #include <string>
 namespace smart {
 
-class Model {
-public:
+struct Model {
 	std::string filename;
 
 	virtual Graph *prefill() = 0;

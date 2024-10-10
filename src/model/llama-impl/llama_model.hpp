@@ -18,7 +18,15 @@
 #include <vector>
 namespace smart {
 
-class LlamaModel : public Model {
+struct LlamaModel : Model {
+	Graph *prefill() override;
+	Graph *decode() override;
+	void generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps);
+	std::vector<float> forward(int token, int pos);
+
+	LlamaModel(std::string filename_);
+	~LlamaModel();
+
 private:
 	// ggml need those context
 	ggml_context *ggml_ctx;
@@ -31,15 +39,6 @@ private:
 
 	// global buffer
 	std::shared_ptr<LlamaBuffer> buffer;
-
-public:
-	Graph *prefill() override;
-	Graph *decode() override;
-	void generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps);
-	std::vector<float> forward(int token, int pos);
-
-	LlamaModel(std::string filename_);
-	~LlamaModel();
 };
 
 } // namespace smart
