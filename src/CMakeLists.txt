@@ -1,12 +1,3 @@
-# add_library(smart_serving STATIC
-#     "llama_tokenizer.cpp"
-#     "model.hpp" "model.cpp"
-#     "sampler.hpp" "sampler.cpp"
-#     "tensor.hpp" "tensor.cpp"
-#     "debug.hpp" "debug.cpp"
-# )
-# target_link_libraries(smart_serving PUBLIC fmt::fmt ggml llama_tokenizer)
-# target_include_directories(smart_serving PUBLIC .)
 file(GLOB_RECURSE SMART_SERVING_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/backend/*.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/backend/*.cpp"
