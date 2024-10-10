@@ -9,6 +9,7 @@ void Executor::run(const Platform &platform, const Graph &graph) {
                 auto a = op->prev[0]->tensor();
                 auto b = op->prev[1]->tensor();
                 auto out = op->output();
+                // platform.ggml_backend.add(out, a, b);
                 platform.ggml_backend.add(out, a, b);
             } break;
 

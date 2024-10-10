@@ -3,6 +3,7 @@
 #include "ggml.h"
 #include "graph/node.hpp"
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 
 namespace smart {
@@ -45,7 +46,7 @@ void dequantize_row_q4_0(const block_q4_0 *x, float *y, int64_t k) {
 }
 } // namespace ggml
 
-void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) {
+void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
 	// W (d,n) @ x (n,) -> xout (d,)
 	// by far the most amount of time is spent inside this little function
 	OpTensor dst_ = ggml::convert_to_optensor(dst);
@@ -55,7 +56,7 @@ void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *sr
 	ggml_compute_forward_op_mul_mat(&params, &dst_, &src0_, &src1_);
 }
 
-void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t size) {
+void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t size) const {
 	// calculate sum of squares
 	float ss = 0.0f;
 	for (int j = 0; j < size; j++) {
@@ -70,60 +71,38 @@ void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t si
 	}
 }
 
-void GGMLBackend::rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) {
+void GGMLBackend::rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const {
 	auto size = x->shape[0];
 
 	rmsnorm_internal((float *)o->data, (float *)x->data, (float *)weight->data, size);
 }
 
-void GGMLBackend::softmax_internal(float *x, int64_t size) {
+void GGMLBackend::softmax_internal(float *out_, float *x_, size_t size) const {
 	// find max value (for numerical stability)
-	float max_val = x[0];
+	float max_val = x_[0];
 	for (int i = 1; i < size; i++) {
-		if (x[i] > max_val) {
-			max_val = x[i];
+		if (x_[i] > max_val) {
+			max_val = x_[i];
 		}
 	}
 	// exp and sum
 	float sum = 0.0f;
 	for (int i = 0; i < size; i++) {
-		x[i] = expf(x[i] - max_val);
-		sum += x[i];
+		out_[i] = expf(x_[i] - max_val);
+		sum += out_[i];
 	}
 	// normalize
 	for (int i = 0; i < size; i++) {
-		x[i] /= sum;
+		out_[i] /= sum;
 	}
 }
 
-void GGMLBackend::softmax(const Tensor *x, int64_t size) {
-	softmax_internal((float *)x->data, x->shape[0]);
+void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
+	softmax_internal((float *)out->data, (float *)x->data, x->shape[0]);
 }
 
-// void GGMLBackend::rope(const Tensor *q, const Tensor *k, const int64_t pos) {
-// 	auto dim	   = config->dim;
-// 	auto head_size = dim / config->n_heads;
-// 	auto kv_dim	   = (config->dim * config->n_kv_heads) / config->n_heads;
-
-// 	for (int i = 0; i < dim; i += 2) {
-// 		int head_dim = i % head_size;
-// 		float freq	 = 1.0f / powf(10000.0f, head_dim / (float)head_size);
-// 		float val	 = pos * freq;
-// 		float fcr	 = cosf(val);
-// 		float fci	 = sinf(val);
-// 		int rotn	 = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
-// 		for (int v = 0; v < rotn; v++) {
-// 			float *vec = v == 0 ? (float *)q->data : (float *)k->data; // the vector to rotate (query or key)
-// 			float v0   = vec[i];
-// 			float v1   = vec[i + 1];
-// 			vec[i]	   = v0 * fcr - v1 * fci;
-// 			vec[i + 1] = v0 * fci + v1 * fcr;
-// 		}
-// 	}
-// }
-
 // TODO: Rope's pos should be a tensor and we need rope_base (llama2 = 10000, llama3 = 300000 ...)
-void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) {
+void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const {
 	auto dim = q->shape[0];
 	auto head_size = dim / config->n_heads;
 	auto kv_dim	   = (config->dim * config->n_kv_heads) / config->n_heads;
@@ -148,19 +127,21 @@ void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tens
 
 // TODO: Need to be split
 // prev: q, att, key_cache, val_cache, xb, pos, L; next: {att, xb}
-void GGMLBackend::multihead_attention(const Tensor *q, const Tensor *att, const Tensor *key_cache, const Tensor *val_cache, const Tensor *xb, const int64_t pos, const int64_t L) {
+void GGMLBackend::multihead_attention(const Tensor *out, const Tensor *q, const Tensor *key_cache, const Tensor *val_cache, const Tensor *pos, const int64_t L) const {
 	auto dim	   = config->dim;
 	auto kv_dim	   = (config->dim * config->n_kv_heads) / config->n_heads;
 	auto kv_mul	   = config->n_heads / config->n_kv_heads;
 	auto head_size = dim / config->n_heads;
 	uint64_t loff  = L * config->seq_len * kv_dim;
+	auto pos_data = (int32_t *)((ggml::Buffer *)pos->data)->data;
+	auto att = std::vector<float>(config->n_heads * config->seq_len);
 
 	uint32_t h = 0;
 	for (h = 0; h < config->n_heads; h++) {
 		auto q_	  = (float *)q->data + h * head_size;
-		auto att_ = (float *)att->data + h * config->seq_len;
+		auto att_ = att.data() + h * config->seq_len;
 
-		for (auto t = 0; t <= pos; t++) {
+		for (auto t = 0; t <= pos_data[0]; t++) {
 			auto k	   = (float *)key_cache->data + loff + t * kv_dim + (h / kv_mul) * head_size;
 			auto score = 0.0f;
 
@@ -172,12 +153,12 @@ void GGMLBackend::multihead_attention(const Tensor *q, const Tensor *att, const 
 			att_[t] = score;
 		}
 
-		softmax_internal(att_, pos + 1);
+		softmax_internal(att_, att_, pos_data[0] + 1);
 
-		auto xb_ = (float *)xb->data + h * head_size;
+		auto xb_ = (float *)out->data + h * head_size;
 		memset(xb_, 0, head_size * sizeof(float));
 
-		for (auto t = 0; t <= pos; t++) {
+		for (auto t = 0; t <= pos_data[0]; t++) {
 			auto v = (float *)val_cache->data + loff + t * kv_dim + (h / kv_mul) * head_size;
 			auto a = att_[t];
 
@@ -188,12 +169,12 @@ void GGMLBackend::multihead_attention(const Tensor *q, const Tensor *att, const 
 	}
 }
 
-void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1) {
+void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
 	for (auto i = 0; i < config->dim; i++) {
 		((float *)dst->data)[i] = ((float *)src0->data)[i] + ((float *)src1->data)[i];
 	}
 }
-void GGMLBackend::silu_hadamard(const Tensor *out,const Tensor *hb, const Tensor *hb2) {
+void GGMLBackend::silu_hadamard(const Tensor *out,const Tensor *hb, const Tensor *hb2) const {
 	for (auto i = 0; i < config->hidden_dim; i++) {
 		float val = ((float *)hb->data)[i];
 		// silu(x)=x*σ(x), where σ(x) is the logistic sigmoid

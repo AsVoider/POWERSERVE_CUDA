@@ -102,24 +102,20 @@ struct GGMLBackend : Backend {
 	}
 
 	~GGMLBackend() = default;
-	// TODO: How to transfer extra args?
-	void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1);
-	void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight);
-	void softmax(const Tensor *x, int64_t size);
-	// void rope(const Tensor *q, const Tensor *k, const int64_t pos); // delete
-	void rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos);
-	void multihead_attention(const Tensor *q, const Tensor *att, const Tensor *key_cache, const Tensor *val_cache, const Tensor *xb, const int64_t pos, const int64_t L);
-	// void residual_connection(const Tensor *x, const Tensor *xb2);
-	// void silu_hadamard(const Tensor *hb, const Tensor *hb2);
-	void silu_hadamard(const Tensor *out,const Tensor *hb, const Tensor *hb2);
-	void add(const Tensor *dst, const Tensor *src0, const Tensor *src1);
+	void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
+	void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const;
+	void softmax(const Tensor *out, const Tensor *x) const;
+	void rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const;
+	void multihead_attention(const Tensor *out, const Tensor *q, const Tensor *key_cache, const Tensor *val_cache, const Tensor *pos, const int64_t L) const;
+	void silu_hadamard(const Tensor *out,const Tensor *hb, const Tensor *hb2) const;
+	void add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
 
 private:
 	op_compute_params params;
 	std::vector<char> wdata;
-	void rmsnorm_internal(float *o, float *x, float *weight, int64_t size);
-	void softmax_internal(float *x, int64_t size);
+	void rmsnorm_internal(float *o, float *x, float *weight, int64_t size) const;
 	std::shared_ptr<LlamaConfig> config;
+	void softmax_internal(float *out_, float *x_, size_t size) const;
 };
 
 } // namespace smart
