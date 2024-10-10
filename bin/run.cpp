@@ -1,7 +1,7 @@
 
 #include "CLI/CLI.hpp"
 #include "graph/graph.hpp"
-#include "model/llama-impl/llama_model.hpp"
+#include "model/llama/llama_model.hpp"
 #include "sampler/greedy_sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
 #include <string>

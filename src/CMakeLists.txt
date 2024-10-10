@@ -11,6 +11,3 @@ add_subdirectory(sampler)
 add_subdirectory(speculative)
 add_subdirectory(tokenizer)
 
-target_sources(smart_serving PRIVATE
-    "debug.cpp"
-)

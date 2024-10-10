@@ -1,51 +1,27 @@
 #include "model/module/ffn.hpp"
 #include "graph/graph.hpp"
+#include "graph/node.hpp"
 namespace smart {
 
-void FFN::build_graph(Graph &g, std::shared_ptr<LlamaConfig> config, std::shared_ptr<LlamaWeight> weights, std::shared_ptr<LlamaBuffer> buffer, int64_t L, int64_t pos) {
-	auto ffn_rms_norm = std::make_shared<Operator>(OpType::OP_RMS_NORM);
-	auto ffn_norm_xb  = buffer->get_new_node_dim("xb");
-	auto x			  = buffer->get_new_node_dim("x");
-	g.nodes.push_back(ffn_rms_norm);
-	g.nodes.push_back(ffn_norm_xb);
-	g.nodes.push_back(x);
-	add_input(ffn_rms_norm, x);
-	add_input(ffn_rms_norm, weights->lw[L].ffn_norm);
-	add_output(ffn_rms_norm, ffn_norm_xb);
+TensorNode *FFN::build(Graph &g, TensorNode* attn_o, int64_t L, int64_t pos) 
+{
+	auto ffn_norm_w = g.add_tensor(weights->lw[L].ffn_norm);
+	auto ffn_norm_o = g.rms_norm(attn_o, ffn_norm_w);
 
-	auto mulmat_gate = std::make_shared<Operator>(OpType::OP_MUL_MAT);
-	auto hb			 = buffer->get_new_node_hidden_dim("hb");
-	g.nodes.push_back(mulmat_gate);
-	g.nodes.push_back(hb);
-	add_input(mulmat_gate, ffn_norm_xb);
-	add_input(mulmat_gate, weights->lw[L].ffn_gate);
-	add_output(mulmat_gate, hb);
+	auto gate_w = g.add_tensor(weights->lw[L].ffn_gate);
+	auto gate_o = g.mat_mul(ffn_norm_o, gate_w);
 
-	auto mulmat_up = std::make_shared<Operator>(OpType::OP_MUL_MAT);
-	auto hb2	   = buffer->get_new_node_hidden_dim("hb2");
-	g.nodes.push_back(mulmat_up);
-	g.nodes.push_back(hb2);
-	add_input(mulmat_up, ffn_norm_xb);
-	add_input(mulmat_up, weights->lw[L].ffn_up);
-	add_output(mulmat_up, hb2);
+	auto up_w = g.add_tensor(weights->lw[L].ffn_up);
+	auto up_o = g.mat_mul(ffn_norm_o, up_w);
 
-	auto silu = std::make_shared<Operator>(OpType::OP_SILU_HADAMARD);
-	g.nodes.push_back(silu);
-	add_input(silu, hb);
-	add_input(silu, hb2);
+	auto silu = g.silu_hadamard(gate_o, up_o);
 
-	auto mulmat_down = std::make_shared<Operator>(OpType::OP_MUL_MAT);
-	g.nodes.push_back(mulmat_down);
-	add_input(mulmat_down, hb);
-	add_input(mulmat_down, weights->lw[L].ffn_down);
-	add_output(mulmat_down, ffn_norm_xb);
+	auto down_w = g.add_tensor(weights->lw[L].ffn_down);
+	auto down_o = g.mat_mul(silu, down_w);
 
-	auto ffn_res_conn = std::make_shared<Operator>(OpType::OP_RES_CONN);
-	auto x2			  = buffer->get_new_node_dim("x");
-	g.nodes.push_back(ffn_res_conn);
-	g.nodes.push_back(x2);
-	add_input(ffn_res_conn, x2);
-	add_input(ffn_res_conn, ffn_norm_xb);
+	auto res_conn = g.add(attn_o, down_o);
+
+	return res_conn;
 }
 
 } // namespace smart

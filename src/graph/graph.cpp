@@ -1,4 +1,5 @@
 #include "graph/graph.hpp"
+#include "fmt/base.h"
 
 namespace smart {
 
@@ -32,6 +33,8 @@ auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
 
 auto Graph::mat_mul(TensorNode *x, TensorNode *weight) -> TensorNode * {
     // TODO: Add checks
+    fmt::println("x: {}", x->shape);
+    fmt::println("weight: {}", weight->shape);
     SMART_ASSERT(x->shape[0] == weight->shape[0]);
 
     auto shape = x->shape;

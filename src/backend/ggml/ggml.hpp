@@ -6,8 +6,7 @@
 #include "core/data_type.hpp"
 #include "core/tensor.hpp"
 #include "ggml.h"
-#include "graph/node.hpp"
-#include "model/llama-impl/llama_config.hpp"
+#include "model/llama/llama_config.hpp"
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -75,12 +74,12 @@ static Tensor convert_from_ggml(ggml_tensor *t) {
 static OpTensor convert_to_optensor(const Tensor *t) {
 	SMART_ASSERT(t != nullptr);
 	OpTensor opt = {
-		t->data.get(),
+		t->get<ggml::Buffer>().data,
 		convert_datatype_to_ggml(t->dtype),
 	};
 	for (int i = 0; i < Tensor::max_n_dims; i++) {
 		opt.ne[i] = t->shape[i];
-		opt.nb[i] = ((Buffer *)t->data.get())->stride[i];
+		opt.nb[i] = t->get<ggml::Buffer>().stride[i];
 	}
 
 	return opt;

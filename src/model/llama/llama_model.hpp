@@ -2,9 +2,8 @@
 
 #include "ggml.h"
 #include "graph/graph.hpp"
-#include "model/llama-impl/llama_buffer.hpp"
-#include "model/llama-impl/llama_config.hpp"
-#include "model/llama-impl/llama_weight.hpp"
+#include "model/llama/llama_config.hpp"
+#include "model/llama/llama_weight.hpp"
 #include "model/model.hpp"
 #include "model/module/attention.hpp"
 #include "model/module/ffn.hpp"
@@ -34,11 +33,8 @@ private:
 
 	std::shared_ptr<LlamaConfig> config;
 	std::shared_ptr<LlamaWeight> weights;
-	Attention attn;
-	FFN ffn;
-
-	// global buffer
-	std::shared_ptr<LlamaBuffer> buffer;
+	std::shared_ptr<Attention> attn;
+	std::shared_ptr<FFN> ffn;
 };
 
 } // namespace smart

@@ -1,4 +1,5 @@
 #include "executor/executor.hpp"
+#include "common.hpp"
 
 namespace smart {
 
@@ -7,7 +8,7 @@ void Executor::allocate_buffers() {
         if (tensor->data) {
             continue;
         }
-
+        fmt::println("tensor: {}", tensor->shape);
         tensor->data = platform.ggml_backend.create_float_buffer(tensor->shape);
     }
 }

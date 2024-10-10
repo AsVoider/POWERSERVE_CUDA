@@ -1,2 +1,2 @@
-add_subdirectory(llama-impl)
+add_subdirectory(llama)
 add_subdirectory(module)
