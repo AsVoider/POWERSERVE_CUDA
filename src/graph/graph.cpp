@@ -14,16 +14,8 @@ auto Graph::new_op(OpType type) -> OpNode * {
     return ops.emplace_back(std::make_shared<OpNode>(type)).get();
 }
 
-auto Graph::Builder::add(TensorNode *a, TensorNode *b) -> TensorNode * {
-    SMART_ASSERT(a->dtype == b->dtype);
-    SMART_ASSERT(a->shape == b->shape);
-
-    auto c = graph.new_tensor(a->dtype, a->shape);
-    graph.new_op(OpType::ADD)
-        ->set_inputs({a, b})
-        ->set_outputs({c});
-
-    return c;
+auto Graph::dup_tensor(TensorNode *tensor) -> TensorNode * {
+    return new_tensor(tensor->dtype, tensor->shape);
 }
 
 }

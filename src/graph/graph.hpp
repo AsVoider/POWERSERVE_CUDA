@@ -11,18 +11,7 @@ struct Graph {
     auto add_tensor(const Tensor &tensor) -> TensorNode *;
     auto new_tensor(DataType dtype, Tensor::Shape shape) -> TensorNode *;
     auto new_op(OpType type) -> OpNode *;
-
-    struct Builder {
-        Graph &graph;
-
-        Builder(Graph &graph_) : graph(graph_) {}
-
-        auto add(TensorNode *a, TensorNode *b) -> TensorNode *;
-    };
-
-    Builder builder;
-
-    Graph() : builder(*this) {}
+    auto dup_tensor(TensorNode *tensor) -> TensorNode *;
 };
 
 }

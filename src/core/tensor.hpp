@@ -10,9 +10,9 @@
 namespace smart {
 
 struct Tensor {
-    static constexpr size_t n_dims = 4;
+    static constexpr size_t max_n_dims = 4;
 
-    using Shape = std::array<size_t, n_dims>;
+    using Shape = std::array<size_t, max_n_dims>;
 
     DataType dtype;
     Shape shape;
@@ -24,8 +24,17 @@ struct Tensor {
     Tensor(DataType dtype_, const Shape &shape_) : dtype(dtype_) {
         std::fill(std::begin(shape), std::end(shape), 1);
 
-        SMART_ASSERT(shape_.size() <= n_dims);
+        SMART_ASSERT(shape_.size() <= max_n_dims);
         std::copy(shape_.begin(), shape_.end(), std::begin(shape));
+    }
+
+    size_t n_dims() const {
+        for (size_t i = max_n_dims - 1; i > 0; i--) {
+            if (shape[i] > 1) {
+                return i + 1;
+            }
+        }
+        return 1;
     }
 
     size_t n_elements() const {
