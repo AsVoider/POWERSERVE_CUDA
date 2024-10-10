@@ -615,7 +615,7 @@ extern "C" {
         // char padding[4];
     };
 
-        struct OpTensor {
+struct OpTensor {
     void* data;
     const enum ggml_type type;
     int64_t ne[GGML_MAX_DIMS]; // number of elements

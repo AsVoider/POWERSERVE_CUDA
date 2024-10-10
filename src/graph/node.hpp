@@ -18,6 +18,8 @@ struct OpNode;
 struct Node {
     NodeType type;
     std::string name = "";
+    std::vector<Node *> prev;
+    std::vector<Node *> next;
 
     Node(NodeType type_) : type(type_) {}
     virtual ~Node() = default;
@@ -38,10 +40,6 @@ struct Node {
 
     auto tensor() -> TensorNode *;
     auto op() -> OpNode *;
-
-protected:
-    std::vector<Node *> prev;
-    std::vector<Node *> next;
 };
 
 struct TensorNode : Node, Tensor {
