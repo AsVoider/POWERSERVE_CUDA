@@ -14,6 +14,7 @@ enum class NodeType {
     OPERATOR,
 };
 
+struct Graph;
 struct TensorNode;
 struct OpNode;
 
@@ -23,7 +24,6 @@ struct Node {
     std::vector<Node *> prev;
     std::vector<Node *> next;
 
-    Node(NodeType type_) : type(type_) {}
     virtual ~Node() = default;
 
     void connect(Node &other) {
@@ -42,9 +42,18 @@ struct Node {
 
     auto tensor() -> Tensor *;
     auto op() -> OpNode *;
+
+protected:
+    Node(NodeType type_) : type(type_) {}
 };
 
 struct TensorNode : Tensor, Node {
+    auto prev_op() const -> OpNode * {
+        SMART_ASSERT(prev.size() == 1);
+        return prev[0]->op();
+    }
+
+private:
     TensorNode(const Tensor &tensor) :
         Node(NodeType::TENSOR),
         Tensor(tensor)
@@ -55,20 +64,12 @@ struct TensorNode : Tensor, Node {
         Tensor(dtype, shape)
     {}
 
-    auto prev_op() const -> OpNode * {
-        SMART_ASSERT(prev.size() == 1);
-        return prev[0]->op();
-    }
+    friend struct Graph;
 };
 
 struct OpNode : Node {
     OpType op;
     std::unique_ptr<OpParams> params;
-
-    OpNode(OpType op_) :
-        Node(NodeType::OPERATOR),
-        op(op_)
-    {}
 
     auto set_inputs(const std::vector<TensorNode *> &tensors) {
         for (auto tensor : tensors) {
@@ -103,6 +104,14 @@ struct OpNode : Node {
         SMART_ASSERT(n_outputs() == 1);
         return next[0]->tensor();
     }
+
+private:
+    OpNode(OpType op_) :
+        Node(NodeType::OPERATOR),
+        op(op_)
+    {}
+
+    friend struct Graph;
 };
 
 }
