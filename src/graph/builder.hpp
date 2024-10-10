@@ -2,8 +2,6 @@
 
 #include "graph/node.hpp"
 
-#include <tuple>
-
 namespace smart {
 
 struct Graph;

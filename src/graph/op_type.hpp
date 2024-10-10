@@ -10,7 +10,7 @@ enum class OpType {
 	RMS_NORM,
 	SILU_HADAMARD,
 	ROPE,
-	SOFT_MAX,
+	SOFTMAX,
 
 	MHA,
 };

@@ -43,7 +43,7 @@ void Executor::run(const Platform &platform, const Graph &graph) {
                 platform.ggml_backend.rope(q_out, k_out, q, k, pos);
             } break;
 
-            case OpType::SOFT_MAX: {
+            case OpType::SOFTMAX: {
                 auto x = op->prev[0]->tensor();
                 auto out = op->output();
                 platform.ggml_backend.softmax(out, x);
