@@ -16,7 +16,7 @@ struct Tensor {
 
     DataType dtype;
     Shape shape;
-    BaseBuffer *data = nullptr;
+    BufferPtr data;
 
     Tensor(const Tensor &) = default;
     Tensor &operator=(const Tensor &) = default;
@@ -39,6 +39,11 @@ struct Tensor {
 
     size_t n_elements() const {
         return std::reduce(std::begin(shape), std::end(shape), 1, std::multiplies());
+    }
+
+    template <typename Buffer>
+    auto get() const -> Buffer & {
+        return dynamic_cast<Buffer &>(*data);
     }
 };
 

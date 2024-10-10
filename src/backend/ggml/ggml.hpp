@@ -12,9 +12,7 @@
 #include <memory>
 #include <vector>
 
-namespace smart {
-
-namespace ggml {
+namespace smart::ggml {
 
 #define QK8_0 32
 
@@ -43,12 +41,11 @@ static ggml_type convert_datatype_to_ggml(DataType dtp) {
 		return GGML_TYPE_Q4_0;
 	case DataType::GGML_Q8_0:
 		return GGML_TYPE_Q8_0;
-	default:
-		return GGML_TYPE_COUNT;
+	default: SMART_ASSERT(false);
 	}
 }
 
-static DataType conovrt_datatype_from_ggml(ggml_type tp) {
+static DataType convert_datatype_from_ggml(ggml_type tp) {
 	switch (tp) {
 	case GGML_TYPE_F32:
 		return DataType::FP32;
@@ -58,39 +55,36 @@ static DataType conovrt_datatype_from_ggml(ggml_type tp) {
 		return DataType::GGML_Q4_0;
 	case GGML_TYPE_Q8_0:
 		return DataType::GGML_Q8_0;
-	default:
-		return DataType::UNKNOWN;
+	default: SMART_ASSERT(false);
 	}
 }
 
-static Tensor *convert_from_ggml(ggml_tensor *t) {
+static Tensor convert_from_ggml(ggml_tensor *t) {
 	SMART_ASSERT(t != nullptr);
 	Tensor::Shape shape;
 	Buffer::Stride stride;
-	for (int i = 0; i < Tensor::n_dims; i++) {
+	for (int i = 0; i < Tensor::max_n_dims; i++) {
 		shape[i]  = t->ne[i];
 		stride[i] = t->nb[i];
 	}
-	Tensor *opt = new Tensor(conovrt_datatype_from_ggml(t->type), shape);
-	Buffer buf	= Buffer(stride, (void *)t->data);
-	opt->data	= &buf;
-	return opt;
+	Tensor tensor(convert_datatype_from_ggml(t->type), shape);
+	tensor.data = std::make_shared<Buffer>(stride, t->data);
+	return tensor;
 }
 
 static OpTensor convert_to_optensor(const Tensor *t) {
 	SMART_ASSERT(t != nullptr);
 	OpTensor opt = {
-		(void *)t->data,
-		ggml::convert_datatype_to_ggml(t->dtype),
+		t->data.get(),
+		convert_datatype_to_ggml(t->dtype),
 	};
-	for (int i = 0; i < Tensor::n_dims; i++) {
+	for (int i = 0; i < Tensor::max_n_dims; i++) {
 		opt.ne[i] = t->shape[i];
-		opt.nb[i] = ((Buffer *)t->data)->stride[i];
+		opt.nb[i] = ((Buffer *)t->data.get())->stride[i];
 	}
 
 	return opt;
 }
-} // namespace ggml
 
 // **Note**: Backend receives Tensor not TensorNode
 struct GGMLBackend : Backend {

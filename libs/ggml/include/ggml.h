@@ -731,12 +731,12 @@ struct op_compute_params {
     GGML_API GGML_CALL int64_t ggml_nrows       (const struct ggml_tensor * tensor);
     GGML_API GGML_CALL size_t  ggml_nbytes      (const struct ggml_tensor * tensor);
     GGML_API           size_t  ggml_nbytes_pad  (const struct ggml_tensor * tensor); // same as ggml_nbytes() but padded to GGML_MEM_ALIGN
-        GGML_API GGML_CALL void ggml_compute_forward_op_mul_mat(
+    GGML_API GGML_CALL void ggml_compute_forward_op_mul_mat(
         const struct op_compute_params * params,
-              const struct OpTensor * dst,
-              const struct OpTensor * src0, // weight
-              const struct OpTensor * src1  // activation
-              );
+        struct OpTensor * dst,
+        const struct OpTensor * src0, // weight
+        const struct OpTensor * src1  // activation
+    );
 
     GGML_API GGML_CALL int64_t ggml_blck_size(enum ggml_type type);
     GGML_API GGML_CALL size_t  ggml_type_size(enum ggml_type type);             // size in bytes for all elements in a block
