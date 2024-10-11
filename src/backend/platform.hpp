@@ -8,9 +8,9 @@
 namespace smart {
 
 struct Platform {
-	ggml::GGMLBackend ggml_backend;
+	ggml::GGMLBackend ggml_backend_;
 
-	Platform(std::shared_ptr<LlamaConfig> config_) : ggml_backend(config_) {}
+	Platform(std::shared_ptr<LlamaConfig> config) : ggml_backend_(config) {}
 	~Platform() = default;
 };
 

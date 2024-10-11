@@ -89,11 +89,11 @@ static OpTensor convert_to_optensor(const Tensor *t) {
 
 // **Note**: Backend receives Tensor not TensorNode
 struct GGMLBackend : Backend {
-	GGMLBackend(std::shared_ptr<LlamaConfig> config_) : config(config_) {
-		wdata  = std::vector<char>(config->dim * 32);
-		params = {
-			.wsize = (size_t)config->dim * 32,
-			.wdata = wdata.data()};
+	GGMLBackend(std::shared_ptr<LlamaConfig> config) : config_(config) {
+		wdata_	= std::vector<char>(config_->dim * 32);
+		params_ = {
+			.wsize = (size_t)config_->dim * 32,
+			.wdata = wdata_.data()};
 	}
 
 	~GGMLBackend() = default;
@@ -119,10 +119,11 @@ struct GGMLBackend : Backend {
 	}
 
 private:
-	op_compute_params params;
-	std::vector<char> wdata;
+	op_compute_params params_;
+	std::vector<char> wdata_;
+	std::shared_ptr<LlamaConfig> config_;
+
 	void rmsnorm_internal(float *o, float *x, float *weight, int64_t size) const;
-	std::shared_ptr<LlamaConfig> config;
 	void softmax_internal(float *out_, float *x_, size_t size) const;
 };
 
