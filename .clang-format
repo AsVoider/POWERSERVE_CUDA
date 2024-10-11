@@ -13,3 +13,6 @@ AlignConsecutiveMacros: true
 AllowShortBlocksOnASingleLine: Always
 AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: All
+IncludeBlocks: Regroup
+ShortNamespaceLines: 0
+SeparateDefinitionBlocks: Always

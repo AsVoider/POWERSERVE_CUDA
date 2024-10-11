@@ -14,4 +14,4 @@ enum class DataType {
 	COUNT,
 };
 
-}
+} // namespace smart

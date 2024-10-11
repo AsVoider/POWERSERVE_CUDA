@@ -1,4 +1,5 @@
 #include "debug.hpp"
+
 #include <fmt/core.h>
 
 namespace smart {

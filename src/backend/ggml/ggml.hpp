@@ -1,5 +1,5 @@
-
 #pragma once
+
 #include "backend/backend.hpp"
 #include "backend/ggml/buffer.hpp"
 #include "common.hpp"
@@ -7,6 +7,7 @@
 #include "core/tensor.hpp"
 #include "ggml.h"
 #include "model/llama/llama_config.hpp"
+
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -64,24 +65,24 @@ static Tensor convert_from_ggml(ggml_tensor *t) {
 	SMART_ASSERT(t != nullptr);
 	Tensor::Shape shape;
 	Buffer::Stride stride;
-	for (int i = 0; i < Tensor::max_n_dims; i++) {
+	for (size_t i = 0; i < Tensor::max_n_dims; i++) {
 		shape[i]  = t->ne[i];
 		stride[i] = t->nb[i];
 	}
 	Tensor tensor(convert_datatype_from_ggml(t->type), shape);
-	tensor.data_ = std::make_shared<Buffer>(stride, t->data);
+	tensor.data = std::make_shared<Buffer>(stride, t->data);
 	return tensor;
 }
 
 static OpTensor convert_to_optensor(const Tensor *t) {
 	SMART_ASSERT(t != nullptr);
-	OpTensor opt = {
-		t->get<ggml::Buffer>().data_,
-		convert_datatype_to_ggml(t->dtype_),
-	};
-	for (int i = 0; i < Tensor::max_n_dims; i++) {
-		opt.ne[i] = t->shape_[i];
-		opt.nb[i] = t->get<ggml::Buffer>().stride_[i];
+
+	OpTensor opt;
+	opt.data = t->get<ggml::Buffer>().data;
+	opt.type = convert_datatype_to_ggml(t->dtype);
+	for (size_t i = 0; i < Tensor::max_n_dims; i++) {
+		opt.ne[i] = t->shape[i];
+		opt.nb[i] = t->get<ggml::Buffer>().stride[i];
 	}
 
 	return opt;
@@ -89,11 +90,11 @@ static OpTensor convert_to_optensor(const Tensor *t) {
 
 // **Note**: Backend receives Tensor not TensorNode
 struct GGMLBackend : Backend {
-	GGMLBackend(std::shared_ptr<LlamaConfig> config) : config_(config) {
-		wdata_	= std::vector<char>(config_->dim * 32);
-		params_ = {
-			.wsize = (size_t)config_->dim * 32,
-			.wdata = wdata_.data()};
+	GGMLBackend(std::shared_ptr<LlamaConfig> config) : config(config) {
+		wdata  = std::vector<char>(config->dim * 32);
+		params = {
+			.wsize = (size_t)config->dim * 32,
+			.wdata = wdata.data()};
 	}
 
 	~GGMLBackend() = default;
@@ -119,12 +120,12 @@ struct GGMLBackend : Backend {
 	}
 
 private:
-	op_compute_params params_;
-	std::vector<char> wdata_;
-	std::shared_ptr<LlamaConfig> config_;
+	op_compute_params params;
+	std::vector<char> wdata;
+	std::shared_ptr<LlamaConfig> config;
 
 	void rmsnorm_internal(float *o, float *x, float *weight, int64_t size) const;
-	void softmax_internal(float *out_, float *x_, size_t size) const;
+	void softmax_internal(float *out, float *x, size_t size) const;
 };
 
 } // namespace smart::ggml

@@ -2,15 +2,15 @@
 
 #include "graph/graph.hpp"
 #include "model/llama/llama_weight.hpp"
+
 namespace smart {
 
 struct FFN {
-
-	std::shared_ptr<LlamaConfig> config_;
-	std::shared_ptr<LlamaWeight> weights_;
+	std::shared_ptr<LlamaConfig> config;
+	std::shared_ptr<LlamaWeight> weights;
 
 	FFN(std::shared_ptr<LlamaConfig> config, std::shared_ptr<LlamaWeight> weights)
-		: config_(config), weights_(weights) {}
+		: config(config), weights(weights) {}
 
 	TensorNode *build(Graph &g, TensorNode *attn_o, int64_t L);
 };

@@ -1,4 +1,5 @@
 #include "greedy_sampler.hpp"
+
 #include <algorithm>
 #include <iterator>
 

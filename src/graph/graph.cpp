@@ -1,27 +1,29 @@
 #include "graph/graph.hpp"
-#include "fmt/base.h"
 
 namespace smart {
+
 // Add a tensorNode from existing tensor to graph and this tensor have allocated memory
 auto Graph::add_tensor(const Tensor &tensor) -> TensorNode * {
-	return tensors_.emplace_back(new TensorNode(tensor)).get();
+	return tensors.emplace_back(new TensorNode(tensor)).get();
 }
+
 // Create a new tensorNode and allocate memory when call Executor::allocate_buffers
-auto Graph::new_tensor(DataType dtype, Tensor::Shape shape) -> TensorNode * {
-	return tensors_.emplace_back(new TensorNode(dtype, shape)).get();
+auto Graph::new_tensor(DataType dtype, const Tensor::Shape &shape) -> TensorNode * {
+	return tensors.emplace_back(new TensorNode(dtype, shape)).get();
 }
 
 auto Graph::new_op(OpType type) -> OpNode * {
-	return ops_.emplace_back(new OpNode(type)).get();
+	return ops.emplace_back(new OpNode(type)).get();
 }
+
 // Duplicate a tensorNode(datatype + shape) and **Note**: but not share the same memory
 auto Graph::dup_tensor(TensorNode *tensor) -> TensorNode * {
-	return new_tensor(tensor->dtype_, tensor->shape_);
+	return new_tensor(tensor->dtype, tensor->shape);
 }
 
 auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
-	SMART_ASSERT(a->dtype_ == b->dtype_);
-	SMART_ASSERT(a->shape_ == b->shape_);
+	SMART_ASSERT(a->dtype == b->dtype);
+	SMART_ASSERT(a->shape == b->shape);
 
 	auto out = dup_tensor(a);
 	new_op(OpType::ADD)
@@ -33,11 +35,11 @@ auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
 
 auto Graph::mat_mul(TensorNode *x, TensorNode *weight) -> TensorNode * {
 	// TODO: Add checks
-	SMART_ASSERT(x->shape_[0] == weight->shape_[0]);
+	SMART_ASSERT(x->shape[0] == weight->shape[0]);
 
-	auto shape = x->shape_;
-	shape[0]   = weight->n_elements() / weight->shape_[0];
-	auto out   = new_tensor(x->dtype_, shape);
+	auto shape = x->shape;
+	shape[0]   = weight->n_elements() / weight->shape[0];
+	auto out   = new_tensor(x->dtype, shape);
 	new_op(OpType::MAT_MUL)
 		->set_inputs({x, weight})
 		->set_outputs({out});
@@ -47,8 +49,8 @@ auto Graph::mat_mul(TensorNode *x, TensorNode *weight) -> TensorNode * {
 
 auto Graph::rms_norm(TensorNode *x, TensorNode *weight) -> TensorNode * {
 	SMART_ASSERT(weight->n_dims() == 1);
-	SMART_ASSERT(x->dtype_ == weight->dtype_);
-	SMART_ASSERT(x->shape_[0] == weight->shape_[0]);
+	SMART_ASSERT(x->dtype == weight->dtype);
+	SMART_ASSERT(x->shape[0] == weight->shape[0]);
 
 	auto out = dup_tensor(x);
 	new_op(OpType::RMS_NORM)
@@ -59,8 +61,8 @@ auto Graph::rms_norm(TensorNode *x, TensorNode *weight) -> TensorNode * {
 }
 
 auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
-	SMART_ASSERT(gate->dtype_ == up->dtype_);
-	SMART_ASSERT(gate->shape_ == up->shape_);
+	SMART_ASSERT(gate->dtype == up->dtype);
+	SMART_ASSERT(gate->shape == up->shape);
 
 	auto out = dup_tensor(gate);
 	new_op(OpType::SILU_HADAMARD)

@@ -16,4 +16,4 @@ enum class OpType {
 	MHA,
 };
 
-}
+} // namespace smart

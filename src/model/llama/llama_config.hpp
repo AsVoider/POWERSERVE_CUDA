@@ -1,7 +1,9 @@
 #pragma once
 
 #include "ggml.h"
+
 #include <cstdint>
+
 namespace smart {
 
 struct LlamaConfig {
@@ -24,6 +26,7 @@ struct LlamaConfig {
 		vocab_size	   = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.vocab_size"));
 		rope_dim_count = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.rope.dimension_count"));
 	}
+
 	~LlamaConfig() = default;
 };
 

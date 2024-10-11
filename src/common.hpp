@@ -1,10 +1,11 @@
 #pragma once
 
-#include <cstdlib>
-#include <filesystem>
-
+#include "fmt/base.h"
 #include "fmt/ranges.h"
 #include "fmt/std.h"
+
+#include <cstdlib>
+#include <filesystem>
 
 #define SMART_UNUSED(x) ((void)(x))
 

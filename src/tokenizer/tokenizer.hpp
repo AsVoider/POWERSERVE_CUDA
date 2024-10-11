@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common.hpp"
-
 #include "llama-vocab.h"
 
 namespace smart {

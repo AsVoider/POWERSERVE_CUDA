@@ -1,11 +1,11 @@
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include "core/tensor.hpp"
 #include "graph/op_params.hpp"
 #include "graph/op_type.hpp"
+
+#include <string>
+#include <vector>
 
 namespace smart {
 
@@ -19,10 +19,10 @@ struct TensorNode;
 struct OpNode;
 
 struct Node {
-	NodeType type_;
-	std::string name_ = "";
-	std::vector<Node *> prev_;
-	std::vector<Node *> next_;
+	NodeType type;
+	std::string name = "";
+	std::vector<Node *> prev;
+	std::vector<Node *> next;
 
 	virtual ~Node() = default;
 
@@ -31,12 +31,12 @@ struct Node {
 	}
 
 	void connect(Node *other) {
-		next_.push_back(other);
-		other->prev_.push_back(this);
+		next.push_back(other);
+		other->prev.push_back(this);
 	}
 
 	auto set_name(const std::string &name) {
-		name_ = name;
+		this->name = name;
 		return this;
 	}
 
@@ -44,21 +44,19 @@ struct Node {
 	auto op() -> OpNode *;
 
 protected:
-	Node(NodeType type) : type_(type) {}
+	Node(NodeType type) : type(type) {}
 };
 
 struct TensorNode : Tensor, Node {
 	auto prev_op() const -> OpNode * {
-		SMART_ASSERT(prev_.size() == 1);
-		return prev_[0]->op();
+		SMART_ASSERT(prev.size() == 1);
+		return prev[0]->op();
 	}
 
 private:
-	TensorNode(const Tensor &tensor) : Node(NodeType::TENSOR),
-									   Tensor(tensor) {}
+	TensorNode(const Tensor &tensor) : Tensor(tensor), Node(NodeType::TENSOR) {}
 
-	TensorNode(DataType dtype, Tensor::Shape shape) : Node(NodeType::TENSOR),
-													  Tensor(dtype, shape) {}
+	TensorNode(DataType dtype, const Tensor::Shape &shape) : Tensor(dtype, shape), Node(NodeType::TENSOR) {}
 
 	friend struct Graph;
 };
@@ -93,17 +91,16 @@ struct OpNode : Node {
 	}
 
 	size_t n_outputs() const {
-		return next_.size();
+		return next.size();
 	}
 
 	auto output() const -> Tensor * {
 		SMART_ASSERT(n_outputs() == 1);
-		return next_[0]->tensor();
+		return next[0]->tensor();
 	}
 
 private:
-	OpNode(OpType op_) : Node(NodeType::OPERATOR),
-						 op(op_) {}
+	OpNode(OpType op) : Node(NodeType::OPERATOR), op(op) {}
 
 	friend struct Graph;
 };
