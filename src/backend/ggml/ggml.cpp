@@ -48,7 +48,7 @@ void dequantize_row_q4_0(const block_q4_0 *x, float *y, int64_t k) {
 void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
 	// W (d,n) @ x (n,) -> xout (d,)
 	// by far the most amount of time is spent inside this little function
-	OpTensor dst_ = ggml::convert_to_optensor(dst);
+	OpTensor dst_  = ggml::convert_to_optensor(dst);
 	OpTensor src0_ = ggml::convert_to_optensor(src0);
 	OpTensor src1_ = ggml::convert_to_optensor(src1);
 
@@ -102,10 +102,10 @@ void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
 
 // TODO: Rope's pos should be a tensor and we need rope_base (llama2 = 10000, llama3 = 300000 ...)
 void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const {
-	auto dim = q->shape[0];
+	auto dim	   = q->shape[0];
 	auto head_size = dim / config->n_heads;
 	auto kv_dim	   = (config->dim * config->n_kv_heads) / config->n_heads;
-	auto pos_data = (int32_t *)pos->get<Buffer>().data;
+	auto pos_data  = (int32_t *)pos->get<Buffer>().data;
 	// if (pos_data[0] == 0) {
 	// 	for(int i = 0; i < kv_dim; i++) {
 	// 		fmt::println(stderr, "kcache[{}][{}] {}", i, pos_data[0], ((float *)k->get<ggml::Buffer>().data)[i + pos_data[0] * kv_dim]);
@@ -117,16 +117,16 @@ void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tens
 
 	for (int i = 0; i < dim; i += 2) {
 		int head_dim = i % head_size;
-		float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
+		float freq	 = 1.0f / powf(10000.0f, head_dim / (float)head_size);
 		float val	 = pos_data[0] * freq;
-		float fcr = cosf(val);
-		float fci = sinf(val);
+		float fcr	 = cosf(val);
+		float fci	 = sinf(val);
 		int rotn	 = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
 		for (int v = 0; v < rotn; v++) {
 			float *vec = v == 0 ? (float *)q_out->get<Buffer>().data : (float *)k_out->get<Buffer>().data;
-			float v0 = vec[i];
-			float v1 = vec[i + 1];
-			vec[i] = v0 * fcr - v1 * fci;
+			float v0   = vec[i];
+			float v1   = vec[i + 1];
+			vec[i]	   = v0 * fcr - v1 * fci;
 			vec[i + 1] = v0 * fci + v1 * fcr;
 		}
 	}
@@ -144,8 +144,8 @@ void GGMLBackend::multihead_attention(const Tensor *out, const Tensor *q, const 
 	auto kv_mul	   = config->n_heads / config->n_kv_heads;
 	auto head_size = dim / config->n_heads;
 	uint64_t loff  = L * config->seq_len * kv_dim;
-	auto pos_data = (int32_t *)pos->get<Buffer>().data;
-	auto att = std::vector<float>(config->n_heads * config->seq_len);
+	auto pos_data  = (int32_t *)pos->get<Buffer>().data;
+	auto att	   = std::vector<float>(config->n_heads * config->seq_len);
 
 	// if (pos_data[0] == 1) {
 	// 	for(int i = 0; i < kv_dim; i++) {
@@ -196,7 +196,7 @@ void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1)
 		((float *)dst->get<Buffer>().data)[i] = ((float *)src0->get<Buffer>().data)[i] + ((float *)src1->get<Buffer>().data)[i];
 	}
 }
-void GGMLBackend::silu_hadamard(const Tensor *out,const Tensor *hb, const Tensor *hb2) const {
+void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const {
 	for (auto i = 0; i < config->hidden_dim; i++) {
 		float val = ((float *)hb->get<Buffer>().data)[i];
 		// silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
@@ -216,4 +216,4 @@ void GGMLBackend::copy(const Tensor *dst, const Tensor *src, const int64_t off) 
 	}
 }
 
-} // namespace smart
+} // namespace smart::ggml

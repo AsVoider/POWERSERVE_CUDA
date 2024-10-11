@@ -40,7 +40,8 @@ static ggml_type convert_datatype_to_ggml(DataType dtp) {
 		return GGML_TYPE_Q4_0;
 	case DataType::GGML_Q8_0:
 		return GGML_TYPE_Q8_0;
-	default: SMART_ASSERT(false);
+	default:
+		SMART_ASSERT(false);
 	}
 }
 
@@ -54,7 +55,8 @@ static DataType convert_datatype_from_ggml(ggml_type tp) {
 		return DataType::GGML_Q4_0;
 	case GGML_TYPE_Q8_0:
 		return DataType::GGML_Q8_0;
-	default: SMART_ASSERT(false);
+	default:
+		SMART_ASSERT(false);
 	}
 }
 
@@ -100,7 +102,7 @@ struct GGMLBackend : Backend {
 	void softmax(const Tensor *out, const Tensor *x) const;
 	void rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const;
 	void multihead_attention(const Tensor *out, const Tensor *q, const Tensor *key_cache, const Tensor *val_cache, const Tensor *pos, const int64_t L) const;
-	void silu_hadamard(const Tensor *out,const Tensor *hb, const Tensor *hb2) const;
+	void silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const;
 	void add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
 	void copy(const Tensor *dst, const Tensor *src, const int64_t off) const;
 
@@ -124,4 +126,4 @@ private:
 	void softmax_internal(float *out_, float *x_, size_t size) const;
 };
 
-} // namespace smart
+} // namespace smart::ggml

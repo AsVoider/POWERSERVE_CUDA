@@ -3,8 +3,7 @@
 #include "graph/node.hpp"
 namespace smart {
 
-TensorNode *FFN::build(Graph &g, TensorNode* attn_o, int64_t L) 
-{
+TensorNode *FFN::build(Graph &g, TensorNode *attn_o, int64_t L) {
 	auto ffn_norm_w = g.add_tensor(weights->lw[L].ffn_norm);
 	auto ffn_norm_o = g.rms_norm(attn_o, ffn_norm_w);
 

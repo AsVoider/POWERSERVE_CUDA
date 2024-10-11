@@ -31,7 +31,7 @@ LlamaModel::LlamaModel(std::string filename_) {
 	weights = std::make_shared<LlamaWeight>(ggml_ctx, config->n_layers, config->dim);
 	// modules
 	attn = std::make_shared<Attention>(config, weights);
-	ffn = std::make_shared<FFN>(config, weights);
+	ffn	 = std::make_shared<FFN>(config, weights);
 }
 
 LlamaModel::~LlamaModel() {
@@ -53,14 +53,14 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
 	// input embedding
 	// prepare input : embeding token tensor [dim,]
 	SMART_ASSERT(token * dim + dim <= weights->fp32_embd_table.size());
-	auto x = g.new_tensor(DataType::FP32, {dim});
+	auto x					= g.new_tensor(DataType::FP32, {dim});
 	TensorNode *tensor_embd = x;
-	auto pos_tensor = g.new_tensor(DataType::INT32, {1});
+	auto pos_tensor			= g.new_tensor(DataType::INT32, {1});
 	// attention and ffn
 	for (auto L = 0; L < config->n_layers; L++) {
 		auto att_o = attn->build(g, x, L, pos_tensor, pos);
 		auto ffn_o = ffn->build(g, att_o, L);
-		x = ffn_o;
+		x		   = ffn_o;
 	}
 
 	// final output
@@ -68,7 +68,7 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
 	auto final_rms_norm = g.rms_norm(x, rms_final_w);
 
 	auto output_w = g.add_tensor(weights->output_weight);
-	auto logits	 = g.mat_mul(final_rms_norm, output_w);
+	auto logits	  = g.mat_mul(final_rms_norm, output_w);
 
 	Platform plat(config);
 	Executor executor(plat, g);
@@ -77,7 +77,6 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
 	((int32_t *)pos_tensor->get<ggml::Buffer>().data)[0] = pos;
 
 	executor.run();
-	attn->update_cache(pos_tensor);
 	float *logits_data = (float *)(logits->get<ggml::Buffer>().data);
 
 	return std::vector<float>(logits_data, logits_data + dim);
