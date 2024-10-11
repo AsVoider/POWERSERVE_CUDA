@@ -2,17 +2,15 @@
 #pragma once
 
 #include "backend/ggml/ggml.hpp"
-#include "model/llama-impl/llama_model.hpp"
-#include <cstdint>
+#include "model/llama/llama_model.hpp"
 #include <vector>
 
 namespace smart {
 
-class Platform {
-public:
-	GGMLBackend ggml_backend;
+struct Platform {
+	ggml::GGMLBackend ggml_backend_;
 
-	Platform(std::shared_ptr<LlamaConfig> config_) : ggml_backend(config_) {}
+	Platform(std::shared_ptr<LlamaConfig> config) : ggml_backend_(config) {}
 	~Platform() = default;
 };
 

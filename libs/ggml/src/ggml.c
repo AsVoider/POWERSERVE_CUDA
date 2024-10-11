@@ -13122,7 +13122,7 @@ static void ggml_compute_forward_op_mul_mat_one_chunk(
 
 void ggml_compute_forward_op_mul_mat(
         const struct op_compute_params * params,
-              const struct OpTensor * dst,
+              struct OpTensor * dst,
               const struct OpTensor * src0, // weight
               const struct OpTensor * src1  // activation
               ) {
@@ -13208,7 +13208,7 @@ UseGgmlGemm1:;
         for (int64_t i13 = 0; i13 < ne13; ++i13) {
             for (int64_t i12 = 0; i12 < ne12; ++i12) {
                 int64_t i11_processed = 0;
-                if ((ggml_n_dims(src1) == 2) && from_float_to_mat && gemm) {
+                if ((ggml_n_dims((const struct ggml_tensor *)src1) == 2) && from_float_to_mat && gemm) {
                     for (int64_t i11 = ith * 4; i11 < ne11 - ne11 % 4; i11 += nth * 4) {
                         from_float_to_mat((float *)((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11),
                                           (void *)               (wdata + i13*nbw3 + i12*nbw2 + i11*nbw1),
@@ -13338,7 +13338,7 @@ UseGgmlGemm2:;
         const int64_t ir1_start = dr1 * ith1;
         const int64_t ir1_end = MIN(ir1_start + dr1, nr1);
 
-        ggml_compute_forward_op_mul_mat_one_chunk(params, 
+        ggml_compute_forward_op_mul_mat_one_chunk(params,
             dst, src0, src1, num_rows_per_vec_dot, ir0_start, ir0_end, ir1_start, ir1_end);
 
         if (nth >= nchunk0 * nchunk1) {

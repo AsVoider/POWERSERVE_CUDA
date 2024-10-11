@@ -1,26 +1,13 @@
-# add_library(smart_serving STATIC
-#     "llama_tokenizer.cpp"
-#     "model.hpp" "model.cpp"
-#     "sampler.hpp" "sampler.cpp"
-#     "tensor.hpp" "tensor.cpp"
-#     "debug.hpp" "debug.cpp"
-# )
-# target_link_libraries(smart_serving PUBLIC fmt::fmt ggml llama_tokenizer)
-# target_include_directories(smart_serving PUBLIC .)
-file(GLOB_RECURSE SMART_SERVING_SOURCES
-    "${CMAKE_CURRENT_SOURCE_DIR}/backend/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/backend/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/graph/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/graph/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/model/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/model/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/sampler/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/sampler/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/speculative/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/speculative/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/tokenizer/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/tokenizer/*.cpp"
-)
-add_library(smart_serving STATIC ${SMART_SERVING_SOURCES})
+add_library(smart_serving STATIC)
 target_link_libraries(smart_serving PUBLIC fmt::fmt ggml llama_tokenizer)
 target_include_directories(smart_serving PUBLIC .)
+
+add_subdirectory(backend)
+add_subdirectory(core)
+add_subdirectory(executor)
+add_subdirectory(graph)
+add_subdirectory(model)
+add_subdirectory(sampler)
+add_subdirectory(speculative)
+add_subdirectory(tokenizer)
+

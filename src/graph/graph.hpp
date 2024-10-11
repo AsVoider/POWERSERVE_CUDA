@@ -1,21 +1,33 @@
 #pragma once
 
 #include "graph/node.hpp"
-#include <map>
-#include <memory>
-#include <vector>
+
 namespace smart {
 
-// DAG
-class Graph {
-public:
-	std::vector<std::shared_ptr<Node>> nodes; // manage all locals nodes lifecycle
-	// x, +wei, op1, xo
-	std::map<int, std::vector<std::shared_ptr<Operator>>> DAG;
-	std::shared_ptr<Node> root;
+struct Graph {
+	std::vector<std::shared_ptr<TensorNode>> tensors_;
+	std::vector<std::shared_ptr<OpNode>> ops_;
 
-	Graph() : root(std::make_shared<Operator>(OpType::OP_NONE)) { nodes.push_back(root); };
-	~Graph() = default;
+	auto add_tensor(const Tensor &tensor) -> TensorNode *;
+	auto new_tensor(DataType dtype, Tensor::Shape shape) -> TensorNode *;
+	auto new_op(OpType type) -> OpNode *;
+	auto dup_tensor(TensorNode *tensor) -> TensorNode *;
+
+	auto add(TensorNode *a, TensorNode *b) -> TensorNode *;
+	auto mat_mul(TensorNode *x, TensorNode *weight) -> TensorNode *;
+	auto rms_norm(TensorNode *x, TensorNode *weight) -> TensorNode *;
+	auto silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode *;
+	auto copy(TensorNode *dst, TensorNode *src, size_t off) -> void;
+
+	struct RopeResult {
+		TensorNode *q_out;
+		TensorNode *k_out;
+	};
+
+	auto rope(TensorNode *q, TensorNode *k, TensorNode *pos) -> RopeResult;
+
+	auto softmax(TensorNode *x) -> TensorNode *;
+	auto mha(TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id) -> TensorNode *;
 };
 
 } // namespace smart

@@ -1,18 +1,18 @@
 #pragma once
 
 #include "graph/graph.hpp"
-#include "model/module/module.hpp"
+#include "model/llama/llama_weight.hpp"
 namespace smart {
 
-class FFN : public Module {
-public:
-	void build_graph(
-		Graph &g,
-		std::shared_ptr<LlamaConfig> config,
-		std::shared_ptr<LlamaWeight> weights,
-		std::shared_ptr<LlamaBuffer> buffer,
-		int64_t L,
-		int64_t pos) override;
+struct FFN {
+
+	std::shared_ptr<LlamaConfig> config_;
+	std::shared_ptr<LlamaWeight> weights_;
+
+	FFN(std::shared_ptr<LlamaConfig> config, std::shared_ptr<LlamaWeight> weights)
+		: config_(config), weights_(weights) {}
+
+	TensorNode *build(Graph &g, TensorNode *attn_o, int64_t L);
 };
 
 } // namespace smart

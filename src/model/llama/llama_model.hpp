@@ -2,9 +2,8 @@
 
 #include "ggml.h"
 #include "graph/graph.hpp"
-#include "model/llama-impl/llama_buffer.hpp"
-#include "model/llama-impl/llama_config.hpp"
-#include "model/llama-impl/llama_weight.hpp"
+#include "model/llama/llama_config.hpp"
+#include "model/llama/llama_weight.hpp"
 #include "model/model.hpp"
 #include "model/module/attention.hpp"
 #include "model/module/ffn.hpp"
@@ -18,28 +17,24 @@
 #include <vector>
 namespace smart {
 
-class LlamaModel : public Model {
-private:
-	// ggml need those context
-	ggml_context *ggml_ctx;
-	gguf_context *gguf_ctx;
-
-	std::shared_ptr<LlamaConfig> config;
-	std::shared_ptr<LlamaWeight> weights;
-	Attention attn;
-	FFN ffn;
-
-	// global buffer
-	std::shared_ptr<LlamaBuffer> buffer;
-
-public:
+struct LlamaModel : Model {
 	Graph *prefill() override;
 	Graph *decode() override;
 	void generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps);
 	std::vector<float> forward(int token, int pos);
 
-	LlamaModel(std::string filename_);
+	LlamaModel(std::string filename);
 	~LlamaModel();
+
+private:
+	// ggml need those context
+	ggml_context *ggml_ctx_;
+	gguf_context *gguf_ctx_;
+
+	std::shared_ptr<LlamaConfig> config_;
+	std::shared_ptr<LlamaWeight> weights_;
+	std::shared_ptr<Attention> attn_;
+	std::shared_ptr<FFN> ffn_;
 };
 
 } // namespace smart

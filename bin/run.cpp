@@ -1,7 +1,7 @@
 
 #include "CLI/CLI.hpp"
 #include "graph/graph.hpp"
-#include "model/llama-impl/llama_model.hpp"
+#include "model/llama/llama_model.hpp"
 #include "sampler/greedy_sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
 #include <string>
@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
 	std::string tokenizer_path	= "../models/Meta-Llama-3.1-8B/llama3.1_8b_vocab.gguf";
 	float temperature			= 1.0f;		  // 0.0 = greedy deterministic. 1.0 = original. don't set higher
 	float topp					= 0.9f;		  // top-p in nucleus sampling. 1.0 = off. 0.9 works well, but slower
-	int steps					= 16;		  // number of steps to run for
+	int steps					= 8;		  // number of steps to run for
 	std::string prompt			= "One day,"; // prompt string
 	unsigned long long rng_seed = 2024927;
 

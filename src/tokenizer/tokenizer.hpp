@@ -6,8 +6,7 @@
 
 namespace smart {
 
-class Tokenizer {
-public:
+struct Tokenizer {
 	using Token = llama_vocab::id;
 
 	struct llama_vocab vocab;

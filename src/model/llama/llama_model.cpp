@@ -1,51 +1,41 @@
 #include "llama_model.hpp"
+#include "backend/ggml/buffer.hpp"
 #include "backend/platform.hpp"
 #include "common.hpp"
+#include "executor/executor.hpp"
 #include "fmt/base.h"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
-#include "graph/sched.hpp"
-#include "model/llama-impl/llama_buffer.hpp"
 #include "sampler/sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
-#include <algorithm>
-#include <cassert>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <memory>
+#include <cstring>
 #include <string>
 #include <vector>
 
 namespace smart {
 
-LlamaModel::LlamaModel(std::string filename_) {
-	filename = filename_;
+LlamaModel::LlamaModel(std::string filename) {
+	filename_ = filename;
 	// load file meta data (+ 4G)
 	{
 		gguf_init_params params = {
 			.no_alloc = false,
-			.ctx	  = &ggml_ctx};
-		gguf_ctx = gguf_init_from_file(filename.c_str(), params);
-		SMART_ASSERT(gguf_ctx != nullptr);
-		SMART_ASSERT(ggml_ctx != nullptr);
+			.ctx	  = &ggml_ctx_};
+		gguf_ctx_ = gguf_init_from_file(filename_.c_str(), params);
+		SMART_ASSERT(gguf_ctx_ != nullptr);
+		SMART_ASSERT(ggml_ctx_ != nullptr);
 	}
 	// prepare data
-	{
-		config = std::make_shared<LlamaConfig>(gguf_ctx);
-	}
+	config_ = std::make_shared<LlamaConfig>(gguf_ctx_);
 	// prepare weights (+ 2G)
-	{
-		weights = std::make_shared<LlamaWeight>(ggml_ctx, config->n_layers);
-	}
-	// prepare global buffer (+ 33G)
-	{
-		buffer = std::make_shared<LlamaBuffer>(config);
-	}
+	weights_ = std::make_shared<LlamaWeight>(ggml_ctx_, config_->n_layers, config_->dim);
+	// modules
+	attn_ = std::make_shared<Attention>(config_, weights_);
+	ffn_  = std::make_shared<FFN>(config_, weights_);
 }
 
 LlamaModel::~LlamaModel() {
-	gguf_free(gguf_ctx);
+	gguf_free(gguf_ctx_);
 }
 
 Graph *LlamaModel::prefill() {
@@ -58,49 +48,38 @@ Graph *LlamaModel::decode() {
 
 std::vector<float> LlamaModel::forward(int token, int pos) {
 	Graph g;
-	auto dim = config->dim;
+	auto dim = config_->dim;
 
 	// input embedding
-	{
-		// prepare input : embeding token tensor [dim,]
-		SMART_ASSERT(token * dim + dim <= weights->fp32_embd_table.size());
-		std::copy(
-			weights->fp32_embd_table.begin() + token * dim,
-			weights->fp32_embd_table.begin() + (token + 1) * dim,
-			buffer->x.begin());
-	}
+	// prepare input : embeding token tensor [dim,]
+	SMART_ASSERT(token * dim + dim <= weights_->fp32_embd_table.size());
+	auto x					= g.new_tensor(DataType::FP32, {dim});
+	TensorNode *tensor_embd = x;
+	auto pos_tensor			= g.new_tensor(DataType::INT32, {1});
 	// attention and ffn
-	{
-		for (auto L = 0; L < config->n_layers; L++) {
-			attn.build_graph(g, config, weights, buffer, L, pos);
-			ffn.build_graph(g, config, weights, buffer, L, pos);
-		}
+	for (auto L = 0; L < config_->n_layers; L++) {
+		auto att_o = attn_->build(g, x, L, pos_tensor, pos);
+		auto ffn_o = ffn_->build(g, att_o, L);
+		x		   = ffn_o;
 	}
 
 	// final output
-	{
-		auto final_rms_norm = std::make_shared<Operator>(OpType::OP_RMS_NORM);
-		auto xi				= buffer->get_new_node_dim("x");
-		auto xo				= buffer->get_new_node_dim("x");
-		g.nodes.push_back(final_rms_norm);
-		g.nodes.push_back(xi);
-		g.nodes.push_back(xo);
-		add_input(final_rms_norm, xi);
-		add_input(final_rms_norm, weights->rms_final_weight);
-		add_output(final_rms_norm, xo);
+	auto rms_final_w	= g.add_tensor(weights_->rms_final_weight);
+	auto final_rms_norm = g.rms_norm(x, rms_final_w);
 
-		auto malmut_log = std::make_shared<Operator>(OpType::OP_MUL_MAT);
-		auto logits		= buffer->get_new_node_logits();
-		g.nodes.push_back(malmut_log);
-		g.nodes.push_back(logits);
-		add_input(malmut_log, xo);
-		add_input(malmut_log, weights->output_weight);
-		add_output(malmut_log, logits);
-	}
-	Sched sched;
-	Platform plat(config);
-	sched.run(g, plat);
-	return buffer->logits;
+	auto output_w = g.add_tensor(weights_->output_weight);
+	auto logits	  = g.mat_mul(final_rms_norm, output_w);
+
+	Platform plat(config_);
+	Executor executor(plat, g);
+	executor.allocate_buffers();
+	memcpy(tensor_embd->get<ggml::Buffer>().data_, (void *)(weights_->fp32_embd_table.data() + token * dim), dim * sizeof(float));
+	((int32_t *)pos_tensor->get<ggml::Buffer>().data_)[0] = pos;
+
+	executor.run();
+	float *logits_data = (float *)(logits->get<ggml::Buffer>().data_);
+
+	return std::vector<float>(logits_data, logits_data + dim);
 }
 
 void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps) {
