@@ -9,7 +9,7 @@ variables:
   IMAGE_NAME: ubuntu:22.04
   CONTAINER_NAME: ndk
   HF_TOKEN: "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"
-  REBUILD_ENV: "true" # Set to "true" to rebuild the environment
+  REBUILD_ENV: "false" # Set to "true" to rebuild the environment
   # NDK: "/data/android-ndk-r27b"
 
 setup:
@@ -70,6 +70,7 @@ build:
     # copy build_android/bin/run to /data
     - sudo podman exec -it $CONTAINER_NAME bash -c "cp -r /code/build_android /data"
     - sudo podman exec -it $CONTAINER_NAME bash -c "rm -rf /code/build_android"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "find /code -type d -name '__pycache__' -exec rm -r {} +"
     # - sudo podman exec -it $CONTAINER_NAME bash -c "rm -rf /code/tools/convert_hf_to_gguf/__pycache__"
     # - sudo podman exec -it $CONTAINER_NAME bash -c "rm -rf /code/tools/convert_hf_to_gguf/gguf-py/gguf/__pycache__"
     # 如果从容器里对/code/build_android_bin/llama-cli做readelf -h，读不到AArch64，说明错误
