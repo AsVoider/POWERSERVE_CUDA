@@ -3,6 +3,7 @@
 #include "fmt/base.h"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -28,7 +29,7 @@ TensorNode *Attention::build(Graph &g, TensorNode* x, int64_t L, TensorNode* pos
 	auto q_w = g.add_tensor(weights->lw[L].attn_q);
 	auto q = g.mat_mul(att_norm_o, q_w);
 	// TODO: update cache
-	uint64_t loff = L * config->seq_len * kv_dim;
+	size_t loff = L * config->seq_len * kv_dim;
 
 	auto k_w = g.add_tensor(weights->lw[L].attn_k);
 	auto k = g.mat_mul(att_norm_o, k_w);

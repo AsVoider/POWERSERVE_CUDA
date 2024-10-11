@@ -2,11 +2,11 @@
 #include "fmt/base.h"
 
 namespace smart {
-
+// Add a tensorNode from existing tensor to graph and this tensor have allocated memory
 auto Graph::add_tensor(const Tensor &tensor) -> TensorNode * {
     return tensors.emplace_back(new TensorNode(tensor)).get();
 }
-
+// Create a new tensorNode and allocate memory when call Executor::allocate_buffers
 auto Graph::new_tensor(DataType dtype, Tensor::Shape shape) -> TensorNode * {
     return tensors.emplace_back(new TensorNode(dtype, shape)).get();
 }
@@ -14,7 +14,7 @@ auto Graph::new_tensor(DataType dtype, Tensor::Shape shape) -> TensorNode * {
 auto Graph::new_op(OpType type) -> OpNode * {
     return ops.emplace_back(new OpNode(type)).get();
 }
-
+// Duplicate a tensorNode(datatype + shape) and **Note**: but not share the same memory
 auto Graph::dup_tensor(TensorNode *tensor) -> TensorNode * {
     return new_tensor(tensor->dtype, tensor->shape);
 }
@@ -98,15 +98,15 @@ auto Graph::mha(TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, Ten
     new_op(OpType::MHA)
         ->set_inputs({q, key_cache, val_cache, pos})
         ->set_outputs({out})
-        ->set_params(MHAParams{.layer_id = layer_id});
+        ->set_params(MHAParams(layer_id));
 
     return out;
 }
 
-auto Graph::copy(TensorNode *dst, TensorNode *src, int64_t off) -> void {
+auto Graph::copy(TensorNode *dst, TensorNode *src, size_t off) -> void {
     new_op(OpType::COPY)
         ->set_inputs({dst, src})
-        ->set_params(CopyParams{.off = off});
+        ->set_params(CopyParams(off));
 }
 
 }
