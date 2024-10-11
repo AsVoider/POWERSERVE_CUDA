@@ -7,6 +7,8 @@
 #include "ggml.h"
 #include "ggml-aarch64.h"
 
+// #include "ggml_op.h"
+
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
 #elif !defined(__FreeBSD__) && !defined(__NetBSD__) && !defined(__OpenBSD__)
@@ -12987,6 +12989,365 @@ UseGgmlGemm2:;
         }
 
         current_chunk = atomic_fetch_add_explicit(&params->threadpool->current_chunk, 1, memory_order_relaxed);
+    }
+}
+
+
+// ggml_compute_forward_op_mul_mat
+
+static int op_n_dims(const struct OpTensor * tensor) {
+    for (int i = GGML_MAX_DIMS - 1; i >= 1; --i) {
+        if (tensor->ne[i] > 1) {
+            return i + 1;
+        }
+    }
+    return 1;
+}
+
+static bool op_is_contiguous_n(const struct OpTensor * tensor, int n) {
+    size_t next_nb = type_traits[tensor->type].type_size; // ggml_type_size(tensor->type);
+    if (tensor->ne[0] != ggml_blck_size(tensor->type) && tensor->nb[0] != next_nb) {
+        return false;
+    }
+    next_nb *= tensor->ne[0]/ggml_blck_size(tensor->type);
+    for (int i = 1; i < GGML_MAX_DIMS; i++) {
+        if (tensor->ne[i] != 1) {
+            if (i > n) {
+                if (tensor->nb[i] != next_nb) {
+                    return false;
+                }
+                next_nb *= tensor->ne[i];
+            } else {
+                // this dimension does not need to be contiguous
+                next_nb = tensor->ne[i]*tensor->nb[i];
+            }
+        }
+    }
+    return true;
+}
+
+static void ggml_compute_forward_op_mul_mat_one_chunk(
+    const struct op_compute_params * params,
+    struct OpTensor * dst,
+    const struct OpTensor * src0,
+    const struct OpTensor * src1,
+    const int64_t num_rows_per_vec_dot,
+    const int64_t ir0_start,
+    const int64_t ir0_end,
+    const int64_t ir1_start,
+    const int64_t ir1_end) {
+
+    // const struct ggml_tensor * src0 = dst->src[0];
+    // const struct ggml_tensor * src1 = dst->src[1];
+
+    GGML_TENSOR_BINARY_OP_LOCALS
+
+    const enum ggml_type type = src0->type;
+
+    const bool src1_cont = op_is_contiguous_n(src1, 0);
+
+    ggml_vec_dot_t const vec_dot      = type_traits[type].vec_dot;
+    enum ggml_type const vec_dot_type = type_traits[type].vec_dot_type;
+
+    // broadcast factors
+    const int64_t r2 = ne12 / ne02;
+    const int64_t r3 = ne13 / ne03;
+
+    //printf("ir0_start = %6lld, ir0_end = %6lld, ir1_start = %6lld, ir1_end = %6lld\n", ir0_start, ir0_end, ir1_start, ir1_end);
+
+    // threads with no work simply yield (not sure if it helps)
+    if (ir0_start >= ir0_end || ir1_start >= ir1_end) {
+        return;
+    }
+
+    const void * wdata = (src1->type == vec_dot_type) ? src1->data : params->wdata;
+    // const void * wdata = src1->data;
+    const size_t row_size = ggml_row_size(vec_dot_type, ne10);
+
+    assert(ne12 % ne02 == 0);
+    assert(ne13 % ne03 == 0);
+
+    // block-tiling attempt
+    const int64_t blck_0 = 16;
+    const int64_t blck_1 = 16;
+
+    const size_t src1_col_stride = src1_cont || src1->type != vec_dot_type ? row_size : nb11;
+
+    // attempt to reduce false-sharing (does not seem to make a difference)
+    // 16 * 2, accounting for mmla kernels
+    float tmp[32];
+
+    for (int64_t iir1 = ir1_start; iir1 < ir1_end; iir1 += blck_1) {
+        for (int64_t iir0 = ir0_start; iir0 < ir0_end; iir0 += blck_0) {
+            for (int64_t ir1 = iir1; ir1 < iir1 + blck_1 && ir1 < ir1_end; ir1 += num_rows_per_vec_dot) {
+                const int64_t i13 = (ir1 / (ne12 * ne1));
+                const int64_t i12 = (ir1 - i13 * ne12 * ne1) / ne1;
+                const int64_t i11 = (ir1 - i13 * ne12 * ne1 - i12 * ne1);
+
+                // broadcast src0 into src1
+                const int64_t i03 = i13 / r3;
+                const int64_t i02 = i12 / r2;
+
+                const int64_t i1 = i11;
+                const int64_t i2 = i12;
+                const int64_t i3 = i13;
+
+                const char * src0_row = (const char*)src0->data + (0 + i02 * nb02 + i03 * nb03);
+
+                // desc: when src1 is not a contiguous memory block we have to calculate the offset using the strides
+                //       if it is, then we have either copied the data to params->wdata and made it contiguous or we are using
+                //       the original src1 data pointer, so we should index using the indices directly
+                // TODO: this is a bit of a hack, we should probably have a better way to handle this
+                const char * src1_col = (const char*)wdata +
+                    (src1_cont || src1->type != vec_dot_type
+                        ? (i11 + i12 * ne11 + i13 * ne12 * ne11) * row_size
+                        : (i11 * nb11 + i12 * nb12 + i13 * nb13));
+                float * dst_col = (float*)((char*)dst->data + (i1 * nb1 + i2 * nb2 + i3 * nb3));
+
+                //for (int64_t ir0 = iir0; ir0 < iir0 + blck_0 && ir0 < ir0_end; ++ir0) {
+                //    vec_dot(ne00, &dst_col[ir0], src0_row + ir0*nb01, src1_col);
+                //}
+
+                for (int64_t ir0 = iir0; ir0 < iir0 + blck_0 && ir0 < ir0_end; ir0 += num_rows_per_vec_dot) {
+                    vec_dot(ne00, &tmp[ir0 - iir0], (num_rows_per_vec_dot > 1 ? 16 : 0), src0_row + ir0 * nb01, (num_rows_per_vec_dot > 1 ? nb01 : 0), src1_col, (num_rows_per_vec_dot > 1 ? src1_col_stride : 0), num_rows_per_vec_dot);
+                }
+
+                for (int cn = 0; cn < num_rows_per_vec_dot; ++cn) {
+                    memcpy(&dst_col[iir0 + cn * nb1 / nb0], tmp + (cn * 16), (MIN(iir0 + blck_0, ir0_end) - iir0) * sizeof(float));
+                }
+            }
+        }
+    }
+}
+
+void ggml_compute_forward_op_mul_mat(
+        const struct op_compute_params * params,
+              struct OpTensor * dst,
+              const struct OpTensor * src0, // weight
+              const struct OpTensor * src1  // activation
+              ) {
+    // TODO: only support single thread
+    // TODO: only support src1.type == vec_dot_type
+    // assert(src1->type == type_traits[src0->type].vec_dot_type);
+
+    // const struct ggml_tensor * src0 = dst->src[0];
+    // const struct ggml_tensor * src1 = dst->src[1];
+
+    GGML_TENSOR_BINARY_OP_LOCALS
+
+    const int ith = 0 ;// params->ith;
+    const int nth = 1 ; // params->nth;
+    int global_current_chunk = 0;
+
+    const enum ggml_type type = src0->type;
+
+    enum ggml_type           const vec_dot_type         = type_traits[type].vec_dot_type;
+    ggml_from_float_t        const from_float           = type_traits[vec_dot_type].from_float;
+    ggml_from_float_to_mat_t const from_float_to_mat    = type_traits[vec_dot_type].from_float_to_mat;
+    int64_t                  const vec_dot_num_rows     = type_traits[type].nrows;
+    int64_t                  const matmul_num_cols      = type_traits[type].ncols;
+    int64_t                  const blck_size_interleave = type_traits[type].blck_size_interleave;
+    ggml_gemv_t              const gemv                 = type_traits[type].gemv;
+    ggml_gemm_t              const gemm                 = type_traits[type].gemm;
+
+    GGML_ASSERT(ne0 == ne01);
+    GGML_ASSERT(ne1 == ne11);
+    GGML_ASSERT(ne2 == ne12);
+    GGML_ASSERT(ne3 == ne13);
+
+    // we don't support permuted src0 or src1
+    GGML_ASSERT(nb00 == ggml_type_size(type));
+    GGML_ASSERT(nb10 == ggml_type_size(src1->type));
+
+    // dst cannot be transposed or permuted
+    GGML_ASSERT(nb0 == sizeof(float));
+    GGML_ASSERT(nb0 <= nb1);
+    GGML_ASSERT(nb1 <= nb2);
+    GGML_ASSERT(nb2 <= nb3);
+
+    // nb01 >= nb00 - src0 is not transposed
+    //   compute by src0 rows
+
+#if GGML_USE_LLAMAFILE
+    // broadcast factors
+    const int64_t r2 = ne12 / ne02;
+    const int64_t r3 = ne13 / ne03;
+
+    const bool src1_cont = op_is_contiguous_n(src1,0);
+
+    if (src1_cont) {
+        for (int64_t i13 = 0; i13 < ne13; i13++)
+            for (int64_t i12 = 0; i12 < ne12; i12++)
+                if (!llamafile_sgemm(ne01, ne11, ne00/ggml_blck_size(src0->type),
+                                     (const char *)src0->data + i12/r2*nb02 + i13/r3*nb03,
+                                     nb01/ggml_type_size(src0->type),
+                                     (const char *)src1->data + i12*nb12 + i13*nb13,
+                                     nb11/ggml_type_size(src1->type),
+                                     (char *)dst->data + i12*nb2 + i13*nb3,
+                                     nb1/ggml_type_size(dst->type),
+                                     ith, nth,
+                                     src0->type,
+                                     src1->type,
+                                     dst->type))
+                    goto UseGgmlGemm1;
+        return;
+    }
+UseGgmlGemm1:;
+#endif
+
+    if (src1->type != vec_dot_type) {
+        char * wdata = params->wdata;
+
+        const size_t nbw1 = ggml_row_size(vec_dot_type, ne10);
+        const size_t nbw2 = nbw1*ne11;
+        const size_t nbw3 = nbw2*ne12;
+
+        assert(params->wsize >= ne13*nbw3);
+        GGML_ASSERT(src1->type == GGML_TYPE_F32);
+
+        for (int64_t i13 = 0; i13 < ne13; ++i13) {
+            for (int64_t i12 = 0; i12 < ne12; ++i12) {
+                int64_t i11_processed = 0;
+                if ((ggml_n_dims((const struct ggml_tensor *)src1) == 2) && from_float_to_mat && gemm) {
+                    for (int64_t i11 = ith * 4; i11 < ne11 - ne11 % 4; i11 += nth * 4) {
+                        from_float_to_mat((float *)((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11),
+                                          (void *)               (wdata + i13*nbw3 + i12*nbw2 + i11*nbw1),
+                                          4, ne10, blck_size_interleave);
+                    }
+                    i11_processed = ne11 - ne11 % 4;
+                }
+                for (int64_t i11 = i11_processed + ith; i11 < ne11; i11 += nth) {
+                    from_float((float *)((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11),
+                           (void *)               (wdata + i13*nbw3 + i12*nbw2 + i11*nbw1),
+                           ne10);
+                }
+            }
+        }
+    }
+
+    if (ith == 0) {
+        // Every thread starts at ith, so the first unprocessed chunk is nth.  This save a bit of coordination right at the start.
+        // atomic_store_explicit(&params->threadpool->current_chunk, nth, memory_order_relaxed);
+        global_current_chunk = nth;
+    }
+
+    // ggml_barrier(params->threadpool);
+
+#if GGML_USE_LLAMAFILE
+    if (src1->type != vec_dot_type) {
+        const void* wdata = (src1->type == vec_dot_type) ? src1->data : params->wdata;
+        const size_t row_size = ggml_row_size(vec_dot_type, ne10);
+
+        for (int64_t i13 = 0; i13 < ne13; i13++)
+            for (int64_t i12 = 0; i12 < ne12; i12++)
+                if (!llamafile_sgemm(ne01, ne11, ne00/ggml_blck_size(src0->type),
+                                     (const char *)src0->data + i12/r2*nb02 + i13/r3*nb03,
+                                     nb01/ggml_type_size(src0->type),
+                                     (const char *)wdata + (i12*ne11 + i13*ne12*ne11)*row_size,
+                                     row_size/ggml_type_size(vec_dot_type),
+                                     (char *)dst->data + i12*nb2 + i13*nb3,
+                                     nb1/ggml_type_size(dst->type),
+                                     ith, nth,
+                                     src0->type,
+                                     vec_dot_type,
+                                     dst->type))
+                    goto UseGgmlGemm2;
+        return;
+    }
+UseGgmlGemm2:;
+#endif
+
+    // This is the size of the first dimension of the result, so we can iterate that way. (see the ASSERT above, these are the same numbers)
+    const int64_t nr0 = ne0;
+
+    // This is the size of the rest of the dimensions of the result
+    const int64_t nr1 = ne1 * ne2 * ne3;
+
+    // dot kernels can handle 1 row and col at a time, but mmla kernels can process 2 rows and cols
+    int64_t num_rows_per_vec_dot = vec_dot_num_rows;
+    // TODO: currently the mmla kernels support only even numbered rows/cols.
+    // this check can be removed once they are extended to support odd numbered rows/cols too
+    if ((nr0 % 2 != 0) || (ne11 % 2 != 0)) {
+        num_rows_per_vec_dot = 1;
+    }
+
+    // Now select a reasonable chunk size.
+    int chunk_size = 16;
+
+    // We need to step up the size if it's small
+    if (nr0 == 1 || nr1 == 1) {
+        chunk_size = 64;
+    }
+
+    // distribute the work across the inner or outer loop based on which one is larger
+    // The number of chunks in the 0/1 dim.
+    // CEIL(nr0/chunk_size)
+    int64_t nchunk0 = (nr0 + chunk_size - 1) / chunk_size;
+    // printf("nr0: %lld\n", nr0);
+    // printf("chunk_size: %d\n", chunk_size);
+    int64_t nchunk1 = (nr1 + chunk_size - 1) / chunk_size;
+    // printf("nr1:%lld\n", nr1);
+
+    // If the chunking is poor for the number of threads on this setup, scrap the whole plan.  Re-chunk it by thread.
+    //   Also, chunking by thread was measured to have perform better on NUMA systems.  See https://github.com/ggerganov/llama.cpp/pull/6915
+    //   In theory, chunking should be just as useful on NUMA and non NUMA systems, but testing disagreed with that.
+    if (nchunk0 * nchunk1 < nth * 4 || ggml_is_numa()) {
+        // printf("nchunk0: %lld, nchunk1: %lld\n", nchunk0, nchunk1);
+        // distribute the thread work across the inner or outer loop based on which one is larger
+        nchunk0 = nr0 > nr1 ? nth : 1; // parallelize by src0 rows
+        nchunk1 = nr0 > nr1 ? 1 : nth; // parallelize by src1 rows
+    }
+
+    // The number of elements in each chunk
+    const int64_t dr0 = (nr0 + nchunk0 - 1) / nchunk0;
+    const int64_t dr1 = (nr1 + nchunk1 - 1) / nchunk1;
+
+    if ((op_n_dims(src0) == 2) && gemv) {
+        const void * src1_wdata      = (src1->type == vec_dot_type) ? src1->data : params->wdata;
+        // const void * src1_wdata      = src1->data;
+        const size_t src1_col_stride = op_is_contiguous_n(src1,0) || src1->type != vec_dot_type ? ggml_row_size(vec_dot_type, ne10) : nb11;
+        int64_t src0_start = (ith * ne01) / nth;
+        int64_t src0_end   = ((ith + 1) * ne01) / nth;
+        src0_start = (src0_start % matmul_num_cols) ? src0_start + matmul_num_cols - (src0_start % matmul_num_cols): src0_start;
+        src0_end   = (src0_end   % matmul_num_cols) ? src0_end   + matmul_num_cols - (src0_end   % matmul_num_cols): src0_end;
+        if (src0_start >= src0_end) return;
+
+        // If there are more than three rows in src1, use gemm; otherwise, use gemv.
+        if (gemm && (ne11 > 3)) {
+            gemm(ne00, (float *)((char *) dst->data) + src0_start, ne01, (const char *) src0->data + src0_start * nb01,
+                 (const char *) src1_wdata, ne11 - ne11 % 4, src0_end - src0_start);
+        }
+        for (int iter = gemm ? ne11 - ne11 % 4 : 0; iter < ne11; iter++) {
+            gemv(ne00, (float *)((char *) dst->data + (iter * nb1)) + src0_start, ne01,
+                 (const char *) src0->data + src0_start * nb01, (const char *) src1_wdata + (src1_col_stride * iter), 1,
+                 src0_end - src0_start);
+        }
+        return;
+    }
+
+    // The first chunk comes from our thread_id, the rest will get auto-assigned.
+    int current_chunk = ith;
+    // printf("nchunk0: %lld, nchunk1: %lld\n", nchunk0, nchunk1);
+    while (current_chunk < nchunk0 * nchunk1) {
+        const int64_t ith0 = current_chunk % nchunk0;
+        const int64_t ith1 = current_chunk / nchunk0;
+
+        const int64_t ir0_start = dr0 * ith0;
+        const int64_t ir0_end = MIN(ir0_start + dr0, nr0);
+
+        const int64_t ir1_start = dr1 * ith1;
+        const int64_t ir1_end = MIN(ir1_start + dr1, nr1);
+
+        ggml_compute_forward_op_mul_mat_one_chunk(params,
+            dst, src0, src1, num_rows_per_vec_dot, ir0_start, ir0_end, ir1_start, ir1_end);
+
+        if (nth >= nchunk0 * nchunk1) {
+            break;
+        }
+
+        // current_chunk = atomic_fetch_add_explicit(&params->threadpool->current_chunk, 1, memory_order_relaxed);
+        current_chunk = global_current_chunk;
+        global_current_chunk++;
     }
 }
 
