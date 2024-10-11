@@ -76,12 +76,12 @@ static Tensor convert_from_ggml(ggml_tensor *t) {
 static OpTensor convert_to_optensor(const Tensor *t) {
 	SMART_ASSERT(t != nullptr);
 	OpTensor opt = {
-		t->get<ggml::Buffer>().data,
+		t->get<ggml::Buffer>().data_,
 		convert_datatype_to_ggml(t->dtype_),
 	};
 	for (int i = 0; i < Tensor::max_n_dims; i++) {
 		opt.ne[i] = t->shape_[i];
-		opt.nb[i] = t->get<ggml::Buffer>().stride[i];
+		opt.nb[i] = t->get<ggml::Buffer>().stride_[i];
 	}
 
 	return opt;

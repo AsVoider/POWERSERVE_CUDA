@@ -61,10 +61,10 @@ struct LlamaWeight {
 			std::memcpy(fp32_embd_table.data(), embedding->data, ggml_nelements(embedding) * sizeof(float));
 			break;
 		case DataType::GGML_Q4_0:
-			ggml::dequantize_row_q4_0((ggml::block_q4_0 *)token_embedding_table.get<ggml::Buffer>().data, fp32_embd_table.data(), ggml_nelements(embedding));
+			ggml::dequantize_row_q4_0((ggml::block_q4_0 *)token_embedding_table.get<ggml::Buffer>().data_, fp32_embd_table.data(), ggml_nelements(embedding));
 			break;
 		case DataType::GGML_Q8_0:
-			ggml::dequantize_row_q8_0((ggml::block_q8_0 *)token_embedding_table.get<ggml::Buffer>().data, fp32_embd_table.data(), ggml_nelements(embedding));
+			ggml::dequantize_row_q8_0((ggml::block_q8_0 *)token_embedding_table.get<ggml::Buffer>().data_, fp32_embd_table.data(), ggml_nelements(embedding));
 			break;
 		default:
 			break;

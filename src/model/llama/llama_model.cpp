@@ -73,11 +73,11 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
 	Platform plat(config);
 	Executor executor(plat, g);
 	executor.allocate_buffers();
-	memcpy(tensor_embd->get<ggml::Buffer>().data, (void *)(weights->fp32_embd_table.data() + token * dim), dim * sizeof(float));
-	((int32_t *)pos_tensor->get<ggml::Buffer>().data)[0] = pos;
+	memcpy(tensor_embd->get<ggml::Buffer>().data_, (void *)(weights->fp32_embd_table.data() + token * dim), dim * sizeof(float));
+	((int32_t *)pos_tensor->get<ggml::Buffer>().data_)[0] = pos;
 
 	executor.run();
-	float *logits_data = (float *)(logits->get<ggml::Buffer>().data);
+	float *logits_data = (float *)(logits->get<ggml::Buffer>().data_);
 
 	return std::vector<float>(logits_data, logits_data + dim);
 }
