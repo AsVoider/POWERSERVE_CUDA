@@ -5,7 +5,7 @@
 namespace smart {
 
 struct Model {
-	std::string filename;
+	std::string filename_;
 
 	virtual Graph *prefill() = 0;
 	virtual Graph *decode()	 = 0;

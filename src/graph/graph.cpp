@@ -4,15 +4,15 @@
 namespace smart {
 // Add a tensorNode from existing tensor to graph and this tensor have allocated memory
 auto Graph::add_tensor(const Tensor &tensor) -> TensorNode * {
-	return tensors.emplace_back(new TensorNode(tensor)).get();
+	return tensors_.emplace_back(new TensorNode(tensor)).get();
 }
 // Create a new tensorNode and allocate memory when call Executor::allocate_buffers
 auto Graph::new_tensor(DataType dtype, Tensor::Shape shape) -> TensorNode * {
-	return tensors.emplace_back(new TensorNode(dtype, shape)).get();
+	return tensors_.emplace_back(new TensorNode(dtype, shape)).get();
 }
 
 auto Graph::new_op(OpType type) -> OpNode * {
-	return ops.emplace_back(new OpNode(type)).get();
+	return ops_.emplace_back(new OpNode(type)).get();
 }
 // Duplicate a tensorNode(datatype + shape) and **Note**: but not share the same memory
 auto Graph::dup_tensor(TensorNode *tensor) -> TensorNode * {

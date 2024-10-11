@@ -23,18 +23,18 @@ struct LlamaModel : Model {
 	void generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps);
 	std::vector<float> forward(int token, int pos);
 
-	LlamaModel(std::string filename_);
+	LlamaModel(std::string filename);
 	~LlamaModel();
 
 private:
 	// ggml need those context
-	ggml_context *ggml_ctx;
-	gguf_context *gguf_ctx;
+	ggml_context *ggml_ctx_;
+	gguf_context *gguf_ctx_;
 
-	std::shared_ptr<LlamaConfig> config;
-	std::shared_ptr<LlamaWeight> weights;
-	std::shared_ptr<Attention> attn;
-	std::shared_ptr<FFN> ffn;
+	std::shared_ptr<LlamaConfig> config_;
+	std::shared_ptr<LlamaWeight> weights_;
+	std::shared_ptr<Attention> attn_;
+	std::shared_ptr<FFN> ffn_;
 };
 
 } // namespace smart

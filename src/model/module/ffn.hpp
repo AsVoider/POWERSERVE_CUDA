@@ -6,11 +6,11 @@ namespace smart {
 
 struct FFN {
 
-	std::shared_ptr<LlamaConfig> config;
-	std::shared_ptr<LlamaWeight> weights;
+	std::shared_ptr<LlamaConfig> config_;
+	std::shared_ptr<LlamaWeight> weights_;
 
 	FFN(std::shared_ptr<LlamaConfig> config, std::shared_ptr<LlamaWeight> weights)
-		: config(config), weights(weights) {}
+		: config_(config), weights_(weights) {}
 
 	TensorNode *build(Graph &g, TensorNode *attn_o, int64_t L);
 };

@@ -5,8 +5,8 @@
 namespace smart {
 
 struct Graph {
-	std::vector<std::shared_ptr<TensorNode>> tensors;
-	std::vector<std::shared_ptr<OpNode>> ops;
+	std::vector<std::shared_ptr<TensorNode>> tensors_;
+	std::vector<std::shared_ptr<OpNode>> ops_;
 
 	auto add_tensor(const Tensor &tensor) -> TensorNode *;
 	auto new_tensor(DataType dtype, Tensor::Shape shape) -> TensorNode *;

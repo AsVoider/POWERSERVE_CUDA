@@ -19,10 +19,10 @@ struct TensorNode;
 struct OpNode;
 
 struct Node {
-	NodeType type;
-	std::string name = "";
-	std::vector<Node *> prev;
-	std::vector<Node *> next;
+	NodeType type_;
+	std::string name_ = "";
+	std::vector<Node *> prev_;
+	std::vector<Node *> next_;
 
 	virtual ~Node() = default;
 
@@ -31,12 +31,12 @@ struct Node {
 	}
 
 	void connect(Node *other) {
-		next.push_back(other);
-		other->prev.push_back(this);
+		next_.push_back(other);
+		other->prev_.push_back(this);
 	}
 
 	auto set_name(const std::string &name) {
-		this->name = name;
+		name_ = name;
 		return this;
 	}
 
@@ -44,13 +44,13 @@ struct Node {
 	auto op() -> OpNode *;
 
 protected:
-	Node(NodeType type_) : type(type_) {}
+	Node(NodeType type) : type_(type) {}
 };
 
 struct TensorNode : Tensor, Node {
 	auto prev_op() const -> OpNode * {
-		SMART_ASSERT(prev.size() == 1);
-		return prev[0]->op();
+		SMART_ASSERT(prev_.size() == 1);
+		return prev_[0]->op();
 	}
 
 private:
@@ -93,12 +93,12 @@ struct OpNode : Node {
 	}
 
 	size_t n_outputs() const {
-		return next.size();
+		return next_.size();
 	}
 
 	auto output() const -> Tensor * {
 		SMART_ASSERT(n_outputs() == 1);
-		return next[0]->tensor();
+		return next_[0]->tensor();
 	}
 
 private:
