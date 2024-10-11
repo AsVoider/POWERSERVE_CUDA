@@ -6,10 +6,10 @@
 namespace smart {
 
 struct Executor {
-	Platform &platform;
-	Graph &graph;
+	Platform &platform_;
+	Graph &graph_;
 
-	Executor(Platform &platform_, Graph &graph_) : platform(platform_), graph(graph_) {}
+	Executor(Platform &platform, Graph &graph) : platform_(platform), graph_(graph) {}
 
 	void allocate_buffers();
 	void run();

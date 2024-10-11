@@ -71,7 +71,7 @@ void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t si
 }
 
 void GGMLBackend::rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const {
-	auto size = x->shape[0];
+	auto size = x->shape_[0];
 
 	rmsnorm_internal((float *)o->get<Buffer>().data, (float *)x->get<Buffer>().data, (float *)weight->get<Buffer>().data, size);
 }
@@ -97,21 +97,16 @@ void GGMLBackend::softmax_internal(float *out_, float *x_, size_t size) const {
 }
 
 void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
-	softmax_internal((float *)out->get<Buffer>().data, (float *)x->get<Buffer>().data, x->shape[0]);
+	softmax_internal((float *)out->get<Buffer>().data, (float *)x->get<Buffer>().data, x->shape_[0]);
 }
 
 // TODO: Rope's pos should be a tensor and we need rope_base (llama2 = 10000, llama3 = 300000 ...)
 void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const {
-	auto dim	   = q->shape[0];
+	auto dim	   = q->shape_[0];
 	auto head_size = dim / config->n_heads;
 	auto kv_dim	   = (config->dim * config->n_kv_heads) / config->n_heads;
 	auto pos_data  = (int32_t *)pos->get<Buffer>().data;
-	// if (pos_data[0] == 0) {
-	// 	for(int i = 0; i < kv_dim; i++) {
-	// 		fmt::println(stderr, "kcache[{}][{}] {}", i, pos_data[0], ((float *)k->get<ggml::Buffer>().data)[i + pos_data[0] * kv_dim]);
-	// 	}
-	// 	exit(0);
-	// }
+
 	memcpy(q_out->get<Buffer>().data, q->get<Buffer>().data, q->n_elements() * sizeof(float));
 	memcpy(k_out->get<Buffer>().data, k->get<Buffer>().data, k->n_elements() * sizeof(float));
 
@@ -130,12 +125,6 @@ void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tens
 			vec[i + 1] = v0 * fci + v1 * fcr;
 		}
 	}
-	// if (pos_data[0] == 0) {
-	// 	for(int i = 0; i < kv_dim; i++) {
-	// 		fmt::println(stderr, "kcache[{}][{}] {}", i, pos_data[0], ((float *)k_out->get<ggml::Buffer>().data)[i + pos_data[0] * kv_dim]);
-	// 	}
-	// 	exit(0);
-	// }
 }
 
 void GGMLBackend::multihead_attention(const Tensor *out, const Tensor *q, const Tensor *key_cache, const Tensor *val_cache, const Tensor *pos, const int64_t L) const {
@@ -146,17 +135,6 @@ void GGMLBackend::multihead_attention(const Tensor *out, const Tensor *q, const 
 	uint64_t loff  = L * config->seq_len * kv_dim;
 	auto pos_data  = (int32_t *)pos->get<Buffer>().data;
 	auto att	   = std::vector<float>(config->n_heads * config->seq_len);
-
-	// if (pos_data[0] == 1) {
-	// 	for(int i = 0; i < kv_dim; i++) {
-	// 		for(int j = 0; j <= pos_data[0]; j++) {
-	// 			for(int k = 0; k < config->n_layers; k++) {
-	// 				fmt::println(stderr, "kcache[{}][{}][{}] {}", i, j, k, ((float *)key_cache->get<ggml::Buffer>().data)[i + j * kv_dim + k * kv_dim * config->seq_len]);
-	// 			}
-	// 		}
-	// 	}
-	// 	exit(0);
-	// }
 
 	uint32_t h = 0;
 	for (h = 0; h < config->n_heads; h++) {
