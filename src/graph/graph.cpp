@@ -100,7 +100,7 @@ auto Graph::mha(TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, Ten
 	new_op(OpType::MHA)
 		->set_inputs({q, key_cache, val_cache, pos})
 		->set_outputs({out})
-		->set_params(MHAParams(layer_id));
+		->set_params(MHAParams{.layer_id = layer_id});
 
 	return out;
 }
@@ -108,7 +108,7 @@ auto Graph::mha(TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, Ten
 auto Graph::copy(TensorNode *dst, TensorNode *src, size_t off) -> void {
 	new_op(OpType::COPY)
 		->set_inputs({dst, src})
-		->set_params(CopyParams(off));
+		->set_params(CopyParams{.off = off});
 }
 
 } // namespace smart

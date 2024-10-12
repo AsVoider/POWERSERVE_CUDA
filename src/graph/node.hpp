@@ -79,15 +79,15 @@ struct OpNode : Node {
 		return this;
 	}
 
-	template <typename Params>
-	auto set_params(const Params &params) {
-		this->params.reset(new Params(params));
+	template <typename T>
+	auto set_params(const T &params) {
+		this->params.reset(new OpParamWrapper<T>(params));
 		return this;
 	}
 
-	template <typename Params>
-	auto get_params() const {
-		return *static_cast<Params *>(params.get());
+	template <typename T>
+	const auto &get_params() const {
+		return dynamic_cast<OpParamWrapper<T> *>(params.get())->value;
 	}
 
 	size_t n_outputs() const {

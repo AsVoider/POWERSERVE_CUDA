@@ -9,24 +9,21 @@ struct OpParams {
 	virtual ~OpParams() = default;
 };
 
-struct MHAParams : OpParams {
-	size_t layer_id = 0;
+// This wrapper decouples the inheritance from the parameter structs
+// So that parameter structs can keep its default constructors
+template <typename T>
+struct OpParamWrapper : OpParams {
+	T value;
 
-	MHAParams() = default;
-
-	explicit MHAParams(size_t layer_id) : layer_id(layer_id) {}
-
-	~MHAParams() override = default;
+	explicit OpParamWrapper(const T &value) : value(value) {}
 };
 
-struct CopyParams : OpParams {
+struct MHAParams {
+	size_t layer_id = 0;
+};
+
+struct CopyParams {
 	size_t off = 0;
-
-	CopyParams() = default;
-
-	explicit CopyParams(size_t off) : off(off) {}
-
-	~CopyParams() override = default;
 };
 
 } // namespace smart
