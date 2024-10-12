@@ -35,9 +35,8 @@ struct Node {
 		other->prev.push_back(this);
 	}
 
-	auto set_name(const std::string &name) {
+	void set_name(const std::string &name) {
 		this->name = name;
-		return this;
 	}
 
 	auto tensor() -> Tensor *;
@@ -65,24 +64,21 @@ struct OpNode : Node {
 	OpType op;
 	std::unique_ptr<OpParams> params;
 
-	auto set_inputs(const std::vector<TensorNode *> &tensors) {
+	void set_inputs(const std::vector<TensorNode *> &tensors) {
 		for (auto tensor : tensors) {
 			tensor->connect(this);
 		}
-		return this;
 	}
 
-	auto set_outputs(const std::vector<TensorNode *> &tensors) {
+	void set_outputs(const std::vector<TensorNode *> &tensors) {
 		for (auto tensor : tensors) {
 			connect(tensor);
 		}
-		return this;
 	}
 
 	template <typename T>
-	auto set_params(const T &params) {
+	void set_params(const T &params) {
 		this->params.reset(new OpParamWrapper<T>(params));
-		return this;
 	}
 
 	template <typename T>

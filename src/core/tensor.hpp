@@ -40,7 +40,9 @@ struct Tensor {
 	}
 
 	size_t n_elements() const {
-		return static_cast<size_t>(std::reduce(std::begin(shape), std::end(shape), uint64_t(1), std::multiplies<uint64_t>()));
+		return static_cast<size_t>(
+			std::reduce(std::begin(shape), std::end(shape), uint64_t(1), std::multiplies<uint64_t>())
+		);
 	}
 
 	template <typename Buffer>

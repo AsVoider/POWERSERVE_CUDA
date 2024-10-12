@@ -74,7 +74,9 @@ void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t si
 void GGMLBackend::rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const {
 	auto size = x->shape[0];
 
-	rmsnorm_internal((float *)o->get<Buffer>().data, (float *)x->get<Buffer>().data, (float *)weight->get<Buffer>().data, size);
+	rmsnorm_internal(
+		(float *)o->get<Buffer>().data, (float *)x->get<Buffer>().data, (float *)weight->get<Buffer>().data, size
+	);
 }
 
 void GGMLBackend::softmax_internal(float *out, float *x, size_t size) const {
@@ -128,7 +130,14 @@ void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tens
 	}
 }
 
-void GGMLBackend::multihead_attention(const Tensor *out, const Tensor *q, const Tensor *key_cache, const Tensor *val_cache, const Tensor *pos, const int64_t L) const {
+void GGMLBackend::multihead_attention(
+	const Tensor *out,
+	const Tensor *q,
+	const Tensor *key_cache,
+	const Tensor *val_cache,
+	const Tensor *pos,
+	const int64_t L
+) const {
 	auto dim	   = config->dim;
 	auto kv_dim	   = (config->dim * config->n_kv_heads) / config->n_heads;
 	auto kv_mul	   = config->n_heads / config->n_kv_heads;
@@ -172,7 +181,8 @@ void GGMLBackend::multihead_attention(const Tensor *out, const Tensor *q, const 
 
 void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
 	for (size_t i = 0; i < config->dim; i++) {
-		((float *)dst->get<Buffer>().data)[i] = ((float *)src0->get<Buffer>().data)[i] + ((float *)src1->get<Buffer>().data)[i];
+		((float *)dst->get<Buffer>().data)[i] =
+			((float *)src0->get<Buffer>().data)[i] + ((float *)src1->get<Buffer>().data)[i];
 	}
 }
 

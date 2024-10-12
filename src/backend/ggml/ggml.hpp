@@ -94,7 +94,8 @@ struct GGMLBackend : Backend {
 		wdata  = std::vector<char>(config->dim * 32);
 		params = {
 			.wsize = (size_t)config->dim * 32,
-			.wdata = wdata.data()};
+			.wdata = wdata.data(),
+		};
 	}
 
 	~GGMLBackend() = default;
@@ -102,7 +103,14 @@ struct GGMLBackend : Backend {
 	void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const;
 	void softmax(const Tensor *out, const Tensor *x) const;
 	void rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const;
-	void multihead_attention(const Tensor *out, const Tensor *q, const Tensor *key_cache, const Tensor *val_cache, const Tensor *pos, const int64_t L) const;
+	void multihead_attention(
+		const Tensor *out,
+		const Tensor *q,
+		const Tensor *key_cache,
+		const Tensor *val_cache,
+		const Tensor *pos,
+		const int64_t L
+	) const;
 	void silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const;
 	void add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
 	void copy(const Tensor *dst, const Tensor *src, const int64_t off) const;

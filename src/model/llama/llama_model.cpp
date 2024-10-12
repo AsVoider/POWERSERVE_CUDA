@@ -19,10 +19,8 @@ namespace smart {
 LlamaModel::LlamaModel(const std::string &filename) : Model(filename) {
 	// load file meta data (+ 4G)
 	{
-		gguf_init_params params = {
-			.no_alloc = false,
-			.ctx	  = &ggml_ctx};
-		gguf_ctx = gguf_init_from_file(filename.c_str(), params);
+		gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
+		gguf_ctx				= gguf_init_from_file(filename.c_str(), params);
 		SMART_ASSERT(gguf_ctx != nullptr);
 		SMART_ASSERT(ggml_ctx != nullptr);
 	}
@@ -74,7 +72,11 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
 	Platform plat(config);
 	Executor executor(plat, g);
 	executor.allocate_buffers();
-	memcpy(tensor_embd->get<ggml::Buffer>().data, (void *)(weights->fp32_embd_table.data() + token * dim), dim * sizeof(float));
+	memcpy(
+		tensor_embd->get<ggml::Buffer>().data,
+		(void *)(weights->fp32_embd_table.data() + token * dim),
+		dim * sizeof(float)
+	);
 	((int32_t *)pos_tensor->get<ggml::Buffer>().data)[0] = pos;
 
 	executor.run();

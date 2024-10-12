@@ -21,16 +21,16 @@ struct LayerWeights {
 	Tensor ffn_up;	 // "blk.$.ffn_up.weight" (layer, dim, hidden_dim)
 	Tensor ffn_down; // "blk.$.ffn_down.weight" (layer, hidden_dim, dim)
 
-	LayerWeights(ggml_context *ctx, uint32_t layer)
-		: attn_norm(get_tensor(ctx, layer, "attn_norm.weight")),
-		  ffn_norm(get_tensor(ctx, layer, "ffn_norm.weight")),
-		  attn_q(get_tensor(ctx, layer, "attn_q.weight")),
-		  attn_k(get_tensor(ctx, layer, "attn_k.weight")),
-		  attn_v(get_tensor(ctx, layer, "attn_v.weight")),
-		  attn_output(get_tensor(ctx, layer, "attn_output.weight")),
-		  ffn_gate(get_tensor(ctx, layer, "ffn_gate.weight")),
-		  ffn_up(get_tensor(ctx, layer, "ffn_up.weight")),
-		  ffn_down(get_tensor(ctx, layer, "ffn_down.weight")) {}
+	LayerWeights(ggml_context *ctx, uint32_t layer) :
+		attn_norm(get_tensor(ctx, layer, "attn_norm.weight")),
+		ffn_norm(get_tensor(ctx, layer, "ffn_norm.weight")),
+		attn_q(get_tensor(ctx, layer, "attn_q.weight")),
+		attn_k(get_tensor(ctx, layer, "attn_k.weight")),
+		attn_v(get_tensor(ctx, layer, "attn_v.weight")),
+		attn_output(get_tensor(ctx, layer, "attn_output.weight")),
+		ffn_gate(get_tensor(ctx, layer, "ffn_gate.weight")),
+		ffn_up(get_tensor(ctx, layer, "ffn_up.weight")),
+		ffn_down(get_tensor(ctx, layer, "ffn_down.weight")) {}
 
 	static Tensor get_tensor(ggml_context *ctx, uint32_t layer, const char *name) {
 		std::string tensor_name = fmt::format("blk.{}.{}", layer, name);
@@ -52,10 +52,10 @@ struct LlamaWeight {
 
 	std::vector<LayerWeights> lw;
 
-	LlamaWeight(ggml_context *ctx, uint32_t n_layers, uint32_t dim)
-		: token_embedding_table(ggml::convert_from_ggml(ggml_get_tensor(ctx, "token_embd.weight"))),
-		  output_weight(ggml::convert_from_ggml(ggml_get_tensor(ctx, "output.weight"))),
-		  rms_final_weight(ggml::convert_from_ggml(ggml_get_tensor(ctx, "output_norm.weight"))) {
+	LlamaWeight(ggml_context *ctx, uint32_t n_layers, uint32_t dim) :
+		token_embedding_table(ggml::convert_from_ggml(ggml_get_tensor(ctx, "token_embd.weight"))),
+		output_weight(ggml::convert_from_ggml(ggml_get_tensor(ctx, "output.weight"))),
+		rms_final_weight(ggml::convert_from_ggml(ggml_get_tensor(ctx, "output_norm.weight"))) {
 		SMART_UNUSED(dim);
 
 		auto embedding	= ggml_get_tensor(ctx, "token_embd.weight");
@@ -66,10 +66,18 @@ struct LlamaWeight {
 			std::memcpy(fp32_embd_table.data(), embedding->data, ggml_nelements(embedding) * sizeof(float));
 			break;
 		case DataType::GGML_Q4_0:
-			ggml::dequantize_row_q4_0((ggml::block_q4_0 *)token_embedding_table.get<ggml::Buffer>().data, fp32_embd_table.data(), ggml_nelements(embedding));
+			ggml::dequantize_row_q4_0(
+				(ggml::block_q4_0 *)token_embedding_table.get<ggml::Buffer>().data,
+				fp32_embd_table.data(),
+				ggml_nelements(embedding)
+			);
 			break;
 		case DataType::GGML_Q8_0:
-			ggml::dequantize_row_q8_0((ggml::block_q8_0 *)token_embedding_table.get<ggml::Buffer>().data, fp32_embd_table.data(), ggml_nelements(embedding));
+			ggml::dequantize_row_q8_0(
+				(ggml::block_q8_0 *)token_embedding_table.get<ggml::Buffer>().data,
+				fp32_embd_table.data(),
+				ggml_nelements(embedding)
+			);
 			break;
 		default:
 			break;

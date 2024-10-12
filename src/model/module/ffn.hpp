@@ -9,8 +9,7 @@ struct FFN {
 	std::shared_ptr<LlamaConfig> config;
 	std::shared_ptr<LlamaWeight> weights;
 
-	FFN(std::shared_ptr<LlamaConfig> config, std::shared_ptr<LlamaWeight> weights)
-		: config(config), weights(weights) {}
+	FFN(std::shared_ptr<LlamaConfig> config, std::shared_ptr<LlamaWeight> weights) : config(config), weights(weights) {}
 
 	TensorNode *build(Graph &g, TensorNode *attn_o, int64_t L);
 };

@@ -27,7 +27,8 @@ struct Graph {
 	auto rope(TensorNode *q, TensorNode *k, TensorNode *pos) -> RopeResult;
 
 	auto softmax(TensorNode *x) -> TensorNode *;
-	auto mha(TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id) -> TensorNode *;
+	auto mha(TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id)
+		-> TensorNode *;
 };
 
 } // namespace smart

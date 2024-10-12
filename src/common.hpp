@@ -16,12 +16,12 @@
 #if defined(SMART_NO_ASSERT)
 #define SMART_ASSERT(expr) SMART_UNUSED(expr)
 #else
-#define SMART_ASSERT(expr)                                                                                \
-	do {                                                                                                  \
-		if (SMART_BUILTIN_EXPECT(!(expr), 0)) {                                                           \
-			fmt::println(stderr, "{}:{}: {}: Assertion failed: {}", __FILE__, __LINE__, __func__, #expr); \
-			abort();                                                                                      \
-		}                                                                                                 \
+#define SMART_ASSERT(expr)                                                                                             \
+	do {                                                                                                               \
+		if (SMART_BUILTIN_EXPECT(!(expr), 0)) {                                                                        \
+			fmt::println(stderr, "{}:{}: {}: Assertion failed: {}", __FILE__, __LINE__, __func__, #expr);              \
+			abort();                                                                                                   \
+		}                                                                                                              \
 	} while (0)
 #endif
 

@@ -44,14 +44,18 @@ void debug_tensors_info(gguf_context *gguf_ctx, ggml_context *ggml_ctx) {
 	for (auto i = 0; i < gguf_get_n_tensors(gguf_ctx); i++) {
 		auto t = ggml_get_tensor(ggml_ctx, gguf_get_tensor_name(gguf_ctx, i));
 
-		fmt::println("{:40}|{:>5}|({:5},{:5},{:1},{:1})|{:10}|{:4}|{:4}|{:10}",
-					 ggml_get_name(t),
-					 ggml_type_name(t->type),
-					 t->ne[0], t->ne[1], t->ne[2], t->ne[3],
-					 ggml_get_data(t),
-					 ggml_type_size(t->type),
-					 ggml_blck_size(t->type),
-					 ggml_row_size(t->type, ggml_nelements(t)) // ne * ggml_type_size / ggml_blk_size (bytes)
+		fmt::println(
+			"{:40}|{:>5}|({:5},{:5},{:1},{:1})|{:10}|{:4}|{:4}|{:10}",
+			ggml_get_name(t),
+			ggml_type_name(t->type),
+			t->ne[0],
+			t->ne[1],
+			t->ne[2],
+			t->ne[3],
+			ggml_get_data(t),
+			ggml_type_size(t->type),
+			ggml_blck_size(t->type),
+			ggml_row_size(t->type, ggml_nelements(t)) // ne * ggml_type_size / ggml_blk_size (bytes)
 		);
 	}
 }

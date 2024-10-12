@@ -26,9 +26,9 @@ auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
 	SMART_ASSERT(a->shape == b->shape);
 
 	auto out = dup_tensor(a);
-	new_op(OpType::ADD)
-		->set_inputs({a, b})
-		->set_outputs({out});
+	auto op	 = new_op(OpType::ADD);
+	op->set_inputs({a, b});
+	op->set_outputs({out});
 
 	return out;
 }
@@ -40,9 +40,9 @@ auto Graph::mat_mul(TensorNode *x, TensorNode *weight) -> TensorNode * {
 	auto shape = x->shape;
 	shape[0]   = weight->n_elements() / weight->shape[0];
 	auto out   = new_tensor(x->dtype, shape);
-	new_op(OpType::MAT_MUL)
-		->set_inputs({x, weight})
-		->set_outputs({out});
+	auto op	   = new_op(OpType::MAT_MUL);
+	op->set_inputs({x, weight});
+	op->set_outputs({out});
 
 	return out;
 }
@@ -53,9 +53,9 @@ auto Graph::rms_norm(TensorNode *x, TensorNode *weight) -> TensorNode * {
 	SMART_ASSERT(x->shape[0] == weight->shape[0]);
 
 	auto out = dup_tensor(x);
-	new_op(OpType::RMS_NORM)
-		->set_inputs({x, weight})
-		->set_outputs({out});
+	auto op	 = new_op(OpType::RMS_NORM);
+	op->set_inputs({x, weight});
+	op->set_outputs({out});
 
 	return out;
 }
@@ -65,9 +65,9 @@ auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
 	SMART_ASSERT(gate->shape == up->shape);
 
 	auto out = dup_tensor(gate);
-	new_op(OpType::SILU_HADAMARD)
-		->set_inputs({gate, up})
-		->set_outputs({out});
+	auto op	 = new_op(OpType::SILU_HADAMARD);
+	op->set_inputs({gate, up});
+	op->set_outputs({out});
 
 	return out;
 }
@@ -77,38 +77,39 @@ auto Graph::rope(TensorNode *q, TensorNode *k, TensorNode *pos) -> RopeResult {
 
 	auto q_out = dup_tensor(q);
 	auto k_out = dup_tensor(k);
-	new_op(OpType::ROPE)
-		->set_inputs({q, k, pos})
-		->set_outputs({q_out, k_out});
+	auto op	   = new_op(OpType::ROPE);
+	op->set_inputs({q, k, pos});
+	op->set_outputs({q_out, k_out});
 
 	return {.q_out = q_out, .k_out = k_out};
 }
 
 auto Graph::softmax(TensorNode *x) -> TensorNode * {
 	auto out = dup_tensor(x);
-	new_op(OpType::SOFTMAX)
-		->set_inputs({x})
-		->set_outputs({out});
+	auto op	 = new_op(OpType::SOFTMAX);
+	op->set_inputs({x});
+	op->set_outputs({out});
 
 	return out;
 }
 
-auto Graph::mha(TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id) -> TensorNode * {
+auto Graph::mha(TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id)
+	-> TensorNode * {
 	// TODO: Add checks
 
 	auto out = dup_tensor(q);
-	new_op(OpType::MHA)
-		->set_inputs({q, key_cache, val_cache, pos})
-		->set_outputs({out})
-		->set_params(MHAParams{.layer_id = layer_id});
+	auto op	 = new_op(OpType::MHA);
+	op->set_inputs({q, key_cache, val_cache, pos});
+	op->set_outputs({out});
+	op->set_params(MHAParams{.layer_id = layer_id});
 
 	return out;
 }
 
 auto Graph::copy(TensorNode *dst, TensorNode *src, size_t off) -> void {
-	new_op(OpType::COPY)
-		->set_inputs({dst, src})
-		->set_params(CopyParams{.off = off});
+	auto op = new_op(OpType::COPY);
+	op->set_inputs({dst, src});
+	op->set_params(CopyParams{.off = off});
 }
 
 } // namespace smart
