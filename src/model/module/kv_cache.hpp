@@ -11,12 +11,12 @@ namespace smart {
 struct KVCache {
 
 	Tensor cache;
-	const std::shared_ptr<LlamaConfig> config;
+	const std::shared_ptr<LlamaConfig> &config;
 
 	void add_cache(Graph &g, TensorNode *tensor, size_t offset);
 	TensorNode *add_cache_node(Graph &g);
 
-	KVCache(std::shared_ptr<LlamaConfig> config)
+	KVCache(std::shared_ptr<LlamaConfig> &config)
 		: config(config),
 		  cache(DataType::FP32, {config->dim * config->n_kv_heads / config->n_heads, config->seq_len, config->n_layers}) {
 		// FIXME: Too Aggressive to allocate memory
