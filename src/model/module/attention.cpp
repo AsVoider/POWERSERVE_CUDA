@@ -13,15 +13,12 @@ TensorNode *Attention::build(Graph &g, TensorNode *x, int64_t L, TensorNode *pos
 
 	auto kv_dim = (config_->dim * config_->n_kv_heads) / config_->n_heads;
 
-	auto key_cache = g.add_tensor(gkey_cache_);
-	auto val_cache = g.add_tensor(gval_cache_);
-
 	auto att_norm_w = g.add_tensor(weights_->lw[L].attn_norm);
 	auto att_norm_o = g.rms_norm(x, att_norm_w);
 
 	// QKV
-	auto kc = g.add_tensor(*key_cache);
-	auto vc = g.add_tensor(*val_cache);
+	auto kc = g.add_tensor(gkey_cache_);
+	auto vc = g.add_tensor(gval_cache_);
 
 	auto q_w = g.add_tensor(weights_->lw[L].attn_q);
 	auto q	 = g.mat_mul(att_norm_o, q_w);
