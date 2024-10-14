@@ -17,8 +17,8 @@ TensorNode *Attention::build(Graph &g, TensorNode *x, int64_t L, TensorNode *pos
 	auto att_norm_o = g.rms_norm(x, att_norm_w);
 
 	// QKV
-	auto kc = g.add_tensor(gkey_cache_);
-	auto vc = g.add_tensor(gval_cache_);
+	auto kc = gkey_cache_.add_cache_node(g);
+	auto vc = gval_cache_.add_cache_node(g);
 
 	auto q_w = g.add_tensor(weights_->lw[L].attn_q);
 	auto q	 = g.mat_mul(att_norm_o, q_w);
@@ -36,8 +36,10 @@ TensorNode *Attention::build(Graph &g, TensorNode *x, int64_t L, TensorNode *pos
 	auto [rope_q, rope_k] = g.rope(q, k, pos_tensor);
 
 	// multihead attention
-	g.copy(vc, v, loff + pos * kv_dim);
-	g.copy(kc, rope_k, loff + pos * kv_dim);
+	// g.copy(vc, v, loff + pos * kv_dim);
+	// g.copy(kc, rope_k, loff + pos * kv_dim);
+	gkey_cache_.add_cache(g, rope_k, loff + pos * kv_dim);
+	gval_cache_.add_cache(g, v, loff + pos * kv_dim);
 
 	// auto att_scores = g.mha(rope_q, kc, vc, pos_tensor, L);
 	auto att_scores = g.mha(rope_q, kc, vc, pos_tensor, L);
