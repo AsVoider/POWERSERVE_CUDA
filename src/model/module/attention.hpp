@@ -7,7 +7,7 @@
 #include "graph/node.hpp"
 #include "model/llama/llama_config.hpp"
 #include "model/llama/llama_weight.hpp"
-#include "model/module/cache.hpp"
+#include "model/module/kv_cache.hpp"
 #include <cstdlib>
 #include <vector>
 namespace smart {
@@ -17,10 +17,8 @@ struct Attention {
 	std::shared_ptr<LlamaConfig> config_;
 	std::shared_ptr<LlamaWeight> weights_;
 
-	// Tensor gkey_cache_; // kv_dim x n_kv_heads x seq_len
-	// Tensor gval_cache_; // kv_dim x n_kv_heads x seq_len
-	Cache gkey_cache_;
-	Cache gval_cache_;
+	KVCache gkey_cache_;
+	KVCache gval_cache_;
 
 	Attention(std::shared_ptr<LlamaConfig> config, std::shared_ptr<LlamaWeight> weights)
 		: config_(config), weights_(weights),

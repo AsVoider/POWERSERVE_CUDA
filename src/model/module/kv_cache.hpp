@@ -4,20 +4,21 @@
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
 #include "model/llama/llama_config.hpp"
+#include <utility>
 
 namespace smart {
 
-struct Cache {
+struct KVCache {
 
 	Tensor cache;
-	std::shared_ptr<LlamaConfig> config;
+	const std::shared_ptr<LlamaConfig> config;
 
 
 	void add_cache(Graph &g, TensorNode *tensor, size_t offset);
 	TensorNode *add_cache_node(Graph &g);
 
 
-	Cache(std::shared_ptr<LlamaConfig> config) 
+	KVCache(std::shared_ptr<LlamaConfig> config) 
         : config(config), 
           cache(DataType::FP32, {config->dim * config->n_kv_heads / config->n_heads, config->seq_len, config->n_layers}) 
     {
@@ -27,7 +28,7 @@ struct Cache {
 		auto buffer				= backend.create_buffer<float>(shape);
 		cache.data_	= buffer;
 	}
-	~Cache() = default;
+	~KVCache() = default;
 };
 
 } // namespace smart
