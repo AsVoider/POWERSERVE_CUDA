@@ -7,14 +7,14 @@
 namespace smart {
 
 struct Model {
-	std::string filename;
+    std::string filename;
 
-	virtual Graph *prefill() = 0;
-	virtual Graph *decode()	 = 0;
+    virtual Graph *prefill() = 0;
+    virtual Graph *decode()  = 0;
 
-	Model(const std::string &filename) : filename(filename) {}
+    Model(const std::string &filename) : filename(filename) {}
 
-	~Model() = default;
+    ~Model() = default;
 };
 
 } // namespace smart

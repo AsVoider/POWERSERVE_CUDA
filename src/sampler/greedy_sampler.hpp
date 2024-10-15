@@ -7,9 +7,9 @@
 namespace smart {
 
 struct GreedySampler : Sampler {
-	int sample(std::vector<float> &logits) override;
-	GreedySampler()	 = default;
-	~GreedySampler() = default;
+    int sample(std::vector<float> &logits) override;
+    GreedySampler()  = default;
+    ~GreedySampler() = default;
 };
 
 } // namespace smart
