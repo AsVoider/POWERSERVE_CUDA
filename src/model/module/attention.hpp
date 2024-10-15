@@ -17,13 +17,10 @@ struct Attention {
 	std::shared_ptr<LlamaConfig> config_;
 	std::shared_ptr<LlamaWeight> weights_;
 
-	KVCache gkey_cache_;
-	KVCache gval_cache_;
+	KVCache kv_cache_;
 
 	Attention(std::shared_ptr<LlamaConfig> config, std::shared_ptr<LlamaWeight> weights)
-		: config_(config), weights_(weights),
-		  gkey_cache_(config),
-		  gval_cache_(config) {}
+		: config_(config), weights_(weights), kv_cache_(config, config->seq_len, config->dim * config->n_kv_heads / config->n_heads) {}
 	~Attention() = default;
 
 	TensorNode *build(Graph &g, TensorNode *x, int64_t L, TensorNode *pos_tensor, int32_t pos);
