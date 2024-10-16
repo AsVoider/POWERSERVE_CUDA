@@ -19,23 +19,25 @@
 namespace smart {
 
 struct LlamaModel : Model {
-    Graph *prefill() override;
-    Graph *decode() override;
-    void generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps);
-    std::vector<float> forward(int token, int pos);
-
-    LlamaModel(const std::string &filename);
-    ~LlamaModel();
-
 private:
     // ggml need those context
     ggml_context *ggml_ctx;
     gguf_context *gguf_ctx;
 
-    std::shared_ptr<LlamaConfig> config;
-    std::shared_ptr<LlamaWeight> weights;
-    std::shared_ptr<Attention> attn;
-    std::shared_ptr<FFN> ffn;
+    std::shared_ptr<LlamaConfig> m_config;
+    std::shared_ptr<LlamaWeight> m_weights;
+    std::shared_ptr<Attention> m_attn;
+    std::shared_ptr<FFN> m_ffn;
+
+public:
+    explicit LlamaModel(const std::string &filename);
+    ~LlamaModel() override;
+
+public:
+    Graph *prefill() override;
+    Graph *decode() override;
+    void generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps);
+    std::vector<float> forward(int token, int pos);
 };
 
 } // namespace smart

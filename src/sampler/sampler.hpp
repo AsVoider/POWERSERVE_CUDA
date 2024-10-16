@@ -5,9 +5,12 @@
 namespace smart {
 
 struct Sampler {
+public:
+    Sampler()          = default;
+    virtual ~Sampler() = default;
+
+public:
     virtual int sample(std::vector<float> &logits) = 0;
-    Sampler()                                      = default;
-    ~Sampler()                                     = default;
 };
 
 } // namespace smart

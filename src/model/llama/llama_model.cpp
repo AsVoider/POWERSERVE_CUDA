@@ -25,12 +25,12 @@ LlamaModel::LlamaModel(const std::string &filename) : Model(filename) {
         SMART_ASSERT(ggml_ctx != nullptr);
     }
     // prepare data
-    config = std::make_shared<LlamaConfig>(gguf_ctx);
+    m_config = std::make_shared<LlamaConfig>(gguf_ctx);
     // prepare weights (+ 2G)
-    weights = std::make_shared<LlamaWeight>(ggml_ctx, config->n_layers, config->dim);
+    m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->n_layers, m_config->dim);
     // modules
-    attn = std::make_shared<Attention>(config, weights);
-    ffn  = std::make_shared<FFN>(config, weights);
+    m_attn = std::make_shared<Attention>(m_config, m_weights);
+    m_ffn  = std::make_shared<FFN>(m_config, m_weights);
 }
 
 LlamaModel::~LlamaModel() {
@@ -47,40 +47,40 @@ Graph *LlamaModel::decode() {
 
 std::vector<float> LlamaModel::forward(int token, int pos) {
     Graph g;
-    auto dim = config->dim;
+    auto dim = m_config->dim;
 
     // input embedding
     // prepare input : embeding token tensor [dim,]
-    SMART_ASSERT(token * dim + dim <= weights->fp32_embd_table.size());
+    SMART_ASSERT(token * dim + dim <= m_weights->fp32_embd_table.size());
     auto x                  = g.new_tensor(DataType::FP32, {dim});
     TensorNode *tensor_embd = x;
     auto pos_tensor         = g.new_tensor(DataType::INT32, {1});
     // attention and ffn
-    for (size_t L = 0; L < config->n_layers; L++) {
-        auto att_o = attn->build(g, x, L, pos_tensor, pos);
-        auto ffn_o = ffn->build(g, att_o, L);
+    for (size_t L = 0; L < m_config->n_layers; L++) {
+        auto att_o = m_attn->build(g, x, L, pos_tensor, pos);
+        auto ffn_o = m_ffn->build(g, att_o, L);
         x          = ffn_o;
     }
 
     // final output
-    auto rms_final_w    = g.add_tensor(weights->rms_final_weight);
+    auto rms_final_w    = g.add_tensor(m_weights->rms_final_weight);
     auto final_rms_norm = g.rms_norm(x, rms_final_w);
 
-    auto output_w = g.add_tensor(weights->output_weight);
+    auto output_w = g.add_tensor(m_weights->output_weight);
     auto logits   = g.mat_mul(final_rms_norm, output_w);
 
-    Platform plat(config);
+    Platform plat(m_config);
     Executor executor(plat, g);
     executor.allocate_buffers();
     memcpy(
-        tensor_embd->get<ggml::Buffer>().data,
-        (void *)(weights->fp32_embd_table.data() + token * dim),
+        tensor_embd->get<ggml::Buffer>().m_data,
+        static_cast<void *>(m_weights->fp32_embd_table.data() + token * dim),
         dim * sizeof(float)
     );
-    ((int32_t *)pos_tensor->get<ggml::Buffer>().data)[0] = pos;
+    static_cast<int32_t *>(pos_tensor->get<ggml::Buffer>().m_data)[0] = pos;
 
     executor.run();
-    float *logits_data = (float *)(logits->get<ggml::Buffer>().data);
+    float *logits_data = static_cast<float *>(logits->get<ggml::Buffer>().m_data);
 
     return std::vector<float>(logits_data, logits_data + dim);
 }

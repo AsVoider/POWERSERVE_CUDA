@@ -12,14 +12,17 @@
 namespace smart {
 
 struct Tensor {
+public:
     static constexpr size_t max_n_dims = 4;
 
     using Shape = std::array<size_t, max_n_dims>;
 
+public:
     DataType dtype;
     Shape shape;
     BufferPtr data;
 
+public:
     Tensor(const Tensor &)            = default;
     Tensor &operator=(const Tensor &) = default;
 
@@ -30,6 +33,7 @@ struct Tensor {
         }
     }
 
+public:
     size_t n_dims() const {
         for (size_t i = max_n_dims - 1; i > 0; i--) {
             if (shape[i] > 1) {

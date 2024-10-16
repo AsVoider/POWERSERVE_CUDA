@@ -1,7 +1,5 @@
 #pragma once
 
-#include "backend/ggml/ggml.hpp"
-#include "core/tensor.hpp"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
 #include "model/llama/llama_config.hpp"
@@ -13,19 +11,22 @@
 namespace smart {
 
 struct Attention {
+private:
+    std::shared_ptr<LlamaConfig> m_config;
+    std::shared_ptr<LlamaWeight> m_weights;
 
-    std::shared_ptr<LlamaConfig> config;
-    std::shared_ptr<LlamaWeight> weights;
+private:
+    KVCache m_kv_cache;
 
-    KVCache kv_cache;
-
+public:
     Attention(std::shared_ptr<LlamaConfig> config, std::shared_ptr<LlamaWeight> weights) :
-        config(config),
-        weights(weights),
-        kv_cache(config, config->seq_len, config->dim * config->n_kv_heads / config->n_heads) {}
+        m_config(config),
+        m_weights(weights),
+        m_kv_cache(config, config->seq_len, config->dim * config->n_kv_heads / config->n_heads) {}
 
     ~Attention() = default;
 
+public:
     TensorNode *build(Graph &g, TensorNode *x, int64_t L, TensorNode *pos_tensor, int32_t pos);
 };
 

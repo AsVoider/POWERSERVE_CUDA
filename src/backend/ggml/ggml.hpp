@@ -78,11 +78,11 @@ static OpTensor convert_to_optensor(const Tensor *t) {
     SMART_ASSERT(t != nullptr);
 
     OpTensor opt;
-    opt.data = t->get<ggml::Buffer>().data;
+    opt.data = t->get<ggml::Buffer>().m_data;
     opt.type = convert_datatype_to_ggml(t->dtype);
     for (size_t i = 0; i < Tensor::max_n_dims; i++) {
         opt.ne[i] = t->shape[i];
-        opt.nb[i] = t->get<ggml::Buffer>().stride[i];
+        opt.nb[i] = t->get<ggml::Buffer>().m_stride[i];
     }
 
     return opt;
@@ -90,15 +90,22 @@ static OpTensor convert_to_optensor(const Tensor *t) {
 
 // **Note**: Backend receives Tensor not TensorNode
 struct GGMLBackend : Backend {
-    GGMLBackend(std::shared_ptr<LlamaConfig> config) : config(config) {
-        wdata  = std::vector<char>(config->dim * 32);
-        params = {
+private:
+    op_compute_params m_params;
+    std::vector<char> m_wdata;
+    std::shared_ptr<LlamaConfig> m_config;
+
+public:
+    explicit GGMLBackend(std::shared_ptr<LlamaConfig> config) : m_wdata(config->dim * 32), m_config(config) {
+        m_params = {
             .wsize = (size_t)config->dim * 32,
-            .wdata = wdata.data(),
+            .wdata = m_wdata.data(),
         };
     }
 
-    ~GGMLBackend() = default;
+    ~GGMLBackend() override = default;
+
+public:
     void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const;
     void softmax(const Tensor *out, const Tensor *x) const;
@@ -115,6 +122,7 @@ struct GGMLBackend : Backend {
     void add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void copy(const Tensor *dst, const Tensor *src, const int64_t off) const;
 
+public:
     template <typename T>
     auto create_buffer(Tensor::Shape shape) -> BufferPtr {
         Buffer::Stride stride;
@@ -128,10 +136,6 @@ struct GGMLBackend : Backend {
     }
 
 private:
-    op_compute_params params;
-    std::vector<char> wdata;
-    std::shared_ptr<LlamaConfig> config;
-
     void rmsnorm_internal(float *o, float *x, float *weight, int64_t size) const;
     void softmax_internal(float *out, float *x, size_t size) const;
 };
