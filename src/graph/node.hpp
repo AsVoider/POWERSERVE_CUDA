@@ -60,6 +60,9 @@ private:
     TensorNode(DataType dtype, const Tensor::Shape &shape) : Tensor(dtype, shape), Node(NodeType::TENSOR) {}
 
 public:
+    ~TensorNode() override = default;
+
+public:
     auto prev_op() const -> OpNode * {
         SMART_ASSERT(prev.size() == 1);
         return prev[0]->op();
@@ -73,6 +76,9 @@ public:
 
 private:
     OpNode(OpType op) : Node(NodeType::OPERATOR), op(op) {}
+
+public:
+    ~OpNode() override = default;
 
 private:
     friend struct Graph;

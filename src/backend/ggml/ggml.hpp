@@ -70,7 +70,7 @@ static Tensor convert_from_ggml(ggml_tensor *t) {
         stride[i] = t->nb[i];
     }
     Tensor tensor(convert_datatype_from_ggml(t->type), shape);
-    tensor.data = std::make_shared<Buffer>(stride, t->data);
+    tensor.m_data = std::make_shared<Buffer>(stride, t->data);
     return tensor;
 }
 
@@ -79,9 +79,9 @@ static OpTensor convert_to_optensor(const Tensor *t) {
 
     OpTensor opt;
     opt.data = t->get<ggml::Buffer>().m_data;
-    opt.type = convert_datatype_to_ggml(t->dtype);
+    opt.type = convert_datatype_to_ggml(t->m_dtype);
     for (size_t i = 0; i < Tensor::max_n_dims; i++) {
-        opt.ne[i] = t->shape[i];
+        opt.ne[i] = t->m_shape[i];
         opt.nb[i] = t->get<ggml::Buffer>().m_stride[i];
     }
 

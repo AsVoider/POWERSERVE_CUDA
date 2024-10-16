@@ -66,7 +66,7 @@ public:
         auto embedding  = ggml_get_tensor(ctx, "token_embd.weight");
         fp32_embd_table = std::vector<float>(ggml_nelements(embedding)); // + 2G
 
-        switch (token_embedding_table.dtype) {
+        switch (token_embedding_table.m_dtype) {
         case DataType::FP32:
             std::memcpy(fp32_embd_table.data(), embedding->data, ggml_nelements(embedding) * sizeof(float));
             break;

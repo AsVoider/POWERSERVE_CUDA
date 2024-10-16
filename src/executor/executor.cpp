@@ -6,17 +6,17 @@ namespace smart {
 
 void Executor::allocate_buffers() {
     for (auto tensor : m_graph.tensors) {
-        if (tensor->data) {
+        if (tensor->m_data) {
             continue;
         }
 
-        switch (tensor->dtype) {
+        switch (tensor->m_dtype) {
         case DataType::FP32: {
-            tensor->data = m_platform.ggml_backend.create_buffer<float>(tensor->shape);
+            tensor->m_data = m_platform.ggml_backend.create_buffer<float>(tensor->m_shape);
         } break;
 
         case DataType::INT32: {
-            tensor->data = m_platform.ggml_backend.create_buffer<int32_t>(tensor->shape);
+            tensor->m_data = m_platform.ggml_backend.create_buffer<int32_t>(tensor->m_shape);
         } break;
 
         default:

@@ -44,13 +44,13 @@ public:
         ggml::GGMLBackend backend(config); // tmp
         auto kb            = backend.create_buffer<float>(shape);
         auto vb            = backend.create_buffer<float>(shape);
-        m_key_cache.data   = std::move(kb);
-        m_value_cache.data = std::move(vb);
+        m_key_cache.m_data   = std::move(kb);
+        m_value_cache.m_data = std::move(vb);
     }
 
     ~KVCache() {
-        m_key_cache.data.reset();
-        m_value_cache.data.reset();
+        m_key_cache.m_data.reset();
+        m_value_cache.m_data.reset();
     }
 
 public:

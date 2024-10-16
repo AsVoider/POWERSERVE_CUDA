@@ -72,7 +72,7 @@ void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t si
 }
 
 void GGMLBackend::rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const {
-    auto size = x->shape[0];
+    auto size = x->m_shape[0];
 
     rmsnorm_internal(
         static_cast<float *>(o->get<Buffer>().m_data),
@@ -106,13 +106,13 @@ void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
     softmax_internal(
         static_cast<float *>(out->get<Buffer>().m_data),
         static_cast<float *>(x->get<Buffer>().m_data),
-        x->shape[0]
+        x->m_shape[0]
     );
 }
 
 // TODO: Rope's pos should be a tensor and we need rope_base (llama2 = 10000, llama3 = 300000 ...)
 void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const {
-    auto dim                = q->shape[0];
+    auto dim                = q->m_shape[0];
     auto head_size          = dim / m_config->n_heads;
     auto kv_dim             = (m_config->dim * m_config->n_kv_heads) / m_config->n_heads;
     const int32_t *pos_data = static_cast<int32_t *>(pos->get<Buffer>().m_data);
