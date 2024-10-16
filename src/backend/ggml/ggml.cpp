@@ -104,9 +104,7 @@ void GGMLBackend::softmax_internal(float *out, float *x, size_t size) const {
 
 void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
     softmax_internal(
-        static_cast<float *>(out->get<Buffer>().m_data),
-        static_cast<float *>(x->get<Buffer>().m_data),
-        x->m_shape[0]
+        static_cast<float *>(out->get<Buffer>().m_data), static_cast<float *>(x->get<Buffer>().m_data), x->m_shape[0]
     );
 }
 
@@ -160,7 +158,8 @@ void GGMLBackend::multihead_attention(
         auto att_buf = att.data() + h * m_config->seq_len;
 
         for (auto t = 0; t <= pos_data[0]; t++) {
-            auto k = static_cast<float *>(key_cache->get<Buffer>().m_data) + loff + t * kv_dim + (h / kv_mul) * head_size;
+            auto k =
+                static_cast<float *>(key_cache->get<Buffer>().m_data) + loff + t * kv_dim + (h / kv_mul) * head_size;
             auto score = 0.0f;
 
             for (size_t i = 0; i < head_size; i++) {
@@ -177,7 +176,8 @@ void GGMLBackend::multihead_attention(
         memset(xb, 0, head_size * sizeof(float));
 
         for (auto t = 0; t <= pos_data[0]; t++) {
-            auto v = static_cast<float *>(val_cache->get<Buffer>().m_data) + loff + t * kv_dim + (h / kv_mul) * head_size;
+            auto v =
+                static_cast<float *>(val_cache->get<Buffer>().m_data) + loff + t * kv_dim + (h / kv_mul) * head_size;
             auto a = att_buf[t];
 
             for (size_t i = 0; i < head_size; i++) {
