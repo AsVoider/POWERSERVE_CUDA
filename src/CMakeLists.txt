@@ -11,3 +11,12 @@ add_subdirectory(sampler)
 add_subdirectory(speculative)
 add_subdirectory(tokenizer)
 
+if (NOT MSVC)
+    target_compile_options(smart_serving PRIVATE
+        -Wall
+        -Wextra
+        -Werror
+
+        -Wno-unused-function
+    )
+endif()

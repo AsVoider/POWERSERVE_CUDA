@@ -3,7 +3,6 @@
 
 namespace smart {
 
-struct Backend {
-};
+struct Backend {};
 
 } // namespace smart

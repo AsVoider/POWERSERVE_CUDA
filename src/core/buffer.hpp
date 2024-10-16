@@ -1,7 +1,5 @@
 #pragma once
 
-#include "common.hpp"
-
 #include <memory>
 
 namespace smart {
@@ -9,7 +7,7 @@ namespace smart {
 struct Tensor;
 
 struct BaseBuffer {
-	virtual ~BaseBuffer() = default;
+    virtual ~BaseBuffer() = default;
 };
 
 using BufferPtr = std::shared_ptr<BaseBuffer>;
