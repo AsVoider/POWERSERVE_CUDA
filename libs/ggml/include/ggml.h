@@ -617,7 +617,7 @@ extern "C" {
 
 struct OpTensor {
     void* data;
-    const enum ggml_type type;
+    enum ggml_type type;
     int64_t ne[GGML_MAX_DIMS]; // number of elements
     size_t nb[GGML_MAX_DIMS]; // stride in bytes
 };

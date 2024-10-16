@@ -1,17 +1,17 @@
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include "core/tensor.hpp"
 #include "graph/op_params.hpp"
 #include "graph/op_type.hpp"
 
+#include <string>
+#include <vector>
+
 namespace smart {
 
 enum class NodeType {
-	TENSOR,
-	OPERATOR,
+    TENSOR,
+    OPERATOR,
 };
 
 struct Graph;
@@ -19,93 +19,86 @@ struct TensorNode;
 struct OpNode;
 
 struct Node {
-	NodeType type_;
-	std::string name_ = "";
-	std::vector<Node *> prev_;
-	std::vector<Node *> next_;
+    NodeType type;
+    std::string name = "";
+    std::vector<Node *> prev;
+    std::vector<Node *> next;
 
-	virtual ~Node() = default;
+    virtual ~Node() = default;
 
-	void connect(Node &other) {
-		connect(&other);
-	}
+    void connect(Node &other) {
+        connect(&other);
+    }
 
-	void connect(Node *other) {
-		next_.push_back(other);
-		other->prev_.push_back(this);
-	}
+    void connect(Node *other) {
+        next.push_back(other);
+        other->prev.push_back(this);
+    }
 
-	auto set_name(const std::string &name) {
-		name_ = name;
-		return this;
-	}
+    void set_name(const std::string &name) {
+        this->name = name;
+    }
 
-	auto tensor() -> Tensor *;
-	auto op() -> OpNode *;
+    auto tensor() -> Tensor *;
+    auto op() -> OpNode *;
 
 protected:
-	Node(NodeType type) : type_(type) {}
+    Node(NodeType type) : type(type) {}
 };
 
 struct TensorNode : Tensor, Node {
-	auto prev_op() const -> OpNode * {
-		SMART_ASSERT(prev_.size() == 1);
-		return prev_[0]->op();
-	}
+    auto prev_op() const -> OpNode * {
+        SMART_ASSERT(prev.size() == 1);
+        return prev[0]->op();
+    }
 
 private:
-	TensorNode(const Tensor &tensor) : Node(NodeType::TENSOR),
-									   Tensor(tensor) {}
+    TensorNode(const Tensor &tensor) : Tensor(tensor), Node(NodeType::TENSOR) {}
 
-	TensorNode(DataType dtype, Tensor::Shape shape) : Node(NodeType::TENSOR),
-													  Tensor(dtype, shape) {}
+    TensorNode(DataType dtype, const Tensor::Shape &shape) : Tensor(dtype, shape), Node(NodeType::TENSOR) {}
 
-	friend struct Graph;
+    friend struct Graph;
 };
 
 struct OpNode : Node {
-	OpType op;
-	std::unique_ptr<OpParams> params;
+    OpType op;
+    std::unique_ptr<OpParams> params;
 
-	auto set_inputs(const std::vector<TensorNode *> &tensors) {
-		for (auto tensor : tensors) {
-			tensor->connect(this);
-		}
-		return this;
-	}
+    void set_inputs(const std::vector<TensorNode *> &tensors) {
+        for (auto tensor : tensors) {
+            tensor->connect(this);
+        }
+    }
 
-	auto set_outputs(const std::vector<TensorNode *> &tensors) {
-		for (auto tensor : tensors) {
-			connect(tensor);
-		}
-		return this;
-	}
+    void set_outputs(const std::vector<TensorNode *> &tensors) {
+        for (auto tensor : tensors) {
+            connect(tensor);
+        }
+    }
 
-	template <typename Params>
-	auto set_params(const Params &params) {
-		this->params.reset(new Params(params));
-		return this;
-	}
+    template <typename T>
+    void set_params(const T &params) {
+        this->params.reset(new OpParamWrapper<T>(params));
+    }
 
-	template <typename Params>
-	auto get_params() const {
-		return *static_cast<Params *>(params.get());
-	}
+    template <typename T>
+    const auto &get_params() const {
+        return dynamic_cast<OpParamWrapper<T> *>(params.get())->value;
+    }
 
-	size_t n_outputs() const {
-		return next_.size();
-	}
+    size_t n_outputs() const {
+        return next.size();
+    }
 
-	auto output() const -> Tensor * {
-		SMART_ASSERT(n_outputs() == 1);
-		return next_[0]->tensor();
-	}
+    auto output() const -> Tensor * {
+        SMART_ASSERT(n_outputs() == 1);
+        return next[0]->tensor();
+    }
 
 private:
-	OpNode(OpType op_) : Node(NodeType::OPERATOR),
-						 op(op_) {}
+    OpNode(OpType op) : Node(NodeType::OPERATOR), op(op) {}
 
-	friend struct Graph;
+    friend struct Graph;
 };
 
 } // namespace smart
