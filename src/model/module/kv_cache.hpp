@@ -45,8 +45,8 @@ struct KVCache {
         };
 
         ggml::GGMLBackend backend(config); // tmp
-        auto kb           = backend.create_buffer<float>(shape);
-        auto vb           = backend.create_buffer<float>(shape);
+        auto kb          = backend.create_buffer<float>(shape);
+        auto vb          = backend.create_buffer<float>(shape);
         key_cache.data   = std::move(kb);
         value_cache.data = std::move(vb);
     }
