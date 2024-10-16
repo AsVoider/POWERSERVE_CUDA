@@ -1,6 +1,6 @@
 stages:
+  - check_format
   - setup
-  # - convert
   - build
   - deploy
   - test
@@ -9,26 +9,32 @@ variables:
   IMAGE_NAME: ubuntu:22.04
   CONTAINER_NAME: ndk
   HF_TOKEN: "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"
-  REBUILD_ENV: "true" # Set to "true" to rebuild the environment
-  # NDK: "/data/android-ndk-r27b"
+
+check_formatting:
+  image: ubuntu:22.04
+  stage: check_format
+  before_script:
+    - apt-get update && apt-get install -y clang-format git
+  script:
+    - echo `which clang-format`
+    - cd "$CI_PROJECT_DIR"
+    - linter_errors=$(git-clang-format --commit "HEAD~1" --diff | grep -E --color=never "no modified files to format|clang-format did not modify any files" || true)
+    - echo "$linter_errors"
+    - if [ -z "$linter_errors" ]; then echo "Detected formatting issues; please fix"; exit 1; else echo "Formatting is correct"; exit 0; fi
 
 setup:
   stage: setup
   script:
     - pwd
-    - if [ "$REBUILD_ENV" = "true" ]; then
-      sudo podman stop $CONTAINER_NAME || true;
-      sudo podman rm $CONTAINER_NAME || true;
-      sudo rm -rf ~/Downloads;
-      sudo mkdir ~/Downloads;
-      export https_proxy=http://ipads:ipads123@202.120.40.82:11235;
-      sudo -E podman run -v $(realpath .):/code -v $(realpath ~/Downloads):/data -dit --name ndk ubuntu:22.04;
-      sudo podman exec -it $CONTAINER_NAME bash -c "apt update && apt upgrade -y && apt install -y sudo vim cmake unzip git python-is-python3 python3-pip build-essential";
-      sudo podman exec -it $CONTAINER_NAME bash -c "pip install -r /code/requirements.txt";
-      sudo podman exec -it $CONTAINER_NAME bash -c "git config --global --add safe.directory /code";
-      sudo wget https://dl.google.com/android/repository/android-ndk-r27b-linux.zip?hl=zh-cn  -O ~/Downloads/android-ndk-r27b-linux.zip;
-      fi
-    - export https_proxy=http://ipads:ipads123@202.120.40.82:11235;
+    - sudo podman stop $CONTAINER_NAME || true
+    - sudo podman rm $CONTAINER_NAME || true
+    - export https_proxy=http://ipads:ipads123@202.120.40.82:11235
+    - sudo -E podman run -v $(realpath .):/code -v $(realpath ~/Downloads):/data -dit --name ndk ubuntu:22.04
+    - sudo podman exec -it $CONTAINER_NAME bash -c "apt update && apt upgrade -y && apt install -y sudo vim cmake unzip git python-is-python3 python3-pip build-essential"
+    # - sudo podman exec -it $CONTAINER_NAME bash -c "pip install -r /code/requirements.txt"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "git config --global --add safe.directory /code"
+    # - sudo wget https://dl.google.com/android/repository/android-ndk-r27b-linux.zip?hl=zh-cn -O ~/Downloads/android-ndk-r27b-linux.zip
+    - export https_proxy=http://ipads:ipads123@202.120.40.82:11235
 
 # convert:
 #   stage: convert
@@ -40,52 +46,28 @@ setup:
 #       sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && huggingface-cli download --cache-dir /data/hf_cache --resume-download meta-llama/Meta-Llama-3.1-8B --exclude original/ --local-dir /data/llama_3.1_8b";
 #       sudo podman exec -it $CONTAINER_NAME bash -c "cd /code/tools/convert_hf_to_gguf && python convert_hf_to_gguf.py /data/llama_3.1_8b --outtype f16 --outfile /data/llama_3.1_8b.gguf";
 #       fi
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake -DCMAKE_BUILD_TYPE=Release -S . -B build_native"
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake --build build_native --config Release --target llama-quantize"
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && ./build_native/bin/llama-quantize --pure /data/llama_3.1_8b.gguf /data/llama_3.1_8b_q4_0.gguf q4_0"
+# - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake -DCMAKE_BUILD_TYPE=Release -S . -B build_native"
+# - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake --build build_native --config Release --target llama-quantize"
+# - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && ./build_native/bin/llama-quantize --pure /data/llama_3.1_8b.gguf /data/llama_3.1_8b_q4_0.gguf q4_0"
 
 build:
   stage: build
   script:
-    - if [ "$REBUILD_ENV" = "true" ]; then
-      sudo podman exec -it $CONTAINER_NAME bash -c "unzip /data/android-ndk-r27b-linux.zip -d /data";
-      sudo podman exec -it $CONTAINER_NAME bash -c "echo 'export NDK=/data/android-ndk-r27b' >> ~/.bashrc";
-      sudo podman exec -it $CONTAINER_NAME bash -c "source ~/.bashrc";
-      sleep 1;
-      fi
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake \
-    #   -DCMAKE_TOOLCHAIN_FILE=/data/android-ndk-r27b/build/cmake/android.toolchain.cmake \
-    #   -DANDROID_ABI=arm64-v8a \
-    #   -DANDROID_PLATFORM=android-34 \
-    #   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    #   -DBUILD_SHARED_LIBS=OFF \
-    #   -DGGML_OPENMP=OFF \
-    #   -S . -B build_android"
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "rm -rf /code/build_android"
-    # for llama:
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "python /code/tools/generate_llama_vocab.py /data/llama_3.1_8b -o /data/llama_3.1_8b_vocab.gguf"
+    # - sudo podman exec -it $CONTAINER_NAME bash -c "unzip /data/android-ndk-r27b-linux.zip -d /data"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "echo 'export NDK=/data/android-ndk-r27b' >> ~/.bashrc"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "source ~/.bashrc"
+    - sleep 1
     - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake -DCMAKE_TOOLCHAIN_FILE=/data/android-ndk-r27b/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF -DGGML_OPENMP=OFF -S . -B build_android"
     - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake --build build_android --config RelWithDebInfo --parallel 12"
-    # copy build_android/bin/run to /data
     - sudo podman exec -it $CONTAINER_NAME bash -c "cp -r /code/build_android /data"
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "rm -rf /code/tools/convert_hf_to_gguf/__pycache__"
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "rm -rf /code/tools/convert_hf_to_gguf/gguf-py/gguf/__pycache__"
-    # 如果从容器里对/code/build_android_bin/llama-cli做readelf -h，读不到AArch64，说明错误
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && readelf -h /code/build_android/bin/llama-cli"
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF -DGGML_OPENMP=OFF -S . -B build_android"
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake --build build_android --config RelWithDebInfo --parallel 12"
 
 deploy:
   stage: deploy
   script:
     - echo "Deploying binaries and models to your Android device."
-    # Use adb to push files
-    # - adb push ~/Downloads/llama_3.1_8b_vocab.gguf /data/local/tmp/
     - adb push ~/Downloads/build_android/bin/run /data/local/tmp/
 
 test:
   stage: test
   script:
-    # Run the command on the Android device
     - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.1_8b_vocab.gguf --prompt \"One day,\" --steps 64"
-    # - ./test-result.exp
