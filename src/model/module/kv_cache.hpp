@@ -30,7 +30,6 @@ struct KVCache {
     TensorNode *add_value_cache_node(Graph &g);
 
     KVCache(std::shared_ptr<LlamaConfig> &config, size_t seq_len, size_t kv_dim) :
-        config(config),
         seq_len(seq_len),
         kv_dim(kv_dim),
         key_cache(
@@ -38,22 +37,23 @@ struct KVCache {
         ),
         value_cache(
             DataType::FP32, {config->dim * config->n_kv_heads / config->n_heads, config->seq_len, config->n_layers}
-        ) {
+        ),
+        config(config) {
         // FIXME: Too Aggressive to allocate memory
         Tensor::Shape shape = {
             (config->dim * config->n_kv_heads) / config->n_heads, config->seq_len, config->n_layers, 1
         };
 
         ggml::GGMLBackend backend(config); // tmp
-        auto kb           = backend.create_buffer<float>(shape);
-        auto vb           = backend.create_buffer<float>(shape);
-        key_cache.data_   = std::move(kb);
-        value_cache.data_ = std::move(vb);
+        auto kb          = backend.create_buffer<float>(shape);
+        auto vb          = backend.create_buffer<float>(shape);
+        key_cache.data   = std::move(kb);
+        value_cache.data = std::move(vb);
     }
 
     ~KVCache() {
-        key_cache.data_.reset();
-        value_cache.data_.reset();
+        key_cache.data.reset();
+        value_cache.data.reset();
     }
 };
 
