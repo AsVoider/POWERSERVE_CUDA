@@ -18,12 +18,12 @@ auto Graph::new_op(OpType type) -> OpNode * {
 
 // Duplicate a tensorNode(datatype + shape) and **Note**: but not share the same memory
 auto Graph::dup_tensor(TensorNode *tensor) -> TensorNode * {
-    return new_tensor(tensor->dtype, tensor->shape);
+    return new_tensor(tensor->m_dtype, tensor->m_shape);
 }
 
 auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
-    SMART_ASSERT(a->dtype == b->dtype);
-    SMART_ASSERT(a->shape == b->shape);
+    SMART_ASSERT(a->m_dtype == b->m_dtype);
+    SMART_ASSERT(a->m_shape == b->m_shape);
 
     auto out = dup_tensor(a);
     auto op  = new_op(OpType::ADD);
@@ -35,11 +35,11 @@ auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
 
 auto Graph::mat_mul(TensorNode *x, TensorNode *weight) -> TensorNode * {
     // TODO: Add checks
-    SMART_ASSERT(x->shape[0] == weight->shape[0]);
+    SMART_ASSERT(x->m_shape[0] == weight->m_shape[0]);
 
-    auto shape = x->shape;
-    shape[0]   = weight->n_elements() / weight->shape[0];
-    auto out   = new_tensor(x->dtype, shape);
+    auto shape = x->m_shape;
+    shape[0]   = weight->n_elements() / weight->m_shape[0];
+    auto out   = new_tensor(x->m_dtype, shape);
     auto op    = new_op(OpType::MAT_MUL);
     op->set_inputs({x, weight});
     op->set_outputs({out});
@@ -49,8 +49,8 @@ auto Graph::mat_mul(TensorNode *x, TensorNode *weight) -> TensorNode * {
 
 auto Graph::rms_norm(TensorNode *x, TensorNode *weight) -> TensorNode * {
     SMART_ASSERT(weight->n_dims() == 1);
-    SMART_ASSERT(x->dtype == weight->dtype);
-    SMART_ASSERT(x->shape[0] == weight->shape[0]);
+    SMART_ASSERT(x->m_dtype == weight->m_dtype);
+    SMART_ASSERT(x->m_shape[0] == weight->m_shape[0]);
 
     auto out = dup_tensor(x);
     auto op  = new_op(OpType::RMS_NORM);
@@ -61,8 +61,8 @@ auto Graph::rms_norm(TensorNode *x, TensorNode *weight) -> TensorNode * {
 }
 
 auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
-    SMART_ASSERT(gate->dtype == up->dtype);
-    SMART_ASSERT(gate->shape == up->shape);
+    SMART_ASSERT(gate->m_dtype == up->m_dtype);
+    SMART_ASSERT(gate->m_shape == up->m_shape);
 
     auto out = dup_tensor(gate);
     auto op  = new_op(OpType::SILU_HADAMARD);

@@ -6,12 +6,17 @@
 namespace smart {
 
 struct Tokenizer {
+public:
     using Token = llama_vocab::id;
 
-    struct llama_vocab vocab;
+public:
+    struct llama_vocab m_vocab;
 
-    Tokenizer(const Path &vocab_path);
+public:
+    explicit Tokenizer(const Path &vocab_path);
+    ~Tokenizer() = default;
 
+public:
     size_t n_vocabs() const;
     auto bos_token() const -> Token;
     auto tokenize(const std::string &text, bool add_special) const -> std::vector<Token>;

@@ -3,6 +3,9 @@
 
 namespace smart {
 
-struct Backend {};
+struct Backend {
+public:
+    virtual ~Backend() = default;
+};
 
 } // namespace smart

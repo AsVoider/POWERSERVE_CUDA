@@ -7,6 +7,7 @@ namespace smart {
 struct Tensor;
 
 struct BaseBuffer {
+public:
     virtual ~BaseBuffer() = default;
 };
 

@@ -7,20 +7,23 @@
 namespace smart::ggml {
 
 struct Buffer : BaseBuffer {
+public:
     using Stride = std::array<size_t, Tensor::max_n_dims>;
 
-    Stride stride; // In bytes
-    void *data;
-    bool allocated_by_malloc = false;
+public:
+    Stride m_stride; // In bytes
+    void *m_data;
+    bool m_allocated_by_malloc = false;
 
+public:
     Buffer(Stride stride, void *data, bool allocated_by_malloc = false) :
-        stride(stride),
-        data(data),
-        allocated_by_malloc(allocated_by_malloc) {}
+        m_stride(stride),
+        m_data(data),
+        m_allocated_by_malloc(allocated_by_malloc) {}
 
-    virtual ~Buffer() {
-        if (allocated_by_malloc) {
-            free(data);
+    virtual ~Buffer() override {
+        if (m_allocated_by_malloc) {
+            free(m_data);
         }
     }
 };

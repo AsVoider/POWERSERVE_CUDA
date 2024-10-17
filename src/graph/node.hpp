@@ -19,13 +19,17 @@ struct TensorNode;
 struct OpNode;
 
 struct Node {
+
+public:
     NodeType type;
     std::string name = "";
     std::vector<Node *> prev;
     std::vector<Node *> next;
 
+public:
     virtual ~Node() = default;
 
+public:
     void connect(Node &other) {
         connect(&other);
     }
@@ -47,23 +51,39 @@ protected:
 };
 
 struct TensorNode : Tensor, Node {
-    auto prev_op() const -> OpNode * {
-        SMART_ASSERT(prev.size() == 1);
-        return prev[0]->op();
-    }
+private:
+    friend struct Graph;
 
 private:
     TensorNode(const Tensor &tensor) : Tensor(tensor), Node(NodeType::TENSOR) {}
 
     TensorNode(DataType dtype, const Tensor::Shape &shape) : Tensor(dtype, shape), Node(NodeType::TENSOR) {}
 
-    friend struct Graph;
+public:
+    ~TensorNode() override = default;
+
+public:
+    auto prev_op() const -> OpNode * {
+        SMART_ASSERT(prev.size() == 1);
+        return prev[0]->op();
+    }
 };
 
 struct OpNode : Node {
+public:
     OpType op;
     std::unique_ptr<OpParams> params;
 
+private:
+    OpNode(OpType op) : Node(NodeType::OPERATOR), op(op) {}
+
+public:
+    ~OpNode() override = default;
+
+private:
+    friend struct Graph;
+
+public:
     void set_inputs(const std::vector<TensorNode *> &tensors) {
         for (auto tensor : tensors) {
             tensor->connect(this);
@@ -94,11 +114,6 @@ struct OpNode : Node {
         SMART_ASSERT(n_outputs() == 1);
         return next[0]->tensor();
     }
-
-private:
-    OpNode(OpType op) : Node(NodeType::OPERATOR), op(op) {}
-
-    friend struct Graph;
 };
 
 } // namespace smart

@@ -7,6 +7,7 @@
 namespace smart {
 
 struct LlamaConfig {
+public:
     uint32_t dim            = 0;
     uint32_t hidden_dim     = 0;
     uint32_t n_layers       = 0;
@@ -16,6 +17,7 @@ struct LlamaConfig {
     uint32_t seq_len        = 0;
     uint32_t rope_dim_count = 0;
 
+public:
     LlamaConfig(gguf_context *ctx) {
         dim            = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.embedding_length"));
         hidden_dim     = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.feed_forward_length"));

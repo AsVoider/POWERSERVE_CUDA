@@ -53,7 +53,7 @@ void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *sr
     OpTensor src0_tensor = ggml::convert_to_optensor(src0);
     OpTensor src1_tensor = ggml::convert_to_optensor(src1);
 
-    ggml_compute_forward_op_mul_mat(&params, &dst_tensor, &src0_tensor, &src1_tensor);
+    ggml_compute_forward_op_mul_mat(&m_params, &dst_tensor, &src0_tensor, &src1_tensor);
 }
 
 void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t size) const {
@@ -72,10 +72,13 @@ void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t si
 }
 
 void GGMLBackend::rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const {
-    auto size = x->shape[0];
+    auto size = x->m_shape[0];
 
     rmsnorm_internal(
-        (float *)o->get<Buffer>().data, (float *)x->get<Buffer>().data, (float *)weight->get<Buffer>().data, size
+        static_cast<float *>(o->get<Buffer>().m_data),
+        static_cast<float *>(x->get<Buffer>().m_data),
+        static_cast<float *>(weight->get<Buffer>().m_data),
+        size
     );
 }
 
@@ -100,18 +103,20 @@ void GGMLBackend::softmax_internal(float *out, float *x, size_t size) const {
 }
 
 void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
-    softmax_internal((float *)out->get<Buffer>().data, (float *)x->get<Buffer>().data, x->shape[0]);
+    softmax_internal(
+        static_cast<float *>(out->get<Buffer>().m_data), static_cast<float *>(x->get<Buffer>().m_data), x->m_shape[0]
+    );
 }
 
 // TODO: Rope's pos should be a tensor and we need rope_base (llama2 = 10000, llama3 = 300000 ...)
 void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const {
-    auto dim       = q->shape[0];
-    auto head_size = dim / config->n_heads;
-    auto kv_dim    = (config->dim * config->n_kv_heads) / config->n_heads;
-    auto pos_data  = (int32_t *)pos->get<Buffer>().data;
+    auto dim                = q->m_shape[0];
+    auto head_size          = dim / m_config->n_heads;
+    auto kv_dim             = (m_config->dim * m_config->n_kv_heads) / m_config->n_heads;
+    const int32_t *pos_data = static_cast<int32_t *>(pos->get<Buffer>().m_data);
 
-    memcpy(q_out->get<Buffer>().data, q->get<Buffer>().data, q->n_elements() * sizeof(float));
-    memcpy(k_out->get<Buffer>().data, k->get<Buffer>().data, k->n_elements() * sizeof(float));
+    memcpy(q_out->get<Buffer>().m_data, q->get<Buffer>().m_data, q->n_elements() * sizeof(float));
+    memcpy(k_out->get<Buffer>().m_data, k->get<Buffer>().m_data, k->n_elements() * sizeof(float));
 
     for (size_t i = 0; i < dim; i += 2) {
         int head_dim = i % head_size;
@@ -121,7 +126,8 @@ void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tens
         float fci    = sinf(val);
         int rotn     = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
         for (int v = 0; v < rotn; v++) {
-            float *vec = v == 0 ? (float *)q_out->get<Buffer>().data : (float *)k_out->get<Buffer>().data;
+            float *vec = v == 0 ? static_cast<float *>(q_out->get<Buffer>().m_data)
+                                : static_cast<float *>(k_out->get<Buffer>().m_data);
             float v0   = vec[i];
             float v1   = vec[i + 1];
             vec[i]     = v0 * fcr - v1 * fci;
@@ -138,21 +144,22 @@ void GGMLBackend::multihead_attention(
     const Tensor *pos,
     const int64_t L
 ) const {
-    auto dim       = config->dim;
-    auto kv_dim    = (config->dim * config->n_kv_heads) / config->n_heads;
-    auto kv_mul    = config->n_heads / config->n_kv_heads;
-    auto head_size = dim / config->n_heads;
-    uint64_t loff  = L * config->seq_len * kv_dim;
-    auto pos_data  = (int32_t *)pos->get<Buffer>().data;
-    auto att       = std::vector<float>(config->n_heads * config->seq_len);
+    auto dim                = m_config->dim;
+    auto kv_dim             = (m_config->dim * m_config->n_kv_heads) / m_config->n_heads;
+    auto kv_mul             = m_config->n_heads / m_config->n_kv_heads;
+    auto head_size          = dim / m_config->n_heads;
+    uint64_t loff           = L * m_config->seq_len * kv_dim;
+    const int32_t *pos_data = static_cast<int32_t *>(pos->get<Buffer>().m_data);
+    auto att                = std::vector<float>(m_config->n_heads * m_config->seq_len);
 
     uint32_t h = 0;
-    for (h = 0; h < config->n_heads; h++) {
-        auto q_buf   = (float *)q->get<Buffer>().data + h * head_size;
-        auto att_buf = att.data() + h * config->seq_len;
+    for (h = 0; h < m_config->n_heads; h++) {
+        auto q_buf   = static_cast<float *>(q->get<Buffer>().m_data) + h * head_size;
+        auto att_buf = att.data() + h * m_config->seq_len;
 
         for (auto t = 0; t <= pos_data[0]; t++) {
-            auto k     = (float *)key_cache->get<Buffer>().data + loff + t * kv_dim + (h / kv_mul) * head_size;
+            auto k =
+                static_cast<float *>(key_cache->get<Buffer>().m_data) + loff + t * kv_dim + (h / kv_mul) * head_size;
             auto score = 0.0f;
 
             for (size_t i = 0; i < head_size; i++) {
@@ -165,11 +172,12 @@ void GGMLBackend::multihead_attention(
 
         softmax_internal(att_buf, att_buf, pos_data[0] + 1);
 
-        auto xb = (float *)out->get<Buffer>().data + h * head_size;
+        auto xb = static_cast<float *>(out->get<Buffer>().m_data) + h * head_size;
         memset(xb, 0, head_size * sizeof(float));
 
         for (auto t = 0; t <= pos_data[0]; t++) {
-            auto v = (float *)val_cache->get<Buffer>().data + loff + t * kv_dim + (h / kv_mul) * head_size;
+            auto v =
+                static_cast<float *>(val_cache->get<Buffer>().m_data) + loff + t * kv_dim + (h / kv_mul) * head_size;
             auto a = att_buf[t];
 
             for (size_t i = 0; i < head_size; i++) {
@@ -180,26 +188,26 @@ void GGMLBackend::multihead_attention(
 }
 
 void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
-    for (size_t i = 0; i < config->dim; i++) {
-        ((float *)dst->get<Buffer>().data)[i] =
-            ((float *)src0->get<Buffer>().data)[i] + ((float *)src1->get<Buffer>().data)[i];
+    for (size_t i = 0; i < m_config->dim; i++) {
+        static_cast<float *>(dst->get<Buffer>().m_data)[i] =
+            static_cast<float *>(src0->get<Buffer>().m_data)[i] + static_cast<float *>(src1->get<Buffer>().m_data)[i];
     }
 }
 
 void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const {
-    for (size_t i = 0; i < config->hidden_dim; i++) {
-        float val = ((float *)hb->get<Buffer>().data)[i];
+    for (size_t i = 0; i < m_config->hidden_dim; i++) {
+        float val = static_cast<float *>(hb->get<Buffer>().m_data)[i];
         // silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
         val *= (1.0f / (1.0f + expf(-val)));
         // elementwise multiply with w3(x)
-        val *= ((float *)hb2->get<Buffer>().data)[i];
-        ((float *)out->get<Buffer>().data)[i] = val;
+        val *= static_cast<float *>(hb2->get<Buffer>().m_data)[i];
+        static_cast<float *>(out->get<Buffer>().m_data)[i] = val;
     }
 }
 
 void GGMLBackend::copy(const Tensor *dst, const Tensor *src, const int64_t off) const {
     for (size_t i = 0; i < src->n_elements(); i++) {
-        ((float *)dst->get<Buffer>().data + off)[i] = ((float *)src->get<Buffer>().data)[i];
+        static_cast<float *>(dst->get<Buffer>().m_data)[off + i] = static_cast<float *>(src->get<Buffer>().m_data)[i];
     }
 }
 

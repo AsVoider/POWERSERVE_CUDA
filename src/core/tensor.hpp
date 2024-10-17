@@ -12,27 +12,31 @@
 namespace smart {
 
 struct Tensor {
+public:
     static constexpr size_t max_n_dims = 4;
 
     using Shape = std::array<size_t, max_n_dims>;
 
-    DataType dtype;
-    Shape shape;
-    BufferPtr data;
+public:
+    DataType m_dtype;
+    Shape m_shape;
+    BufferPtr m_data;
 
+public:
     Tensor(const Tensor &)            = default;
     Tensor &operator=(const Tensor &) = default;
 
-    Tensor(DataType dtype, const Shape &shape) : dtype(dtype) {
+    Tensor(DataType dtype, const Shape &shape) : m_dtype(dtype) {
         SMART_ASSERT(shape.size() <= max_n_dims);
         for (size_t i = 0; i < shape.size(); i++) {
-            this->shape[i] = std::max(shape[i], size_t(1));
+            m_shape[i] = std::max(shape[i], size_t(1));
         }
     }
 
+public:
     size_t n_dims() const {
         for (size_t i = max_n_dims - 1; i > 0; i--) {
-            if (shape[i] > 1) {
+            if (m_shape[i] > 1) {
                 return i + 1;
             }
         }
@@ -41,13 +45,13 @@ struct Tensor {
 
     size_t n_elements() const {
         return static_cast<size_t>(
-            std::reduce(std::begin(shape), std::end(shape), uint64_t(1), std::multiplies<uint64_t>())
+            std::reduce(std::begin(m_shape), std::end(m_shape), uint64_t(1), std::multiplies<uint64_t>())
         );
     }
 
     template <typename Buffer>
     auto get() const -> Buffer & {
-        return dynamic_cast<Buffer &>(*data);
+        return dynamic_cast<Buffer &>(*m_data);
     }
 };
 

@@ -9,6 +9,7 @@
 namespace smart {
 
 struct LayerWeights {
+public:
     Tensor attn_norm; // "blk.$.attn_norm.weight" (layer, dim)
     Tensor ffn_norm;  // "blk.$.ffn_norm.weight" (layer, dim)
     // dim == n_heads * head_size
@@ -21,6 +22,7 @@ struct LayerWeights {
     Tensor ffn_up;   // "blk.$.ffn_up.weight" (layer, dim, hidden_dim)
     Tensor ffn_down; // "blk.$.ffn_down.weight" (layer, hidden_dim, dim)
 
+public:
     LayerWeights(ggml_context *ctx, uint32_t layer) :
         attn_norm(get_tensor(ctx, layer, "attn_norm.weight")),
         ffn_norm(get_tensor(ctx, layer, "ffn_norm.weight")),
@@ -32,6 +34,9 @@ struct LayerWeights {
         ffn_up(get_tensor(ctx, layer, "ffn_up.weight")),
         ffn_down(get_tensor(ctx, layer, "ffn_down.weight")) {}
 
+    ~LayerWeights() = default;
+
+private:
     static Tensor get_tensor(ggml_context *ctx, uint32_t layer, const char *name) {
         std::string tensor_name = fmt::format("blk.{}.{}", layer, name);
         ggml_tensor *t          = ggml_get_tensor(ctx, tensor_name.c_str());
@@ -40,11 +45,10 @@ struct LayerWeights {
         }
         return ggml::convert_from_ggml(t);
     }
-
-    ~LayerWeights() = default;
 };
 
 struct LlamaWeight {
+public:
     Tensor token_embedding_table;       // "token_embd.weight" (vocab_size, dim)
     Tensor output_weight;               // "output.weight" (vocab_size, dim)
     Tensor rms_final_weight;            // "output_norm.weight" (dim,)
@@ -52,6 +56,7 @@ struct LlamaWeight {
 
     std::vector<LayerWeights> lw;
 
+public:
     LlamaWeight(ggml_context *ctx, uint32_t n_layers, uint32_t dim) :
         token_embedding_table(ggml::convert_from_ggml(ggml_get_tensor(ctx, "token_embd.weight"))),
         output_weight(ggml::convert_from_ggml(ggml_get_tensor(ctx, "output.weight"))),
@@ -61,20 +66,20 @@ struct LlamaWeight {
         auto embedding  = ggml_get_tensor(ctx, "token_embd.weight");
         fp32_embd_table = std::vector<float>(ggml_nelements(embedding)); // + 2G
 
-        switch (token_embedding_table.dtype) {
+        switch (token_embedding_table.m_dtype) {
         case DataType::FP32:
             std::memcpy(fp32_embd_table.data(), embedding->data, ggml_nelements(embedding) * sizeof(float));
             break;
         case DataType::GGML_Q4_0:
             ggml::dequantize_row_q4_0(
-                (ggml::block_q4_0 *)token_embedding_table.get<ggml::Buffer>().data,
+                (ggml::block_q4_0 *)token_embedding_table.get<ggml::Buffer>().m_data,
                 fp32_embd_table.data(),
                 ggml_nelements(embedding)
             );
             break;
         case DataType::GGML_Q8_0:
             ggml::dequantize_row_q8_0(
-                (ggml::block_q8_0 *)token_embedding_table.get<ggml::Buffer>().data,
+                (ggml::block_q8_0 *)token_embedding_table.get<ggml::Buffer>().m_data,
                 fp32_embd_table.data(),
                 ggml_nelements(embedding)
             );
