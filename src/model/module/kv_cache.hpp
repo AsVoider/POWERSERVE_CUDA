@@ -38,10 +38,10 @@ public:
         ) {
         // FIXME: Too Aggressive to allocate memory
         Tensor::Shape shape = {
-            (config->dim * config->n_kv_heads) / config->n_heads, config->seq_len, config->n_layers, 1
+            (m_config->dim * m_config->n_kv_heads) / m_config->n_heads, m_config->seq_len, m_config->n_layers, 1
         };
 
-        ggml::GGMLBackend backend(config); // tmp
+        ggml::GGMLBackend backend(m_config); // tmp
         auto kb              = backend.create_buffer<float>(shape);
         auto vb              = backend.create_buffer<float>(shape);
         m_key_cache.m_data   = std::move(kb);
