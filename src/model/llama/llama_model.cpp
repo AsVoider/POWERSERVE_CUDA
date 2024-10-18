@@ -95,8 +95,11 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
 
 void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps) {
     // encode the (string) prompt into tokens sequence
+    // TODO: add this args to Config
+    m_config->vocab_size = tk->m_vocab.n_vocab;
+
     int num_prompt_tokens = 0;
-    auto prompt_tokens    = tk->tokenize(prompt, true);
+    auto prompt_tokens    = tk->tokenize(prompt, tk->m_vocab.tokenizer_add_bos);
     num_prompt_tokens     = prompt_tokens.size();
 
     SMART_ASSERT(num_prompt_tokens >= 1);
@@ -115,7 +118,7 @@ void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, i
         if (pos < num_prompt_tokens - 1) {
             // TODO: prefill
             // if we are still processing the input prompt, force the next prompt token
-            next = prompt_tokens[pos + 1];
+            next = tk->m_vocab.tokenizer_add_bos ? prompt_tokens[pos + 1] : prompt_tokens[pos];
         } else {
             // TODO: Decode
             // otherwise sample the next token from the logits
