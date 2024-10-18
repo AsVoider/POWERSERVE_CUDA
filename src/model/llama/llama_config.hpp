@@ -20,13 +20,14 @@ public:
 
 public:
     LlamaConfig(gguf_context *ctx) {
-        dim            = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.embedding_length"));
-        hidden_dim     = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.feed_forward_length"));
-        n_heads        = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.attention.head_count"));
-        n_kv_heads     = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.attention.head_count_kv"));
-        n_layers       = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.block_count"));
-        seq_len        = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.context_length"));
-        vocab_size     = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.vocab_size"));
+        dim        = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.embedding_length"));
+        hidden_dim = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.feed_forward_length"));
+        n_heads    = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.attention.head_count"));
+        n_kv_heads = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.attention.head_count_kv"));
+        n_layers   = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.block_count"));
+        seq_len    = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.context_length"));
+        // vocab_size     = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.vocab_size"));
+        vocab_size     = 0;
         rope_dim_count = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.rope.dimension_count"));
     }
 
