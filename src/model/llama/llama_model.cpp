@@ -1,6 +1,7 @@
 #include "llama_model.hpp"
 
 #include "backend/ggml/buffer.hpp"
+#include "backend/ggml/ggml.hpp"
 #include "backend/platform.hpp"
 #include "common.hpp"
 #include "executor/executor.hpp"
@@ -31,6 +32,13 @@ LlamaModel::LlamaModel(const std::string &filename) : Model(filename) {
     // modules
     m_attn = std::make_shared<Attention>(m_config, m_weights);
     m_ffn  = std::make_shared<FFN>(m_config, m_weights);
+
+    // debug model info
+    {
+        // ggml::debug_meta_info(gguf_ctx, ggml_ctx);
+        // m_config->debug_config_info();
+        // ggml::debug_tensors_info(gguf_ctx, ggml_ctx);
+    }
 }
 
 LlamaModel::~LlamaModel() {
@@ -82,7 +90,7 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
     executor.run();
     float *logits_data = static_cast<float *>(logits->get<ggml::Buffer>().m_data);
 
-    return std::vector<float>(logits_data, logits_data + dim);
+    return std::vector<float>(logits_data, logits_data + m_config->vocab_size);
 }
 
 void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps) {
