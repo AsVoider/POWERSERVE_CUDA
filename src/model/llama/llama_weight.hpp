@@ -59,7 +59,10 @@ public:
 public:
     LlamaWeight(ggml_context *ctx, uint32_t n_layers, uint32_t dim) :
         token_embedding_table(ggml::convert_from_ggml(ggml_get_tensor(ctx, "token_embd.weight"))),
-        output_weight(ggml::convert_from_ggml(ggml_get_tensor(ctx, "output.weight"))),
+        output_weight(ggml::convert_from_ggml(
+            ggml_get_tensor(ctx, "output.weight") == nullptr ? ggml_get_tensor(ctx, "token_embd.weight")
+                                                             : ggml_get_tensor(ctx, "output.weight")
+        )),
         rms_final_weight(ggml::convert_from_ggml(ggml_get_tensor(ctx, "output_norm.weight"))) {
         SMART_UNUSED(dim);
 
