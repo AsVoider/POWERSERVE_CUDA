@@ -89,6 +89,22 @@ void Executor::run() {
             m_platform.ggml_backend.copy(dst, src, off);
         } break;
 
+        case OpType::QUEST_ATTN: {
+            auto q                   = op->prev[0]->tensor();
+            auto key_cache           = op->prev[1]->tensor();
+            auto val_cache           = op->prev[2]->tensor();
+            auto pos                 = op->prev[3]->tensor();
+            auto out                 = op->output();
+            auto [layer_id, regions] = op->get_params<QuestAttnParams>();
+            m_platform.ggml_backend.quest_attention(out, q, key_cache, val_cache, pos, layer_id, regions);
+        } break;
+
+        case OpType::COS_SIM: {
+            auto src0 = op->prev[0]->tensor();
+            auto src1 = op->prev[1]->tensor();
+            m_platform.ggml_backend.cos_sim(src0, src1);
+        } break;
+
         default:
             SMART_ASSERT(false);
         }

@@ -1,4 +1,4 @@
-#include "llama_model.hpp"
+#include "phi3_model.hpp"
 
 #include "backend/ggml/buffer.hpp"
 #include "backend/platform.hpp"
@@ -16,7 +16,7 @@
 
 namespace smart {
 
-LlamaModel::LlamaModel(const std::string &filename) : Model(filename) {
+Phi3Model::Phi3Model(const std::string &filename) : Model(filename) {
     // load file meta data (+ 4G)
     {
         gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
@@ -25,12 +25,12 @@ LlamaModel::LlamaModel(const std::string &filename) : Model(filename) {
         SMART_ASSERT(ggml_ctx != nullptr);
     }
     // prepare data
-    m_config = std::make_shared<LlamaConfig>(gguf_ctx);
+    m_config = std::make_shared<Phi3Config>(gguf_ctx);
     // prepare weights (+ 2G)
-    m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->tf_cfg.n_layers, m_config->tf_cfg.dim);
+    m_weights = std::make_shared<Phi3Weight>(ggml_ctx, m_config->tf_cfg.n_layers, m_config->tf_cfg.dim);
     // modules
-    m_attn = nullptr;
-    m_ffn  = std::make_shared<FFN>(m_config, m_weights);
+    // m_attn = std::make_shared<Attention>(m_config, m_weights);
+    m_ffn = std::make_shared<FFN>(m_config, m_weights);
 
     // debug model info
     {
@@ -40,19 +40,19 @@ LlamaModel::LlamaModel(const std::string &filename) : Model(filename) {
     }
 }
 
-LlamaModel::~LlamaModel() {
+Phi3Model::~Phi3Model() {
     gguf_free(gguf_ctx);
 }
 
-Graph *LlamaModel::prefill() {
+Graph *Phi3Model::prefill() {
     return nullptr;
 }
 
-Graph *LlamaModel::decode() {
+Graph *Phi3Model::decode() {
     return nullptr;
 }
 
-std::vector<float> LlamaModel::forward(int token, int pos) {
+std::vector<float> Phi3Model::forward(int token, int pos) {
     Graph g;
     auto dim = m_config->tf_cfg.dim;
 
@@ -92,7 +92,7 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
     return std::vector<float>(logits_data, logits_data + m_config->tf_cfg.vocab_size);
 }
 
-void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps) {
+void Phi3Model::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps) {
     SMART_ASSERT(m_attn != nullptr);
     // encode the (string) prompt into tokens sequence
     int num_prompt_tokens = 0;

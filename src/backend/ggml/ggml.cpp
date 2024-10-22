@@ -1,12 +1,16 @@
 #include "ggml.hpp"
 
 #include "backend/ggml/buffer.hpp"
+#include "fmt/base.h"
 #include "ggml.h"
+#include "model/module/region.hpp"
 
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
+#include <vector>
 
 namespace smart::ggml {
 
@@ -111,8 +115,8 @@ void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
 // TODO: Rope's pos should be a tensor and we need rope_base (llama2 = 10000, llama3 = 300000 ...)
 void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const {
     auto dim                = q->m_shape[0];
-    auto head_size          = dim / m_config->n_heads;
-    auto kv_dim             = (m_config->dim * m_config->n_kv_heads) / m_config->n_heads;
+    auto head_size          = dim / m_config->tf_cfg.n_heads;
+    auto kv_dim             = (m_config->tf_cfg.dim * m_config->tf_cfg.n_kv_heads) / m_config->tf_cfg.n_heads;
     const int32_t *pos_data = static_cast<int32_t *>(pos->get<Buffer>().m_data);
 
     memcpy(q_out->get<Buffer>().m_data, q->get<Buffer>().m_data, q->n_elements() * sizeof(float));
@@ -144,18 +148,18 @@ void GGMLBackend::multihead_attention(
     const Tensor *pos,
     const int64_t L
 ) const {
-    auto dim                = m_config->dim;
-    auto kv_dim             = (m_config->dim * m_config->n_kv_heads) / m_config->n_heads;
-    auto kv_mul             = m_config->n_heads / m_config->n_kv_heads;
-    auto head_size          = dim / m_config->n_heads;
-    uint64_t loff           = L * m_config->seq_len * kv_dim;
+    auto dim                = m_config->tf_cfg.dim;
+    auto kv_dim             = (m_config->tf_cfg.dim * m_config->tf_cfg.n_kv_heads) / m_config->tf_cfg.n_heads;
+    auto kv_mul             = m_config->tf_cfg.n_heads / m_config->tf_cfg.n_kv_heads;
+    auto head_size          = dim / m_config->tf_cfg.n_heads;
+    uint64_t loff           = L * m_config->tf_cfg.seq_len * kv_dim;
     const int32_t *pos_data = static_cast<int32_t *>(pos->get<Buffer>().m_data);
-    auto att                = std::vector<float>(m_config->n_heads * m_config->seq_len);
+    auto att                = std::vector<float>(m_config->tf_cfg.n_heads * m_config->tf_cfg.seq_len);
 
     uint32_t h = 0;
-    for (h = 0; h < m_config->n_heads; h++) {
+    for (h = 0; h < m_config->tf_cfg.n_heads; h++) {
         auto q_buf   = static_cast<float *>(q->get<Buffer>().m_data) + h * head_size;
-        auto att_buf = att.data() + h * m_config->seq_len;
+        auto att_buf = att.data() + h * m_config->tf_cfg.seq_len;
 
         for (auto t = 0; t <= pos_data[0]; t++) {
             auto k =
@@ -188,14 +192,14 @@ void GGMLBackend::multihead_attention(
 }
 
 void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
-    for (size_t i = 0; i < m_config->dim; i++) {
+    for (size_t i = 0; i < m_config->tf_cfg.dim; i++) {
         static_cast<float *>(dst->get<Buffer>().m_data)[i] =
             static_cast<float *>(src0->get<Buffer>().m_data)[i] + static_cast<float *>(src1->get<Buffer>().m_data)[i];
     }
 }
 
 void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const {
-    for (size_t i = 0; i < m_config->hidden_dim; i++) {
+    for (size_t i = 0; i < m_config->tf_cfg.hidden_dim; i++) {
         float val = static_cast<float *>(hb->get<Buffer>().m_data)[i];
         // silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
         val *= (1.0f / (1.0f + expf(-val)));
@@ -208,6 +212,121 @@ void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tenso
 void GGMLBackend::copy(const Tensor *dst, const Tensor *src, const int64_t off) const {
     for (size_t i = 0; i < src->n_elements(); i++) {
         static_cast<float *>(dst->get<Buffer>().m_data)[off + i] = static_cast<float *>(src->get<Buffer>().m_data)[i];
+    }
+}
+
+void GGMLBackend::quest_attention(
+    const Tensor *out,
+    const Tensor *q,
+    const Tensor *key_cache,
+    const Tensor *val_cache,
+    const Tensor *pos,
+    const int64_t L,
+    std::vector<Region> &regions
+) const {
+    auto dim         = m_config->tf_cfg.dim;
+    auto kv_dim      = (m_config->tf_cfg.dim * m_config->tf_cfg.n_kv_heads) / m_config->tf_cfg.n_heads;
+    auto kv_mul      = m_config->tf_cfg.n_heads / m_config->tf_cfg.n_kv_heads;
+    auto head_size   = dim / m_config->tf_cfg.n_heads;
+    uint64_t loff    = L * m_config->tf_cfg.seq_len * kv_dim;
+    auto pos_data    = static_cast<int32_t *>(pos->get<Buffer>().m_data);
+    auto att         = std::vector<float>(m_config->tf_cfg.n_heads * m_config->tf_cfg.seq_len, -INFINITY);
+    uint32_t n_init  = 1;
+    uint32_t topK    = 2; // head + topK + tails // cosine similarity
+    uint32_t n_local = 4;
+
+    // Update regions
+    if (regions[regions.size() - 1].is_full()) {
+        regions.emplace_back(kv_dim, REGION_TOKENS);
+    }
+    regions[regions.size() - 1].update_score(
+        static_cast<float *>(key_cache->get<Buffer>().m_data), m_config->tf_cfg.seq_len, L, pos_data[0]
+    );
+
+    // Multihead attention for target regions' tokens
+    // Calculate scores
+    auto n_regions = regions.size(); // all tokens = regions * (REGION_TOKENS - 1) + regions.back().n_tokens
+
+    for (uint32_t i = 0; i < n_regions; i++) {
+        regions[i].score(static_cast<float *>(q->get<Buffer>().m_data), kv_mul);
+    }
+    // Top-k regions
+    std::vector<Region> top_regions(regions);
+    if (n_regions > topK + n_init + n_local) {
+        std::sort(top_regions.begin() + n_init, top_regions.end() - n_local, [](const Region &a, const Region &b) {
+            return a.final_score > b.final_score;
+        });
+        top_regions.resize(std::min((long)topK, (long)n_regions));
+        for (uint32_t i = 0; i < n_init; i++) {
+            top_regions.push_back(regions[i]);
+        }
+        for (uint32_t i = 0; i < n_local; i++) {
+            top_regions.push_back(regions[n_regions - 1 - i]);
+        }
+    }
+
+    uint32_t h = 0;
+    for (h = 0; h < m_config->tf_cfg.n_heads; h++) {
+        auto q_   = static_cast<float *>(q->get<Buffer>().m_data) + h * head_size;
+        auto att_ = att.data() + h * m_config->tf_cfg.seq_len;
+
+        for (auto &r : top_regions) {
+            for (auto &t : r.region_tensors) {
+                uint64_t off = t.L * m_config->tf_cfg.seq_len * kv_dim + t.pos * kv_dim + (h / kv_mul) * head_size;
+                auto k       = static_cast<float *>(key_cache->get<Buffer>().m_data) + off;
+
+                auto score = 0.0f;
+                for (uint32_t i = 0; i < head_size; i++) {
+                    score += q_[i] * k[i];
+                }
+
+                score /= sqrtf(head_size);
+                att_[t.pos] = score;
+            }
+        }
+
+        softmax_internal(att_, att_, pos_data[0] + 1);
+
+        auto xb_ = static_cast<float *>(out->get<Buffer>().m_data) + h * head_size;
+        memset(xb_, 0, head_size * sizeof(float));
+
+        for (auto t = 0; t <= pos_data[0]; t++) {
+            auto v =
+                static_cast<float *>(val_cache->get<Buffer>().m_data) + loff + t * kv_dim + (h / kv_mul) * head_size;
+            auto a = att_[t];
+
+            for (uint32_t i = 0; i < head_size; i++) {
+                xb_[i] += a * v[i];
+            }
+        }
+    }
+}
+
+void GGMLBackend::cos_sim(const Tensor *src0, const Tensor *src1) const {
+    cos_sim_internal(
+        static_cast<float *>(src0->get<Buffer>().m_data),
+        static_cast<float *>(src1->get<Buffer>().m_data),
+        src0->n_elements()
+    );
+}
+
+void GGMLBackend::cos_sim_internal(float *x_, float *y_, size_t size) const {
+    float dot_product = 0.0f;
+    float magnitude_x = 0.0f;
+    float magnitude_y = 0.0f;
+
+    for (size_t i = 0; i < size; i++) {
+        dot_product += x_[i] * y_[i];
+        magnitude_x += x_[i] * x_[i];
+        magnitude_y += y_[i] * y_[i];
+    }
+
+    magnitude_x = std::sqrt(magnitude_x);
+    magnitude_y = std::sqrt(magnitude_y);
+
+    auto out_ = dot_product / (magnitude_x * magnitude_y);
+    if (out_ < 0.99) {
+        fmt::print(stderr, "\ncos_sim: {}\n", out_);
     }
 }
 

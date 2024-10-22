@@ -1,5 +1,8 @@
 #pragma once
 
+#include "common.hpp"
+#include "model/module/region.hpp"
+
 #include <cstddef>
 
 namespace smart {
@@ -24,6 +27,18 @@ struct MHAParams {
 
 struct CopyParams {
     size_t off = 0;
+};
+
+struct QuestAttnParams : OpParams {
+
+    size_t layer_id_ = 0;
+    std::vector<Region> &regions_;
+
+    QuestAttnParams() = delete;
+
+    explicit QuestAttnParams(size_t layer_id, std::vector<Region> &regions) : layer_id_(layer_id), regions_(regions) {}
+
+    ~QuestAttnParams() override = default;
 };
 
 } // namespace smart

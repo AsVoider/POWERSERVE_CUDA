@@ -18,11 +18,12 @@ public:
     using Shape = std::array<size_t, max_n_dims>;
 
 public:
-    DataType m_dtype;
-    Shape m_shape;
-    BufferPtr m_data;
+    DataType m_dtype = DataType::UNKNOWN;
+    Shape m_shape    = {0};
+    BufferPtr m_data = nullptr;
 
 public:
+    Tensor()                          = default;
     Tensor(const Tensor &)            = default;
     Tensor &operator=(const Tensor &) = default;
 

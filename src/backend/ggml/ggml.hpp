@@ -6,7 +6,8 @@
 #include "core/data_type.hpp"
 #include "core/tensor.hpp"
 #include "ggml.h"
-#include "model/llama/llama_config.hpp"
+#include "model/common/config.hpp"
+#include "model/module/region.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -150,12 +151,12 @@ struct GGMLBackend : Backend {
 private:
     op_compute_params m_params;
     std::vector<char> m_wdata;
-    std::shared_ptr<LlamaConfig> m_config;
+    std::shared_ptr<Config> m_config;
 
 public:
-    explicit GGMLBackend(std::shared_ptr<LlamaConfig> config) : m_wdata(config->dim * 32), m_config(config) {
+    explicit GGMLBackend(std::shared_ptr<Config> config) : m_wdata(config->tf_cfg.dim * 32), m_config(config) {
         m_params = {
-            .wsize = (size_t)config->dim * 32,
+            .wsize = (size_t)config->tf_cfg.dim * 32,
             .wdata = m_wdata.data(),
         };
     }
@@ -178,6 +179,16 @@ public:
     void silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const;
     void add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void copy(const Tensor *dst, const Tensor *src, const int64_t off) const;
+    void quest_attention(
+        const Tensor *out,
+        const Tensor *q,
+        const Tensor *key_cache,
+        const Tensor *val_cache,
+        const Tensor *pos,
+        const int64_t L,
+        std::vector<Region> &regions
+    ) const;
+    void cos_sim(const Tensor *src0, const Tensor *src1) const;
 
 public:
     template <typename T>
@@ -194,7 +205,8 @@ public:
 
 private:
     void rmsnorm_internal(float *o, float *x, float *weight, int64_t size) const;
-    void softmax_internal(float *out, float *x, size_t size) const;
+    void softmax_internal(float *out_, float *x_, size_t size) const;
+    void cos_sim_internal(float *out_, float *x_, size_t size) const;
 };
 
 } // namespace smart::ggml

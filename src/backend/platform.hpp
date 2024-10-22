@@ -10,7 +10,7 @@ public:
     ggml::GGMLBackend ggml_backend;
 
 public:
-    Platform(std::shared_ptr<LlamaConfig> config) : ggml_backend(config) {}
+    Platform(std::shared_ptr<Config> config) : ggml_backend(config) {}
 
     ~Platform() = default;
 };

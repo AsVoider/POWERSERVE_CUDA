@@ -112,4 +112,27 @@ auto Graph::copy(TensorNode *dst, TensorNode *src, size_t off) -> void {
     op->set_params(CopyParams{.off = off});
 }
 
+auto Graph::quest_attention(
+    TensorNode *q,
+    TensorNode *key_cache,
+    TensorNode *val_cache,
+    TensorNode *pos,
+    size_t layer_id,
+    std::vector<Region> &regions
+) -> TensorNode * {
+    auto out = dup_tensor(q);
+    auto op  = new_op(OpType::QUEST_ATTN);
+    op->set_inputs({q, key_cache, val_cache, pos});
+    op->set_outputs({out});
+    op->set_params(QuestAttnParams(layer_id, regions));
+
+    return out;
+}
+
+auto Graph::cos_sim(TensorNode *src0, TensorNode *src1) -> void {
+    auto op = new_op(OpType::COS_SIM);
+    op->set_inputs({src0, src1});
+    op->set_outputs({});
+}
+
 } // namespace smart
