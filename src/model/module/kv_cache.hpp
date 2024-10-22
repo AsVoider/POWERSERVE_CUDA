@@ -4,7 +4,7 @@
 #include "core/tensor.hpp"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
-#include "model/llama/llama_config.hpp"
+#include "model/common/config.hpp"
 
 #include <cstddef>
 #include <cstdlib>
@@ -18,7 +18,7 @@ private:
     size_t seq_len = 0;
     size_t kv_dim  = 0;
     // FIXME: shrink config to only contain necessary parameters
-    const std::shared_ptr<LlamaConfig> &m_config = nullptr;
+    const std::shared_ptr<Config> &m_config = nullptr;
 
 private:
     // TODO: how to set default value
@@ -26,19 +26,28 @@ private:
     Tensor m_value_cache;
 
 public:
-    KVCache(std::shared_ptr<LlamaConfig> &config, size_t seq_len, size_t kv_dim) :
+    KVCache(std::shared_ptr<Config> &config, size_t seq_len, size_t kv_dim) :
         seq_len(seq_len),
         kv_dim(kv_dim),
         m_config(config),
         m_key_cache(
-            DataType::FP32, {config->dim * config->n_kv_heads / config->n_heads, config->seq_len, config->n_layers}
+            DataType::FP32,
+            {config->tf_cfg.dim * config->tf_cfg.n_kv_heads / config->tf_cfg.n_heads,
+             config->tf_cfg.seq_len,
+             config->tf_cfg.n_layers}
         ),
         m_value_cache(
-            DataType::FP32, {config->dim * config->n_kv_heads / config->n_heads, config->seq_len, config->n_layers}
+            DataType::FP32,
+            {config->tf_cfg.dim * config->tf_cfg.n_kv_heads / config->tf_cfg.n_heads,
+             config->tf_cfg.seq_len,
+             config->tf_cfg.n_layers}
         ) {
         // FIXME: Too Aggressive to allocate memory
         Tensor::Shape shape = {
-            (m_config->dim * m_config->n_kv_heads) / m_config->n_heads, m_config->seq_len, m_config->n_layers, 1
+            (m_config->tf_cfg.dim * m_config->tf_cfg.n_kv_heads) / m_config->tf_cfg.n_heads,
+            m_config->tf_cfg.seq_len,
+            m_config->tf_cfg.n_layers,
+            1
         };
 
         ggml::GGMLBackend backend(m_config); // tmp

@@ -14,6 +14,8 @@ enum class OpType {
     COPY,
 
     MHA,
+    QUEST_ATTN,
+    COS_SIM,
 };
 
 } // namespace smart

@@ -1,5 +1,6 @@
 target_sources(smart_serving PRIVATE
-    "attention.cpp"
+    "norm_attention.cpp"
     "ffn.cpp"
+    "quest_attention.cpp"
     "kv_cache.cpp"
 )

@@ -1,26 +1,24 @@
-#include "attention.hpp"
+#include "quest_attention.hpp"
 
-#include "graph/graph.hpp"
-#include "graph/node.hpp"
-
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
+#include "core/tensor.hpp"
+#include "fmt/base.h"
 
 namespace smart {
 
-TensorNode *Attention::build(Graph &g, TensorNode *x, int64_t L, TensorNode *pos_tensor, int32_t pos) {
+TensorNode *QuestAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode *pos_tensor, int32_t pos) {
+    // auto kv_dim = (m_config->tf_cfg.dim * m_config->tf_cfg.n_kv_heads) / m_config->tf_cfg.n_heads;
 
     auto att_norm_w = g.add_tensor(m_weights->lw[L].attn_norm);
     auto att_norm_o = g.rms_norm(x, att_norm_w);
 
-    // QKV
+    // TODO: Quest QKV
     auto kc = m_kv_cache.add_key_cache_node(g);
     auto vc = m_kv_cache.add_value_cache_node(g);
 
     auto q_w = g.add_tensor(m_weights->lw[L].attn_q);
     auto q   = g.mat_mul(att_norm_o, q_w);
     // TODO: update cache
+    // size_t loff = L * m_config->tf_cfg.seq_len * kv_dim;
 
     auto k_w = g.add_tensor(m_weights->lw[L].attn_k);
     auto k   = g.mat_mul(att_norm_o, k_w);
@@ -36,8 +34,16 @@ TensorNode *Attention::build(Graph &g, TensorNode *x, int64_t L, TensorNode *pos
     m_kv_cache.add_key_cache(g, rope_k, L, pos);
     m_kv_cache.add_value_cache(g, v, L, pos);
 
-    // auto att_scores = g.mha(rope_q, kc, vc, pos_tensor, L);
-    auto att_scores = g.mha(rope_q, kc, vc, pos_tensor, L);
+    TensorNode *att_scores;
+    if (L < dense_layers) {
+        att_scores = g.mha(rope_q, kc, vc, pos_tensor, L);
+    } else {
+        att_scores = g.quest_attention(rope_q, kc, vc, pos_tensor, L, regions_[L - dense_layers]);
+    }
+    // if (L == config_->n_layers - 1) {
+    //  auto att_scores_ = g.mha(rope_q, kc, vc, pos_tensor, L);
+    // 	g.cos_sim(att_scores, att_scores_);
+    // }
 
     auto attn_output_w = g.add_tensor(m_weights->lw[L].attn_output);
     auto attn_o        = g.mat_mul(att_scores, attn_output_w);
