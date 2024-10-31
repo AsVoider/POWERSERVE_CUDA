@@ -89,10 +89,7 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
     );
     static_cast<int32_t *>(pos_tensor->get<ggml::Buffer>().m_data)[0] = pos;
 
-    // m_threadpool->executor = std::make_shared<Executor>(executor);
     executor.run();
-    // m_threadpool->kickoff(m_executor_params->n_threads); // set tp->cond
-    // compute_thread(&m_threadpool->workers[0]);           // main thread is work thread too
     float *logits_data = static_cast<float *>(logits->get<ggml::Buffer>().m_data);
 
     return std::vector<float>(logits_data, logits_data + m_config->tf_cfg.vocab_size);
@@ -125,6 +122,7 @@ void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, i
         } else {
             // TODO: Decode
             // otherwise sample the next token from the logits
+            sampler->trans(logits);
             next = sampler->sample(logits);
         }
         pos++;

@@ -7,6 +7,7 @@
 #include "model/module/quest_attention.hpp"
 #include "model/phi3/phi3_model.hpp"
 #include "sampler/greedy_sampler.hpp"
+#include "sampler/topp_sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cstdlib>
@@ -15,15 +16,15 @@
 
 int main(int argc, char *argv[]) {
     // 0. load config
-    std::string file_path       = "/shared/models/Phi-3-mini-4k-instruct/Phi-3-mini-4k-instruct-F32.gguf";
-    std::string tokenizer_path  = "/shared/models/Phi-3-mini-4k-instruct/Phi-3-mini-4k-instruct-vocab.gguf";
-    float temperature           = 1.0f;       // 0.0 = greedy deterministic. 1.0 = original. don't set higher
+    std::string file_path       = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama-2-7b.f32.gguf";
+    std::string tokenizer_path  = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama2_7b_vocab.gguf";
+    float temperature           = 0.6f;       // 0.0 = greedy deterministic. 1.0 = original. don't set higher
     float topp                  = 0.9f;       // top-p in nucleus sampling. 1.0 = off. 0.9 works well, but slower
-    int steps                   = 16;          // number of steps to run for
-    std::string prompt          = "I was a teacher"; // prompt string
+    int steps                   = 64;          // number of steps to run for
+    std::string prompt          = "One day,"; // prompt string
     std::string attn_type       = "normal";
     int n_threads               = 4;
-    unsigned long long rng_seed = 2024927;
+    uint64_t rng_seed = 2024927;
 
     CLI::App app("Demo program for llama3");
 
@@ -33,6 +34,9 @@ int main(int argc, char *argv[]) {
     app.add_option("--steps", steps);
     app.add_option("--attn-type", attn_type);
     app.add_option("--n-threads", n_threads);
+    app.add_option("--temperature", temperature);
+    app.add_option("--topp", topp);
+    app.add_option("--rng-seed", rng_seed);
     CLI11_PARSE(app, argc, argv);
 
     // get number of CPUs
@@ -80,16 +84,21 @@ int main(int argc, char *argv[]) {
     smart::Tokenizer tokenizer(tokenizer_path);
 
     // load sampler
-    smart::GreedySampler sampler;
+    // smart::GreedySampler sampler;
+    smart::ToppSampler sampler{temperature, topp, rng_seed};
+
 
     {
-        fmt::println("file_path : {}", file_path);
-        fmt::println("vocab_path: {}", tokenizer_path);
-        fmt::println("prompt    : {}", prompt);
-        fmt::println("steps     : {}", steps);
-        fmt::println("attn_type : {}", attn_type);
-        fmt::println("model arch: {}", model_arch);
-        fmt::println("n_threads : {}", n_threads);
+        fmt::println("file_path   : {}", file_path);
+        fmt::println("vocab_path  : {}", tokenizer_path);
+        fmt::println("prompt      : {}", prompt);
+        fmt::println("steps       : {}", steps);
+        fmt::println("attn_type   : {}", attn_type);
+        fmt::println("model arch  : {}", model_arch);
+        fmt::println("n_threads   : {}", n_threads);
+        fmt::println("temperature : {}", temperature);
+        fmt::println("topp        : {}", topp);
+        fmt::println("rng_seed    : {}", rng_seed);
     }
 
     // generate

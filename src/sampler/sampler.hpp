@@ -11,6 +11,7 @@ public:
 
 public:
     virtual int sample(std::vector<float> &logits) = 0;
+    virtual void trans(std::vector<float> &logits) = 0;
 };
 
 } // namespace smart

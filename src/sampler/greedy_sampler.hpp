@@ -13,6 +13,7 @@ public:
 
 public:
     int sample(std::vector<float> &logits) override;
+    void trans(std::vector<float> &logits) override;
 };
 
 } // namespace smart
