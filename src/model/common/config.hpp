@@ -1,6 +1,6 @@
 #pragma once
 
-#include "fmt/ostream.h"
+#include "common.hpp"
 
 #include <cstdint>
 

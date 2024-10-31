@@ -25,6 +25,8 @@
     } while (0)
 #endif
 
+namespace smart {
+
 using Path = std::filesystem::path;
 
 static long time_in_ms() {
@@ -33,3 +35,5 @@ static long time_in_ms() {
     clock_gettime(CLOCK_REALTIME, &time);
     return time.tv_sec * 1000 + time.tv_nsec / 1000000;
 }
+
+} // namespace smart

@@ -14,6 +14,7 @@ enum class OpType {
     COPY,
 
     MHA,
+    PRINT,
     QUEST_ATTN,
     COS_SIM,
 };

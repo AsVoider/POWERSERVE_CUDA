@@ -1,5 +1,6 @@
 #pragma once
 
+#include "backend/platform.hpp"
 #include "ggml.h"
 #include "graph/graph.hpp"
 #include "model/model.hpp"
@@ -23,9 +24,10 @@ private:
     // ggml need those context
     ggml_context *ggml_ctx;
     gguf_context *gguf_ctx;
+    std::shared_ptr<Platform> plat;
 
 public:
-    explicit Phi3Model(const std::string &filename);
+    explicit Phi3Model(const std::string &filename, int n_threads = 1);
     ~Phi3Model() override;
 
 public:

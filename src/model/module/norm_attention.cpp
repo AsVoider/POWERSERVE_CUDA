@@ -20,7 +20,7 @@ TensorNode *NormAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode 
 
     auto q_w = g.add_tensor(m_weights->lw[L].attn_q);
     auto q   = g.mat_mul(att_norm_o, q_w);
-    // TODO: update cache
+    // g.print(q, 10);
 
     auto k_w = g.add_tensor(m_weights->lw[L].attn_k);
     auto k   = g.mat_mul(att_norm_o, k_w);

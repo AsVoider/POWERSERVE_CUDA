@@ -1,7 +1,7 @@
 #include "quest_attention.hpp"
 
+#include "common.hpp"
 #include "core/tensor.hpp"
-#include "fmt/base.h"
 
 namespace smart {
 

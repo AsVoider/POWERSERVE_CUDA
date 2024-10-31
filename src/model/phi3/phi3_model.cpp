@@ -4,7 +4,6 @@
 #include "backend/platform.hpp"
 #include "common.hpp"
 #include "executor/executor.hpp"
-#include "fmt/base.h"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
 #include "sampler/sampler.hpp"
@@ -16,7 +15,7 @@
 
 namespace smart {
 
-Phi3Model::Phi3Model(const std::string &filename) : Model(filename) {
+Phi3Model::Phi3Model(const std::string &filename, int n_threads) : Model(filename) {
     // load file meta data (+ 4G)
     {
         gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
@@ -31,6 +30,7 @@ Phi3Model::Phi3Model(const std::string &filename) : Model(filename) {
     // modules
     // m_attn = std::make_shared<Attention>(m_config, m_weights);
     m_ffn = std::make_shared<FFN>(m_config, m_weights);
+    plat  = std::make_shared<Platform>(m_config, n_threads);
 
     // debug model info
     {
@@ -76,8 +76,7 @@ std::vector<float> Phi3Model::forward(int token, int pos) {
     auto output_w = g.add_tensor(m_weights->output_weight);
     auto logits   = g.mat_mul(final_rms_norm, output_w);
 
-    Platform plat(m_config);
-    Executor executor(plat, g);
+    Executor executor(*plat.get(), g);
     executor.allocate_buffers();
     memcpy(
         tensor_embd->get<ggml::Buffer>().m_data,

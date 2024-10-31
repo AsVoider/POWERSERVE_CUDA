@@ -5,32 +5,18 @@
 #include "common.hpp"
 #include "core/data_type.hpp"
 #include "core/tensor.hpp"
+#include "core/thread_pool.hpp"
 #include "ggml.h"
 #include "model/common/config.hpp"
 #include "model/module/region.hpp"
 
+#include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
 
 namespace smart::ggml {
-
-#define QK8_0 32
-
-struct block_q8_0 {
-    uint16_t d;       // delta
-    int8_t qs[QK8_0]; // quants
-};
-
-#define QK4_0 32
-
-struct block_q4_0 {
-    uint16_t d;            // delta
-    uint8_t qs[QK4_0 / 2]; // nibbles / quants
-};
-
-void dequantize_row_q8_0(const block_q8_0 *x, float *y, int64_t k);
-void dequantize_row_q4_0(const block_q4_0 *x, float *y, int64_t k);
 
 static ggml_type convert_datatype_to_ggml(DataType dtp) {
     switch (dtp) {
@@ -75,18 +61,15 @@ static Tensor convert_from_ggml(ggml_tensor *t) {
     return tensor;
 }
 
-static OpTensor convert_to_optensor(const Tensor *t) {
-    SMART_ASSERT(t != nullptr);
-
-    OpTensor opt;
-    opt.data = t->get<ggml::Buffer>().m_data;
-    opt.type = convert_datatype_to_ggml(t->m_dtype);
+static std::unique_ptr<ggml_tensor> convert_to_ggml(const Tensor *tensor) {
+    auto gt  = std::make_unique<ggml_tensor>();
+    gt->data = tensor->get<ggml::Buffer>().m_data;
+    gt->type = convert_datatype_to_ggml(tensor->m_dtype);
     for (size_t i = 0; i < Tensor::max_n_dims; i++) {
-        opt.ne[i] = t->m_shape[i];
-        opt.nb[i] = t->get<ggml::Buffer>().m_stride[i];
+        gt->ne[i] = tensor->m_shape[i];
+        gt->nb[i] = tensor->get<ggml::Buffer>().m_stride[i];
     }
-
-    return opt;
+    return gt;
 }
 
 // debug functions
@@ -148,20 +131,38 @@ static void debug_tensors_info(gguf_context *gguf_ctx, ggml_context *ggml_ctx) {
 
 // **Note**: Backend receives Tensor not TensorNode
 struct GGMLBackend : Backend {
-private:
+public:
     op_compute_params m_params;
     std::vector<char> m_wdata;
     std::shared_ptr<Config> m_config;
 
 public:
-    explicit GGMLBackend(std::shared_ptr<Config> config) : m_wdata(config->tf_cfg.dim * 32), m_config(config) {
+    explicit GGMLBackend(std::shared_ptr<Config> config, int n_threads = 1) :
+        m_wdata(config->tf_cfg.dim * 32),
+        m_config(config) {
         m_params = {
-            .wsize = (size_t)config->tf_cfg.dim * 32,
-            .wdata = m_wdata.data(),
+            .ith           = 0,
+            .nth           = 1,
+            .wsize         = (size_t)config->tf_cfg.dim * 32,
+            .wdata         = m_wdata.data(),
+            .thread_pool   = nullptr,
+            .barrier_fn    = nullptr,
+            .current_chunk = nullptr,
         };
+
+        std::vector<ThreadConfig> configs;
+        for (int i = 0; i < n_threads; i++) {
+            configs.emplace_back(ThreadConfig{.cpu_ids = {(size_t)i}});
+        }
+        // create thread num has limit
+        m_thread_pool = std::make_unique<ThreadPool>(configs);
+        // fmt::println("\nCreated thread pool with {} threads", configs.size());
     }
 
     ~GGMLBackend() override = default;
+
+public:
+    // void compute_forward(thread_compute_params *params, const OpNode *op) const override;
 
 public:
     void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
@@ -204,8 +205,12 @@ public:
     }
 
 private:
+    std::unique_ptr<ThreadPool> m_thread_pool;
+    std::atomic<int> m_current_chunk = 0;
+
+private:
     void rmsnorm_internal(float *o, float *x, float *weight, int64_t size) const;
-    void softmax_internal(float *out_, float *x_, size_t size) const;
+    void softmax_internal(float *out, float *x, size_t size) const;
     void cos_sim_internal(float *out_, float *x_, size_t size) const;
 };
 
