@@ -22,8 +22,13 @@ string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWI
 set(BUILD_SHARED_LIBS OFF)
 
 if (SMART_ENABLE_SANITIZERS)
-    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
-    link_libraries(-fsanitize=address,undefined)
+    if (ANDROID)
+        add_compile_options(-fsanitize=hwaddress,undefined -fno-omit-frame-pointer)
+        link_libraries(-fsanitize=hwaddress,undefined)
+    else()
+        add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+        link_libraries(-fsanitize=address,undefined)
+    endif()
 endif()
 
 if (SMART_ENABLE_LTO)
