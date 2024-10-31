@@ -37,6 +37,7 @@ setup:
     - sudo podman exec -it $CONTAINER_NAME bash -c "git config --global --add safe.directory /code"
     # - sudo wget https://dl.google.com/android/repository/android-ndk-r27b-linux.zip?hl=zh-cn -O ~/Downloads/android-ndk-r27b-linux.zip
     - export https_proxy=http://ipads:ipads123@202.120.40.82:11235
+    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && git submodule update --init --recursive"
 
 # convert:
 #   stage: convert
@@ -67,7 +68,10 @@ deploy:
   stage: deploy
   script:
     - echo "Deploying binaries and models to your Android device."
+    - sleep 2
     - adb push ~/Downloads/build_android/bin/run /data/local/tmp/
+    - sleep 2
+    - adb shell "ls -ahl /data/local/tmp/run"
 
 test_llama3.1:
   stage: test
@@ -78,3 +82,18 @@ test_phi3:
   stage: test
   script:
     - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 64"
+
+test_sparse:
+  stage: test
+  script:
+    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 64 --attn-type quest"
+
+test_thread:
+  stage: test
+  script:
+    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 64 --n-threads 8"
+
+test_long_out:
+  stage: test
+  script:
+    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 4096"

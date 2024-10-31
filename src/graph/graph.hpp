@@ -34,6 +34,7 @@ public:
     auto softmax(TensorNode *x) -> TensorNode *;
     auto mha(TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id)
         -> TensorNode *;
+    auto print(TensorNode *x, size_t size) -> void;
 
     auto quest_attention(
         TensorNode *q,

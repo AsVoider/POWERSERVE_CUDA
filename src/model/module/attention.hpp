@@ -19,7 +19,9 @@ public:
         m_config(config),
         m_weights(weights),
         m_kv_cache(
-            config, config->tf_cfg.seq_len, config->tf_cfg.dim * config->tf_cfg.n_kv_heads / config->tf_cfg.n_heads
+            config->tf_cfg.seq_len,
+            config->tf_cfg.dim * config->tf_cfg.n_kv_heads / config->tf_cfg.n_heads,
+            config->tf_cfg.n_layers
         ) {}
 
     virtual ~Attention() = default;

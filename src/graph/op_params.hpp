@@ -29,6 +29,10 @@ struct CopyParams {
     size_t off = 0;
 };
 
+struct PrintParams {
+    size_t size = 0;
+};
+
 struct QuestAttnParams : OpParams {
 
     size_t layer_id_ = 0;

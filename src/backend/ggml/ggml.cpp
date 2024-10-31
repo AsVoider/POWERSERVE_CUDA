@@ -1,7 +1,6 @@
 #include "ggml.hpp"
 
 #include "backend/ggml/buffer.hpp"
-#include "fmt/base.h"
 #include "ggml.h"
 #include "model/module/region.hpp"
 
@@ -14,50 +13,31 @@
 
 namespace smart::ggml {
 
-void dequantize_row_q8_0(const block_q8_0 *x, float *y, int64_t k) {
-    static const int qk = QK8_0;
-
-    SMART_ASSERT(k % qk == 0);
-
-    const int nb = k / qk;
-
-    for (int i = 0; i < nb; i++) {
-        const float d = ggml_fp16_to_fp32(x[i].d);
-
-        for (int j = 0; j < qk; ++j) {
-            y[i * qk + j] = x[i].qs[j] * d;
-        }
-    }
-}
-
-void dequantize_row_q4_0(const block_q4_0 *x, float *y, int64_t k) {
-    static const int qk = QK4_0;
-
-    SMART_ASSERT(k % qk == 0);
-
-    const int nb = k / qk;
-
-    for (int i = 0; i < nb; i++) {
-        const float d = ggml_fp16_to_fp32(x[i].d);
-
-        for (int j = 0; j < qk / 2; ++j) {
-            const int x0 = (x[i].qs[j] & 0x0F) - 8;
-            const int x1 = (x[i].qs[j] >> 4) - 8;
-
-            y[i * qk + j + 0]      = x0 * d;
-            y[i * qk + j + qk / 2] = x1 * d;
-        }
-    }
-}
-
 void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
     // W (d,n) @ x (n,) -> xout (d,)
     // by far the most amount of time is spent inside this little function
-    OpTensor dst_tensor  = ggml::convert_to_optensor(dst);
-    OpTensor src0_tensor = ggml::convert_to_optensor(src0);
-    OpTensor src1_tensor = ggml::convert_to_optensor(src1);
+    auto dst_tensor  = convert_to_ggml(dst);
+    auto src0_tensor = convert_to_ggml(src0);
+    auto src1_tensor = convert_to_ggml(src1);
 
-    ggml_compute_forward_op_mul_mat(&m_params, &dst_tensor, &src0_tensor, &src1_tensor);
+    // fmt::print("Running matmul with {} threads\n", m_thread_pool->size());
+    m_thread_pool->run([&](size_t thread_id) {
+        op_compute_params params = m_params;
+
+        params.ith = thread_id;
+        params.nth = m_thread_pool->size();
+
+        params.thread_pool = (void *)m_thread_pool.get();
+        params.barrier_fn  = [](void *opaque) {
+            auto thread_pool = (ThreadPool *)opaque;
+            // fmt::print("thread waiting for barrier\n");
+            thread_pool->barrier();
+        };
+        params.current_chunk = (atomic_int *)&m_current_chunk;
+
+        smart_compute_forward_mul_mat(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get());
+    });
+    // fmt::print("Finished matmul with {} threads\n", m_thread_pool->size());
 }
 
 void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t size) const {
@@ -75,15 +55,20 @@ void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t si
     }
 }
 
-void GGMLBackend::rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const {
-    auto size = x->m_shape[0];
+void GGMLBackend::rmsnorm(const Tensor *out, const Tensor *x, const Tensor *weight) const {
+    auto dst_tensor  = convert_to_ggml(out);
+    auto src0_tensor = convert_to_ggml(x);
+    auto src1_tensor = convert_to_ggml(weight);
 
-    rmsnorm_internal(
-        static_cast<float *>(o->get<Buffer>().m_data),
-        static_cast<float *>(x->get<Buffer>().m_data),
-        static_cast<float *>(weight->get<Buffer>().m_data),
-        size
-    );
+    // fmt::print("Running matmul with {} threads\n", m_thread_pool->size());
+    m_thread_pool->run([&](size_t thread_id) {
+        op_compute_params params = m_params;
+
+        params.ith = thread_id;
+        params.nth = m_thread_pool->size();
+
+        smart_compute_forward_rms_norm(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get());
+    });
 }
 
 void GGMLBackend::softmax_internal(float *out, float *x, size_t size) const {
@@ -107,9 +92,18 @@ void GGMLBackend::softmax_internal(float *out, float *x, size_t size) const {
 }
 
 void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
-    softmax_internal(
-        static_cast<float *>(out->get<Buffer>().m_data), static_cast<float *>(x->get<Buffer>().m_data), x->m_shape[0]
-    );
+    auto dst_tensor  = convert_to_ggml(out);
+    auto src0_tensor = convert_to_ggml(x);
+
+    // fmt::print("Running matmul with {} threads\n", m_thread_pool->size());
+    m_thread_pool->run([&](size_t thread_id) {
+        op_compute_params params = m_params;
+
+        params.ith = thread_id;
+        params.nth = m_thread_pool->size();
+
+        smart_compute_forward_soft_max(&params, dst_tensor.get(), src0_tensor.get());
+    });
 }
 
 // TODO: Rope's pos should be a tensor and we need rope_base (llama2 = 10000, llama3 = 300000 ...)
@@ -192,10 +186,19 @@ void GGMLBackend::multihead_attention(
 }
 
 void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
-    for (size_t i = 0; i < m_config->tf_cfg.dim; i++) {
-        static_cast<float *>(dst->get<Buffer>().m_data)[i] =
-            static_cast<float *>(src0->get<Buffer>().m_data)[i] + static_cast<float *>(src1->get<Buffer>().m_data)[i];
-    }
+    auto dst_tensor  = convert_to_ggml(dst);
+    auto src0_tensor = convert_to_ggml(src0);
+    auto src1_tensor = convert_to_ggml(src1);
+
+    // fmt::print("Running matmul with {} threads\n", m_thread_pool->size());
+    m_thread_pool->run([&](size_t thread_id) {
+        op_compute_params params = m_params;
+
+        params.ith = thread_id;
+        params.nth = m_thread_pool->size();
+
+        smart_compute_forward_add(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get());
+    });
 }
 
 void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const {
@@ -210,9 +213,9 @@ void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tenso
 }
 
 void GGMLBackend::copy(const Tensor *dst, const Tensor *src, const int64_t off) const {
-    for (size_t i = 0; i < src->n_elements(); i++) {
-        static_cast<float *>(dst->get<Buffer>().m_data)[off + i] = static_cast<float *>(src->get<Buffer>().m_data)[i];
-    }
+    auto dst_ptr = static_cast<float *>(dst->get<Buffer>().m_data) + off;
+    auto src_ptr = static_cast<float *>(src->get<Buffer>().m_data);
+    memcpy((void *)dst_ptr, src_ptr, src->n_elements() * sizeof(float));
 }
 
 void GGMLBackend::quest_attention(

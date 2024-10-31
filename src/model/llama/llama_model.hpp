@@ -1,19 +1,14 @@
 #pragma once
 
+#include "backend/platform.hpp"
 #include "ggml.h"
 #include "graph/graph.hpp"
-#include "model/llama/llama_config.hpp"
-#include "model/llama/llama_weight.hpp"
 #include "model/model.hpp"
-#include "model/module/attention.hpp"
-#include "model/module/ffn.hpp"
-#include "model/module/quest_attention.hpp"
 #include "sampler/sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cmath>
 #include <cstring>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -24,9 +19,10 @@ public:
     // ggml need those context
     ggml_context *ggml_ctx;
     gguf_context *gguf_ctx;
+    std::shared_ptr<Platform> plat;
 
 public:
-    explicit LlamaModel(const std::string &filename);
+    explicit LlamaModel(const std::string &filename, int n_threads = 1);
     ~LlamaModel() override;
 
 public:

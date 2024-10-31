@@ -4,7 +4,6 @@
 #include "model/common/config.hpp"
 #include "model/common/weights.hpp"
 #include "model/module/attention.hpp"
-#include "model/module/kv_cache.hpp"
 #include "model/module/region.hpp"
 
 #include <cstdint>

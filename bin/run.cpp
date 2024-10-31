@@ -1,9 +1,10 @@
 
 #include "CLI/CLI.hpp"
-#include "fmt/base.h"
+#include "common.hpp"
 #include "ggml.h"
 #include "model/llama/llama_model.hpp"
 #include "model/module/norm_attention.hpp"
+#include "model/module/quest_attention.hpp"
 #include "model/phi3/phi3_model.hpp"
 #include "sampler/greedy_sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
@@ -21,6 +22,7 @@ int main(int argc, char *argv[]) {
     int steps                   = 16;          // number of steps to run for
     std::string prompt          = "I was a teacher"; // prompt string
     std::string attn_type       = "normal";
+    int n_threads               = 4;
     unsigned long long rng_seed = 2024927;
 
     CLI::App app("Demo program for llama3");
@@ -30,9 +32,19 @@ int main(int argc, char *argv[]) {
     app.add_option("--prompt", prompt);
     app.add_option("--steps", steps);
     app.add_option("--attn-type", attn_type);
+    app.add_option("--n-threads", n_threads);
     CLI11_PARSE(app, argc, argv);
 
-    // 0. get model type
+    // get number of CPUs
+    {
+        auto n_cpus = uv_available_parallelism(); // Default fallback value
+        fmt::println("n_cpus: {}", n_cpus);
+        // NOTE: the main thread is also a worker thread, so we need to subtract 1
+        SMART_ASSERT(n_cpus >= 2);
+        n_threads = std::min((unsigned int)n_threads, n_cpus - 1);
+    }
+
+    // get model type
     std::string model_arch;
     {
         ggml_context *ggml_ctx;
@@ -48,7 +60,7 @@ int main(int argc, char *argv[]) {
 
     std::unique_ptr<smart::Model> model;
     if(model_arch == "llama") {
-        model = std::make_unique<smart::LlamaModel>(file_path);
+        model = std::make_unique<smart::LlamaModel>(file_path, n_threads);
     }
     else if(model_arch == "phi3") {
         model = std::make_unique<smart::Phi3Model>(file_path);
@@ -77,6 +89,7 @@ int main(int argc, char *argv[]) {
         fmt::println("steps     : {}", steps);
         fmt::println("attn_type : {}", attn_type);
         fmt::println("model arch: {}", model_arch);
+        fmt::println("n_threads : {}", n_threads);
     }
 
     // generate

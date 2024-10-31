@@ -112,6 +112,12 @@ auto Graph::copy(TensorNode *dst, TensorNode *src, size_t off) -> void {
     op->set_params(CopyParams{.off = off});
 }
 
+auto Graph::print(TensorNode *x, size_t size) -> void {
+    auto op = new_op(OpType::PRINT);
+    op->set_inputs({x});
+    op->set_params(PrintParams{.size = size});
+}
+
 auto Graph::quest_attention(
     TensorNode *q,
     TensorNode *key_cache,

@@ -4,19 +4,21 @@
 #include "backend/platform.hpp"
 #include "common.hpp"
 #include "executor/executor.hpp"
-#include "fmt/base.h"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
+#include "model/llama/llama_config.hpp"
+#include "model/llama/llama_weight.hpp"
 #include "sampler/sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cstring>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace smart {
 
-LlamaModel::LlamaModel(const std::string &filename) : Model(filename) {
+LlamaModel::LlamaModel(const std::string &filename, int n_threads) : Model(filename) {
     // load file meta data (+ 4G)
     {
         gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
@@ -31,6 +33,8 @@ LlamaModel::LlamaModel(const std::string &filename) : Model(filename) {
     // modules
     m_attn = nullptr;
     m_ffn  = std::make_shared<FFN>(m_config, m_weights);
+    // platform
+    plat = std::make_shared<Platform>(m_config, n_threads);
 
     // debug model info
     {
@@ -76,8 +80,7 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
     auto output_w = g.add_tensor(m_weights->output_weight);
     auto logits   = g.mat_mul(final_rms_norm, output_w);
 
-    Platform plat(m_config);
-    Executor executor(plat, g);
+    Executor executor(*plat.get(), g);
     executor.allocate_buffers();
     memcpy(
         tensor_embd->get<ggml::Buffer>().m_data,
@@ -86,7 +89,10 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
     );
     static_cast<int32_t *>(pos_tensor->get<ggml::Buffer>().m_data)[0] = pos;
 
+    // m_threadpool->executor = std::make_shared<Executor>(executor);
     executor.run();
+    // m_threadpool->kickoff(m_executor_params->n_threads); // set tp->cond
+    // compute_thread(&m_threadpool->workers[0]);           // main thread is work thread too
     float *logits_data = static_cast<float *>(logits->get<ggml::Buffer>().m_data);
 
     return std::vector<float>(logits_data, logits_data + m_config->tf_cfg.vocab_size);
@@ -95,6 +101,7 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
 void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps) {
     SMART_ASSERT(m_attn != nullptr);
     // encode the (string) prompt into tokens sequence
+
     int num_prompt_tokens = 0;
     auto prompt_tokens    = tk->tokenize(prompt, tk->m_vocab.tokenizer_add_bos);
     num_prompt_tokens     = prompt_tokens.size();

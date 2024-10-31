@@ -323,6 +323,13 @@
     GGML_TENSOR_LOCALS(int64_t, ne1, src1, ne) \
     GGML_TENSOR_LOCALS(size_t,  nb1, src1, nb)
 
+#if defined(__cplusplus)
+#include <atomic>
+typedef std::atomic_int atomic_int;
+#else
+#include <stdatomic.h>
+#endif
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
@@ -615,22 +622,17 @@ extern "C" {
         // char padding[4];
     };
 
-struct OpTensor {
-    void* data;
-    enum ggml_type type;
-    int64_t ne[GGML_MAX_DIMS]; // number of elements
-    size_t nb[GGML_MAX_DIMS]; // stride in bytes
-};
-
 struct op_compute_params {
     // ith = thread index, nth = number of threads
-    // int ith, nth;
+    int ith, nth;
 
     // work buffer for all threads
     size_t wsize;
     void * wdata;
 
-    // struct ggml_threadpool * threadpool;
+    void *thread_pool;
+    void (*barrier_fn)(void *thread_pool);
+    atomic_int *current_chunk;
 };
     static const size_t GGML_TENSOR_SIZE = sizeof(struct ggml_tensor);
 
@@ -731,11 +733,32 @@ struct op_compute_params {
     GGML_API GGML_CALL int64_t ggml_nrows       (const struct ggml_tensor * tensor);
     GGML_API GGML_CALL size_t  ggml_nbytes      (const struct ggml_tensor * tensor);
     GGML_API           size_t  ggml_nbytes_pad  (const struct ggml_tensor * tensor); // same as ggml_nbytes() but padded to GGML_MEM_ALIGN
-    GGML_API GGML_CALL void ggml_compute_forward_op_mul_mat(
-        const struct op_compute_params * params,
-        struct OpTensor * dst,
-        const struct OpTensor * src0, // weight
-        const struct OpTensor * src1  // activation
+
+    GGML_API GGML_CALL void smart_compute_forward_mul_mat(
+        struct op_compute_params * params,
+        struct ggml_tensor * dst,
+        struct ggml_tensor * src0, // weight
+        struct ggml_tensor * src1  // activation
+    );
+
+    GGML_API GGML_CALL void smart_compute_forward_add(
+        struct op_compute_params * params,
+        struct ggml_tensor * dst,
+        struct ggml_tensor * src0, // weight
+        struct ggml_tensor * src1
+    );
+
+    GGML_API GGML_CALL void smart_compute_forward_soft_max(
+        struct op_compute_params * params,
+        struct ggml_tensor * dst,
+        struct ggml_tensor * src0
+    );
+
+    GGML_API GGML_CALL void smart_compute_forward_rms_norm(
+        struct op_compute_params * params,
+        struct ggml_tensor * dst,
+        struct ggml_tensor * src0,
+        struct ggml_tensor * src1
     );
 
     GGML_API GGML_CALL int64_t ggml_blck_size(enum ggml_type type);
