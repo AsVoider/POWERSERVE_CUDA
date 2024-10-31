@@ -8,11 +8,6 @@
 
 namespace smart {
 
-struct ProbIndex {
-    float prob;
-    int index;
-};
-
 template <typename T>
 void softmax(std::vector<T> &x) {
     // find max value (for numerical stability)
@@ -134,11 +129,13 @@ int ToppSampler::sample(std::vector<float> &logits) {
 }
 
 void ToppSampler::trans(std::vector<float> &logits) {
-    // temperature scaling
-    auto func = [&](auto x) { return x / m_temperature; };
-    std::transform(logits.begin(), logits.end(), logits.begin(), func);
-    // softmax
-    softmax<float>(logits);
+    if (m_temperature > 0) {
+        // temperature scaling
+        auto func = [&](auto x) { return x / m_temperature; };
+        std::transform(logits.begin(), logits.end(), logits.begin(), func);
+        // softmax
+        softmax<float>(logits);
+    }
 }
 
 } // namespace smart

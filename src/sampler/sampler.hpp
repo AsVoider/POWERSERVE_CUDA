@@ -4,6 +4,11 @@
 
 namespace smart {
 
+struct ProbIndex {
+    float prob;
+    int index;
+};
+
 struct Sampler {
 public:
     Sampler()          = default;
