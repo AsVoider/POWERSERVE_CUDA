@@ -38,6 +38,7 @@ LlamaModel::LlamaModel(const std::string &filename, int n_threads) : Model(filen
 
     // debug model info
     {
+        ggml::debug_system_info();
         // ggml::debug_meta_info(gguf_ctx, ggml_ctx);
         // m_config->debug_config_info();
         // ggml::debug_tensors_info(gguf_ctx, ggml_ctx);
@@ -122,7 +123,7 @@ void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, i
         } else {
             // TODO: Decode
             // otherwise sample the next token from the logits
-            sampler->trans(logits);
+            // sampler->apply(logits);
             next = sampler->sample(logits);
         }
         pos++;

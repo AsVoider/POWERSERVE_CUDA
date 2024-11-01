@@ -6,9 +6,9 @@
 #include "model/module/norm_attention.hpp"
 #include "model/module/quest_attention.hpp"
 #include "model/phi3/phi3_model.hpp"
-#include "sampler/greedy_sampler.hpp"
-#include "sampler/topp_sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
+#include "sampler/sampler.hpp"
+#include "sampler/sampler_chain.hpp"
 
 #include <cstdlib>
 #include <memory>
@@ -18,8 +18,9 @@ int main(int argc, char *argv[]) {
     // 0. load config
     std::string file_path       = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama-2-7b.f32.gguf";
     std::string tokenizer_path  = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama2_7b_vocab.gguf";
-    float temperature           = 0.6f;       // 0.0 = greedy deterministic. 1.0 = original. don't set higher
-    float topp                  = 0.9f;       // top-p in nucleus sampling. 1.0 = off. 0.9 works well, but slower
+    float temperature           = 0.8f;       // 0.0 = greedy deterministic. 1.0 = original. don't set higher
+    float topp                  = 0.95f;
+    size_t topk                 = 40;
     int steps                   = 64;          // number of steps to run for
     std::string prompt          = "One day,"; // prompt string
     std::string attn_type       = "normal";
@@ -36,6 +37,7 @@ int main(int argc, char *argv[]) {
     app.add_option("--n-threads", n_threads);
     app.add_option("--temperature", temperature);
     app.add_option("--topp", topp);
+    app.add_option("--topk", topk);
     app.add_option("--rng-seed", rng_seed);
     CLI11_PARSE(app, argc, argv);
 
@@ -84,9 +86,13 @@ int main(int argc, char *argv[]) {
     smart::Tokenizer tokenizer(tokenizer_path);
 
     // load sampler
-    // smart::GreedySampler sampler;
-    smart::ToppSampler sampler{temperature, topp, rng_seed};
-
+    smart::SamplerConfig config{
+        .seed = rng_seed,
+        .temp = temperature,
+        .topp = topp,
+        .topk = topk,
+    };
+    smart::SamplerChain sampler{config};
 
     {
         fmt::println("file_path   : {}", file_path);
@@ -98,6 +104,7 @@ int main(int argc, char *argv[]) {
         fmt::println("n_threads   : {}", n_threads);
         fmt::println("temperature : {}", temperature);
         fmt::println("topp        : {}", topp);
+        fmt::println("topk        : {}", topk);
         fmt::println("rng_seed    : {}", rng_seed);
     }
 
