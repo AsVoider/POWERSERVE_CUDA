@@ -44,7 +44,7 @@ static uint32_t get_rng_seed(uint32_t seed) {
         // use system clock if std::random_device is not a true RNG
         static bool is_rd_prng = std::random_device().entropy() == 0;
         if (is_rd_prng) {
-            return (uint32_t) std::chrono::system_clock::now().time_since_epoch().count();
+            return (uint32_t)std::chrono::system_clock::now().time_since_epoch().count();
         }
         std::random_device rd;
         return rd();
@@ -140,12 +140,15 @@ public:
 struct TemperatureExtMapper : Sampler {
 public:
     float m_temperature = 0.6f;
-    float m_delta = 0.00f; // 0.0 = disabled
-    float m_exponent = 1.00f; // controls how entropy maps to temperature in dynamic temperature sampler
+    float m_delta       = 0.00f; // 0.0 = disabled
+    float m_exponent    = 1.00f; // controls how entropy maps to temperature in dynamic temperature sampler
 
 public:
-    TemperatureExtMapper(float temperature, float delta = 0.0f, float exponent = 1.0f)
-        : m_temperature(temperature), m_delta(delta), m_exponent(exponent) {}
+    TemperatureExtMapper(float temperature, float delta = 0.0f, float exponent = 1.0f) :
+        m_temperature(temperature),
+        m_delta(delta),
+        m_exponent(exponent) {}
+
     ~TemperatureExtMapper() = default;
 
 public:

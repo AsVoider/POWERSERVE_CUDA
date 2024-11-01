@@ -71,11 +71,28 @@ struct probs_iterator {
 
     probs_iterator(const ProbIndex *data) : data(data) {}
 
-    bool operator==(const probs_iterator & other) const { return data == other.data; }
-    bool operator!=(const probs_iterator & other) const { return !(*this == other); }
-    const float & operator*() const { return data->prob; }
-    probs_iterator & operator++() { ++data; return *this; }
-    probs_iterator operator++(int) { probs_iterator tmp = *this; ++data; return tmp; }
+    bool operator==(const probs_iterator &other) const {
+        return data == other.data;
+    }
+
+    bool operator!=(const probs_iterator &other) const {
+        return !(*this == other);
+    }
+
+    const float &operator*() const {
+        return data->prob;
+    }
+
+    probs_iterator &operator++() {
+        ++data;
+        return *this;
+    }
+
+    probs_iterator operator++(int) {
+        probs_iterator tmp = *this;
+        ++data;
+        return tmp;
+    }
 };
 
 void DistSampler::apply(std::vector<ProbIndex> &probs) {
@@ -92,7 +109,7 @@ void TemperatureExtMapper::apply(std::vector<ProbIndex> &probs) {
     if (m_delta > 0) {
         const float min_temp = std::max(0.0f, m_temperature - m_delta);
         const float max_temp = m_temperature + m_delta;
-        float exponent_val = m_exponent;
+        float exponent_val   = m_exponent;
 
         // no need to do anything if there is only one (or zero) candidates
         if (probs.size() <= 1) {
@@ -138,7 +155,7 @@ void TemperatureExtMapper::apply(std::vector<ProbIndex> &probs) {
 
         double cum_sum_double = 0.0;
         for (size_t i = 0; i < probs.size(); ++i) {
-            double p = exp(probs[i].prob - max_l_double);
+            double p      = exp(probs[i].prob - max_l_double);
             probs[i].prob = p; // Store the scaled probability
             cum_sum_double += p;
         }
