@@ -1,9 +1,11 @@
 #pragma once
 
 #include "common.hpp"
+#include "tokenizer/tokenizer.hpp"
 
 #include <cmath>
 #include <cstddef>
+#include <deque>
 #include <numeric>
 #include <random>
 #include <vector>
@@ -153,6 +155,64 @@ public:
 
 public:
     void apply(std::vector<ProbIndex> &probs) override;
+};
+
+constexpr auto Token_NULL = -1;
+
+struct PenalitiesChecker : Sampler {
+
+public:
+    int32_t m_vocab_size;
+    Tokenizer::Token m_special_eos_id;
+    Tokenizer::Token m_linefeed_id;
+
+    int32_t m_penalty_last_n;
+    float m_penalty_repeat;
+    float m_penalty_freq;
+    float m_penalty_present;
+
+    bool m_penalize_nl;
+    bool m_ignore_eos;
+
+    std::deque<Tokenizer::Token> m_prev;
+
+public:
+    PenalitiesChecker(
+        int32_t vocab_size,
+        Tokenizer::Token special_eos_id,
+        Tokenizer::Token linefeed_id,
+        int32_t penalty_last_n,
+        float penalty_repeat,
+        float penalty_freq,
+        float penalty_present,
+        bool penalize_nl,
+        bool ignore_eos
+    ) :
+        m_vocab_size(vocab_size),
+        m_special_eos_id(special_eos_id),
+        m_linefeed_id(linefeed_id),
+        m_penalty_last_n(penalty_last_n),
+        m_penalty_repeat(penalty_repeat),
+        m_penalty_freq(penalty_freq),
+        m_penalty_present(penalty_present),
+        m_penalize_nl(penalize_nl),
+        m_ignore_eos(ignore_eos) {
+        if (linefeed_id == Token_NULL) {
+            m_penalize_nl = true;
+        }
+
+        if (special_eos_id == Token_NULL) {
+            m_ignore_eos = false;
+        }
+        penalty_last_n = std::max(penalty_last_n, 0);
+        m_prev.resize(m_penalty_last_n);
+    }
+
+    ~PenalitiesChecker() = default;
+
+public:
+    void apply(std::vector<ProbIndex> &probs) override;
+    void accept(Tokenizer::Token token);
 };
 
 } // namespace smart

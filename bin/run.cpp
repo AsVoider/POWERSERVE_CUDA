@@ -91,6 +91,15 @@ int main(int argc, char *argv[]) {
         .temp = temperature,
         .topp = topp,
         .topk = topk,
+        .vocab_size = static_cast<int32_t>(tokenizer.n_vocabs()),
+        .special_eos_id = tokenizer.m_vocab.special_eos_id,
+        .linefeed_id = tokenizer.m_vocab.linefeed_id,
+        .penalty_last_n = 64,
+        .penalty_repeat = 2.0f,
+        .penalty_freq = 1.0f,
+        .penalty_present = 0.1f,
+        .penalize_nl = false,
+        .ignore_eos = false,
     };
     smart::SamplerChain sampler{config};
 

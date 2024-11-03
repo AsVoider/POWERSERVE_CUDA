@@ -179,4 +179,91 @@ void TemperatureExtMapper::apply(std::vector<ProbIndex> &probs) {
     }
 }
 
+void PenalitiesChecker::apply(std::vector<ProbIndex> &probs) {
+    SMART_UNUSED(probs);
+    if (m_ignore_eos) {
+        // if ignore eos, set the logit of eos token to -INFINITY, so it will not be selected
+        if (probs.size() > (size_t)m_special_eos_id && probs[m_special_eos_id].index == m_special_eos_id) {
+            probs[m_special_eos_id].prob = -INFINITY;
+        } else {
+            // search and set the logit of eos token to -INFINITY
+            for (size_t i = 0; i < probs.size(); ++i) {
+                if (probs[i].index == m_special_eos_id) {
+                    probs[i].prob = -INFINITY;
+                    break;
+                }
+            }
+        }
+    }
+
+    if ((m_penalty_last_n == 0) || (m_penalty_repeat == 1.0f && m_penalty_freq == 0.0f && m_penalty_present == 0.0f)) {
+        return;
+    }
+
+    bool nl_found  = false;
+    size_t nl_idx  = 0;
+    float nl_logit = -INFINITY;
+    if (!m_penalize_nl) {
+        // if not penalize nl, save its original logit value, so we can restore it later
+        SMART_ASSERT(m_linefeed_id >= 0);
+
+        // optimistically check if the candidates are not yet sorted/shuffled/truncated
+        if (probs.size() > (size_t)m_linefeed_id && probs[m_linefeed_id].index == m_linefeed_id) {
+            nl_found = true;
+            nl_idx   = m_linefeed_id;
+            nl_logit = probs[m_linefeed_id].prob;
+        } else {
+            // else, search for the linefeed token
+            for (size_t i = 0; i < probs.size(); ++i) {
+                if (probs[i].index == m_linefeed_id) {
+                    nl_found = true;
+                    nl_idx   = i;
+                    nl_logit = probs[i].prob;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Create a frequency map to count occurrences of each token in last_tokens
+    // TODO: optimize this by maintaining the token count in the sampler context
+    using llama_token_cnt = std::unordered_map<llama_token, int>;
+    llama_token_cnt token_count;
+
+    for (int i = 0; i < std::min<int>(m_penalty_last_n, m_prev.size()); ++i) {
+        token_count[m_prev[i]]++;
+    }
+
+    // Apply frequency and presence penalties to the cur_p
+    for (size_t i = 0; i < probs.size(); ++i) {
+        const auto token_iter = token_count.find(probs[i].index);
+        if (token_iter == token_count.end()) {
+            continue;
+        }
+
+        const int count = token_iter->second;
+
+        // The academic publication that described this technique actually just only divided, but that would cause tokens with negative logits to become more likely, which is obviously wrong.
+        // This is common fix for this problem, which is to multiply by the penalty instead of dividing.
+        if (probs[i].prob <= 0) {
+            probs[i].prob *= m_penalty_repeat;
+        } else {
+            probs[i].prob /= m_penalty_repeat;
+        }
+
+        probs[i].prob -= float(count) * m_penalty_freq + float(count > 0) * m_penalty_present;
+    }
+
+    if (!m_penalize_nl && nl_found) {
+        // restore the logit of the newline token if it was penalized
+        probs[nl_idx].prob = nl_logit;
+    }
+}
+
+void PenalitiesChecker::accept(Tokenizer::Token token) {
+    if (m_penalty_last_n > 0) {
+        m_prev.push_back(token);
+    }
+}
+
 } // namespace smart
