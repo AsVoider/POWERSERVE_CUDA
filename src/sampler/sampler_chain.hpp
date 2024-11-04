@@ -9,11 +9,13 @@
 
 namespace smart {
 
+std::vector<ProbIndex> convert_logits(const std::vector<float> &logits);
+
 struct SamplerConfig {
     uint64_t seed   = 0;
     float temp      = 0.80f;
-    float topp      = 0.95f; // 1.0 = disabled
-    size_t topk     = 40;
+    float top_p     = 0.95f; // 1.0 = disabled
+    size_t top_k    = 40;
     size_t min_keep = 0; // 0 = disabled, otherwise samplers should return at least min_keep tokens
 
     // penalty parameters
@@ -29,25 +31,19 @@ struct SamplerConfig {
 };
 
 struct SamplerChain : Sampler {
-private:
-    std::vector<ProbIndex> m_probs{};
-
 public:
     SamplerConfig m_config{};
     std::vector<std::shared_ptr<Sampler>> m_samplers{};
-    std::shared_ptr<PenalitiesChecker> m_penalties_checker{};
+    std::shared_ptr<PenaltyChecker> m_penalties_checker{};
 
 public:
     SamplerChain(SamplerConfig config);
 
-    ~SamplerChain() = default;
+    virtual ~SamplerChain() override = default;
 
 public:
-    int sample(std::vector<float> &logits) override;
     void apply(std::vector<ProbIndex> &probs) override;
-
-private:
-    void convert_logits(const std::vector<float> &logits);
+    void accept(ProbIndex &prob);
 };
 
 } // namespace smart

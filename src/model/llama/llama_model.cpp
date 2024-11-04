@@ -9,6 +9,7 @@
 #include "model/llama/llama_config.hpp"
 #include "model/llama/llama_weight.hpp"
 #include "sampler/sampler.hpp"
+#include "sampler/sampler_chain.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cstring>
@@ -123,8 +124,10 @@ void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, i
         } else {
             // TODO: Decode
             // otherwise sample the next token from the logits
-            // sampler->apply(logits);
-            next = sampler->sample(logits);
+            auto probs = convert_logits(logits);
+            sampler->apply(probs);
+            next = probs[0].index;
+            ((SamplerChain *)sampler)->accept(probs[0]);
         }
         pos++;
 

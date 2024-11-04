@@ -7,6 +7,7 @@
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
 #include "sampler/sampler.hpp"
+#include "sampler/sampler_chain.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cstring>
@@ -117,7 +118,9 @@ void Phi3Model::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, in
         } else {
             // TODO: Decode
             // otherwise sample the next token from the logits
-            next = sampler->sample(logits);
+            auto probs = convert_logits(logits);
+            sampler->apply(probs);
+            next = probs[0].index;
         }
         pos++;
 

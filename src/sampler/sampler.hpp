@@ -6,7 +6,6 @@
 #include <cmath>
 #include <cstddef>
 #include <deque>
-#include <numeric>
 #include <random>
 #include <vector>
 
@@ -14,29 +13,36 @@ namespace smart {
 
 struct ProbIndex {
     float prob;
-    int index;
+    Tokenizer::Token index;
+
+    bool operator<(const ProbIndex &other) const {
+        return prob < other.prob;
+    }
+
+    bool operator>(const ProbIndex &other) const {
+        return prob > other.prob;
+    }
 };
 
-const auto less    = [](const ProbIndex &a, const ProbIndex &b) { return a.prob < b.prob; };
-const auto greater = [](const ProbIndex &a, const ProbIndex &b) { return a.prob > b.prob; };
-
 static void softmax(std::vector<ProbIndex> &probs) {
-    auto max_val{std::max_element(probs.begin(), probs.end(), less)->prob};
+    auto max_val{std::max_element(probs.begin(), probs.end())->prob};
 
     // exp and sum
-    std::transform(probs.begin(), probs.end(), probs.begin(), [&](auto &y) {
-        y.prob = expf(y.prob - max_val);
-        return y;
-    });
-    double sum{std::accumulate(probs.begin(), probs.end(), 0.0f, [](float acc, const ProbIndex &b) {
-        return acc + b.prob;
-    })};
+    for (auto &p : probs) {
+        p.prob = std::exp(p.prob - max_val);
+    }
+    // auto sum{std::reduce(probs.begin(), probs.end(), ProbIndex{0.0f, 0}, [](const ProbIndex &a, const ProbIndex &b) {
+    //     return ProbIndex{a.prob + b.prob, 0};
+    // }).prob};
+    double sum = 0.;
+    for (const auto &p : probs) {
+        sum += p.prob;
+    }
 
     // normalize
-    std::transform(probs.begin(), probs.end(), probs.begin(), [&](auto &y) {
-        y.prob = y.prob / sum;
-        return y;
-    });
+    for (auto &p : probs) {
+        p.prob /= sum;
+    }
 }
 
 static constexpr uint32_t DEFAULT_SEED = 0;
@@ -60,11 +66,6 @@ public:
     virtual ~Sampler() = default;
 
 public:
-    virtual int sample(std::vector<float> &logits) {
-        SMART_UNUSED(logits);
-        return 0;
-    }
-
     virtual void apply(std::vector<ProbIndex> &probs) = 0;
 };
 
@@ -76,7 +77,7 @@ public:
 public:
     TemperatureMapper(float temperature) : m_temperature(temperature) {}
 
-    ~TemperatureMapper() = default;
+    virtual ~TemperatureMapper() override = default;
 
 public:
     void apply(std::vector<ProbIndex> &probs) override;
@@ -84,56 +85,56 @@ public:
 
 struct SoftmaxMapper : Sampler {
 public:
-    SoftmaxMapper()  = default;
-    ~SoftmaxMapper() = default;
+    SoftmaxMapper()                   = default;
+    virtual ~SoftmaxMapper() override = default;
 
 public:
     void apply(std::vector<ProbIndex> &probs) override;
 };
 
-struct TopkSampler : Sampler {
+struct TopKSampler : Sampler {
 public:
     size_t m_topk = 40;
 
 public:
-    TopkSampler(size_t topk) : m_topk(topk) {}
+    TopKSampler(size_t topk) : m_topk(topk) {}
 
-    ~TopkSampler() = default;
+    virtual ~TopKSampler() override = default;
 
 public:
     void apply(std::vector<ProbIndex> &probs) override;
 };
 
-struct ToppSampler : Sampler {
+struct TopPSampler : Sampler {
 public:
     float m_topp      = 0.95f;
     size_t m_min_keep = 1; // what's this
 
 public:
-    ToppSampler(float topp, size_t min_keep = 1) : m_topp(topp), m_min_keep(min_keep) {}
+    TopPSampler(float topp, size_t min_keep = 1) : m_topp(topp), m_min_keep(min_keep) {}
 
-    ~ToppSampler() = default;
-
-public:
-    void apply(std::vector<ProbIndex> &probs) override;
-};
-
-struct GreedySampler : Sampler {
-public:
-    ~GreedySampler() = default;
+    virtual ~TopPSampler() override = default;
 
 public:
     void apply(std::vector<ProbIndex> &probs) override;
 };
 
-struct DistSampler : Sampler {
+// struct GreedySampler : Sampler {
+// public:
+//     ~GreedySampler() = default;
+
+// public:
+//     void apply(std::vector<ProbIndex> &probs) override;
+// };
+
+struct StochasticSampler : Sampler {
 public:
     uint64_t m_seed = 0;
 
 public:
-    DistSampler(uint64_t seed) : m_seed(get_rng_seed(seed)) {}
+    StochasticSampler(uint64_t seed) : m_seed(get_rng_seed(seed)) {}
 
-    ~DistSampler() = default;
+    virtual ~StochasticSampler() override = default;
 
 public:
     void apply(std::vector<ProbIndex> &probs) override;
@@ -151,7 +152,7 @@ public:
         m_delta(delta),
         m_exponent(exponent) {}
 
-    ~TemperatureExtMapper() = default;
+    virtual ~TemperatureExtMapper() override = default;
 
 public:
     void apply(std::vector<ProbIndex> &probs) override;
@@ -159,7 +160,7 @@ public:
 
 constexpr auto Token_NULL = -1;
 
-struct PenalitiesChecker : Sampler {
+struct PenaltyChecker : Sampler {
 
 public:
     int32_t m_vocab_size;
@@ -177,7 +178,7 @@ public:
     std::deque<Tokenizer::Token> m_prev;
 
 public:
-    PenalitiesChecker(
+    PenaltyChecker(
         int32_t vocab_size,
         Tokenizer::Token special_eos_id,
         Tokenizer::Token linefeed_id,
@@ -208,7 +209,7 @@ public:
         m_prev.resize(m_penalty_last_n);
     }
 
-    ~PenalitiesChecker() = default;
+    virtual ~PenaltyChecker() override = default;
 
 public:
     void apply(std::vector<ProbIndex> &probs) override;

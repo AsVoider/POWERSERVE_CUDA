@@ -19,8 +19,8 @@ int main(int argc, char *argv[]) {
     std::string file_path       = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama-2-7b.f32.gguf";
     std::string tokenizer_path  = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama2_7b_vocab.gguf";
     float temperature           = 0.8f;       // 0.0 = greedy deterministic. 1.0 = original. don't set higher
-    float topp                  = 0.95f;
-    size_t topk                 = 40;
+    float top_p                  = 0.95f;
+    size_t top_k                 = 40;
     int steps                   = 64;          // number of steps to run for
     std::string prompt          = "One day,"; // prompt string
     std::string attn_type       = "normal";
@@ -36,8 +36,8 @@ int main(int argc, char *argv[]) {
     app.add_option("--attn-type", attn_type);
     app.add_option("--n-threads", n_threads);
     app.add_option("--temperature", temperature);
-    app.add_option("--topp", topp);
-    app.add_option("--topk", topk);
+    app.add_option("--top-p", top_p);
+    app.add_option("--top-k", top_k);
     app.add_option("--rng-seed", rng_seed);
     CLI11_PARSE(app, argc, argv);
 
@@ -89,8 +89,8 @@ int main(int argc, char *argv[]) {
     smart::SamplerConfig config{
         .seed = rng_seed,
         .temp = temperature,
-        .topp = topp,
-        .topk = topk,
+        .top_p = top_p,
+        .top_k = top_k,
         .vocab_size = static_cast<int32_t>(tokenizer.n_vocabs()),
         .special_eos_id = tokenizer.m_vocab.special_eos_id,
         .linefeed_id = tokenizer.m_vocab.linefeed_id,
@@ -112,8 +112,8 @@ int main(int argc, char *argv[]) {
         fmt::println("model arch  : {}", model_arch);
         fmt::println("n_threads   : {}", n_threads);
         fmt::println("temperature : {}", temperature);
-        fmt::println("topp        : {}", topp);
-        fmt::println("topk        : {}", topk);
+        fmt::println("top_p       : {}", top_p);
+        fmt::println("top_k       : {}", top_k);
         fmt::println("rng_seed    : {}", rng_seed);
     }
 

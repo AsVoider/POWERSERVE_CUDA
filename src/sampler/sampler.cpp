@@ -7,10 +7,9 @@ namespace smart {
 void TemperatureMapper::apply(std::vector<ProbIndex> &probs) {
     if (m_temperature > 0) {
         // temperature scaling
-        std::transform(probs.begin(), probs.end(), probs.begin(), [&](auto &y) {
-            y.prob = y.prob / m_temperature;
-            return y;
-        });
+        for (auto &prob : probs) {
+            prob.prob /= m_temperature;
+        }
     }
 }
 
@@ -18,18 +17,16 @@ void SoftmaxMapper::apply(std::vector<ProbIndex> &probs) {
     softmax(probs);
 }
 
-void TopkSampler::apply(std::vector<ProbIndex> &probs) {
-    if (m_topk <= 0) {
-        return;
-    }
+void TopKSampler::apply(std::vector<ProbIndex> &probs) {
+    SMART_ASSERT(m_topk > 0);
     auto k = std::min(m_topk, probs.size());
 
     // Sort scores in descending order
-    std::partial_sort(probs.begin(), probs.begin() + k, probs.end(), greater);
+    std::partial_sort(probs.begin(), probs.begin() + k, probs.end(), std::greater<ProbIndex>{});
     probs.resize(k);
 }
 
-void ToppSampler::apply(std::vector<ProbIndex> &probs) {
+void TopPSampler::apply(std::vector<ProbIndex> &probs) {
     if (m_topp >= 1.0f) {
         return;
     }
@@ -54,11 +51,11 @@ void ToppSampler::apply(std::vector<ProbIndex> &probs) {
     probs.resize(last_idx);
 }
 
-void GreedySampler::apply(std::vector<ProbIndex> &probs) {
-    auto max_prob = std::max_element(probs.begin(), probs.end(), less);
-    probs[0]      = *max_prob;
-    probs.resize(1);
-}
+// void GreedySampler::apply(std::vector<ProbIndex> &probs) {
+//     auto max_prob = std::max_element(probs.begin(), probs.end(), less);
+//     probs[0]      = *max_prob;
+//     probs.resize(1);
+// }
 
 struct probs_iterator {
     using iterator_category = std::input_iterator_tag;
@@ -95,7 +92,7 @@ struct probs_iterator {
     }
 };
 
-void DistSampler::apply(std::vector<ProbIndex> &probs) {
+void StochasticSampler::apply(std::vector<ProbIndex> &probs) {
     // SMART_UNUSED(probs);
 
     std::discrete_distribution<int> dist(probs_iterator{probs.data()}, probs_iterator{probs.data() + probs.size()});
@@ -117,7 +114,7 @@ void TemperatureExtMapper::apply(std::vector<ProbIndex> &probs) {
         }
 
         // Calculate maximum possible entropy
-        float max_entropy = -logf(1.0f / probs.size());
+        float max_entropy = -std::log(1.0f / probs.size());
 
         softmax(probs);
 
@@ -126,7 +123,7 @@ void TemperatureExtMapper::apply(std::vector<ProbIndex> &probs) {
         for (size_t i = 0; i < probs.size(); ++i) {
             float prob = probs[i].prob;
             if (prob > 0.0f) { // Ensure no log(0)
-                entropy -= prob * logf(prob);
+                entropy -= prob * std::log(prob);
             }
         }
 
@@ -134,7 +131,7 @@ void TemperatureExtMapper::apply(std::vector<ProbIndex> &probs) {
         float normalized_entropy = entropy / max_entropy;
 
         // Map the normalized entropy to the desired temperature range using the power function
-        float dyn_temp = min_temp + (max_temp - min_temp) * powf(normalized_entropy, exponent_val);
+        float dyn_temp = min_temp + (max_temp - min_temp) * std::pow(normalized_entropy, exponent_val);
 
         {
             // fmt::println("Your text maxtemp value is: {}", max_temp);
@@ -145,17 +142,13 @@ void TemperatureExtMapper::apply(std::vector<ProbIndex> &probs) {
             // fmt::println("Dynamic Temperature (dyn_temp): {}", dyn_temp);
         }
 
-        // Apply the dynamically calculated temperature scaling
-        for (size_t i = 0; i < probs.size(); ++i) {
-            probs[i].prob /= dyn_temp;
-        }
-
         // Re-compute softmax probabilities after scaling logits with dynamic temperature
-        const double max_l_double = probs[0].prob;
+        const double max_l_double = probs[0].prob / dyn_temp;
 
         double cum_sum_double = 0.0;
         for (size_t i = 0; i < probs.size(); ++i) {
-            double p      = exp(probs[i].prob - max_l_double);
+            probs[i].prob /= dyn_temp; // Apply the dynamically calculated temperature scaling
+            double p      = std::exp(probs[i].prob - max_l_double);
             probs[i].prob = p; // Store the scaled probability
             cum_sum_double += p;
         }
@@ -179,7 +172,7 @@ void TemperatureExtMapper::apply(std::vector<ProbIndex> &probs) {
     }
 }
 
-void PenalitiesChecker::apply(std::vector<ProbIndex> &probs) {
+void PenaltyChecker::apply(std::vector<ProbIndex> &probs) {
     SMART_UNUSED(probs);
     if (m_ignore_eos) {
         // if ignore eos, set the logit of eos token to -INFINITY, so it will not be selected
@@ -260,7 +253,7 @@ void PenalitiesChecker::apply(std::vector<ProbIndex> &probs) {
     }
 }
 
-void PenalitiesChecker::accept(Tokenizer::Token token) {
+void PenaltyChecker::accept(Tokenizer::Token token) {
     if (m_penalty_last_n > 0) {
         m_prev.push_back(token);
     }
