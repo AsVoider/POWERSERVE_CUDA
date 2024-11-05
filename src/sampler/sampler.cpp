@@ -31,7 +31,9 @@ void TopKSampler::apply(ProbArray &probs) {
 
     // Sort scores in descending order
     if (!probs.m_is_sorted) {
-        std::partial_sort(probs.m_probs.begin(), probs.m_probs.begin() + k, probs.m_probs.end(), std::greater<ProbIndex>{});
+        std::partial_sort(
+            probs.m_probs.begin(), probs.m_probs.begin() + k, probs.m_probs.end(), std::greater<ProbIndex>{}
+        );
         probs.m_is_sorted = true;
     }
     if (k != probs.m_probs.size()) {
@@ -116,7 +118,6 @@ void StochasticSampler::apply(ProbArray &probs) {
     auto idx         = dist(gen);
     probs.m_probs[0] = probs.m_probs[idx];
     probs.m_probs.resize(1);
-    probs.m_is_normalized = false;
 }
 
 void TemperatureExtSampler::apply(ProbArray &probs) {
@@ -164,18 +165,13 @@ void TemperatureExtSampler::apply(ProbArray &probs) {
         // Re-compute softmax probabilities after scaling logits with dynamic temperature
         const double max_l_double = probs.m_probs[0].prob / dyn_temp;
 
-        double cum_sum_double = 0.0;
         for (size_t i = 0; i < probs.m_probs.size(); ++i) {
             probs.m_probs[i].prob /= dyn_temp; // Apply the dynamically calculated temperature scaling
             double p              = std::exp(probs.m_probs[i].prob - max_l_double);
             probs.m_probs[i].prob = p; // Store the scaled probability
-            cum_sum_double += p;
         }
 
-        for (size_t i = 0; i < probs.m_probs.size(); ++i) {
-            probs.m_probs[i].prob /= cum_sum_double; // Re-normalize the probabilities
-        }
-        probs.m_is_normalized = true;
+        normalize(probs);
         {
             // Print the updated top 25 probabilities after temperature scaling
             // fmt::println("\nUpdated Top 25 Probabilities After Dynamic Temperature Scaling (in percentages):");

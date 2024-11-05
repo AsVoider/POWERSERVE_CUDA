@@ -42,29 +42,6 @@ public:
     ProbIndex sample();
 };
 
-static void softmax(ProbArray &probs) {
-    SMART_ASSERT(probs.m_probs.size() > 0);
-    if (!probs.m_is_sorted) {
-        std::sort(probs.m_probs.begin(), probs.m_probs.end(), std::greater<>());
-        probs.m_is_sorted = true;
-    }
-
-    auto max_val = probs.m_probs[0].prob;
-
-    // exp and sum
-    double sum = 0.;
-    for (auto &p : probs.m_probs) {
-        p.prob = std::exp(p.prob - max_val);
-        sum += p.prob;
-    }
-
-    // normalize
-    for (auto &p : probs.m_probs) {
-        p.prob /= sum;
-    }
-    probs.m_is_normalized = true;
-}
-
 static void normalize(ProbArray &probs) {
     double sum = 0.;
     for (const auto &p : probs.m_probs) {
@@ -76,6 +53,24 @@ static void normalize(ProbArray &probs) {
         p.prob /= sum;
     }
     probs.m_is_normalized = true;
+}
+
+static void softmax(ProbArray &probs) {
+    SMART_ASSERT(probs.m_probs.size() > 0);
+    if (!probs.m_is_sorted) {
+        std::sort(probs.m_probs.begin(), probs.m_probs.end(), std::greater<>());
+        probs.m_is_sorted = true;
+    }
+
+    auto max_val = probs.m_probs[0].prob;
+
+    // exp
+    for (auto &p : probs.m_probs) {
+        p.prob = std::exp(p.prob - max_val);
+    }
+
+    // normalize
+    normalize(probs);
 }
 
 static constexpr uint64_t DEFAULT_SEED = uint64_t(-1);
