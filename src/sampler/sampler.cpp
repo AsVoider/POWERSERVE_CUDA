@@ -1,11 +1,36 @@
 #include "sampler.hpp"
 
-#include <random>
-
 namespace smart {
 
-ProbIndex ProbArray::sample() {
-    return m_probs[0];
+void ProbArray::normalize() {
+    double sum = 0.;
+    for (const auto &p : m_probs) {
+        sum += p.prob;
+    }
+
+    // normalize
+    for (auto &p : m_probs) {
+        p.prob /= sum;
+    }
+    m_is_normalized = true;
+}
+
+void ProbArray::softmax() {
+    SMART_ASSERT(m_probs.size() > 0);
+    if (!m_is_sorted) {
+        std::sort(m_probs.begin(), m_probs.end(), std::greater<>());
+        m_is_sorted = true;
+    }
+
+    auto max_val = m_probs[0].prob;
+
+    // exp
+    for (auto &p : m_probs) {
+        p.prob = std::exp(p.prob - max_val);
+    }
+
+    // normalize
+    normalize();
 }
 
 void TemperatureSampler::apply(ProbArray &probs) {
@@ -18,11 +43,11 @@ void TemperatureSampler::apply(ProbArray &probs) {
 }
 
 void SoftmaxSampler::apply(ProbArray &probs) {
-    softmax(probs);
+    probs.softmax();
 }
 
 void NormalizeSampler::apply(ProbArray &probs) {
-    normalize(probs);
+    probs.normalize();
 }
 
 void TopKSampler::apply(ProbArray &probs) {
@@ -70,53 +95,18 @@ void TopPSampler::apply(ProbArray &probs) {
     probs.m_probs.resize(last_idx);
 }
 
-struct probs_iterator {
-    using iterator_category = std::input_iterator_tag;
-    using value_type        = float;
-    using pointer           = float *;
-    using reference         = float &;
-    using difference_type   = ptrdiff_t;
+// void StochasticSampler::apply(ProbArray &probs) {
+//     SMART_ASSERT(probs.m_is_normalized);
+//     SMART_ASSERT(probs.m_is_sorted);
 
-    const ProbIndex *data;
-
-    probs_iterator(const ProbIndex *data) : data(data) {}
-
-    bool operator==(const probs_iterator &other) const {
-        return data == other.data;
-    }
-
-    bool operator!=(const probs_iterator &other) const {
-        return !(*this == other);
-    }
-
-    const float &operator*() const {
-        return data->prob;
-    }
-
-    probs_iterator &operator++() {
-        ++data;
-        return *this;
-    }
-
-    probs_iterator operator++(int) {
-        probs_iterator tmp = *this;
-        ++data;
-        return tmp;
-    }
-};
-
-void StochasticSampler::apply(ProbArray &probs) {
-    SMART_ASSERT(probs.m_is_normalized);
-    SMART_ASSERT(probs.m_is_sorted);
-
-    std::discrete_distribution<int> dist(
-        probs_iterator{probs.m_probs.data()}, probs_iterator{probs.m_probs.data() + probs.m_probs.size()}
-    );
-    std::mt19937 gen(m_seed);
-    auto idx         = dist(gen);
-    probs.m_probs[0] = probs.m_probs[idx];
-    probs.m_probs.resize(1);
-}
+//     std::discrete_distribution<int> dist(
+//         probs_iterator{probs.m_probs.data()}, probs_iterator{probs.m_probs.data() + probs.m_probs.size()}
+//     );
+//     std::mt19937 gen(m_seed);
+//     auto idx         = dist(gen);
+//     probs.m_probs[0] = probs.m_probs[idx];
+//     probs.m_probs.resize(1);
+// }
 
 void TemperatureExtSampler::apply(ProbArray &probs) {
     if (m_delta > 0) {
@@ -168,7 +158,7 @@ void TemperatureExtSampler::apply(ProbArray &probs) {
             probs.m_probs[i].prob = p; // Store the scaled probability
         }
 
-        normalize(probs);
+        probs.normalize();
         {
             // Print the updated top 25 probabilities after temperature scaling
             // fmt::println("\nUpdated Top 25 Probabilities After Dynamic Temperature Scaling (in percentages):");
@@ -181,6 +171,7 @@ void TemperatureExtSampler::apply(ProbArray &probs) {
         for (size_t i = 0; i < probs.m_probs.size(); ++i) {
             probs.m_probs[i].prob /= m_temperature;
         }
+        probs.m_is_normalized = false;
     }
 }
 

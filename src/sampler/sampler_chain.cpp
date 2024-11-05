@@ -22,7 +22,6 @@ SamplerChain::SamplerChain(SamplerConfig config) : m_config(config) {
     m_samplers.emplace_back(std::make_shared<TopPSampler>(config.top_p));
     m_samplers.emplace_back(std::make_shared<NormalizeSampler>());
     m_samplers.emplace_back(std::make_shared<GreedySampler>());
-    // m_samplers.emplace_back(std::make_shared<StochasticSampler>(config.seed));
 }
 
 SamplerChain::SamplerChain() {}
