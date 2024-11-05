@@ -1,8 +1,37 @@
 #include "sampler.hpp"
 
-#include <random>
-
 namespace smart {
+
+void ProbArray::normalize() {
+    double sum = 0.;
+    for (const auto &p : m_probs) {
+        sum += p.prob;
+    }
+
+    // normalize
+    for (auto &p : m_probs) {
+        p.prob /= sum;
+    }
+    m_is_normalized = true;
+}
+
+void ProbArray::softmax() {
+    SMART_ASSERT(m_probs.size() > 0);
+    if (!m_is_sorted) {
+        std::sort(m_probs.begin(), m_probs.end(), std::greater<>());
+        m_is_sorted = true;
+    }
+
+    auto max_val = m_probs[0].prob;
+
+    // exp
+    for (auto &p : m_probs) {
+        p.prob = std::exp(p.prob - max_val);
+    }
+
+    // normalize
+    normalize();
+}
 
 void TemperatureSampler::apply(ProbArray &probs) {
     if (m_temperature > 0) {
@@ -14,11 +43,11 @@ void TemperatureSampler::apply(ProbArray &probs) {
 }
 
 void SoftmaxSampler::apply(ProbArray &probs) {
-    softmax(probs);
+    probs.softmax();
 }
 
 void NormalizeSampler::apply(ProbArray &probs) {
-    normalize(probs);
+    probs.normalize();
 }
 
 void TopKSampler::apply(ProbArray &probs) {
@@ -129,7 +158,7 @@ void TemperatureExtSampler::apply(ProbArray &probs) {
             probs.m_probs[i].prob = p; // Store the scaled probability
         }
 
-        normalize(probs);
+        probs.normalize();
         {
             // Print the updated top 25 probabilities after temperature scaling
             // fmt::println("\nUpdated Top 25 Probabilities After Dynamic Temperature Scaling (in percentages):");
