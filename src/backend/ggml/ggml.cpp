@@ -107,31 +107,72 @@ void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
 }
 
 // TODO: Rope's pos should be a tensor and we need rope_base (llama2 = 10000, llama3 = 300000 ...)
-void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const {
-    auto dim                = q->m_shape[0];
-    auto head_size          = dim / m_config->tf_cfg.n_heads;
-    auto kv_dim             = (m_config->tf_cfg.dim * m_config->tf_cfg.n_kv_heads) / m_config->tf_cfg.n_heads;
-    const int32_t *pos_data = static_cast<int32_t *>(pos->get<Buffer>().m_data);
+// void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const {
+//     auto dim                = q->m_shape[0];
+//     auto head_size          = dim / m_config->tf_cfg.n_heads;
+//     auto kv_dim             = (m_config->tf_cfg.dim * m_config->tf_cfg.n_kv_heads) / m_config->tf_cfg.n_heads;
+//     const int32_t *pos_data = static_cast<int32_t *>(pos->get<Buffer>().m_data);
 
-    memcpy(q_out->get<Buffer>().m_data, q->get<Buffer>().m_data, q->n_elements() * sizeof(float));
-    memcpy(k_out->get<Buffer>().m_data, k->get<Buffer>().m_data, k->n_elements() * sizeof(float));
+//     memcpy(q_out->get<Buffer>().m_data, q->get<Buffer>().m_data, q->n_elements() * sizeof(float));
+//     memcpy(k_out->get<Buffer>().m_data, k->get<Buffer>().m_data, k->n_elements() * sizeof(float));
 
-    for (size_t i = 0; i < dim; i += 2) {
-        int head_dim = i % head_size;
-        float freq   = 1.0f / powf(10000.0f, head_dim / (float)head_size);
-        float val    = pos_data[0] * freq;
-        float fcr    = cosf(val);
-        float fci    = sinf(val);
-        int rotn     = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
-        for (int v = 0; v < rotn; v++) {
-            float *vec = v == 0 ? static_cast<float *>(q_out->get<Buffer>().m_data)
-                                : static_cast<float *>(k_out->get<Buffer>().m_data);
-            float v0   = vec[i];
-            float v1   = vec[i + 1];
-            vec[i]     = v0 * fcr - v1 * fci;
-            vec[i + 1] = v0 * fci + v1 * fcr;
-        }
-    }
+//     for (size_t i = 0; i < dim; i += 2) {
+//         int head_dim = i % head_size;
+//         float freq   = 1.0f / powf(10000.0f, head_dim / (float)head_size);
+//         float val    = pos_data[0] * freq;
+//         float fcr    = cosf(val);
+//         float fci    = sinf(val);
+//         int rotn     = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
+//         for (int v = 0; v < rotn; v++) {
+//             float *vec = v == 0 ? static_cast<float *>(q_out->get<Buffer>().m_data)
+//                                 : static_cast<float *>(k_out->get<Buffer>().m_data);
+//             float v0   = vec[i];
+//             float v1   = vec[i + 1];
+//             vec[i]     = v0 * fcr - v1 * fci;
+//             vec[i + 1] = v0 * fci + v1 * fcr;
+//         }
+//     }
+// }
+
+void GGMLBackend::rope(
+    Tensor *out,
+    const Tensor *src,
+    const Tensor *pos,
+    int n_dims, // llm_load_hparams
+    int n_ctx_orig,
+    float freq_base,
+    float freq_scale,
+    float ext_factor,
+    float attn_factor,
+    float beta_fast,
+    float beta_slow
+) const {
+    auto dst_tensor  = convert_to_ggml(out);
+    auto src0_tensor = convert_to_ggml(src);
+    auto src1_tensor = convert_to_ggml(pos);
+
+    m_thread_pool->run([&](size_t thread_id) {
+        op_compute_params params = m_params;
+
+        params.ith = thread_id;
+        params.nth = m_thread_pool->size();
+
+        smart_compute_forward_rope(
+            &params,
+            dst_tensor.get(),
+            src0_tensor.get(),
+            src1_tensor.get(),
+            nullptr,
+            n_dims,
+            n_ctx_orig,
+            freq_base,
+            freq_scale,
+            ext_factor,
+            attn_factor,
+            beta_fast,
+            beta_slow
+        );
+    });
 }
 
 void GGMLBackend::multihead_attention(

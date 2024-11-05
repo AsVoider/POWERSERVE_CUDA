@@ -72,16 +72,38 @@ auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
     return out;
 }
 
-auto Graph::rope(TensorNode *q, TensorNode *k, TensorNode *pos) -> RopeResult {
-    // TODO: Add checks
+// auto Graph::rope(TensorNode *q, TensorNode *k, TensorNode *pos) -> RopeResult {
+//     // TODO: Add checks
 
-    auto q_out = dup_tensor(q);
-    auto k_out = dup_tensor(k);
-    auto op    = new_op(OpType::ROPE);
-    op->set_inputs({q, k, pos});
-    op->set_outputs({q_out, k_out});
+//     auto q_out = dup_tensor(q);
+//     auto k_out = dup_tensor(k);
+//     auto op    = new_op(OpType::ROPE);
+//     op->set_inputs({q, k, pos});
+//     op->set_outputs({q_out, k_out});
 
-    return {.q_out = q_out, .k_out = k_out};
+//     return {.q_out = q_out, .k_out = k_out};
+// }
+auto Graph::rope(
+    TensorNode *src,
+    TensorNode *pos,
+    int n_dims,
+    int n_ctx_orig,
+    float freq_base,
+    float freq_scale,
+    float ext_factor,
+    float attn_factor,
+    float beta_fast,
+    float beta_slow
+) -> TensorNode * {
+    auto out = dup_tensor(src);
+    auto op  = new_op(OpType::ROPE);
+    op->set_inputs({src, pos});
+    op->set_outputs({out});
+    op->set_params(
+        RopeParams{n_dims, n_ctx_orig, freq_base, freq_scale, ext_factor, attn_factor, beta_fast, beta_slow}
+    );
+
+    return out;
 }
 
 auto Graph::softmax(TensorNode *x) -> TensorNode * {

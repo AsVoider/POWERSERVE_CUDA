@@ -761,6 +761,22 @@ struct op_compute_params {
         struct ggml_tensor * src1
     );
 
+    GGML_API GGML_CALL void smart_compute_forward_rope(
+        struct op_compute_params * params,
+        struct ggml_tensor * dst,
+        struct ggml_tensor * src0,
+        struct ggml_tensor * src1,
+        struct ggml_tensor * src2,
+        int n_dims,
+        int n_ctx_orig,
+        float freq_base,
+        float freq_scale, 
+        float ext_factor, 
+        float attn_factor, 
+        float beta_fast, 
+        float beta_slow
+    );
+
     GGML_API GGML_CALL int64_t ggml_blck_size(enum ggml_type type);
     GGML_API GGML_CALL size_t  ggml_type_size(enum ggml_type type);             // size in bytes for all elements in a block
     GGML_API GGML_CALL size_t  ggml_row_size (enum ggml_type type, int64_t ne); // size in bytes for all elements in a row

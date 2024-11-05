@@ -2,6 +2,7 @@
 
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
+#include "model/llama/llama_config.hpp"
 
 #include <cstdint>
 #include <cstdio>
@@ -10,6 +11,7 @@
 namespace smart {
 
 TensorNode *NormAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode *pos_tensor, int32_t pos) {
+    auto cfg = (LlamaConfig *)(m_config.get());
 
     auto att_norm_w = g.add_tensor(m_weights->lw[L].attn_norm);
     auto att_norm_o = g.rms_norm(x, att_norm_w);
@@ -30,7 +32,27 @@ TensorNode *NormAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode 
 
     // rope -> key_cache + loff -> val_cache + loff
     // rope_q shape:[dim,]; rope_k shape: [kv_dim,]
-    auto [rope_q, rope_k] = g.rope(q, k, pos_tensor);
+    // auto [rope_q, rope_k] = g.rope(q, k, pos_tensor);
+    auto rope_q = g.rope(
+        q,
+        pos_tensor,
+        cfg->n_rot,
+        cfg->n_ctx_orig,
+        cfg->rope_freq_base,
+        cfg->rope_freq_scale,
+        cfg->yarn_ext_factor,
+        cfg->rope_attn_factor
+    );
+    auto rope_k = g.rope(
+        k,
+        pos_tensor,
+        cfg->n_rot,
+        cfg->n_ctx_orig,
+        cfg->rope_freq_base,
+        cfg->rope_freq_scale,
+        cfg->yarn_ext_factor,
+        cfg->rope_attn_factor
+    );
 
     // multihead attention
     m_kv_cache.add_key_cache(g, rope_k, L, pos);

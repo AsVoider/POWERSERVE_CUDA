@@ -5,7 +5,8 @@
 #include "model/llama/llama_model.hpp"
 #include "model/module/norm_attention.hpp"
 #include "model/module/quest_attention.hpp"
-#include "model/phi3/phi3_model.hpp"
+// #include "model/phi3/phi3_model.hpp"
+#include "tokenizer/tokenizer.hpp"
 #include "sampler/sampler.hpp"
 #include "sampler/sampler_chain.hpp"
 #include "tokenizer/tokenizer.hpp"
@@ -68,9 +69,12 @@ int main(int argc, char *argv[]) {
     // TODO: move into Model.cpp like build_model
     if (model_arch == "llama") {
         model = std::make_unique<smart::LlamaModel>(file_path, n_threads);
-    } else if (model_arch == "phi3") {
-        model = std::make_unique<smart::Phi3Model>(file_path);
-    } else {
+    }
+    else if(model_arch == "phi3") {
+        SMART_ASSERT(false);
+        // model = std::make_unique<smart::Phi3Model>(file_path);
+    }
+    else {
         fmt::print("Unknown model type\n");
     }
 

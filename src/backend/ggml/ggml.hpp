@@ -28,6 +28,8 @@ static ggml_type convert_datatype_to_ggml(DataType dtp) {
         return GGML_TYPE_Q4_0;
     case DataType::GGML_Q8_0:
         return GGML_TYPE_Q8_0;
+    case DataType::INT32:
+        return GGML_TYPE_I32;
     default:
         SMART_ASSERT(false);
     }
@@ -196,7 +198,20 @@ public:
     void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const;
     void softmax(const Tensor *out, const Tensor *x) const;
-    void rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const;
+    // void rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const;
+    void rope(
+        Tensor *out,
+        const Tensor *src,
+        const Tensor *pos,
+        int n_dims,
+        int n_ctx_orig,
+        float freq_base,
+        float freq_scale,
+        float ext_factor,
+        float attn_factor,
+        float beta_fast,
+        float beta_slow
+    ) const;
     void multihead_attention(
         const Tensor *out,
         const Tensor *q,

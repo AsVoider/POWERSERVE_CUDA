@@ -58,12 +58,20 @@ void Executor::run() {
         } break;
 
         case OpType::ROPE: {
-            auto q     = op->prev[0]->tensor();
-            auto k     = op->prev[1]->tensor();
-            auto pos   = op->prev[2]->tensor();
-            auto q_out = op->next[0]->tensor();
-            auto k_out = op->next[1]->tensor();
-            m_platform.ggml_backend.rope(q_out, k_out, q, k, pos);
+            // auto q     = op->prev[0]->tensor();
+            // auto k     = op->prev[1]->tensor();
+            // auto pos   = op->prev[2]->tensor();
+            // auto q_out = op->next[0]->tensor();
+            // auto k_out = op->next[1]->tensor();
+            // m_platform.ggml_backend.rope(q_out, k_out, q, k, pos);
+            auto src = op->prev[0]->tensor();
+            auto pos = op->prev[1]->tensor();
+            auto out = op->next[0]->tensor();
+            auto [n_dims, n_ctx_orig, freq_base, freq_scale, ext_factor, attn_factor, beta_fast, beta_slow] =
+                op->get_params<RopeParams>();
+            m_platform.ggml_backend.rope(
+                out, src, pos, n_dims, n_ctx_orig, freq_base, freq_scale, ext_factor, attn_factor, beta_fast, beta_slow
+            );
         } break;
 
         case OpType::SOFTMAX: {

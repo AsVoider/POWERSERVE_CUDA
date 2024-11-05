@@ -15531,6 +15531,163 @@ static void ggml_compute_forward_rope(
     }
 }
 
+static void smart_compute_forward_rope_f32(
+    struct op_compute_params * params,
+    struct ggml_tensor * dst,
+    struct ggml_tensor * src0,
+    struct ggml_tensor * src1, // pos
+    struct ggml_tensor * src2, // freq_factors
+    int n_dims, //  hparams.n_rot -> rope_dim_count
+    int n_ctx_orig,
+    float freq_base,
+    float freq_scale, 
+    float ext_factor, 
+    float attn_factor, 
+    float beta_fast, 
+    float beta_slow,
+    const bool forward) 
+{
+    GGML_TENSOR_UNARY_OP_LOCALS
+
+    //printf("ne0: %d, ne1: %d, ne2: %d, ne3: %d\n", ne0, ne1, ne2, ne3);
+    //printf("n_past = %d, ne2 = %d\n", n_past, ne2);
+
+    GGML_ASSERT(nb00 == sizeof(float));
+
+    const int ith = params->ith;
+    const int nth = params->nth;
+
+    const int nr = ggml_nrows(dst);
+
+    GGML_ASSERT(n_dims <= ne0);
+    GGML_ASSERT(n_dims % 2 == 0);
+
+    // rows per thread
+    const int dr = (nr + nth - 1)/nth;
+
+    // row range for this thread
+    const int ir0 = dr*ith;
+    const int ir1 = MIN(ir0 + dr, nr);
+
+    // row index used to determine which thread to use
+    int ir = 0;
+    // powf(freq_base, head_dim / (float)head_size) ?
+    const float theta_scale = powf(freq_base, -2.0f/n_dims);
+
+    float corr_dims[2];
+    ggml_rope_yarn_corr_dims(n_dims, n_ctx_orig, freq_base, beta_fast, beta_slow, corr_dims);
+
+    const int mode       = 0;
+    const bool is_neox = mode & GGML_ROPE_TYPE_NEOX;
+
+    const float * freq_factors = NULL;
+    if (src2 != NULL) {
+        GGML_ASSERT(src2->type == GGML_TYPE_F32);
+        GGML_ASSERT(src2->ne[0] >= n_dims / 2);
+        freq_factors = (const float *) src2->data;
+    }
+    // printf(
+    //     "n_rot: %d, n_ctx_orig: %d, freq_base: %f, "
+    //     "freq_scale: %f,ext_factor: %f, attn_factor: %f, "
+    //     "beta_fast: %f, beta_slow: %f\n",
+    //     n_dims, n_ctx_orig, (double)freq_base, (double)freq_scale,
+    //     (double)ext_factor, (double)attn_factor, (double)beta_fast, (double)beta_slow);
+    // backward process uses inverse rotation by cos and sin.
+    // cos and sin build a rotation matrix, where the inverse is the transpose.
+    // this essentially just switches the sign of sin.
+    const float sin_sign = forward ? 1.0f : -1.0f;
+
+    const int32_t * pos = (const int32_t *) src1->data;
+
+    for (int64_t i3 = 0; i3 < ne3; i3++) {
+        for (int64_t i2 = 0; i2 < ne2; i2++) {
+            const int64_t p = pos[i2];
+
+            float * cache = (float *) params->wdata + (ne0 + CACHE_LINE_SIZE_F32)*ith;
+            // TODO:
+            ggml_rope_cache_init(p, freq_scale, freq_factors, corr_dims, ne0, ext_factor, attn_factor, cache, sin_sign, theta_scale);
+
+            for (int64_t i1 = 0; i1 < ne1; i1++) {
+                if (ir++ < ir0) continue;
+                if (ir   > ir1) break;
+
+                if (!is_neox) {
+                    for (int64_t i0 = 0; i0 < n_dims; i0 += 2) {
+                        const float cos_theta = cache[i0 + 0];
+                        const float sin_theta = cache[i0 + 1];
+
+                        const float * const src = (float *)((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01 + i0*nb00);
+                              float * dst_data  = (float *)((char *)  dst->data + i3*nb3  + i2*nb2  + i1*nb1  + i0*nb0);
+
+                        const float x0 = src[0];
+                        const float x1 = src[1];
+
+                        dst_data[0] = x0*cos_theta - x1*sin_theta;
+                        dst_data[1] = x0*sin_theta + x1*cos_theta;
+                    }
+                } else {
+                    for (int64_t i0 = 0; i0 < n_dims; i0 += 2) {
+                        const int64_t ic = i0/2;
+
+                        const float cos_theta = cache[i0 + 0];
+                        const float sin_theta = cache[i0 + 1];
+
+                        const float * const src = (float *)((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01 + ic*nb00);
+                        float * dst_data  = (float *)((char *)  dst->data + i3*nb3  + i2*nb2  + i1*nb1  + ic*nb0);
+
+                        const float x0 = src[0];
+                        const float x1 = src[n_dims/2];
+
+                        dst_data[0]        = x0*cos_theta - x1*sin_theta;
+                        dst_data[n_dims/2] = x0*sin_theta + x1*cos_theta;
+                    }
+                }
+
+                for (int64_t i0 = n_dims; i0 < ne0; i0 += 2) {
+                    const float * const src = (float *)((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01 + i0*nb00);
+                    float * dst_data  = (float *)((char *)  dst->data + i3*nb3  + i2*nb2  + i1*nb1  + i0*nb0);
+
+                    dst_data[0] = src[0];
+                    dst_data[1] = src[1];
+                }
+            }
+        }
+    }
+}
+
+void smart_compute_forward_rope(
+    struct op_compute_params * params,
+    struct ggml_tensor * dst,
+    struct ggml_tensor * src0,
+    struct ggml_tensor * src1,
+    struct ggml_tensor * src2,
+    int n_dims,
+    int n_ctx_orig,
+    float freq_base,
+    float freq_scale, 
+    float ext_factor, 
+    float attn_factor, 
+    float beta_fast, 
+    float beta_slow)
+{
+
+    switch (src0->type) {
+        case GGML_TYPE_F16:
+            {
+                GGML_ABORT("Not Impl");
+                // ggml_compute_forward_rope_f16(params, dst, true);
+            } break;
+        case GGML_TYPE_F32:
+            {
+                smart_compute_forward_rope_f32(params, dst, src0, src1, src2, n_dims, n_ctx_orig, freq_base, freq_scale, ext_factor, attn_factor, beta_fast, beta_slow, true);
+            } break;
+        default:
+            {
+                GGML_ABORT("fatal error");
+            }
+    }
+}
+
 // ggml_compute_forward_rope_back
 
 static void ggml_compute_forward_rope_back(

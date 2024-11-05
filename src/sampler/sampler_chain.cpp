@@ -15,11 +15,11 @@ SamplerChain::SamplerChain(SamplerConfig config) : m_config(config) {
         config.ignore_eos
     );
 
-    m_samplers.emplace_back(m_penalties_checker);
-    m_samplers.emplace_back(std::make_shared<TopKSampler>(config.top_k));
-    m_samplers.emplace_back(std::make_shared<TopPSampler>(config.top_p));
-    m_samplers.emplace_back(std::make_shared<TemperatureExtSampler>(config.temp));
-    m_samplers.emplace_back(std::make_shared<SoftmaxSampler>());
+    // m_samplers.emplace_back(m_penalties_checker);
+    // m_samplers.emplace_back(std::make_shared<TopkSampler>(config.topk));
+    // m_samplers.emplace_back(std::make_shared<ToppSampler>(config.topp));
+    // m_samplers.emplace_back(std::make_shared<TemperatureExtMapper>(config.temp));
+    // m_samplers.emplace_back(std::make_shared<SoftmaxMapper>());
     m_samplers.emplace_back(std::make_shared<GreedySampler>());
     // m_samplers.emplace_back(std::make_shared<StochasticSampler>(config.seed));
 }

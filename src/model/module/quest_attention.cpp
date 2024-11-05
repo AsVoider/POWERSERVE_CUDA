@@ -28,7 +28,8 @@ TensorNode *QuestAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode
 
     // rope -> key_cache + loff -> val_cache + loff
     // rope_q shape:[dim,]; rope_k shape: [kv_dim,]
-    auto [rope_q, rope_k] = g.rope(q, k, pos_tensor);
+    auto rope_q = g.rope(q, pos_tensor);
+    auto rope_k = g.rope(k, pos_tensor);
 
     // multihead attention
     m_kv_cache.add_key_cache(g, rope_k, L, pos);
