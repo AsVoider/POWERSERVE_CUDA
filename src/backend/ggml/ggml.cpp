@@ -151,6 +151,22 @@ void GGMLBackend::rope(
     auto src0_tensor = convert_to_ggml(src);
     auto src1_tensor = convert_to_ggml(pos);
 
+    src0_tensor->ne[3] = 1;
+    src0_tensor->ne[2] = 1; //batch
+    src0_tensor->ne[1] = src0_tensor->ne[0] / 128;
+    src0_tensor->ne[0] = 128;
+    dst_tensor->ne[3] = 1;
+    dst_tensor->ne[2] = 1; //batch
+    dst_tensor->ne[1] = dst_tensor->ne[0] / 128;
+    dst_tensor->ne[0] = 128;
+
+    src0_tensor->nb[0] = sizeof(float);
+    dst_tensor->nb[0] = sizeof(float);
+    for (int i = 1; i < GGML_MAX_DIMS; i++) {
+        src0_tensor->nb[i] = src0_tensor->ne[i-1] * src0_tensor->nb[i-1];
+        dst_tensor->nb[i] = dst_tensor->ne[i-1] * dst_tensor->nb[i-1];
+    }
+
     m_thread_pool->run([&](size_t thread_id) {
         op_compute_params params = m_params;
 
@@ -372,6 +388,27 @@ void GGMLBackend::cos_sim_internal(float *x_, float *y_, size_t size) const {
     if (out_ < 0.99) {
         fmt::print(stderr, "\ncos_sim: {}\n", out_);
     }
+}
+
+void GGMLBackend::print(const Tensor *x, size_t size) const {
+    SMART_UNUSED(size);
+    SMART_ASSERT(x->m_dtype == DataType::FP32);
+    printf("\n{%ld, %ld, %ld, %ld}\n", x->m_shape[3], x->m_shape[2], x->m_shape[1], x->m_shape[0]);
+    auto shape = x->m_shape;
+    auto stride = x->get<Buffer>().m_stride;
+    for (size_t i3 = 0; i3 < shape[3]; i3++) {
+        for (size_t i2 = 0; i2 < shape[2]; i2++) {
+            for (size_t i1 = 0; i1 < shape[1]; i1++) {
+                for (size_t i0 = 0; i0 < shape[0]; i0++) {
+                    float *ptr = (float *) ((char *) x->get<Buffer>().m_data + i3 * stride[3] + i2 * stride[2] +
+                                             i1 * stride[1] + i0 * stride[0]);
+                    // printf("[%ld][%ld][%ld][%ld] = %.6f\n", i3, i2, i1, i0, (double)*ptr);
+                    printf("%.6f\n", (double)*ptr);
+                }
+            }
+        }
+    }
+    exit(0);
 }
 
 } // namespace smart::ggml

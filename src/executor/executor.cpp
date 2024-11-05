@@ -114,10 +114,9 @@ void Executor::run() {
         } break;
 
         case OpType::PRINT: {
-            SMART_ASSERT(false); // not Impl
-            // auto x    = op->prev[0]->tensor();
-            // auto size = op->get_params<PrintParams>().size;
-            // m_platform.ggml_backend.print(x, size);
+            auto x    = op->prev[0]->tensor();
+            auto size = op->get_params<PrintParams>().size;
+            m_platform.ggml_backend.print(x, size);
 
         } break;
 

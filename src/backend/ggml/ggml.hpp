@@ -233,6 +233,7 @@ public:
         std::vector<Region> &regions
     ) const;
     void cos_sim(const Tensor *src0, const Tensor *src1) const;
+    void print(const Tensor *x, size_t size) const;
 
 public:
     template <typename T>
