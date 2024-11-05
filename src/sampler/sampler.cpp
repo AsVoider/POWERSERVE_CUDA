@@ -4,10 +4,6 @@
 
 namespace smart {
 
-ProbIndex ProbArray::sample() {
-    return m_probs[0];
-}
-
 void TemperatureSampler::apply(ProbArray &probs) {
     if (m_temperature > 0) {
         // temperature scaling
@@ -70,53 +66,18 @@ void TopPSampler::apply(ProbArray &probs) {
     probs.m_probs.resize(last_idx);
 }
 
-struct probs_iterator {
-    using iterator_category = std::input_iterator_tag;
-    using value_type        = float;
-    using pointer           = float *;
-    using reference         = float &;
-    using difference_type   = ptrdiff_t;
+// void StochasticSampler::apply(ProbArray &probs) {
+//     SMART_ASSERT(probs.m_is_normalized);
+//     SMART_ASSERT(probs.m_is_sorted);
 
-    const ProbIndex *data;
-
-    probs_iterator(const ProbIndex *data) : data(data) {}
-
-    bool operator==(const probs_iterator &other) const {
-        return data == other.data;
-    }
-
-    bool operator!=(const probs_iterator &other) const {
-        return !(*this == other);
-    }
-
-    const float &operator*() const {
-        return data->prob;
-    }
-
-    probs_iterator &operator++() {
-        ++data;
-        return *this;
-    }
-
-    probs_iterator operator++(int) {
-        probs_iterator tmp = *this;
-        ++data;
-        return tmp;
-    }
-};
-
-void StochasticSampler::apply(ProbArray &probs) {
-    SMART_ASSERT(probs.m_is_normalized);
-    SMART_ASSERT(probs.m_is_sorted);
-
-    std::discrete_distribution<int> dist(
-        probs_iterator{probs.m_probs.data()}, probs_iterator{probs.m_probs.data() + probs.m_probs.size()}
-    );
-    std::mt19937 gen(m_seed);
-    auto idx         = dist(gen);
-    probs.m_probs[0] = probs.m_probs[idx];
-    probs.m_probs.resize(1);
-}
+//     std::discrete_distribution<int> dist(
+//         probs_iterator{probs.m_probs.data()}, probs_iterator{probs.m_probs.data() + probs.m_probs.size()}
+//     );
+//     std::mt19937 gen(m_seed);
+//     auto idx         = dist(gen);
+//     probs.m_probs[0] = probs.m_probs[idx];
+//     probs.m_probs.resize(1);
+// }
 
 void TemperatureExtSampler::apply(ProbArray &probs) {
     if (m_delta > 0) {
@@ -181,6 +142,7 @@ void TemperatureExtSampler::apply(ProbArray &probs) {
         for (size_t i = 0; i < probs.m_probs.size(); ++i) {
             probs.m_probs[i].prob /= m_temperature;
         }
+        probs.m_is_normalized = false;
     }
 }
 

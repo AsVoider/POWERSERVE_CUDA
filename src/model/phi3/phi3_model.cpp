@@ -120,7 +120,8 @@ void Phi3Model::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, in
             // otherwise sample the next token from the logits
             auto probs = ProbArray(logits);
             sampler->apply(probs);
-            next = probs.sample().index;
+            std::mt19937 gen(std::random_device{}());
+            next = probs.sample(gen).index;
             ((SamplerChain *)sampler)->accept(next);
         }
         pos++;

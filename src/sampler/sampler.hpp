@@ -39,7 +39,51 @@ public:
         }
     }
 
-    ProbIndex sample();
+private:
+    struct probs_iterator {
+        using iterator_category = std::input_iterator_tag;
+        using value_type        = float;
+        using pointer           = float *;
+        using reference         = float &;
+        using difference_type   = ptrdiff_t;
+
+        const ProbIndex *data;
+
+        probs_iterator(const ProbIndex *data) : data(data) {}
+
+        bool operator==(const probs_iterator &other) const {
+            return data == other.data;
+        }
+
+        bool operator!=(const probs_iterator &other) const {
+            return !(*this == other);
+        }
+
+        const float &operator*() const {
+            return data->prob;
+        }
+
+        probs_iterator &operator++() {
+            ++data;
+            return *this;
+        }
+
+        probs_iterator operator++(int) {
+            probs_iterator tmp = *this;
+            ++data;
+            return tmp;
+        }
+    };
+
+public:
+    template <typename RandomEngine>
+    ProbIndex sample(RandomEngine &&gen) {
+        std::discrete_distribution<int> dist(
+            probs_iterator{m_probs.data()}, probs_iterator{m_probs.data() + m_probs.size()}
+        );
+        auto idx = dist(gen);
+        return m_probs[idx];
+    }
 };
 
 static void normalize(ProbArray &probs) {
@@ -117,7 +161,6 @@ public:
 
 struct SoftmaxSampler : Sampler {
 public:
-    SoftmaxSampler()                   = default;
     virtual ~SoftmaxSampler() override = default;
 
 public:
@@ -169,18 +212,18 @@ public:
     virtual ~GreedySampler() override = default;
 };
 
-struct StochasticSampler : Sampler {
-public:
-    uint64_t m_seed = 0;
+// struct StochasticSampler : Sampler {
+// public:
+//     uint64_t m_seed = 0;
 
-public:
-    StochasticSampler(uint64_t seed) : m_seed(get_rng_seed(seed)) {}
+// public:
+//     StochasticSampler(uint64_t seed) : m_seed(get_rng_seed(seed)) {}
 
-    virtual ~StochasticSampler() override = default;
+//     virtual ~StochasticSampler() override = default;
 
-public:
-    void apply(ProbArray &probs) override;
-};
+// public:
+//     void apply(ProbArray &probs) override;
+// };
 
 struct TemperatureExtSampler : Sampler {
 public:
@@ -200,10 +243,9 @@ public:
     void apply(ProbArray &probs) override;
 };
 
-constexpr auto Token_NULL = -1;
+constexpr auto NULL_TOKEN = -1;
 
 struct PenaltyChecker : Sampler {
-
 public:
     int32_t m_vocab_size;
     Tokenizer::Token m_special_eos_id;
@@ -240,11 +282,11 @@ public:
         m_penalty_present(penalty_present),
         m_penalize_nl(penalize_nl),
         m_ignore_eos(ignore_eos) {
-        if (linefeed_id == Token_NULL) {
+        if (linefeed_id == NULL_TOKEN) {
             m_penalize_nl = true;
         }
 
-        if (special_eos_id == Token_NULL) {
+        if (special_eos_id == NULL_TOKEN) {
             m_ignore_eos = false;
         }
         penalty_last_n = std::max(penalty_last_n, 0);
