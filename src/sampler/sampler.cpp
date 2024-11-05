@@ -46,9 +46,8 @@ void TopPSampler::apply(ProbArray &probs) {
     if (m_topp >= 1.0f) {
         return;
     }
-    if (!probs.m_is_normalized || !probs.m_is_sorted) {
-        softmax(probs);
-    }
+    SMART_ASSERT(probs.m_is_normalized);
+    SMART_ASSERT(probs.m_is_sorted);
 
     // Compute the cumulative probabilities
     float cum_sum   = 0.0f;
@@ -107,9 +106,8 @@ struct probs_iterator {
 };
 
 void StochasticSampler::apply(ProbArray &probs) {
-    if (!probs.m_is_normalized || !probs.m_is_sorted) {
-        softmax(probs);
-    }
+    SMART_ASSERT(probs.m_is_normalized);
+    SMART_ASSERT(probs.m_is_sorted);
 
     std::discrete_distribution<int> dist(
         probs_iterator{probs.m_probs.data()}, probs_iterator{probs.m_probs.data() + probs.m_probs.size()}
@@ -134,9 +132,8 @@ void TemperatureExtSampler::apply(ProbArray &probs) {
         // Calculate maximum possible entropy
         float max_entropy = -std::log(1.0f / probs.m_probs.size());
 
-        if (!probs.m_is_normalized || !probs.m_is_sorted) {
-            softmax(probs);
-        }
+        SMART_ASSERT(probs.m_is_normalized);
+        SMART_ASSERT(probs.m_is_sorted);
 
         // Calculate entropy of the softmax probabilities
         float entropy = 0.0f;
@@ -188,7 +185,6 @@ void TemperatureExtSampler::apply(ProbArray &probs) {
 }
 
 void PenaltyChecker::apply(ProbArray &probs) {
-    SMART_UNUSED(probs);
     if (m_ignore_eos) {
         // if ignore eos, set the logit of eos token to -INFINITY, so it will not be selected
         if (probs.m_probs.size() > (size_t)m_special_eos_id &&

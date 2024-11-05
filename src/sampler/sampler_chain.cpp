@@ -15,11 +15,12 @@ SamplerChain::SamplerChain(SamplerConfig config) : m_config(config) {
         config.ignore_eos
     );
 
-    m_samplers.emplace_back(m_penalties_checker);
+    m_samplers.emplace_back(m_penalties_checker); // TODO: the first or the last?
     m_samplers.emplace_back(std::make_shared<TopKSampler>(config.top_k));
-    m_samplers.emplace_back(std::make_shared<TopPSampler>(config.top_p));
     m_samplers.emplace_back(std::make_shared<TemperatureExtSampler>(config.temp));
     m_samplers.emplace_back(std::make_shared<SoftmaxSampler>());
+    m_samplers.emplace_back(std::make_shared<TopPSampler>(config.top_p));
+    m_samplers.emplace_back(std::make_shared<NormalizeSampler>());
     m_samplers.emplace_back(std::make_shared<GreedySampler>());
     // m_samplers.emplace_back(std::make_shared<StochasticSampler>(config.seed));
 }
@@ -27,16 +28,8 @@ SamplerChain::SamplerChain(SamplerConfig config) : m_config(config) {
 SamplerChain::SamplerChain() {}
 
 void SamplerChain::apply(ProbArray &probs) {
-    for (size_t i = 0; i < std::min((size_t)5, probs.m_probs.size()); i++) {
-        fmt::println(stderr, "[{}] {}: {}", i, probs.m_probs[i].index, probs.m_probs[i].prob);
-    }
-    fmt::println(stderr, "----------");
     for (auto &sampler : m_samplers) {
         sampler->apply(probs);
-        for (size_t i = 0; i < std::min((size_t)5, probs.m_probs.size()); i++) {
-            fmt::println(stderr, "[{}] {}: {}", i, probs.m_probs[i].index, probs.m_probs[i].prob);
-        }
-        fmt::println(stderr, "----------");
     }
 }
 
