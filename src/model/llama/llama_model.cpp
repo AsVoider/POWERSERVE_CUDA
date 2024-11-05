@@ -9,6 +9,7 @@
 #include "model/llama/llama_config.hpp"
 #include "model/llama/llama_weight.hpp"
 #include "sampler/sampler.hpp"
+#include "sampler/sampler_chain.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cstring>
@@ -38,6 +39,7 @@ LlamaModel::LlamaModel(const std::string &filename, int n_threads) : Model(filen
 
     // debug model info
     {
+        ggml::debug_system_info();
         // ggml::debug_meta_info(gguf_ctx, ggml_ctx);
         // m_config->debug_config_info();
         // ggml::debug_tensors_info(gguf_ctx, ggml_ctx);
@@ -89,10 +91,7 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
     );
     static_cast<int32_t *>(pos_tensor->get<ggml::Buffer>().m_data)[0] = pos;
 
-    // m_threadpool->executor = std::make_shared<Executor>(executor);
     executor.run();
-    // m_threadpool->kickoff(m_executor_params->n_threads); // set tp->cond
-    // compute_thread(&m_threadpool->workers[0]);           // main thread is work thread too
     float *logits_data = static_cast<float *>(logits->get<ggml::Buffer>().m_data);
 
     return std::vector<float>(logits_data, logits_data + m_config->tf_cfg.vocab_size);
@@ -125,7 +124,11 @@ void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, i
         } else {
             // TODO: Decode
             // otherwise sample the next token from the logits
-            next = sampler->sample(logits);
+            auto probs = ProbArray(logits);
+            sampler->apply(probs);
+            std::mt19937 gen(std::random_device{}());
+            next = probs.sample(gen).index;
+            ((SamplerChain *)sampler)->accept(next);
         }
         pos++;
 

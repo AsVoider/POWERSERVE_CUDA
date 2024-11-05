@@ -4,5 +4,5 @@ target_link_libraries(quant_mul_mat PRIVATE smart_serving ggml)
 add_executable(ggml_multithread "ggml_multithread.cpp")
 target_link_libraries(ggml_multithread PRIVATE smart_serving ggml)
 
-# add_executable(main "main.cpp")
-# target_link_libraries(main PRIVATE smart_serving CLI11::CLI11)
+add_executable(sampler_test "sampler_test.cpp")
+target_link_libraries(sampler_test PRIVATE smart_serving)
