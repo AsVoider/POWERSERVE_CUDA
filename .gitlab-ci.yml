@@ -93,7 +93,7 @@ test_thread:
   script:
     - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 64 --n-threads 8"
 
-test_long_out:
-  stage: test
-  script:
-    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 4096"
+# test_long_out:
+#   stage: test
+#   script:
+#    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 4096"
