@@ -2,15 +2,6 @@
 
 namespace smart {
 
-std::vector<ProbIndex> convert_logits(const std::vector<float> &logits) {
-    std::vector<ProbIndex> m_probs(logits.size());
-    for (size_t i = 0; i < logits.size(); i++) {
-        m_probs[i].index = i;
-        m_probs[i].prob  = logits[i];
-    }
-    return m_probs;
-}
-
 SamplerChain::SamplerChain(SamplerConfig config) : m_config(config) {
     m_penalties_checker = std::make_shared<PenaltyChecker>(
         config.vocab_size,
@@ -27,39 +18,30 @@ SamplerChain::SamplerChain(SamplerConfig config) : m_config(config) {
     m_samplers.emplace_back(m_penalties_checker);
     m_samplers.emplace_back(std::make_shared<TopKSampler>(config.top_k));
     m_samplers.emplace_back(std::make_shared<TopPSampler>(config.top_p));
-    m_samplers.emplace_back(std::make_shared<TemperatureExtMapper>(config.temp));
-    m_samplers.emplace_back(std::make_shared<SoftmaxMapper>());
+    m_samplers.emplace_back(std::make_shared<TemperatureExtSampler>(config.temp));
+    m_samplers.emplace_back(std::make_shared<SoftmaxSampler>());
     // m_samplers.emplace_back(std::make_shared<GreedySampler>());
-    m_samplers.emplace_back(std::make_shared<TopKSampler>(1)); // greedy
-    // m_samplers.emplace_back(std::make_shared<StochasticSampler>(config.seed));
+    m_samplers.emplace_back(std::make_shared<StochasticSampler>(config.seed));
 }
 
-// int SamplerChain::sample(std::vector<float> &logits) {
-//     convert_logits(logits);
-//     // for (size_t i = 0; i < std::min((size_t)10, m_probs.size()); i++) {
-//     //     fmt::println("[{}] <{}: {}>", i, m_probs[i].index, m_probs[i].prob);
-//     // }
-//     // fmt::println("--------------------------------");
+SamplerChain::SamplerChain() {}
 
-//     for (auto &sampler : m_samplers) {
-//         sampler->apply(m_probs);
-//         // for (size_t i = 0; i < std::min((size_t)10, m_probs.size()); i++) {
-//         //     fmt::println("[{}] <{}: {}>", i, m_probs[i].index, m_probs[i].prob);
-//         // }
-//         // fmt::println("--------------------------------");
-//     }
-//     m_penalties_checker->accept(Tokenizer::Token(m_probs[0].index));
-//     return m_probs[0].index;
-// }
-
-void SamplerChain::apply(std::vector<ProbIndex> &probs) {
+void SamplerChain::apply(ProbArray &probs) {
+    for (size_t i = 0; i < std::min((size_t)5, probs.m_probs.size()); i++) {
+        fmt::println(stderr, "[{}] {}: {}", i, probs.m_probs[i].index, probs.m_probs[i].prob);
+    }
+    fmt::println(stderr, "----------");
     for (auto &sampler : m_samplers) {
         sampler->apply(probs);
+        for (size_t i = 0; i < std::min((size_t)5, probs.m_probs.size()); i++) {
+            fmt::println(stderr, "[{}] {}: {}", i, probs.m_probs[i].index, probs.m_probs[i].prob);
+        }
+        fmt::println(stderr, "----------");
     }
 }
 
-void SamplerChain::accept(ProbIndex &prob) {
-    m_penalties_checker->accept(Tokenizer::Token(prob.index));
+void SamplerChain::accept(Tokenizer::Token token) {
+    m_penalties_checker->accept(token);
 }
 
 } // namespace smart

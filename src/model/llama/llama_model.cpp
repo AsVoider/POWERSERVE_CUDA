@@ -124,10 +124,10 @@ void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, i
         } else {
             // TODO: Decode
             // otherwise sample the next token from the logits
-            auto probs = convert_logits(logits);
+            auto probs = ProbArray(logits);
             sampler->apply(probs);
-            next = probs[0].index;
-            ((SamplerChain *)sampler)->accept(probs[0]);
+            next = probs.sample().index;
+            ((SamplerChain *)sampler)->accept(next);
         }
         pos++;
 

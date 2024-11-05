@@ -24,36 +24,69 @@ struct ProbIndex {
     }
 };
 
-static void softmax(std::vector<ProbIndex> &probs) {
-    auto max_val{std::max_element(probs.begin(), probs.end())->prob};
+struct ProbArray {
+public:
+    std::vector<ProbIndex> m_probs;
+    bool m_is_sorted     = false;
+    bool m_is_normalized = false;
+
+public:
+    ProbArray(std::vector<float> &logits) {
+        m_probs.resize(logits.size());
+        for (size_t i = 0; i < logits.size(); i++) {
+            m_probs[i].index = i;
+            m_probs[i].prob  = logits[i];
+        }
+    }
+
+    ProbIndex sample();
+};
+
+static void softmax(ProbArray &probs) {
+    SMART_ASSERT(probs.m_probs.size() > 0);
+    if (!probs.m_is_sorted) {
+        std::sort(probs.m_probs.begin(), probs.m_probs.end(), std::greater<>());
+        probs.m_is_sorted = true;
+    }
+
+    auto max_val = probs.m_probs[0].prob;
 
     // exp and sum
-    for (auto &p : probs) {
-        p.prob = std::exp(p.prob - max_val);
-    }
-    // auto sum{std::reduce(probs.begin(), probs.end(), ProbIndex{0.0f, 0}, [](const ProbIndex &a, const ProbIndex &b) {
-    //     return ProbIndex{a.prob + b.prob, 0};
-    // }).prob};
     double sum = 0.;
-    for (const auto &p : probs) {
+    for (auto &p : probs.m_probs) {
+        p.prob = std::exp(p.prob - max_val);
         sum += p.prob;
     }
 
     // normalize
-    for (auto &p : probs) {
+    for (auto &p : probs.m_probs) {
         p.prob /= sum;
     }
+    probs.m_is_normalized = true;
 }
 
-static constexpr uint32_t DEFAULT_SEED = 0;
+static void normalize(ProbArray &probs) {
+    double sum = 0.;
+    for (const auto &p : probs.m_probs) {
+        sum += p.prob;
+    }
 
-static uint32_t get_rng_seed(uint32_t seed) {
+    // normalize
+    for (auto &p : probs.m_probs) {
+        p.prob /= sum;
+    }
+    probs.m_is_normalized = true;
+}
+
+static constexpr uint64_t DEFAULT_SEED = uint64_t(-1);
+
+static uint64_t get_rng_seed(uint64_t seed) {
     if (seed == DEFAULT_SEED) {
         // use system clock if std::random_device is not a true RNG
-        static bool is_rd_prng = std::random_device().entropy() == 0;
-        if (is_rd_prng) {
-            return (uint32_t)std::chrono::system_clock::now().time_since_epoch().count();
-        }
+        // static bool is_rd_prng = std::random_device().entropy() == 0;
+        // if (is_rd_prng) {
+        //     return (uint32_t)std::chrono::system_clock::now().time_since_epoch().count();
+        // }
         std::random_device rd;
         return rd();
     }
@@ -66,30 +99,42 @@ public:
     virtual ~Sampler() = default;
 
 public:
-    virtual void apply(std::vector<ProbIndex> &probs) = 0;
+    virtual void apply(ProbArray &probs) = 0;
+
+    virtual void accept(Tokenizer::Token token) {
+        SMART_UNUSED(token);
+    }
 };
 
 // Mapper must not resize the probs size
-struct TemperatureMapper : Sampler {
+struct TemperatureSampler : Sampler {
 public:
     float m_temperature = 0.6f;
 
 public:
-    TemperatureMapper(float temperature) : m_temperature(temperature) {}
+    TemperatureSampler(float temperature) : m_temperature(temperature) {}
 
-    virtual ~TemperatureMapper() override = default;
+    virtual ~TemperatureSampler() override = default;
 
 public:
-    void apply(std::vector<ProbIndex> &probs) override;
+    void apply(ProbArray &probs) override;
 };
 
-struct SoftmaxMapper : Sampler {
+struct SoftmaxSampler : Sampler {
 public:
-    SoftmaxMapper()                   = default;
-    virtual ~SoftmaxMapper() override = default;
+    SoftmaxSampler()                   = default;
+    virtual ~SoftmaxSampler() override = default;
 
 public:
-    void apply(std::vector<ProbIndex> &probs) override;
+    void apply(ProbArray &probs) override;
+};
+
+struct NormalizeSampler : Sampler {
+public:
+    virtual ~NormalizeSampler() override = default;
+
+public:
+    void apply(ProbArray &probs) override;
 };
 
 struct TopKSampler : Sampler {
@@ -102,7 +147,7 @@ public:
     virtual ~TopKSampler() override = default;
 
 public:
-    void apply(std::vector<ProbIndex> &probs) override;
+    void apply(ProbArray &probs) override;
 };
 
 struct TopPSampler : Sampler {
@@ -116,16 +161,18 @@ public:
     virtual ~TopPSampler() override = default;
 
 public:
-    void apply(std::vector<ProbIndex> &probs) override;
+    void apply(ProbArray &probs) override;
 };
 
-// struct GreedySampler : Sampler {
-// public:
-//     ~GreedySampler() = default;
+struct GreedySampler : TopKSampler {
+public:
+    size_t m_topk = 1;
 
-// public:
-//     void apply(std::vector<ProbIndex> &probs) override;
-// };
+public:
+    GreedySampler() : TopKSampler(1) {}
+
+    virtual ~GreedySampler() override = default;
+};
 
 struct StochasticSampler : Sampler {
 public:
@@ -137,25 +184,25 @@ public:
     virtual ~StochasticSampler() override = default;
 
 public:
-    void apply(std::vector<ProbIndex> &probs) override;
+    void apply(ProbArray &probs) override;
 };
 
-struct TemperatureExtMapper : Sampler {
+struct TemperatureExtSampler : Sampler {
 public:
     float m_temperature = 0.6f;
     float m_delta       = 0.00f; // 0.0 = disabled
     float m_exponent    = 1.00f; // controls how entropy maps to temperature in dynamic temperature sampler
 
 public:
-    TemperatureExtMapper(float temperature, float delta = 0.0f, float exponent = 1.0f) :
+    TemperatureExtSampler(float temperature, float delta = 0.0f, float exponent = 1.0f) :
         m_temperature(temperature),
         m_delta(delta),
         m_exponent(exponent) {}
 
-    virtual ~TemperatureExtMapper() override = default;
+    virtual ~TemperatureExtSampler() override = default;
 
 public:
-    void apply(std::vector<ProbIndex> &probs) override;
+    void apply(ProbArray &probs) override;
 };
 
 constexpr auto Token_NULL = -1;
@@ -212,8 +259,8 @@ public:
     virtual ~PenaltyChecker() override = default;
 
 public:
-    void apply(std::vector<ProbIndex> &probs) override;
-    void accept(Tokenizer::Token token);
+    void apply(ProbArray &probs) override;
+    void accept(Tokenizer::Token token) override;
 };
 
 } // namespace smart

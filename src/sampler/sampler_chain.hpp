@@ -9,8 +9,6 @@
 
 namespace smart {
 
-std::vector<ProbIndex> convert_logits(const std::vector<float> &logits);
-
 struct SamplerConfig {
     uint64_t seed   = 0;
     float temp      = 0.80f;
@@ -38,12 +36,13 @@ public:
 
 public:
     SamplerChain(SamplerConfig config);
+    SamplerChain();
 
     virtual ~SamplerChain() override = default;
 
 public:
-    void apply(std::vector<ProbIndex> &probs) override;
-    void accept(ProbIndex &prob);
+    void apply(ProbArray &probs) override;
+    void accept(Tokenizer::Token token) override;
 };
 
 } // namespace smart

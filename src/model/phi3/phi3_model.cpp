@@ -118,9 +118,10 @@ void Phi3Model::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, in
         } else {
             // TODO: Decode
             // otherwise sample the next token from the logits
-            auto probs = convert_logits(logits);
+            auto probs = ProbArray(logits);
             sampler->apply(probs);
-            next = probs[0].index;
+            next = probs.sample().index;
+            ((SamplerChain *)sampler)->accept(next);
         }
         pos++;
 
