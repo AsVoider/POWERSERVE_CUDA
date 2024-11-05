@@ -31,14 +31,15 @@ setup:
     - pwd
     - sudo podman stop $CONTAINER_NAME || true
     - sudo podman rm $CONTAINER_NAME || true
-    - export https_proxy=http://ipads:ipads123@202.120.40.82:11235
+    # - export https_proxy=http://ipads:ipads123@202.120.40.82:11235
+    - git submodule update --init --recursive
     - sudo -E podman run -v $(realpath .):/code -v $(realpath ~/Downloads):/data -dit --name ndk ubuntu:22.04
     - sudo podman exec -it $CONTAINER_NAME bash -c "apt update && apt upgrade -y && apt install -y sudo vim cmake unzip git python-is-python3 python3-pip build-essential"
     # - sudo podman exec -it $CONTAINER_NAME bash -c "pip install -r /code/requirements.txt"
     - sudo podman exec -it $CONTAINER_NAME bash -c "git config --global --add safe.directory /code"
     # - sudo wget https://dl.google.com/android/repository/android-ndk-r27b-linux.zip?hl=zh-cn -O ~/Downloads/android-ndk-r27b-linux.zip
-    - export https_proxy=http://ipads:ipads123@202.120.40.82:11235
-    - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && git submodule update --init --recursive"
+    # - export https_proxy=http://ipads:ipads123@202.120.40.82:11235
+    # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && git submodule update --init --recursive"
 
 # convert:
 #   stage: convert
@@ -97,4 +98,4 @@ test_thread:
 # test_long_out:
 #   stage: test
 #   script:
-#    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 4096"
+#     - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 4096"

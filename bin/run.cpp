@@ -6,7 +6,8 @@
 #include "model/module/norm_attention.hpp"
 #include "model/module/quest_attention.hpp"
 #include "model/phi3/phi3_model.hpp"
-#include "sampler/greedy_sampler.hpp"
+#include "sampler/sampler.hpp"
+#include "sampler/sampler_chain.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cstdlib>
@@ -15,15 +16,16 @@
 
 int main(int argc, char *argv[]) {
     // 0. load config
-    std::string file_path       = "/shared/models/Phi-3-mini-4k-instruct/Phi-3-mini-4k-instruct-F32.gguf";
-    std::string tokenizer_path  = "/shared/models/Phi-3-mini-4k-instruct/Phi-3-mini-4k-instruct-vocab.gguf";
-    float temperature           = 1.0f;       // 0.0 = greedy deterministic. 1.0 = original. don't set higher
-    float topp                  = 0.9f;       // top-p in nucleus sampling. 1.0 = off. 0.9 works well, but slower
-    int steps                   = 16;          // number of steps to run for
-    std::string prompt          = "I was a teacher"; // prompt string
-    std::string attn_type       = "normal";
-    int n_threads               = 4;
-    unsigned long long rng_seed = 2024927;
+    std::string file_path      = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama-2-7b.f32.gguf";
+    std::string tokenizer_path = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama2_7b_vocab.gguf";
+    float temperature          = 0.8f; // 0.0 = greedy deterministic. 1.0 = original. don't set higher
+    float top_p                = 0.95f;
+    size_t top_k               = 40;
+    int steps                  = 64;         // number of steps to run for
+    std::string prompt         = "One day,"; // prompt string
+    std::string attn_type      = "normal";
+    int n_threads              = 4;
+    uint64_t rng_seed          = uint64_t(-1); // uint64_t(-1) = random seed
 
     CLI::App app("Demo program for llama3");
 
@@ -33,6 +35,10 @@ int main(int argc, char *argv[]) {
     app.add_option("--steps", steps);
     app.add_option("--attn-type", attn_type);
     app.add_option("--n-threads", n_threads);
+    app.add_option("--temperature", temperature);
+    app.add_option("--top-p", top_p);
+    app.add_option("--top-k", top_k);
+    app.add_option("--rng-seed", rng_seed);
     CLI11_PARSE(app, argc, argv);
 
     // get number of CPUs
@@ -59,20 +65,18 @@ int main(int argc, char *argv[]) {
     }
 
     std::unique_ptr<smart::Model> model;
-    if(model_arch == "llama") {
+    // TODO: move into Model.cpp like build_model
+    if (model_arch == "llama") {
         model = std::make_unique<smart::LlamaModel>(file_path, n_threads);
-    }
-    else if(model_arch == "phi3") {
+    } else if (model_arch == "phi3") {
         model = std::make_unique<smart::Phi3Model>(file_path);
-    }
-    else {
+    } else {
         fmt::print("Unknown model type\n");
     }
 
-    if(attn_type == "normal") {
+    if (attn_type == "normal") {
         model->m_attn = std::make_shared<smart::NormAttention>(model->m_config, model->m_weights);
-    }
-    else if(attn_type == "quest") {
+    } else if (attn_type == "quest") {
         model->m_attn = std::make_shared<smart::QuestAttention>(model->m_config, model->m_weights);
     }
 
@@ -80,19 +84,37 @@ int main(int argc, char *argv[]) {
     smart::Tokenizer tokenizer(tokenizer_path);
 
     // load sampler
-    smart::GreedySampler sampler;
+    smart::SamplerConfig config{
+        .seed            = rng_seed,
+        .temp            = temperature,
+        .top_p           = top_p,
+        .top_k           = top_k,
+        .vocab_size      = static_cast<int32_t>(tokenizer.n_vocabs()),
+        .special_eos_id  = tokenizer.m_vocab.special_eos_id,
+        .linefeed_id     = tokenizer.m_vocab.linefeed_id,
+        .penalty_last_n  = 64,
+        .penalty_repeat  = 2.0f,
+        .penalty_freq    = 1.0f,
+        .penalty_present = 0.1f,
+        .penalize_nl     = false,
+        .ignore_eos      = false,
+    };
+    smart::SamplerChain sampler{config};
 
     {
-        fmt::println("file_path : {}", file_path);
-        fmt::println("vocab_path: {}", tokenizer_path);
-        fmt::println("prompt    : {}", prompt);
-        fmt::println("steps     : {}", steps);
-        fmt::println("attn_type : {}", attn_type);
-        fmt::println("model arch: {}", model_arch);
-        fmt::println("n_threads : {}", n_threads);
+        fmt::println("file_path   : {}", file_path);
+        fmt::println("vocab_path  : {}", tokenizer_path);
+        fmt::println("prompt      : {}", prompt);
+        fmt::println("steps       : {}", steps);
+        fmt::println("attn_type   : {}", attn_type);
+        fmt::println("model arch  : {}", model_arch);
+        fmt::println("n_threads   : {}", n_threads);
+        fmt::println("temperature : {}", temperature);
+        fmt::println("top_p       : {}", top_p);
+        fmt::println("top_k       : {}", top_k);
+        fmt::println("rng_seed    : {}", rng_seed);
     }
 
     // generate
     model->generate(&tokenizer, (smart::Sampler *)(&sampler), prompt, steps);
-
 }
