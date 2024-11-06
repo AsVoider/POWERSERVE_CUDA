@@ -135,6 +135,9 @@ void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, i
         // data-dependent terminating condition: the BOS token delimits sequences
         if (next == tk->bos_token()) {
             break;
+        } else if (next == tk->m_vocab.special_eos_id || next == tk->m_vocab.special_eom_id || next == tk->m_vocab.special_eot_id) {
+            fmt::print("[end of text]");
+            break;
         }
 
         // print the token as string, decode it with the Tokenizer object
