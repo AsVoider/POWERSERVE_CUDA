@@ -21,6 +21,7 @@ public:
     auto new_tensor(DataType dtype, const Tensor::Shape &shape) -> TensorNode *;
     auto new_op(OpType type) -> OpNode *;
     auto dup_tensor(TensorNode *tensor) -> TensorNode *;
+    auto add_tensor_view(TensorNode *tensor, Tensor::Shape shape) -> TensorViewNode *;
 
 public:
     auto add(TensorNode *a, TensorNode *b) -> TensorNode *;

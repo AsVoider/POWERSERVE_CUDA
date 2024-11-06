@@ -15530,23 +15530,25 @@ static void ggml_compute_forward_rope(
             }
     }
 }
-
+// FIXME: src0 need reshape
 static void smart_compute_forward_rope_f32(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0,
     struct ggml_tensor * src1, // pos
     struct ggml_tensor * src2, // freq_factors
-    int n_dims, //  hparams.n_rot -> rope_dim_count
-    int n_ctx_orig,
-    float freq_base,
-    float freq_scale, 
-    float ext_factor, 
-    float attn_factor, 
-    float beta_fast, 
-    float beta_slow,
+    struct rope_compute_params rope_params,
     const bool forward) 
 {
+    int n_dims = rope_params.n_dims; // rope_dim_count
+    int n_ctx_orig = rope_params.n_ctx_orig;
+    float freq_base = rope_params.freq_base;
+    float freq_scale = rope_params.freq_scale; 
+    float ext_factor = rope_params.ext_factor; 
+    float attn_factor = rope_params.attn_factor; 
+    float beta_fast = rope_params.beta_fast; 
+    float beta_slow = rope_params.beta_slow;
+
     GGML_TENSOR_UNARY_OP_LOCALS
 
     //printf("ne0: %d, ne1: %d, ne2: %d, ne3: %d\n", ne0, ne1, ne2, ne3);
@@ -15586,12 +15588,6 @@ static void smart_compute_forward_rope_f32(
         GGML_ASSERT(src2->ne[0] >= n_dims / 2);
         freq_factors = (const float *) src2->data;
     }
-    // printf(
-    //     "n_rot: %d, n_ctx_orig: %d, freq_base: %f, "
-    //     "freq_scale: %f,ext_factor: %f, attn_factor: %f, "
-    //     "beta_fast: %f, beta_slow: %f\n",
-    //     n_dims, n_ctx_orig, (double)freq_base, (double)freq_scale,
-    //     (double)ext_factor, (double)attn_factor, (double)beta_fast, (double)beta_slow);
     // backward process uses inverse rotation by cos and sin.
     // cos and sin build a rotation matrix, where the inverse is the transpose.
     // this essentially just switches the sign of sin.
@@ -15599,14 +15595,37 @@ static void smart_compute_forward_rope_f32(
 
     const int32_t * pos = (const int32_t *) src1->data;
 
+    if (ith == 0 && pos[0] == 3) {
+    // if (ith == 0) {
+        // printf("corr_dims[0]: %f, corr_dims[1]: %f\n", (double)corr_dims[0], (double)corr_dims[1]);
+        // for(int64_t i2 = 0; i2 < ne2; i2++) {
+        //     printf("pos[%ld] = %d\n", i2, pos[i2]);
+        // }
+        // printf(
+        //     "n_rot: %d, n_ctx_orig: %d, freq_base: %f, "
+        //     "freq_scale: %f,ext_factor: %f, attn_factor: %f, "
+        //     "beta_fast: %f, beta_slow: %f\n",
+        //     n_dims, n_ctx_orig, (double)freq_base, (double)freq_scale,
+        //     (double)ext_factor, (double)attn_factor, (double)beta_fast, (double)beta_slow);
+        // printf("ne0 = %ld, ne1 = %ld, ne2 = %ld, ne3 = %ld\n", ne0, ne1, ne2, ne3);
+        // printf("ne00 = %ld, ne01 = %ld, ne02 = %ld, ne03 = %ld\n", ne00, ne01, ne02, ne03);
+    }
+
     for (int64_t i3 = 0; i3 < ne3; i3++) {
         for (int64_t i2 = 0; i2 < ne2; i2++) {
             const int64_t p = pos[i2];
 
             float * cache = (float *) params->wdata + (ne0 + CACHE_LINE_SIZE_F32)*ith;
-            // TODO:
+            
             ggml_rope_cache_init(p, freq_scale, freq_factors, corr_dims, ne0, ext_factor, attn_factor, cache, sin_sign, theta_scale);
-
+            if (ith == 0 && pos[0] == 3) {
+                // for (int64_t i0 = 0; i0 < n_dims; i0 += 2) {
+                //     const float cos_theta = cache[i0 + 0];
+                //     const float sin_theta = cache[i0 + 1];
+                //     printf("[%ld] cos: %f, sin:%f\n", i0, (double)cos_theta, (double)sin_theta);
+                //     // printf("%f\n%f\n", (double)cos_theta, (double)sin_theta);
+                // }
+            }
             for (int64_t i1 = 0; i1 < ne1; i1++) {
                 if (ir++ < ir0) continue;
                 if (ir   > ir1) break;
@@ -15651,6 +15670,15 @@ static void smart_compute_forward_rope_f32(
                     dst_data[1] = src[1];
                 }
             }
+            if (ith == 0 && pos[0] == 3) {
+                // printf("n_dims = %d, ne0 = %ld, ne1 = %ld\n", n_dims, ne0, ne1);
+                // for (int64_t i1 = 0; i1 < ne1; i1++) {
+                //     for (int64_t i0 = n_dims; i0 < ne0; i0 += 1) {
+                //         float * dst_data  = (float *)((char *)  dst->data + i3*nb3  + i2*nb2  + i1*nb1  + i0*nb0);
+                //         printf("%f\n", dst_data[0]);
+                //     }
+                // }
+            }
         }
     }
 }
@@ -15661,14 +15689,7 @@ void smart_compute_forward_rope(
     struct ggml_tensor * src0,
     struct ggml_tensor * src1,
     struct ggml_tensor * src2,
-    int n_dims,
-    int n_ctx_orig,
-    float freq_base,
-    float freq_scale, 
-    float ext_factor, 
-    float attn_factor, 
-    float beta_fast, 
-    float beta_slow)
+    struct rope_compute_params rope_params)
 {
 
     switch (src0->type) {
@@ -15679,7 +15700,7 @@ void smart_compute_forward_rope(
             } break;
         case GGML_TYPE_F32:
             {
-                smart_compute_forward_rope_f32(params, dst, src0, src1, src2, n_dims, n_ctx_orig, freq_base, freq_scale, ext_factor, attn_factor, beta_fast, beta_slow, true);
+                smart_compute_forward_rope_f32(params, dst, src0, src1, src2, rope_params, true);
             } break;
         default:
             {

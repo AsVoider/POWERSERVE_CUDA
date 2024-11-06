@@ -21,6 +21,10 @@ auto Graph::dup_tensor(TensorNode *tensor) -> TensorNode * {
     return new_tensor(tensor->m_dtype, tensor->m_shape);
 }
 
+auto Graph::add_tensor_view(TensorNode *tensor, Tensor::Shape shape) -> TensorViewNode * {
+    return static_cast<TensorViewNode*>(tensors.emplace_back(new TensorViewNode(*tensor, shape)).get());
+}
+
 auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
     SMART_ASSERT(a->m_dtype == b->m_dtype);
     SMART_ASSERT(a->m_shape == b->m_shape);
@@ -72,17 +76,6 @@ auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
     return out;
 }
 
-// auto Graph::rope(TensorNode *q, TensorNode *k, TensorNode *pos) -> RopeResult {
-//     // TODO: Add checks
-
-//     auto q_out = dup_tensor(q);
-//     auto k_out = dup_tensor(k);
-//     auto op    = new_op(OpType::ROPE);
-//     op->set_inputs({q, k, pos});
-//     op->set_outputs({q_out, k_out});
-
-//     return {.q_out = q_out, .k_out = k_out};
-// }
 auto Graph::rope(
     TensorNode *src,
     TensorNode *pos,

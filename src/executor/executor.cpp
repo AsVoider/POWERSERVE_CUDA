@@ -12,11 +12,23 @@ void Executor::allocate_buffers() {
 
         switch (tensor->m_dtype) {
         case DataType::FP32: {
-            tensor->m_data = m_platform.ggml_backend.create_buffer<float>(tensor->m_shape);
+            if (tensor->type == NodeType::TENSOR_VIEW) {
+                tensor->m_data = m_platform.ggml_backend.create_buffer_view<float>(
+                    tensor->tensor_view()->parent->get<ggml::Buffer>(), tensor->m_shape
+                );
+            } else {
+                tensor->m_data = m_platform.ggml_backend.create_buffer<float>(tensor->m_shape);
+            }
         } break;
 
         case DataType::INT32: {
-            tensor->m_data = m_platform.ggml_backend.create_buffer<int32_t>(tensor->m_shape);
+            if (tensor->type == NodeType::TENSOR_VIEW) {
+                tensor->m_data = m_platform.ggml_backend.create_buffer_view<int32_t>(
+                    tensor->tensor_view()->parent->get<ggml::Buffer>(), tensor->m_shape
+                );
+            } else {
+                tensor->m_data = m_platform.ggml_backend.create_buffer<int32_t>(tensor->m_shape);
+            }
         } break;
 
         default:
@@ -58,12 +70,6 @@ void Executor::run() {
         } break;
 
         case OpType::ROPE: {
-            // auto q     = op->prev[0]->tensor();
-            // auto k     = op->prev[1]->tensor();
-            // auto pos   = op->prev[2]->tensor();
-            // auto q_out = op->next[0]->tensor();
-            // auto k_out = op->next[1]->tensor();
-            // m_platform.ggml_backend.rope(q_out, k_out, q, k, pos);
             auto src = op->prev[0]->tensor();
             auto pos = op->prev[1]->tensor();
             auto out = op->next[0]->tensor();

@@ -198,7 +198,6 @@ public:
     void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const;
     void softmax(const Tensor *out, const Tensor *x) const;
-    // void rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const;
     void rope(
         Tensor *out,
         const Tensor *src,
@@ -246,6 +245,19 @@ public:
         size_t size = stride.back() * shape.back();
 
         return std::make_shared<Buffer>(stride, malloc(size), true);
+    }
+
+    template <typename T>
+    auto create_buffer_view(Buffer &parent, Tensor::Shape shape) -> BufferPtr {
+        Buffer::Stride stride;
+        stride[0] = sizeof(T);
+        for (size_t i = 1; i < shape.size(); i++) {
+            stride[i] = stride[i - 1] * shape[i - 1];
+        }
+        SMART_ASSERT(parent.m_data != nullptr);
+        auto b = std::make_shared<Buffer>(stride, nullptr, false);
+        b->m_data = parent.m_data;
+        return b;
     }
 
 private:
