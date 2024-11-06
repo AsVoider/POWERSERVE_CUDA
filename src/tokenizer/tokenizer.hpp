@@ -26,8 +26,8 @@ public:
     void debug_tokenizer() {
         int vocab_size = (int)n_vocabs();
 
-        auto print_tok([&](std::string name, llama_vocab::id token){
-            if (token < vocab_size && token >= 0) 
+        auto print_tok([&](std::string name, llama_vocab::id token) {
+            if (token < vocab_size && token >= 0)
                 fmt::println(stderr, "{:20}: {:6}: {}", name, token, to_string(token));
         });
 
