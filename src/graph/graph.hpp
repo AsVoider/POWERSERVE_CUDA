@@ -34,14 +34,14 @@ public:
     auto rope(
         TensorNode *src,
         TensorNode *pos,
-        int n_dims = 0,
-        int n_ctx_orig = 0,
-        float freq_base = 10000.0f,
-        float freq_scale = 1.0f,
-        float ext_factor = 0.0f,
+        int n_dims        = 0,
+        int n_ctx_orig    = 0,
+        float freq_base   = 10000.0f,
+        float freq_scale  = 1.0f,
+        float ext_factor  = 0.0f,
         float attn_factor = 1.0f,
-        float beta_fast = 32.0f,
-        float beta_slow = 1.0f
+        float beta_fast   = 32.0f,
+        float beta_slow   = 1.0f
     ) -> TensorNode *;
 
     auto softmax(TensorNode *x) -> TensorNode *;

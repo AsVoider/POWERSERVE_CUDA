@@ -8,14 +8,14 @@ namespace smart {
 
 struct LlamaConfig : Config {
 public:
-    float rope_freq_base = 10000.0f;
-    float rope_freq_scale = 0.0f; // rope_freq_scale (inverse of the kv) is optional
-    uint32_t n_embd = 0;
+    float rope_freq_base   = 10000.0f;
+    float rope_freq_scale  = 0.0f; // rope_freq_scale (inverse of the kv) is optional
+    uint32_t n_embd        = 0;
     uint32_t n_embd_head_k = 0;
     uint32_t n_embd_head_v = 0;
-    uint32_t n_rot = 0;
-    uint32_t n_ctx_orig = 0;
-    float yarn_ext_factor = 0.0f; // linear scaling factor, 1.0f for yarn
+    uint32_t n_rot         = 0;
+    uint32_t n_ctx_orig    = 0;
+    float yarn_ext_factor  = 0.0f; // linear scaling factor, 1.0f for yarn
     float rope_attn_factor = 1.0f;
 
 public:
@@ -28,17 +28,17 @@ public:
         tf_cfg.seq_len        = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.context_length"));
         tf_cfg.vocab_size     = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.vocab_size"));
         tf_cfg.rope_dim_count = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.rope.dimension_count"));
-        
+
         n_embd = gguf_get_val_u32(ctx, gguf_find_key(ctx, "llama.embedding_length"));
 
         {
-            int rope_freq_base_idx = gguf_find_key(ctx, "llama.rope.freq_base" );
+            int rope_freq_base_idx = gguf_find_key(ctx, "llama.rope.freq_base");
             if (rope_freq_base_idx != -1) {
                 rope_freq_base = gguf_get_val_f32(ctx, rope_freq_base_idx);
             }
         }
         {
-            float ropescale = 0.0f;
+            float ropescale         = 0.0f;
             int rope_freq_scale_idx = gguf_find_key(ctx, "llama.rope.scaling.factor");
             if (rope_freq_scale_idx != -1) {
                 rope_freq_scale_idx = gguf_find_key(ctx, "llama.rope.scale_linear");
@@ -46,25 +46,25 @@ public:
             if (rope_freq_scale_idx != -1) {
                 ropescale = gguf_get_val_f32(ctx, rope_freq_scale_idx);
             }
-            rope_freq_scale = ropescale == 0.0f ? 1.0f : 1.0f/ropescale;
+            rope_freq_scale = ropescale == 0.0f ? 1.0f : 1.0f / ropescale;
         }
         {
             // TODO: non-transformer models do not have attention heads
             bool has_heads = tf_cfg.n_heads > 0;
             if (has_heads) {
-                n_embd_head_k = n_embd / tf_cfg.n_heads;
+                n_embd_head_k         = n_embd / tf_cfg.n_heads;
                 int n_embd_head_k_idx = gguf_find_key(ctx, "llama.attention.key_length");
                 if (n_embd_head_k_idx != -1) {
                     n_embd_head_k = gguf_get_val_u32(ctx, n_embd_head_k_idx);
                 }
-                
-                n_embd_head_v = n_embd / tf_cfg.n_heads;
+
+                n_embd_head_v         = n_embd / tf_cfg.n_heads;
                 int n_embd_head_v_idx = gguf_find_key(ctx, "llama.attention.value_length");
                 if (n_embd_head_v_idx != -1) {
                     n_embd_head_v = gguf_get_val_u32(ctx, n_embd_head_v_idx);
                 }
 
-                n_rot = n_embd_head_k;
+                n_rot         = n_embd_head_k;
                 int n_rot_idx = gguf_find_key(ctx, "llama.rope.dimension_count");
                 if (n_rot_idx != -1) {
                     n_rot = gguf_get_val_u32(ctx, n_rot_idx);
@@ -73,7 +73,7 @@ public:
         }
         {
             uint32_t n_ctx_orig_yarn = tf_cfg.seq_len;
-            int n_ctx_orig_yarn_idx = gguf_find_key(ctx, "llama.rope.scaling.original_context_length");
+            int n_ctx_orig_yarn_idx  = gguf_find_key(ctx, "llama.rope.scaling.original_context_length");
             if (n_ctx_orig_yarn_idx != -1) {
                 n_ctx_orig_yarn = gguf_get_val_u32(ctx, n_ctx_orig_yarn_idx);
             }

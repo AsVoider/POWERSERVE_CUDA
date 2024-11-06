@@ -75,16 +75,18 @@ public:
 struct TensorViewNode : TensorNode {
 private:
     friend struct Graph;
+
 public:
     Tensor *parent;
 
 private:
     TensorViewNode(const Tensor &tensor, Tensor::Shape shape) : TensorNode(tensor) {
-        type = NodeType::TENSOR_VIEW;
+        type   = NodeType::TENSOR_VIEW;
         parent = const_cast<Tensor *>(&tensor);
         SMART_ASSERT(parent->n_elements() == n_elements());
         m_shape = shape;
     }
+
 public:
     ~TensorViewNode() override = default;
 };

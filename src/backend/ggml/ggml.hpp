@@ -255,7 +255,7 @@ public:
             stride[i] = stride[i - 1] * shape[i - 1];
         }
         SMART_ASSERT(parent.m_data != nullptr);
-        auto b = std::make_shared<Buffer>(stride, nullptr, false);
+        auto b    = std::make_shared<Buffer>(stride, nullptr, false);
         b->m_data = parent.m_data;
         return b;
     }

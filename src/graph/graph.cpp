@@ -22,7 +22,7 @@ auto Graph::dup_tensor(TensorNode *tensor) -> TensorNode * {
 }
 
 auto Graph::add_tensor_view(TensorNode *tensor, Tensor::Shape shape) -> TensorViewNode * {
-    return static_cast<TensorViewNode*>(tensors.emplace_back(new TensorViewNode(*tensor, shape)).get());
+    return static_cast<TensorViewNode *>(tensors.emplace_back(new TensorViewNode(*tensor, shape)).get());
 }
 
 auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
@@ -92,8 +92,7 @@ auto Graph::rope(
     auto op  = new_op(OpType::ROPE);
     op->set_inputs({src, pos});
     op->set_outputs({out});
-    op->set_params(
-        RopeParams{n_dims, n_ctx_orig, freq_base, freq_scale, ext_factor, attn_factor, beta_fast, beta_slow}
+    op->set_params(RopeParams{n_dims, n_ctx_orig, freq_base, freq_scale, ext_factor, attn_factor, beta_fast, beta_slow}
     );
 
     return out;
