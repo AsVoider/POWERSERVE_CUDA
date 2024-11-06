@@ -15537,17 +15537,17 @@ static void smart_compute_forward_rope_f32(
     struct ggml_tensor * src0,
     struct ggml_tensor * src1, // pos
     struct ggml_tensor * src2, // freq_factors
-    struct rope_compute_params rope_params,
+    struct rope_compute_params *rope_params,
     const bool forward) 
 {
-    int n_dims = rope_params.n_dims; // rope_dim_count
-    int n_ctx_orig = rope_params.n_ctx_orig;
-    float freq_base = rope_params.freq_base;
-    float freq_scale = rope_params.freq_scale; 
-    float ext_factor = rope_params.ext_factor; 
-    float attn_factor = rope_params.attn_factor; 
-    float beta_fast = rope_params.beta_fast; 
-    float beta_slow = rope_params.beta_slow;
+    int n_dims = rope_params->n_dims; // rope_dim_count
+    int n_ctx_orig = rope_params->n_ctx_orig;
+    float freq_base = rope_params->freq_base;
+    float freq_scale = rope_params->freq_scale; 
+    float ext_factor = rope_params->ext_factor; 
+    float attn_factor = rope_params->attn_factor; 
+    float beta_fast = rope_params->beta_fast; 
+    float beta_slow = rope_params->beta_slow;
 
     GGML_TENSOR_UNARY_OP_LOCALS
 
@@ -15689,8 +15689,26 @@ void smart_compute_forward_rope(
     struct ggml_tensor * src0,
     struct ggml_tensor * src1,
     struct ggml_tensor * src2,
-    struct rope_compute_params rope_params)
+    struct rope_compute_params *rope_params)
 {
+
+    struct ggml_compute_params *ggml_params = (struct ggml_compute_params *)malloc(sizeof(struct ggml_compute_params));
+    ggml_params->ith = params->ith;
+    ggml_params->nth = params->nth;
+    ggml_params->wdata = params->wdata;
+    ggml_params->wsize = params->wsize;
+    dst->src[0] = src0;
+    dst->src[1] = src1;
+    dst->src[2] = src2;
+    ((int32_t *)dst->op_params)[1] = rope_params->n_dims;
+    ((int32_t *)dst->op_params)[2] = 0; // mode
+    ((int32_t *)dst->op_params)[4] = rope_params->n_ctx_orig; // mode
+    memcpy((int32_t *) dst->op_params + 5, &(rope_params->freq_base), sizeof(float));
+    memcpy((int32_t *) dst->op_params + 6, &(rope_params->freq_scale), sizeof(float));
+    memcpy((int32_t *) dst->op_params + 7, &(rope_params->ext_factor), sizeof(float));
+    memcpy((int32_t *) dst->op_params + 8, &(rope_params->attn_factor), sizeof(float));
+    memcpy((int32_t *) dst->op_params + 9, &(rope_params->beta_fast), sizeof(float));
+    memcpy((int32_t *) dst->op_params + 10, &(rope_params->beta_slow), sizeof(float));
 
     switch (src0->type) {
         case GGML_TYPE_F16:
@@ -15700,13 +15718,17 @@ void smart_compute_forward_rope(
             } break;
         case GGML_TYPE_F32:
             {
-                smart_compute_forward_rope_f32(params, dst, src0, src1, src2, rope_params, true);
+
+                ggml_compute_forward_rope_f32(ggml_params, dst, true);
+                // smart_compute_forward_rope_f32(params, dst, src0, src1, src2, rope_params, true);
             } break;
         default:
             {
+                free(ggml_params);
                 GGML_ABORT("fatal error");
             }
     }
+    free(ggml_params);
 }
 
 // ggml_compute_forward_rope_back

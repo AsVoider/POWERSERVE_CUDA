@@ -141,7 +141,7 @@ void GGMLBackend::rope(
         params.nth = m_thread_pool->size();
 
         smart_compute_forward_rope(
-            &params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get(), nullptr, rope_params
+            &params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get(), nullptr, &rope_params
         );
     });
 }

@@ -21,7 +21,7 @@ auto Graph::dup_tensor(TensorNode *tensor) -> TensorNode * {
     return new_tensor(tensor->m_dtype, tensor->m_shape);
 }
 
-auto Graph::add_tensor_view(TensorNode *tensor, Tensor::Shape shape) -> TensorViewNode * {
+auto Graph::view_tensor(TensorNode *tensor, Tensor::Shape shape) -> TensorViewNode * {
     return static_cast<TensorViewNode *>(tensors.emplace_back(new TensorViewNode(*tensor, shape)).get());
 }
 

@@ -779,7 +779,7 @@ extern "C" {
         struct ggml_tensor * src0,
         struct ggml_tensor * src1,
         struct ggml_tensor * src2,
-        struct rope_compute_params rope_params
+        struct rope_compute_params *rope_params
     );
 
     GGML_API GGML_CALL int64_t ggml_blck_size(enum ggml_type type);

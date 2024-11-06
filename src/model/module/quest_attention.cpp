@@ -32,8 +32,8 @@ TensorNode *QuestAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode
     const size_t n_embd_head = cfg->n_embd_head_v;
     SMART_ASSERT(n_embd_head == cfg->n_embd_head_k);
     SMART_ASSERT(n_embd_head == cfg->n_rot);
-    auto q_view = g.add_tensor_view(q, {n_embd_head, cfg->tf_cfg.n_heads, q->m_shape[2], q->m_shape[3]});
-    auto k_view = g.add_tensor_view(k, {n_embd_head, cfg->tf_cfg.n_kv_heads, k->m_shape[2], k->m_shape[3]});
+    auto q_view = g.view_tensor(q, {n_embd_head, cfg->tf_cfg.n_heads, q->m_shape[2], q->m_shape[3]});
+    auto k_view = g.view_tensor(k, {n_embd_head, cfg->tf_cfg.n_kv_heads, k->m_shape[2], k->m_shape[3]});
     auto rope_q = g.rope(
         q_view,
         // q,
@@ -58,8 +58,8 @@ TensorNode *QuestAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode
     );
 
     // multihead attention
-    rope_q = g.add_tensor_view(rope_q, q->m_shape);
-    rope_k = g.add_tensor_view(rope_k, k->m_shape);
+    rope_q = g.view_tensor(rope_q, q->m_shape);
+    rope_k = g.view_tensor(rope_k, k->m_shape);
     m_kv_cache.add_key_cache(g, rope_k, L, pos);
     m_kv_cache.add_value_cache(g, v, L, pos);
 

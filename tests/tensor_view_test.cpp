@@ -10,7 +10,6 @@
 using namespace smart;
 
 int main() {
-
     std::string filename   = "../models/Meta-Llama-3.1-8B/llama3-8b_Q4_0.gguf";
     ggml_context *ggml_ctx = nullptr;
     gguf_context *gguf_ctx = nullptr;
@@ -34,8 +33,8 @@ int main() {
 
     a   = g.new_tensor(DataType::FP32, {dim1 * dim2});
     b   = g.new_tensor(DataType::FP32, {dim1 * dim2});
-    auto a_view = g.add_tensor_view(a, {dim1, dim2, 1, 1});
-    auto b_view = g.add_tensor_view(b, {dim1, dim2, 1, 1});
+    auto a_view = g.view_tensor(a, {dim1, dim2, 1, 1});
+    auto b_view = g.view_tensor(b, {dim1, dim2, 1, 1});
 
     out = g.add(a_view, b_view);
     // for (int n = 1; n < n_round; n++)

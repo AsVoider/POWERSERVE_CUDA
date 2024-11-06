@@ -63,7 +63,7 @@ protected:
     TensorNode(DataType dtype, const Tensor::Shape &shape) : Tensor(dtype, shape), Node(NodeType::TENSOR) {}
 
 public:
-    ~TensorNode() override = default;
+    virtual ~TensorNode() override = default;
 
 public:
     auto prev_op() const -> OpNode * {
