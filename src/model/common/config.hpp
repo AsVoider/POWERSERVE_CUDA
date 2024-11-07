@@ -1,39 +1,41 @@
 #pragma once
 
 #include "common.hpp"
-#include "ggml.h"
 
 #include <cstdint>
 
 namespace smart {
 
+struct RopeConfig {
+    int n_dims        = 128;
+    int n_ctx_orig    = 2048;
+    float freq_base   = 10000.0f;
+    float freq_scale  = 1.0f;
+    float ext_factor  = 0.0f; // linear scaling factor, 1.0f for yarn
+    float attn_factor = 1.0f;
+    float beta_fast   = 32.0f;
+    float beta_slow   = 0.0f;
+};
+
 struct TransformerConfig {
 public:
-    uint32_t dim        = 0;
+    uint32_t dim        = 0; // n_embd
     uint32_t hidden_dim = 0;
     uint32_t n_layers   = 0;
     uint32_t n_heads    = 0;
     uint32_t n_kv_heads = 0;
-    uint32_t vocab_size = 0;
     uint32_t seq_len    = 0; // n_ctx_orig in rope
-    // uint32_t rope_dim_count = 0; // n_rot in rope
-    float rope_freq_base = 10000.0f;
+
+    // optional
+    uint32_t vocab_size     = 0;
+    uint32_t rope_dim_count = 0; // n_rot in rope
+    float rope_freq_base    = 10000.0f;
+    uint32_t n_embd_head_k  = 0; // n_embd / n_heads
+    uint32_t n_embd_head_v  = 0; // n_embd / n_heads
 
 public:
     TransformerConfig()          = default;
     virtual ~TransformerConfig() = default;
-
-    // public:
-    //     void debug_config_info() const {
-    //         fmt::println("dim           :{:6}", dim);
-    //         fmt::println("hidden_dim    :{:6}", hidden_dim);
-    //         fmt::println("n_heads       :{:6}", n_heads);
-    //         fmt::println("n_kv_heads    :{:6}", n_kv_heads);
-    //         fmt::println("n_layers      :{:6}", n_layers);
-    //         fmt::println("seq_len       :{:6}", seq_len);
-    //         fmt::println("vocab_size    :{:6}", vocab_size);
-    //         // fmt::println("rope_dim_count:{:6}", rope_dim_count);
-    //     }
 };
 
 struct ViTConfig {
@@ -43,6 +45,7 @@ struct ViTConfig {
 struct Config {
 public:
     TransformerConfig tf_cfg;
+    RopeConfig rope_cfg;
     ViTConfig vit_cfg;
 
 public:

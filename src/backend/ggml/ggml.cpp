@@ -106,33 +106,10 @@ void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
     });
 }
 
-void GGMLBackend::rope(
-    Tensor *out,
-    const Tensor *src,
-    const Tensor *pos,
-    int n_dims, // llm_load_hparams
-    int n_ctx_orig,
-    float freq_base,
-    float freq_scale,
-    float ext_factor,
-    float attn_factor,
-    float beta_fast,
-    float beta_slow
-) const {
+void GGMLBackend::rope(Tensor *out, const Tensor *src, const Tensor *pos, rope_compute_params *rope_params) const {
     auto dst_tensor  = convert_to_ggml(out);
     auto src0_tensor = convert_to_ggml(src);
     auto src1_tensor = convert_to_ggml(pos);
-
-    rope_compute_params rope_params = {
-        .n_dims      = n_dims,
-        .n_ctx_orig  = n_ctx_orig,
-        .freq_base   = freq_base,
-        .freq_scale  = freq_scale,
-        .ext_factor  = ext_factor,
-        .attn_factor = attn_factor,
-        .beta_fast   = beta_fast,
-        .beta_slow   = beta_slow
-    };
 
     m_thread_pool->run([&](size_t thread_id) {
         op_compute_params params = m_params;
@@ -141,7 +118,7 @@ void GGMLBackend::rope(
         params.nth = m_thread_pool->size();
 
         smart_compute_forward_rope(
-            &params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get(), nullptr, &rope_params
+            &params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get(), nullptr, rope_params
         );
     });
 }

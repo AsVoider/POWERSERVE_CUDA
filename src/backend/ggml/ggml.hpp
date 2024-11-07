@@ -192,25 +192,10 @@ public:
     ~GGMLBackend() override = default;
 
 public:
-    // void compute_forward(thread_compute_params *params, const OpNode *op) const override;
-
-public:
     void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const;
     void softmax(const Tensor *out, const Tensor *x) const;
-    void rope(
-        Tensor *out,
-        const Tensor *src,
-        const Tensor *pos,
-        int n_dims,
-        int n_ctx_orig,
-        float freq_base,
-        float freq_scale,
-        float ext_factor,
-        float attn_factor,
-        float beta_fast,
-        float beta_slow
-    ) const;
+    void rope(Tensor *out, const Tensor *src, const Tensor *pos, rope_compute_params *rope_params) const;
     void multihead_attention(
         const Tensor *out,
         const Tensor *q,

@@ -75,9 +75,17 @@ void Executor::run() {
             auto out = op->next[0]->tensor();
             auto [n_dims, n_ctx_orig, freq_base, freq_scale, ext_factor, attn_factor, beta_fast, beta_slow] =
                 op->get_params<RopeParams>();
-            m_platform.ggml_backend.rope(
-                out, src, pos, n_dims, n_ctx_orig, freq_base, freq_scale, ext_factor, attn_factor, beta_fast, beta_slow
-            );
+            rope_compute_params rope_params = {
+                .n_dims      = n_dims,
+                .n_ctx_orig  = n_ctx_orig,
+                .freq_base   = freq_base,
+                .freq_scale  = freq_scale,
+                .ext_factor  = ext_factor,
+                .attn_factor = attn_factor,
+                .beta_fast   = beta_fast,
+                .beta_slow   = beta_slow
+            };
+            m_platform.ggml_backend.rope(out, src, pos, &rope_params);
         } break;
 
         case OpType::SOFTMAX: {

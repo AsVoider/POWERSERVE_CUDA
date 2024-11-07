@@ -2,7 +2,6 @@
 
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
-#include "model/llama/llama_config.hpp"
 
 #include <cstdint>
 #include <cstdio>
@@ -11,11 +10,11 @@
 namespace smart {
 
 TensorNode *NormAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode *pos_tensor, int32_t pos) {
-    auto cfg = (LlamaConfig *)(m_config.get());
+    auto cfg      = m_config->tf_cfg;
+    auto rope_cfg = m_config->rope_cfg;
 
     auto att_norm_w = g.add_tensor(m_weights->lw[L].attn_norm);
     auto att_norm_o = g.rms_norm(x, att_norm_w);
-    // if (L == 0 && pos == 3) g.print(att_norm_o, -1);
 
     // QKV
     auto kc = m_kv_cache.add_key_cache_node(g);
@@ -23,44 +22,30 @@ TensorNode *NormAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode 
 
     auto q_w = g.add_tensor(m_weights->lw[L].attn_q);
     auto q   = g.mat_mul(att_norm_o, q_w);
-    // if (L == 0 && pos == 3) g.print(q, -1);
 
     auto k_w = g.add_tensor(m_weights->lw[L].attn_k);
     auto k   = g.mat_mul(att_norm_o, k_w);
-    // if (L == 0 && pos == 3) g.print(k, -1);
 
     auto v_w = g.add_tensor(m_weights->lw[L].attn_v);
     auto v   = g.mat_mul(att_norm_o, v_w);
-    // if (L == 0 && pos == 3) g.print(v, -1);
-    const size_t n_embd_head = cfg->n_embd_head_v;
-    SMART_ASSERT(n_embd_head == cfg->n_embd_head_k);
-    SMART_ASSERT(n_embd_head == cfg->n_rot);
-    auto q_view = g.view_tensor(q, {n_embd_head, cfg->tf_cfg.n_heads, q->m_shape[2], q->m_shape[3]});
-    auto k_view = g.view_tensor(k, {n_embd_head, cfg->tf_cfg.n_kv_heads, k->m_shape[2], k->m_shape[3]});
-    auto rope_q = g.rope(
-        q_view,
-        // q,
-        pos_tensor,
-        cfg->n_rot,
-        cfg->n_ctx_orig,
-        cfg->tf_cfg.rope_freq_base,
-        cfg->rope_freq_scale,
-        cfg->yarn_ext_factor,
-        cfg->rope_attn_factor
-    );
-    auto rope_k = g.rope(
-        k_view,
-        // k,
-        pos_tensor,
-        cfg->n_rot,
-        cfg->n_ctx_orig,
-        cfg->tf_cfg.rope_freq_base,
-        cfg->rope_freq_scale,
-        cfg->yarn_ext_factor,
-        cfg->rope_attn_factor
-    );
-    // if (L == 0 && pos == 3) g.print(rope_q, -1);
-    // if (L == 0 && pos == 3) g.print(rope_k, -1);
+
+    const size_t n_embd_head = cfg.n_embd_head_v;
+    SMART_ASSERT(n_embd_head == cfg.n_embd_head_k);
+    SMART_ASSERT(n_embd_head == cfg.rope_dim_count);
+    auto q_view      = g.view_tensor(q, {n_embd_head, cfg.n_heads, q->m_shape[2], q->m_shape[3]});
+    auto k_view      = g.view_tensor(k, {n_embd_head, cfg.n_kv_heads, k->m_shape[2], k->m_shape[3]});
+    auto rope_params = RopeParams{
+        .n_dims      = rope_cfg.n_dims,
+        .n_ctx_orig  = rope_cfg.n_ctx_orig,
+        .freq_base   = rope_cfg.freq_base,
+        .freq_scale  = rope_cfg.freq_scale,
+        .ext_factor  = rope_cfg.ext_factor,
+        .attn_factor = rope_cfg.attn_factor,
+        .beta_fast   = rope_cfg.beta_fast,
+        .beta_slow   = rope_cfg.beta_slow
+    };
+    auto rope_q = g.rope(q_view, pos_tensor, rope_params);
+    auto rope_k = g.rope(k_view, pos_tensor, rope_params);
 
     // multihead attention
     rope_q = g.view_tensor(rope_q, q->m_shape);
@@ -72,7 +57,6 @@ TensorNode *NormAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode 
 
     auto attn_output_w = g.add_tensor(m_weights->lw[L].attn_output);
     auto attn_o        = g.mat_mul(att_scores, attn_output_w);
-    // if (L == 0 && pos == 3) g.print(attn_o, -1);
 
     // residual connection
     auto res_conn = g.add(x, attn_o);
