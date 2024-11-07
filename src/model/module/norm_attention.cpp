@@ -10,8 +10,7 @@
 namespace smart {
 
 TensorNode *NormAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode *pos_tensor, int32_t pos) {
-    auto cfg      = m_config->tf_cfg;
-    auto rope_cfg = m_config->rope_cfg;
+    auto &cfg = m_config->tf_cfg;
 
     auto att_norm_w = g.add_tensor(m_weights->lw[L].attn_norm);
     auto att_norm_o = g.rms_norm(x, att_norm_w);
@@ -32,20 +31,10 @@ TensorNode *NormAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode 
     const size_t n_embd_head = cfg.n_embd_head_v;
     SMART_ASSERT(n_embd_head == cfg.n_embd_head_k);
     SMART_ASSERT(n_embd_head == cfg.rope_dim_count);
-    auto q_view      = g.view_tensor(q, {n_embd_head, cfg.n_heads, q->m_shape[2], q->m_shape[3]});
-    auto k_view      = g.view_tensor(k, {n_embd_head, cfg.n_kv_heads, k->m_shape[2], k->m_shape[3]});
-    auto rope_params = RopeParams{
-        .n_dims      = rope_cfg.n_dims,
-        .n_ctx_orig  = rope_cfg.n_ctx_orig,
-        .freq_base   = rope_cfg.freq_base,
-        .freq_scale  = rope_cfg.freq_scale,
-        .ext_factor  = rope_cfg.ext_factor,
-        .attn_factor = rope_cfg.attn_factor,
-        .beta_fast   = rope_cfg.beta_fast,
-        .beta_slow   = rope_cfg.beta_slow
-    };
-    auto rope_q = g.rope(q_view, pos_tensor, rope_params);
-    auto rope_k = g.rope(k_view, pos_tensor, rope_params);
+    auto q_view = g.view_tensor(q, {n_embd_head, cfg.n_heads, q->m_shape[2], q->m_shape[3]});
+    auto k_view = g.view_tensor(k, {n_embd_head, cfg.n_kv_heads, k->m_shape[2], k->m_shape[3]});
+    auto rope_q = g.rope(q_view, pos_tensor, m_config->rope_cfg);
+    auto rope_k = g.rope(k_view, pos_tensor, m_config->rope_cfg);
 
     // multihead attention
     rope_q = g.view_tensor(rope_q, q->m_shape);
@@ -53,7 +42,7 @@ TensorNode *NormAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode 
     m_kv_cache.add_key_cache(g, rope_k, L, pos);
     m_kv_cache.add_value_cache(g, v, L, pos);
 
-    auto att_scores = g.mha(rope_q, kc, vc, pos_tensor, L);
+    auto att_scores = g.mha(rope_q, kc, vc, pos_tensor, L, cfg.n_heads);
 
     auto attn_output_w = g.add_tensor(m_weights->lw[L].attn_output);
     auto attn_o        = g.mat_mul(att_scores, attn_output_w);

@@ -76,7 +76,7 @@ auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
     return out;
 }
 
-auto Graph::rope(TensorNode *src, TensorNode *pos, RopeParams &params) -> TensorNode * {
+auto Graph::rope(TensorNode *src, TensorNode *pos, const RopeConfig &params) -> TensorNode * {
     auto out = dup_tensor(src);
     auto op  = new_op(OpType::ROPE);
     op->set_inputs({src, pos});
@@ -95,15 +95,16 @@ auto Graph::softmax(TensorNode *x) -> TensorNode * {
     return out;
 }
 
-auto Graph::mha(TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id)
-    -> TensorNode * {
+auto Graph::mha(
+    TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id, uint32_t n_heads
+) -> TensorNode * {
     // TODO: Add checks
 
     auto out = dup_tensor(q);
     auto op  = new_op(OpType::MHA);
     op->set_inputs({q, key_cache, val_cache, pos});
     op->set_outputs({out});
-    op->set_params(MHAParams{.layer_id = layer_id});
+    op->set_params(MHAParams{.layer_id = layer_id, .n_heads = n_heads});
 
     return out;
 }
@@ -126,13 +127,14 @@ auto Graph::quest_attention(
     TensorNode *val_cache,
     TensorNode *pos,
     size_t layer_id,
-    std::vector<Region> &regions
+    std::vector<Region> &regions,
+    uint32_t n_heads
 ) -> TensorNode * {
     auto out = dup_tensor(q);
     auto op  = new_op(OpType::QUEST_ATTN);
     op->set_inputs({q, key_cache, val_cache, pos});
     op->set_outputs({out});
-    op->set_params(QuestAttnParams(layer_id, regions));
+    op->set_params(QuestAttnParams{.layer_id = layer_id, .regions = regions, .n_heads = n_heads});
 
     return out;
 }

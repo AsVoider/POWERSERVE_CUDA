@@ -3,11 +3,11 @@
 #include "backend/backend.hpp"
 #include "backend/ggml/buffer.hpp"
 #include "common.hpp"
+#include "core/config.hpp"
 #include "core/data_type.hpp"
 #include "core/tensor.hpp"
 #include "core/thread_pool.hpp"
 #include "ggml.h"
-#include "model/common/config.hpp"
 #include "model/module/region.hpp"
 
 #include <atomic>
@@ -195,14 +195,15 @@ public:
     void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const;
     void softmax(const Tensor *out, const Tensor *x) const;
-    void rope(Tensor *out, const Tensor *src, const Tensor *pos, rope_compute_params *rope_params) const;
+    void rope(Tensor *out, const Tensor *src, const Tensor *pos, const RopeConfig &rope_cfg) const;
     void multihead_attention(
         const Tensor *out,
         const Tensor *q,
         const Tensor *key_cache,
         const Tensor *val_cache,
         const Tensor *pos,
-        const int64_t L
+        const int64_t L,
+        const uint32_t n_heads
     ) const;
     void silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const;
     void add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
@@ -214,7 +215,8 @@ public:
         const Tensor *val_cache,
         const Tensor *pos,
         const int64_t L,
-        std::vector<Region> &regions
+        std::vector<Region> &regions,
+        const uint32_t n_heads
     ) const;
     void cos_sim(const Tensor *src0, const Tensor *src1) const;
     void print(const Tensor *x, size_t size) const;

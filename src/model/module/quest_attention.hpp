@@ -1,7 +1,7 @@
 #pragma once
 
+#include "core/config.hpp"
 #include "graph/graph.hpp"
-#include "model/common/config.hpp"
 #include "model/common/weights.hpp"
 #include "model/module/attention.hpp"
 #include "model/module/region.hpp"

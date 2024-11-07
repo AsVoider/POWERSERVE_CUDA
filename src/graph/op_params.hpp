@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.hpp"
+#include "core/config.hpp"
 #include "model/module/region.hpp"
 
 #include <cstddef>
@@ -22,18 +23,12 @@ struct OpParamWrapper : OpParams {
 };
 
 struct RopeParams {
-    int n_dims        = 128;
-    int n_ctx_orig    = 2048;
-    float freq_base   = 10000.0f;
-    float freq_scale  = 1.0f;
-    float ext_factor  = 0.0f;
-    float attn_factor = 1.0f;
-    float beta_fast   = 32.0f;
-    float beta_slow   = 0.0f;
+    RopeConfig rope_cfg;
 };
 
 struct MHAParams {
-    size_t layer_id = 0;
+    size_t layer_id  = 0;
+    uint32_t n_heads = 0;
 };
 
 struct CopyParams {
@@ -44,16 +39,27 @@ struct PrintParams {
     size_t size = 0;
 };
 
-struct QuestAttnParams : OpParams {
+// struct QuestAttnParams : OpParams {
 
-    size_t layer_id_ = 0;
-    std::vector<Region> &regions_;
+//     size_t layer_id_ = 0;
+//     std::vector<Region> &regions_;
+//     uint32_t n_heads_ = 0;
 
-    QuestAttnParams() = delete;
+//     QuestAttnParams() = delete;
 
-    explicit QuestAttnParams(size_t layer_id, std::vector<Region> &regions) : layer_id_(layer_id), regions_(regions) {}
+//     explicit QuestAttnParams(size_t layer_id, std::vector<Region> &regions, uint32_t n_heads) :
+//         layer_id_(layer_id),
+//         regions_(regions),
+//         n_heads_(n_heads) {}
 
-    ~QuestAttnParams() override = default;
+//     virtual ~QuestAttnParams() override = default;
+// };
+
+struct QuestAttnParams {
+
+    size_t layer_id = 0;
+    std::vector<Region> &regions;
+    uint32_t n_heads = 0;
 };
 
 } // namespace smart

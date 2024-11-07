@@ -30,11 +30,12 @@ public:
     auto silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode *;
     auto copy(TensorNode *dst, TensorNode *src, size_t off) -> void;
 
-    auto rope(TensorNode *src, TensorNode *pos, RopeParams &params) -> TensorNode *;
+    auto rope(TensorNode *src, TensorNode *pos, const RopeConfig &params) -> TensorNode *;
 
     auto softmax(TensorNode *x) -> TensorNode *;
-    auto mha(TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id)
-        -> TensorNode *;
+    auto mha(
+        TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id, uint32_t n_heads
+    ) -> TensorNode *;
     auto print(TensorNode *x, size_t size) -> void;
 
     auto quest_attention(
@@ -43,7 +44,8 @@ public:
         TensorNode *val_cache,
         TensorNode *pos,
         size_t layer_id,
-        std::vector<Region> &regions
+        std::vector<Region> &regions,
+        uint32_t n_heads
     ) -> TensorNode *;
     auto cos_sim(TensorNode *src0, TensorNode *src1) -> void;
 };

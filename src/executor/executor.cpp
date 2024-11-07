@@ -70,22 +70,11 @@ void Executor::run() {
         } break;
 
         case OpType::ROPE: {
-            auto src = op->prev[0]->tensor();
-            auto pos = op->prev[1]->tensor();
-            auto out = op->next[0]->tensor();
-            auto [n_dims, n_ctx_orig, freq_base, freq_scale, ext_factor, attn_factor, beta_fast, beta_slow] =
-                op->get_params<RopeParams>();
-            rope_compute_params rope_params = {
-                .n_dims      = n_dims,
-                .n_ctx_orig  = n_ctx_orig,
-                .freq_base   = freq_base,
-                .freq_scale  = freq_scale,
-                .ext_factor  = ext_factor,
-                .attn_factor = attn_factor,
-                .beta_fast   = beta_fast,
-                .beta_slow   = beta_slow
-            };
-            m_platform.ggml_backend.rope(out, src, pos, &rope_params);
+            auto src        = op->prev[0]->tensor();
+            auto pos        = op->prev[1]->tensor();
+            auto out        = op->next[0]->tensor();
+            auto [rope_cfg] = op->get_params<RopeParams>();
+            m_platform.ggml_backend.rope(out, src, pos, rope_cfg);
         } break;
 
         case OpType::SOFTMAX: {
@@ -95,13 +84,13 @@ void Executor::run() {
         } break;
 
         case OpType::MHA: {
-            auto q          = op->prev[0]->tensor();
-            auto key_cache  = op->prev[1]->tensor();
-            auto val_cache  = op->prev[2]->tensor();
-            auto pos        = op->prev[3]->tensor();
-            auto out        = op->output();
-            auto [layer_id] = op->get_params<MHAParams>();
-            m_platform.ggml_backend.multihead_attention(out, q, key_cache, val_cache, pos, layer_id);
+            auto q                   = op->prev[0]->tensor();
+            auto key_cache           = op->prev[1]->tensor();
+            auto val_cache           = op->prev[2]->tensor();
+            auto pos                 = op->prev[3]->tensor();
+            auto out                 = op->output();
+            auto [layer_id, n_heads] = op->get_params<MHAParams>();
+            m_platform.ggml_backend.multihead_attention(out, q, key_cache, val_cache, pos, layer_id, n_heads);
         } break;
 
         case OpType::COPY: {
@@ -112,13 +101,13 @@ void Executor::run() {
         } break;
 
         case OpType::QUEST_ATTN: {
-            auto q                   = op->prev[0]->tensor();
-            auto key_cache           = op->prev[1]->tensor();
-            auto val_cache           = op->prev[2]->tensor();
-            auto pos                 = op->prev[3]->tensor();
-            auto out                 = op->output();
-            auto [layer_id, regions] = op->get_params<QuestAttnParams>();
-            m_platform.ggml_backend.quest_attention(out, q, key_cache, val_cache, pos, layer_id, regions);
+            auto q                            = op->prev[0]->tensor();
+            auto key_cache                    = op->prev[1]->tensor();
+            auto val_cache                    = op->prev[2]->tensor();
+            auto pos                          = op->prev[3]->tensor();
+            auto out                          = op->output();
+            auto [layer_id, regions, n_heads] = op->get_params<QuestAttnParams>();
+            m_platform.ggml_backend.quest_attention(out, q, key_cache, val_cache, pos, layer_id, regions, n_heads);
         } break;
 
         case OpType::COS_SIM: {

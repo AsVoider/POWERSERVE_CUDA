@@ -1,7 +1,7 @@
 #pragma once
 
+#include "core/config.hpp"
 #include "graph/node.hpp"
-#include "model/common/config.hpp"
 #include "model/common/weights.hpp"
 #include "model/module/kv_cache.hpp"
 

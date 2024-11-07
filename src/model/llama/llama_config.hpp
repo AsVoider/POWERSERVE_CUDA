@@ -1,8 +1,8 @@
 #pragma once
 
 #include "common.hpp"
+#include "core/config.hpp"
 #include "ggml.h"
-#include "model/common/config.hpp"
 
 namespace smart {
 
