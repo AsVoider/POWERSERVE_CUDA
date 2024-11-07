@@ -12659,6 +12659,7 @@ static void smart_compute_forward_rms_norm_f32(
     }
 }
 
+// NOTE: Different with ggml rmsnorm
 void smart_compute_forward_rms_norm(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
@@ -15000,11 +15001,24 @@ void smart_compute_forward_soft_max(
     struct ggml_tensor * dst,
     struct ggml_tensor * src0
 ) {
+    struct ggml_compute_params ggml_params = {
+        .ith = params->ith,
+        .nth = params->nth,
+        .wdata = params->wdata,
+        .wsize = params->wsize,
+    };
+    dst->src[0] = src0;
+    dst->src[1] = NULL;
+    float scale    = 1.0f;
+    float max_bias = 0.0f;
+    memcpy((float *) dst->op_params, &scale, sizeof(float));
+    memcpy((float *) dst->op_params + 1, &max_bias, sizeof(float));
 
     switch (src0->type) {
         case GGML_TYPE_F32:
             {
-                smart_compute_forward_soft_max_f32(params, dst, src0, NULL);
+                ggml_compute_forward_soft_max_f32(&ggml_params, dst);
+                // smart_compute_forward_soft_max_f32(params, dst, src0, NULL);
             } break;
         default:
             {
@@ -15692,11 +15706,13 @@ void smart_compute_forward_rope(
     struct rope_compute_params *rope_params)
 {
 
-    struct ggml_compute_params *ggml_params = (struct ggml_compute_params *)malloc(sizeof(struct ggml_compute_params));
-    ggml_params->ith = params->ith;
-    ggml_params->nth = params->nth;
-    ggml_params->wdata = params->wdata;
-    ggml_params->wsize = params->wsize;
+    // struct ggml_compute_params *ggml_params = (struct ggml_compute_params *)malloc(sizeof(struct ggml_compute_params));
+    struct ggml_compute_params ggml_params = {
+        .ith = params->ith,
+        .nth = params->nth,
+        .wdata = params->wdata,
+        .wsize = params->wsize
+    };
     dst->src[0] = src0;
     dst->src[1] = src1;
     dst->src[2] = src2;
@@ -15713,22 +15729,19 @@ void smart_compute_forward_rope(
     switch (src0->type) {
         case GGML_TYPE_F16:
             {
-                GGML_ABORT("Not Impl");
-                // ggml_compute_forward_rope_f16(params, dst, true);
+                ggml_compute_forward_rope_f16(&ggml_params, dst, true);
             } break;
         case GGML_TYPE_F32:
             {
 
-                ggml_compute_forward_rope_f32(ggml_params, dst, true);
+                ggml_compute_forward_rope_f32(&ggml_params, dst, true);
                 // smart_compute_forward_rope_f32(params, dst, src0, src1, src2, rope_params, true);
             } break;
         default:
             {
-                free(ggml_params);
                 GGML_ABORT("fatal error");
             }
     }
-    free(ggml_params);
 }
 
 // ggml_compute_forward_rope_back
