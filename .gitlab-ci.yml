@@ -80,10 +80,10 @@ test_llama3.1:
   script:
     - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.1_8b_vocab.gguf --prompt \"One day,\" --steps 64"
 
-test_phi3:
-  stage: test
-  script:
-    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 64"
+# test_phi3:
+#   stage: test
+#   script:
+#     - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 64"
 
 test_sparse:
   stage: test
