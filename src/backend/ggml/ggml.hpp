@@ -163,13 +163,10 @@ static void debug_system_info(void) {
 struct GGMLBackend : Backend {
 public:
     op_compute_params m_params;
-    std::vector<char> m_wdata;
-    std::shared_ptr<Config> m_config;
+    std::vector<char> m_wdata; // TODO: m_wdata create after
 
 public:
-    explicit GGMLBackend(std::shared_ptr<Config> config, int n_threads = 1) :
-        m_wdata(config->tf_cfg.dim * 32),
-        m_config(config) {
+    explicit GGMLBackend(std::shared_ptr<Config> config, int n_threads = 1) : m_wdata(config->tf_cfg.dim * 32) {
         m_params = {
             .ith           = 0,
             .nth           = 1,
@@ -184,9 +181,7 @@ public:
         for (int i = 0; i < n_threads; i++) {
             configs.emplace_back(ThreadConfig{.cpu_ids = {(size_t)i}});
         }
-        // create thread num has limit
         m_thread_pool = std::make_unique<ThreadPool>(configs);
-        // fmt::println("\nCreated thread pool with {} threads", configs.size());
     }
 
     ~GGMLBackend() override = default;

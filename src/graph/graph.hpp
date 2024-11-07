@@ -5,13 +5,6 @@
 namespace smart {
 
 struct Graph {
-
-public:
-    struct RopeResult {
-        TensorNode *q_out;
-        TensorNode *k_out;
-    };
-
 public:
     std::vector<std::shared_ptr<TensorNode>> tensors;
     std::vector<std::shared_ptr<OpNode>> ops;
