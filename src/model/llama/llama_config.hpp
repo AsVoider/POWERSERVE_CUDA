@@ -24,6 +24,7 @@ public:
             tf_cfg.n_embd_head_v  = get_u32(ctx, "llama.attention.value_length", false, tf_cfg.dim / tf_cfg.n_heads);
             tf_cfg.rope_dim_count = get_u32(ctx, "llama.rope.dimension_count", false, tf_cfg.n_embd_head_k);
         }
+        rope_cfg.n_dims      = tf_cfg.rope_dim_count;
         rope_cfg.n_ctx_orig  = get_u32(ctx, "llama.rope.scaling.original_context_length", false, tf_cfg.seq_len);
         rope_cfg.attn_factor = get_f32(ctx, "llama.rope.scaling.attn_factor", false, 1.0f);
         {
