@@ -60,16 +60,12 @@ Graph *LlamaModel::decode() {
 
 std::vector<float> LlamaModel::forward(int token, int pos) {
     Graph g;
-    // auto dim = m_config->tf_cfg.dim;
-
     // input embedding
     size_t batch_size = 1;
     auto tokens       = g.new_tensor(DataType::INT32, {batch_size});
-    // auto x                  = g.new_tensor(DataType::FP32, {dim, batch_size});
-    auto embd_tb = g.add_tensor(m_weights->token_embedding_table);
-    auto x       = g.get_embd(embd_tb, tokens);
-    // TensorNode *tensor_embd = x;
-    auto pos_tensor = g.new_tensor(DataType::INT32, {1, batch_size});
+    auto embd_tb      = g.add_tensor(m_weights->token_embedding_table);
+    auto x            = g.get_embedding(embd_tb, tokens);
+    auto pos_tensor   = g.new_tensor(DataType::INT32, {1, batch_size});
     // attention and ffn
     for (size_t L = 0; L < m_config->tf_cfg.n_layers; L++) {
         auto att_o = m_attn->build(g, x, L, pos_tensor, pos);
@@ -87,11 +83,6 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
     Executor executor(*plat.get(), g);
     executor.allocate_buffers();
 
-    // memcpy(
-    //     tensor_embd->get<ggml::Buffer>().m_data,
-    //     static_cast<void *>(m_weights->fp32_embd_table.data() + token * dim),
-    //     dim * sizeof(float)
-    // );
     for (size_t i = 0; i < batch_size; i++) {
         // TODO: support batch
         static_cast<int32_t *>(tokens->get<ggml::Buffer>().m_data)[i]     = token;
@@ -121,7 +112,6 @@ void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, i
     int pos    = 0;                // position in the sequence
     while (pos < steps) {
         // forward the transformer to get logits for the next token
-        // float* logits = forward(token, pos);
         std::vector<float> logits = forward(token, pos);
 
         // advance the state machine

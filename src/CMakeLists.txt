@@ -8,6 +8,10 @@ target_link_libraries(smart_serving PUBLIC
     uv_a
 )
 
+target_sources(smart_serving PRIVATE
+    "common.cpp"
+)
+
 add_subdirectory(backend)
 add_subdirectory(core)
 add_subdirectory(executor)

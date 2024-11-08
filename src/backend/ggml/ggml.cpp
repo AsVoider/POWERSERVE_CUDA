@@ -13,21 +13,21 @@
 #include <vector>
 
 namespace smart::ggml {
-void GGMLBackend::get_embd(const Tensor *dst, const Tensor *weights, const Tensor *tokens) const {
-    auto embd_tb   = static_cast<char *>(weights->get<Buffer>().m_data);
+void GGMLBackend::get_embedding(const Tensor *dst, const Tensor *weight, const Tensor *tokens) const {
+    auto embd_tb   = static_cast<char *>(weight->get<Buffer>().m_data);
     auto tokens_tb = static_cast<int32_t *>(tokens->get<Buffer>().m_data);
     auto dst_tb    = static_cast<float *>(dst->get<Buffer>().m_data);
 
     auto dim        = dst->m_shape[0];
     auto batch_size = tokens->m_shape[0];
     SMART_ASSERT(batch_size == dst->m_shape[1]);
-    auto weight_strip = weights->get<Buffer>().m_stride;
+    auto weight_strip = weight->get<Buffer>().m_stride;
 
     for (size_t i = 0; i < batch_size; i++) {
         auto token = tokens_tb[i];
         auto src   = embd_tb + weight_strip[1] * token;
         SMART_ASSERT(src < embd_tb + weight_strip[2]);
-        switch (weights->m_dtype) {
+        switch (weight->m_dtype) {
         case DataType::FP32: {
             memcpy(dst_tb + i * dim, src, dim * sizeof(float));
         } break;

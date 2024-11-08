@@ -17,7 +17,7 @@ enum class OpType {
     PRINT,
     QUEST_ATTN,
     COS_SIM,
-    GET_EMBD,
+    GET_EMBEDDING,
 };
 
 } // namespace smart
