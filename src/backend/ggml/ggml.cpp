@@ -13,6 +13,7 @@
 #include <vector>
 
 namespace smart::ggml {
+
 void GGMLBackend::get_embedding(const Tensor *dst, const Tensor *weight, const Tensor *tokens) const {
     auto embd_tb   = static_cast<char *>(weight->get<Buffer>().m_data);
     auto tokens_tb = static_cast<int32_t *>(tokens->get<Buffer>().m_data);
@@ -413,4 +414,5 @@ bool GGMLBackend::is_contiguous(const Tensor *tensor, int n) const {
     }
     return false;
 }
+
 } // namespace smart::ggml

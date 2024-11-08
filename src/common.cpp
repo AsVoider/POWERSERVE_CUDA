@@ -1,8 +1,9 @@
 #include "common.hpp"
 
 namespace smart {
+
+void get_memory_usage(const std::string &msg) {
 #if defined(__ANDROID__)
-void get_memory_usage(std::string msg) {
     FILE *file = fopen("/proc/self/statm", "r");
     SMART_ASSERT(file != nullptr);
 
@@ -16,9 +17,7 @@ void get_memory_usage(std::string msg) {
     size_t vms     = pages * page_size;
 
     fmt::println(stderr, "[{}] RSS: {} MB, VMS: {} MB", msg, rss / 1024 / 1024, vms / 1024 / 1024);
-}
 #elif defined(__linux__)
-void get_memory_usage(std::string msg) {
     FILE *file = fopen("/proc/self/status", "r");
     SMART_ASSERT(file != nullptr);
     char line[128];
@@ -37,14 +36,9 @@ void get_memory_usage(std::string msg) {
 
     fclose(file);
     fmt::println(stderr, "[{}] RSS: {} MB, VMS: {} MB", msg, rss / 1024 / 1024, vms / 1024 / 1024);
-}
-#elif defined(__APPLE__)
-void get_memory_usage(std::string msg) {
+#else
     SMART_UNUSED(msg);
-}
-#elif defined(_WIN32)
-void get_memory_usage(std::string msg) {
-    SMART_UNUSED(msg);
-}
 #endif
+}
+
 } // namespace smart
