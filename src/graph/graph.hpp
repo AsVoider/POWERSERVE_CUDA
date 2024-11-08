@@ -17,6 +17,7 @@ public:
     auto view_tensor(TensorNode *tensor, Tensor::Shape shape) -> TensorViewNode *;
 
 public:
+    auto get_embd(TensorNode *weights, TensorNode *tokens) -> TensorNode *;
     auto add(TensorNode *a, TensorNode *b) -> TensorNode *;
     auto mat_mul(TensorNode *x, TensorNode *weight) -> TensorNode *;
     auto rms_norm(TensorNode *x, TensorNode *weight) -> TensorNode *;

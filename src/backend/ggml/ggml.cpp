@@ -1,6 +1,7 @@
 #include "ggml.hpp"
 
 #include "backend/ggml/buffer.hpp"
+#include "ggml-quants.h"
 #include "ggml.h"
 #include "model/module/region.hpp"
 
@@ -12,6 +13,38 @@
 #include <vector>
 
 namespace smart::ggml {
+void GGMLBackend::get_embd(const Tensor *dst, const Tensor *weights, const Tensor *tokens) const {
+    auto embd_tb   = static_cast<char *>(weights->get<Buffer>().m_data);
+    auto tokens_tb = static_cast<int32_t *>(tokens->get<Buffer>().m_data);
+    auto dst_tb    = static_cast<float *>(dst->get<Buffer>().m_data);
+
+    auto dim        = dst->m_shape[0];
+    auto batch_size = tokens->m_shape[0];
+    SMART_ASSERT(batch_size == dst->m_shape[1]);
+    auto weight_strip = weights->get<Buffer>().m_stride;
+
+    for (size_t i = 0; i < batch_size; i++) {
+        auto token = tokens_tb[i];
+        auto src   = embd_tb + weight_strip[1] * token;
+        SMART_ASSERT(src < embd_tb + weight_strip[2]);
+        switch (weights->m_dtype) {
+        case DataType::FP32: {
+            memcpy(dst_tb + i * dim, src, dim * sizeof(float));
+        } break;
+
+        case DataType::GGML_Q4_0: {
+            dequantize_row_q4_0((block_q4_0 *)src, dst_tb + i * dim, dim);
+        } break;
+
+        case DataType::GGML_Q8_0: {
+            dequantize_row_q8_0((block_q8_0 *)src, dst_tb + i * dim, dim);
+        } break;
+
+        default:
+            SMART_ASSERT(false);
+        }
+    }
+}
 
 void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
     // W (d,n) @ x (n,) -> xout (d,)

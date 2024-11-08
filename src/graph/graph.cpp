@@ -25,6 +25,16 @@ auto Graph::view_tensor(TensorNode *tensor, Tensor::Shape shape) -> TensorViewNo
     return static_cast<TensorViewNode *>(tensors.emplace_back(new TensorViewNode(*tensor, shape)).get());
 }
 
+auto Graph::get_embd(TensorNode *weights, TensorNode *tokens) -> TensorNode * {
+    auto op         = new_op(OpType::GET_EMBD);
+    auto out        = dup_tensor(weights); // weights (dim, vocab_size)
+    out->m_dtype    = DataType::FP32;
+    out->m_shape[1] = tokens->m_shape[0]; // batch size   // inp (dim, batch_size)
+    op->set_inputs({weights, tokens});
+    op->set_outputs({out});
+    return out;
+}
+
 auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
     SMART_ASSERT(a->m_dtype == b->m_dtype);
     SMART_ASSERT(a->m_shape == b->m_shape);

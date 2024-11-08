@@ -30,7 +30,7 @@ LlamaModel::LlamaModel(const std::string &filename, int n_threads) : Model(filen
     // prepare data
     m_config = std::make_shared<LlamaConfig>(gguf_ctx);
     // prepare weights (+ 2G)
-    m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->tf_cfg.n_layers, m_config->tf_cfg.dim);
+    m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->tf_cfg.n_layers);
     // modules
     m_attn = nullptr;
     m_ffn  = std::make_shared<FFN>(m_config, m_weights);
@@ -60,14 +60,16 @@ Graph *LlamaModel::decode() {
 
 std::vector<float> LlamaModel::forward(int token, int pos) {
     Graph g;
-    auto dim = m_config->tf_cfg.dim;
+    // auto dim = m_config->tf_cfg.dim;
 
     // input embedding
-    // prepare input : embeding token tensor [dim,]
-    SMART_ASSERT(token * dim + dim <= m_weights->fp32_embd_table.size());
-    auto x                  = g.new_tensor(DataType::FP32, {dim});
-    TensorNode *tensor_embd = x;
-    auto pos_tensor         = g.new_tensor(DataType::INT32, {1});
+    size_t batch_size = 1;
+    auto tokens       = g.new_tensor(DataType::INT32, {batch_size});
+    // auto x                  = g.new_tensor(DataType::FP32, {dim, batch_size});
+    auto embd_tb = g.add_tensor(m_weights->token_embedding_table);
+    auto x       = g.get_embd(embd_tb, tokens);
+    // TensorNode *tensor_embd = x;
+    auto pos_tensor = g.new_tensor(DataType::INT32, {1, batch_size});
     // attention and ffn
     for (size_t L = 0; L < m_config->tf_cfg.n_layers; L++) {
         auto att_o = m_attn->build(g, x, L, pos_tensor, pos);
@@ -84,16 +86,21 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
 
     Executor executor(*plat.get(), g);
     executor.allocate_buffers();
-    memcpy(
-        tensor_embd->get<ggml::Buffer>().m_data,
-        static_cast<void *>(m_weights->fp32_embd_table.data() + token * dim),
-        dim * sizeof(float)
-    );
-    static_cast<int32_t *>(pos_tensor->get<ggml::Buffer>().m_data)[0] = pos;
+
+    // memcpy(
+    //     tensor_embd->get<ggml::Buffer>().m_data,
+    //     static_cast<void *>(m_weights->fp32_embd_table.data() + token * dim),
+    //     dim * sizeof(float)
+    // );
+    for (size_t i = 0; i < batch_size; i++) {
+        // TODO: support batch
+        static_cast<int32_t *>(tokens->get<ggml::Buffer>().m_data)[i]     = token;
+        static_cast<int32_t *>(pos_tensor->get<ggml::Buffer>().m_data)[i] = pos;
+    }
 
     executor.run();
     float *logits_data = static_cast<float *>(logits->get<ggml::Buffer>().m_data);
-
+    // TODO: support batch
     return std::vector<float>(logits_data, logits_data + m_config->tf_cfg.vocab_size);
 }
 
