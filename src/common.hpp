@@ -37,4 +37,5 @@ static long time_in_ms() {
 }
 
 void get_memory_usage(const std::string &msg = "");
+
 } // namespace smart
