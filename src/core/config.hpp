@@ -25,6 +25,7 @@ public:
     uint32_t n_heads    = 0;
     uint32_t n_kv_heads = 0;
     uint32_t seq_len    = 0; // n_ctx_orig in rope
+    RopeConfig rope_cfg;
 
     // optional
     uint32_t vocab_size     = 0;
@@ -45,7 +46,6 @@ struct ViTConfig {
 struct Config {
 public:
     TransformerConfig tf_cfg;
-    RopeConfig rope_cfg;
     ViTConfig vit_cfg;
 
 public:

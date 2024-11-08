@@ -33,8 +33,8 @@ TensorNode *NormAttention::build(Graph &g, TensorNode *x, int64_t L, TensorNode 
     SMART_ASSERT(n_embd_head == cfg.rope_dim_count);
     auto q_view = g.view_tensor(q, {n_embd_head, cfg.n_heads, q->m_shape[2], q->m_shape[3]});
     auto k_view = g.view_tensor(k, {n_embd_head, cfg.n_kv_heads, k->m_shape[2], k->m_shape[3]});
-    auto rope_q = g.rope(q_view, pos_tensor, m_config->rope_cfg);
-    auto rope_k = g.rope(k_view, pos_tensor, m_config->rope_cfg);
+    auto rope_q = g.rope(q_view, pos_tensor, m_config->tf_cfg.rope_cfg);
+    auto rope_k = g.rope(k_view, pos_tensor, m_config->tf_cfg.rope_cfg);
 
     // multihead attention
     rope_q = g.view_tensor(rope_q, q->m_shape);
