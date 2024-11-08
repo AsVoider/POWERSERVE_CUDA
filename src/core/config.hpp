@@ -15,6 +15,18 @@ struct RopeConfig {
     float attn_factor = 1.0f;
     float beta_fast   = 32.0f;
     float beta_slow   = 0.0f;
+
+public:
+    void debug_config_info() {
+        fmt::println(stderr, "n_dims          :{:6}", n_dims);
+        fmt::println(stderr, "n_ctx_orig      :{:6}", n_ctx_orig);
+        fmt::println(stderr, "freq_base       :{:6}", freq_base);
+        fmt::println(stderr, "freq_scale      :{:6}", freq_scale);
+        fmt::println(stderr, "ext_factor      :{:6}", ext_factor);
+        fmt::println(stderr, "attn_factor     :{:6}", attn_factor);
+        fmt::println(stderr, "beta_fast       :{:6}", beta_fast);
+        fmt::println(stderr, "beta_slow       :{:6}", beta_slow);
+    }
 };
 
 struct TransformerConfig {
@@ -37,6 +49,23 @@ public:
 public:
     TransformerConfig()          = default;
     virtual ~TransformerConfig() = default;
+
+public:
+    void debug_config_info() {
+        fmt::println(stderr, "dim             :{:6}", dim);
+        fmt::println(stderr, "hidden_dim      :{:6}", hidden_dim);
+        fmt::println(stderr, "n_layers        :{:6}", n_layers);
+        fmt::println(stderr, "n_heads         :{:6}", n_heads);
+        fmt::println(stderr, "n_kv_heads      :{:6}", n_kv_heads);
+        fmt::println(stderr, "seq_len         :{:6}", seq_len);
+        fmt::println(stderr, "vocab_size      :{:6}", vocab_size);
+        fmt::println(stderr, "rope_dim_count  :{:6}", rope_dim_count);
+        fmt::println(stderr, "rope_freq_base  :{:6}", rope_freq_base);
+        fmt::println(stderr, "n_embd_head_k   :{:6}", n_embd_head_k);
+        fmt::println(stderr, "n_embd_head_v   :{:6}", n_embd_head_v);
+
+        rope_cfg.debug_config_info();
+    }
 };
 
 struct ViTConfig {
@@ -53,7 +82,9 @@ public:
     virtual ~Config() = default;
 
 public:
-    virtual void debug_config_info() {}
+    void debug_config_info() {
+        tf_cfg.debug_config_info();
+    }
 };
 
 } // namespace smart

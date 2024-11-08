@@ -209,15 +209,15 @@ void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1)
 }
 
 void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const {
-    for (size_t j = 0; j < hb->m_shape[1]; j++) {     // batch size
-        for (size_t i = 0; i < hb->m_shape[0]; i++) { // hidden_dim
-            float val = static_cast<float *>(hb->get<Buffer>().m_data)[j * hb->m_shape[0] + i];
-            // silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
-            val *= (1.0f / (1.0f + expf(-val)));
-            // elementwise multiply with w3(x)
-            val *= static_cast<float *>(hb2->get<Buffer>().m_data)[j * hb2->m_shape[0] + i];
-            static_cast<float *>(out->get<Buffer>().m_data)[j * out->m_shape[0] + i] = val;
-        }
+    float *out_data = static_cast<float *>(out->get<Buffer>().m_data);
+    float *hb_data  = static_cast<float *>(hb->get<Buffer>().m_data);
+    float *hb2_data = static_cast<float *>(hb2->get<Buffer>().m_data);
+
+    for (size_t j = 0; j < hb->n_elements(); j++) {
+        float val = hb_data[j];
+        val *= (1.0f / (1.0f + expf(-val)));
+        val *= hb2_data[j];
+        out_data[j] = val;
     }
 }
 

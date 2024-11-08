@@ -60,26 +60,6 @@ private:
         }
         return gguf_get_val_f32(ctx, idx);
     }
-
-public:
-    void debug_config_info() override {
-        fmt::println(stderr, "dim             :{:6}", tf_cfg.dim);
-        fmt::println(stderr, "hidden_dim      :{:6}", tf_cfg.hidden_dim);
-        fmt::println(stderr, "n_heads         :{:6}", tf_cfg.n_heads);
-        fmt::println(stderr, "n_kv_heads      :{:6}", tf_cfg.n_kv_heads);
-        fmt::println(stderr, "n_layers        :{:6}", tf_cfg.n_layers);
-        fmt::println(stderr, "seq_len         :{:6}", tf_cfg.seq_len);
-        fmt::println(stderr, "vocab_size      :{:6}", tf_cfg.vocab_size);
-        fmt::println(stderr, "rope_freq_base  :{:6}", tf_cfg.rope_freq_base);
-        fmt::println(stderr, "rope_freq_scale :{:6}", tf_cfg.rope_cfg.freq_scale);
-        fmt::println(stderr, "rope_dim_count  :{:6}", tf_cfg.rope_dim_count);
-        fmt::println(stderr, "n_embd          :{:6}", tf_cfg.dim);
-        fmt::println(stderr, "n_embd_head_k   :{:6}", tf_cfg.n_embd_head_k);
-        fmt::println(stderr, "n_embd_head_v   :{:6}", tf_cfg.n_embd_head_v);
-        fmt::println(stderr, "n_ctx_orig      :{:6}", tf_cfg.rope_cfg.n_ctx_orig);
-        fmt::println(stderr, "ext_factor      :{:6}", tf_cfg.rope_cfg.ext_factor);
-        fmt::println(stderr, "attn_factor     :{:6}", tf_cfg.rope_cfg.attn_factor);
-    }
 };
 
 } // namespace smart
