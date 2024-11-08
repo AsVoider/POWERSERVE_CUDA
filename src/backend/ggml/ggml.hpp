@@ -242,6 +242,9 @@ public:
         return b;
     }
 
+public:
+    bool is_contiguous(const Tensor *tensor, int n) const;
+
 private:
     std::unique_ptr<ThreadPool> m_thread_pool;
     std::atomic<int> m_current_chunk = 0;

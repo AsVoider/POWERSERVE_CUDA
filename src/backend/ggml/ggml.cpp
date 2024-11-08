@@ -209,6 +209,9 @@ void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1)
 }
 
 void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const {
+    SMART_ASSERT(is_contiguous(out, 0));
+    SMART_ASSERT(is_contiguous(hb, 0));
+    SMART_ASSERT(is_contiguous(hb2, 0));
     float *out_data = static_cast<float *>(out->get<Buffer>().m_data);
     float *hb_data  = static_cast<float *>(hb->get<Buffer>().m_data);
     float *hb2_data = static_cast<float *>(hb2->get<Buffer>().m_data);
@@ -366,4 +369,15 @@ void GGMLBackend::print(const Tensor *x, size_t size) const {
     exit(0);
 }
 
+bool GGMLBackend::is_contiguous(const Tensor *tensor, int n) const {
+    SMART_ASSERT(n >= 0 && n <= 2);
+    if (n == 0) {
+        return ggml_is_contiguous_0(convert_to_ggml(tensor).get());
+    } else if (n == 1) {
+        return ggml_is_contiguous_1(convert_to_ggml(tensor).get());
+    } else if (n == 2) {
+        return ggml_is_contiguous_2(convert_to_ggml(tensor).get());
+    }
+    return false;
+}
 } // namespace smart::ggml
