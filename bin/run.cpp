@@ -61,6 +61,7 @@ int main(int argc, char *argv[]) {
         model_arch = gguf_get_val_str(gguf_ctx, gguf_find_key(gguf_ctx, "general.architecture"));
         gguf_free(gguf_ctx);
     }
+    smart::get_memory_usage("begin");
 
     std::unique_ptr<smart::Model> model;
     // TODO: move into Model.cpp like build_model
@@ -71,15 +72,18 @@ int main(int argc, char *argv[]) {
     } else {
         fmt::print("Unknown model type\n");
     }
+    smart::get_memory_usage("after model init");
 
     if (attn_type == "normal") {
         model->m_attn = std::make_shared<smart::NormAttention>(model->m_config, model->m_weights);
     } else if (attn_type == "quest") {
         model->m_attn = std::make_shared<smart::QuestAttention>(model->m_config, model->m_weights);
     }
+    smart::get_memory_usage("after attn init");
 
     // load tokenizer
     smart::Tokenizer tokenizer(tokenizer_path);
+    smart::get_memory_usage("after tokenizer init");
 
     // load sampler
     smart::SamplerConfig config{
@@ -98,6 +102,7 @@ int main(int argc, char *argv[]) {
         .ignore_eos      = false,
     };
     smart::SamplerChain sampler{config};
+    smart::get_memory_usage("after sampler init");
 
     {
         fmt::println(stderr, "file_path   : {}", file_path);
