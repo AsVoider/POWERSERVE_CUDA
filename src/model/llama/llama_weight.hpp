@@ -25,7 +25,7 @@ public:
 struct LlamaWeight : Weight {
 
 public:
-    LlamaWeight(ggml_context *ctx, uint32_t n_layers, uint32_t dim) : Weight(ctx, dim) {
+    LlamaWeight(ggml_context *ctx, uint32_t n_layers) : Weight(ctx) {
         for (size_t layer = 0; layer < n_layers; layer++) {
             lw.push_back(LlamaLayerWeights(ctx, layer));
         }

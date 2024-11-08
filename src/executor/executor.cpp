@@ -28,6 +28,13 @@ void Executor::allocate_buffers() {
 void Executor::run() {
     for (auto op : m_graph.ops) {
         switch (op->op) {
+        case OpType::GET_EMBEDDING: {
+            auto weight = op->prev[0]->tensor();
+            auto tokens = op->prev[1]->tensor();
+            auto out    = op->output();
+            m_platform.ggml_backend.get_embedding(out, weight, tokens);
+        } break;
+
         case OpType::ADD: {
             auto a   = op->prev[0]->tensor();
             auto b   = op->prev[1]->tensor();

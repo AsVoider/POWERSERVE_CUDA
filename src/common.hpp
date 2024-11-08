@@ -36,4 +36,6 @@ static long time_in_ms() {
     return time.tv_sec * 1000 + time.tv_nsec / 1000000;
 }
 
+void get_memory_usage(const std::string &msg = "");
+
 } // namespace smart

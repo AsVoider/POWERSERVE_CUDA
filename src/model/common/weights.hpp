@@ -40,48 +40,20 @@ protected:
 
 struct Weight {
 public:
-    Tensor token_embedding_table;       // "token_embd.weight" (vocab_size, dim)
-    Tensor output_weight;               // "output.weight" (vocab_size, dim)
-    Tensor rms_final_weight;            // "output_norm.weight" (dim,)
-    std::vector<float> fp32_embd_table; // quantized embedding table
+    Tensor token_embedding_table; // "token_embd.weight" (vocab_size, dim)
+    Tensor output_weight;         // "output.weight" (vocab_size, dim)
+    Tensor rms_final_weight;      // "output_norm.weight" (dim,)
 
     std::vector<LayerWeights> lw;
 
 public:
-    Weight(ggml_context *ctx, uint32_t dim) :
+    Weight(ggml_context *ctx) :
         token_embedding_table(ggml::convert_from_ggml(ggml_get_tensor(ctx, "token_embd.weight"))),
         output_weight(ggml::convert_from_ggml(
             ggml_get_tensor(ctx, "output.weight") == nullptr ? ggml_get_tensor(ctx, "token_embd.weight")
                                                              : ggml_get_tensor(ctx, "output.weight")
         )),
-        rms_final_weight(ggml::convert_from_ggml(ggml_get_tensor(ctx, "output_norm.weight"))) {
-        SMART_UNUSED(dim);
-
-        auto embedding  = ggml_get_tensor(ctx, "token_embd.weight");
-        fp32_embd_table = std::vector<float>(ggml_nelements(embedding)); // + 2G
-
-        switch (token_embedding_table.m_dtype) {
-        case DataType::FP32:
-            std::memcpy(fp32_embd_table.data(), embedding->data, ggml_nelements(embedding) * sizeof(float));
-            break;
-        case DataType::GGML_Q4_0:
-            dequantize_row_q4_0(
-                (block_q4_0 *)token_embedding_table.get<ggml::Buffer>().m_data,
-                fp32_embd_table.data(),
-                ggml_nelements(embedding)
-            );
-            break;
-        case DataType::GGML_Q8_0:
-            dequantize_row_q8_0(
-                (block_q8_0 *)token_embedding_table.get<ggml::Buffer>().m_data,
-                fp32_embd_table.data(),
-                ggml_nelements(embedding)
-            );
-            break;
-        default:
-            break;
-        }
-    }
+        rms_final_weight(ggml::convert_from_ggml(ggml_get_tensor(ctx, "output_norm.weight"))) {}
 
     virtual ~Weight() = default;
 };
