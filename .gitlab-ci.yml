@@ -78,22 +78,22 @@ deploy:
 test_llama3.1:
   stage: test
   script:
-    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.1_8b_vocab.gguf --prompt \"One day,\" --steps 64"
+    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.1_8b_vocab.gguf --prompt \"One day,\" --steps 32"
 
-test_phi3:
-  stage: test
-  script:
-    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 64"
+# test_phi3:
+#   stage: test
+#   script:
+#     - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 64"
 
 test_sparse:
   stage: test
   script:
-    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 64 --attn-type quest"
+    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 32 --attn-type quest"
 
 test_thread:
   stage: test
   script:
-    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 64 --n-threads 8"
+    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 32 --n-threads 8"
 
 # test_long_out:
 #   stage: test

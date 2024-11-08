@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.hpp"
+#include "core/config.hpp"
 #include "model/module/region.hpp"
 
 #include <cstddef>
@@ -21,8 +22,13 @@ struct OpParamWrapper : OpParams {
     explicit OpParamWrapper(const T &value) : value(value) {}
 };
 
+struct RopeParams {
+    RopeConfig rope_cfg;
+};
+
 struct MHAParams {
-    size_t layer_id = 0;
+    size_t layer_id  = 0;
+    uint32_t n_heads = 0;
 };
 
 struct CopyParams {
@@ -33,16 +39,10 @@ struct PrintParams {
     size_t size = 0;
 };
 
-struct QuestAttnParams : OpParams {
-
-    size_t layer_id_ = 0;
-    std::vector<Region> &regions_;
-
-    QuestAttnParams() = delete;
-
-    explicit QuestAttnParams(size_t layer_id, std::vector<Region> &regions) : layer_id_(layer_id), regions_(regions) {}
-
-    ~QuestAttnParams() override = default;
+struct QuestAttnParams {
+    size_t layer_id = 0;
+    std::vector<Region> &regions;
+    uint32_t n_heads = 0;
 };
 
 } // namespace smart

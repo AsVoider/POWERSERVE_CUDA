@@ -39,7 +39,7 @@ LlamaModel::LlamaModel(const std::string &filename, int n_threads) : Model(filen
 
     // debug model info
     {
-        ggml::debug_system_info();
+        // ggml::debug_system_info();
         // ggml::debug_meta_info(gguf_ctx, ggml_ctx);
         // m_config->debug_config_info();
         // ggml::debug_tensors_info(gguf_ctx, ggml_ctx);
@@ -103,7 +103,8 @@ void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, i
 
     int num_prompt_tokens = 0;
     auto prompt_tokens    = tk->tokenize(prompt, tk->m_vocab.tokenizer_add_bos);
-    num_prompt_tokens     = prompt_tokens.size();
+    // fmt::println("tokens: {}", prompt_tokens);
+    num_prompt_tokens = prompt_tokens.size();
 
     SMART_ASSERT(num_prompt_tokens >= 1);
     // start the main loop
@@ -134,6 +135,10 @@ void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, i
 
         // data-dependent terminating condition: the BOS token delimits sequences
         if (next == tk->bos_token()) {
+            break;
+        } else if (next == tk->m_vocab.special_eos_id || next == tk->m_vocab.special_eom_id ||
+                   next == tk->m_vocab.special_eot_id) {
+            fmt::print("[end of text]");
             break;
         }
 

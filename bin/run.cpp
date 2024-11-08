@@ -5,7 +5,6 @@
 #include "model/llama/llama_model.hpp"
 #include "model/module/norm_attention.hpp"
 #include "model/module/quest_attention.hpp"
-#include "model/phi3/phi3_model.hpp"
 #include "sampler/sampler.hpp"
 #include "sampler/sampler_chain.hpp"
 #include "tokenizer/tokenizer.hpp"
@@ -44,7 +43,6 @@ int main(int argc, char *argv[]) {
     // get number of CPUs
     {
         auto n_cpus = uv_available_parallelism(); // Default fallback value
-        fmt::println("n_cpus: {}", n_cpus);
         // NOTE: the main thread is also a worker thread, so we need to subtract 1
         SMART_ASSERT(n_cpus >= 2);
         n_threads = std::min((unsigned int)n_threads, n_cpus - 1);
@@ -69,7 +67,7 @@ int main(int argc, char *argv[]) {
     if (model_arch == "llama") {
         model = std::make_unique<smart::LlamaModel>(file_path, n_threads);
     } else if (model_arch == "phi3") {
-        model = std::make_unique<smart::Phi3Model>(file_path);
+        SMART_ASSERT(false);
     } else {
         fmt::print("Unknown model type\n");
     }
@@ -102,17 +100,17 @@ int main(int argc, char *argv[]) {
     smart::SamplerChain sampler{config};
 
     {
-        fmt::println("file_path   : {}", file_path);
-        fmt::println("vocab_path  : {}", tokenizer_path);
-        fmt::println("prompt      : {}", prompt);
-        fmt::println("steps       : {}", steps);
-        fmt::println("attn_type   : {}", attn_type);
-        fmt::println("model arch  : {}", model_arch);
-        fmt::println("n_threads   : {}", n_threads);
-        fmt::println("temperature : {}", temperature);
-        fmt::println("top_p       : {}", top_p);
-        fmt::println("top_k       : {}", top_k);
-        fmt::println("rng_seed    : {}", rng_seed);
+        fmt::println(stderr, "file_path   : {}", file_path);
+        fmt::println(stderr, "vocab_path  : {}", tokenizer_path);
+        fmt::println(stderr, "prompt      : {}", prompt);
+        fmt::println(stderr, "steps       : {}", steps);
+        fmt::println(stderr, "attn_type   : {}", attn_type);
+        fmt::println(stderr, "model arch  : {}", model_arch);
+        fmt::println(stderr, "n_threads   : {}", n_threads);
+        fmt::println(stderr, "temperature : {}", temperature);
+        fmt::println(stderr, "top_p       : {}", top_p);
+        fmt::println(stderr, "top_k       : {}", top_k);
+        fmt::println(stderr, "rng_seed    : {}", rng_seed);
     }
 
     // generate

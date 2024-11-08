@@ -12,11 +12,11 @@ void Executor::allocate_buffers() {
 
         switch (tensor->m_dtype) {
         case DataType::FP32: {
-            tensor->m_data = m_platform.ggml_backend.create_buffer<float>(tensor->m_shape);
+            create_ggml_buffer<float>(tensor);
         } break;
 
         case DataType::INT32: {
-            tensor->m_data = m_platform.ggml_backend.create_buffer<int32_t>(tensor->m_shape);
+            create_ggml_buffer<int32_t>(tensor);
         } break;
 
         default:
@@ -58,12 +58,11 @@ void Executor::run() {
         } break;
 
         case OpType::ROPE: {
-            auto q     = op->prev[0]->tensor();
-            auto k     = op->prev[1]->tensor();
-            auto pos   = op->prev[2]->tensor();
-            auto q_out = op->next[0]->tensor();
-            auto k_out = op->next[1]->tensor();
-            m_platform.ggml_backend.rope(q_out, k_out, q, k, pos);
+            auto src        = op->prev[0]->tensor();
+            auto pos        = op->prev[1]->tensor();
+            auto out        = op->next[0]->tensor();
+            auto [rope_cfg] = op->get_params<RopeParams>();
+            m_platform.ggml_backend.rope(out, src, pos, rope_cfg);
         } break;
 
         case OpType::SOFTMAX: {
@@ -73,13 +72,13 @@ void Executor::run() {
         } break;
 
         case OpType::MHA: {
-            auto q          = op->prev[0]->tensor();
-            auto key_cache  = op->prev[1]->tensor();
-            auto val_cache  = op->prev[2]->tensor();
-            auto pos        = op->prev[3]->tensor();
-            auto out        = op->output();
-            auto [layer_id] = op->get_params<MHAParams>();
-            m_platform.ggml_backend.multihead_attention(out, q, key_cache, val_cache, pos, layer_id);
+            auto q                   = op->prev[0]->tensor();
+            auto key_cache           = op->prev[1]->tensor();
+            auto val_cache           = op->prev[2]->tensor();
+            auto pos                 = op->prev[3]->tensor();
+            auto out                 = op->output();
+            auto [layer_id, n_heads] = op->get_params<MHAParams>();
+            m_platform.ggml_backend.multihead_attention(out, q, key_cache, val_cache, pos, layer_id, n_heads);
         } break;
 
         case OpType::COPY: {
@@ -90,13 +89,13 @@ void Executor::run() {
         } break;
 
         case OpType::QUEST_ATTN: {
-            auto q                   = op->prev[0]->tensor();
-            auto key_cache           = op->prev[1]->tensor();
-            auto val_cache           = op->prev[2]->tensor();
-            auto pos                 = op->prev[3]->tensor();
-            auto out                 = op->output();
-            auto [layer_id, regions] = op->get_params<QuestAttnParams>();
-            m_platform.ggml_backend.quest_attention(out, q, key_cache, val_cache, pos, layer_id, regions);
+            auto q                            = op->prev[0]->tensor();
+            auto key_cache                    = op->prev[1]->tensor();
+            auto val_cache                    = op->prev[2]->tensor();
+            auto pos                          = op->prev[3]->tensor();
+            auto out                          = op->output();
+            auto [layer_id, regions, n_heads] = op->get_params<QuestAttnParams>();
+            m_platform.ggml_backend.quest_attention(out, q, key_cache, val_cache, pos, layer_id, regions, n_heads);
         } break;
 
         case OpType::COS_SIM: {
@@ -106,10 +105,9 @@ void Executor::run() {
         } break;
 
         case OpType::PRINT: {
-            SMART_ASSERT(false); // not Impl
-            // auto x    = op->prev[0]->tensor();
-            // auto size = op->get_params<PrintParams>().size;
-            // m_platform.ggml_backend.print(x, size);
+            auto x    = op->prev[0]->tensor();
+            auto size = op->get_params<PrintParams>().size;
+            m_platform.ggml_backend.print(x, size);
 
         } break;
 

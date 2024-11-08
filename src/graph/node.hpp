@@ -12,10 +12,12 @@ namespace smart {
 enum class NodeType {
     TENSOR,
     OPERATOR,
+    TENSOR_VIEW,
 };
 
 struct Graph;
 struct TensorNode;
+struct TensorViewNode;
 struct OpNode;
 
 struct Node {
@@ -45,6 +47,7 @@ public:
 
     auto tensor() -> Tensor *;
     auto op() -> OpNode *;
+    auto tensor_view() -> TensorViewNode *;
 
 protected:
     Node(NodeType type) : type(type) {}
@@ -54,19 +57,38 @@ struct TensorNode : Tensor, Node {
 private:
     friend struct Graph;
 
-private:
+protected:
     TensorNode(const Tensor &tensor) : Tensor(tensor), Node(NodeType::TENSOR) {}
 
     TensorNode(DataType dtype, const Tensor::Shape &shape) : Tensor(dtype, shape), Node(NodeType::TENSOR) {}
 
 public:
-    ~TensorNode() override = default;
+    virtual ~TensorNode() override = default;
 
 public:
     auto prev_op() const -> OpNode * {
         SMART_ASSERT(prev.size() == 1);
         return prev[0]->op();
     }
+};
+
+struct TensorViewNode : TensorNode {
+private:
+    friend struct Graph;
+
+public:
+    Tensor *parent;
+
+private:
+    TensorViewNode(const Tensor &tensor, Tensor::Shape shape) : TensorNode(tensor) {
+        type   = NodeType::TENSOR_VIEW;
+        parent = const_cast<Tensor *>(&tensor);
+        SMART_ASSERT(parent->n_elements() == n_elements());
+        m_shape = shape;
+    }
+
+public:
+    ~TensorViewNode() override = default;
 };
 
 struct OpNode : Node {

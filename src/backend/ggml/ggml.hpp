@@ -3,11 +3,11 @@
 #include "backend/backend.hpp"
 #include "backend/ggml/buffer.hpp"
 #include "common.hpp"
+#include "core/config.hpp"
 #include "core/data_type.hpp"
 #include "core/tensor.hpp"
 #include "core/thread_pool.hpp"
 #include "ggml.h"
-#include "model/common/config.hpp"
 #include "model/module/region.hpp"
 
 #include <atomic>
@@ -28,6 +28,8 @@ static ggml_type convert_datatype_to_ggml(DataType dtp) {
         return GGML_TYPE_Q4_0;
     case DataType::GGML_Q8_0:
         return GGML_TYPE_Q8_0;
+    case DataType::INT32:
+        return GGML_TYPE_I32;
     default:
         SMART_ASSERT(false);
     }
@@ -161,13 +163,10 @@ static void debug_system_info(void) {
 struct GGMLBackend : Backend {
 public:
     op_compute_params m_params;
-    std::vector<char> m_wdata;
-    std::shared_ptr<Config> m_config;
+    std::vector<char> m_wdata; // TODO: m_wdata create after
 
 public:
-    explicit GGMLBackend(std::shared_ptr<Config> config, int n_threads = 1) :
-        m_wdata(config->tf_cfg.dim * 32),
-        m_config(config) {
+    explicit GGMLBackend(std::shared_ptr<Config> config, int n_threads = 1) : m_wdata(config->tf_cfg.dim * 32) {
         m_params = {
             .ith           = 0,
             .nth           = 1,
@@ -182,28 +181,24 @@ public:
         for (int i = 0; i < n_threads; i++) {
             configs.emplace_back(ThreadConfig{.cpu_ids = {(size_t)i}});
         }
-        // create thread num has limit
         m_thread_pool = std::make_unique<ThreadPool>(configs);
-        // fmt::println("\nCreated thread pool with {} threads", configs.size());
     }
 
     ~GGMLBackend() override = default;
 
 public:
-    // void compute_forward(thread_compute_params *params, const OpNode *op) const override;
-
-public:
     void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const;
     void softmax(const Tensor *out, const Tensor *x) const;
-    void rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const;
+    void rope(Tensor *out, const Tensor *src, const Tensor *pos, const RopeConfig &rope_cfg) const;
     void multihead_attention(
         const Tensor *out,
         const Tensor *q,
         const Tensor *key_cache,
         const Tensor *val_cache,
         const Tensor *pos,
-        const int64_t L
+        const int64_t L,
+        const uint32_t n_heads
     ) const;
     void silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const;
     void add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
@@ -215,9 +210,11 @@ public:
         const Tensor *val_cache,
         const Tensor *pos,
         const int64_t L,
-        std::vector<Region> &regions
+        std::vector<Region> &regions,
+        const uint32_t n_heads
     ) const;
     void cos_sim(const Tensor *src0, const Tensor *src1) const;
+    void print(const Tensor *x, size_t size) const;
 
 public:
     template <typename T>
@@ -231,6 +228,22 @@ public:
 
         return std::make_shared<Buffer>(stride, malloc(size), true);
     }
+
+    template <typename T>
+    auto create_buffer_view(Buffer &parent, Tensor::Shape shape) -> BufferPtr {
+        Buffer::Stride stride;
+        stride[0] = sizeof(T);
+        for (size_t i = 1; i < shape.size(); i++) {
+            stride[i] = stride[i - 1] * shape[i - 1];
+        }
+        SMART_ASSERT(parent.m_data != nullptr);
+        auto b    = std::make_shared<Buffer>(stride, nullptr, false);
+        b->m_data = parent.m_data;
+        return b;
+    }
+
+public:
+    bool is_contiguous(const Tensor *tensor, int n) const;
 
 private:
     std::unique_ptr<ThreadPool> m_thread_pool;

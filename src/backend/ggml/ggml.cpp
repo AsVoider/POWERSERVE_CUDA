@@ -20,7 +20,6 @@ void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *sr
     auto src0_tensor = convert_to_ggml(src0);
     auto src1_tensor = convert_to_ggml(src1);
 
-    // fmt::print("Running matmul with {} threads\n", m_thread_pool->size());
     m_thread_pool->run([&](size_t thread_id) {
         op_compute_params params = m_params;
 
@@ -37,7 +36,6 @@ void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *sr
 
         smart_compute_forward_mul_mat(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get());
     });
-    // fmt::print("Finished matmul with {} threads\n", m_thread_pool->size());
 }
 
 void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t size) const {
@@ -106,32 +104,32 @@ void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
     });
 }
 
-// TODO: Rope's pos should be a tensor and we need rope_base (llama2 = 10000, llama3 = 300000 ...)
-void GGMLBackend::rope(Tensor *q_out, Tensor *k_out, const Tensor *q, const Tensor *k, const Tensor *pos) const {
-    auto dim                = q->m_shape[0];
-    auto head_size          = dim / m_config->tf_cfg.n_heads;
-    auto kv_dim             = (m_config->tf_cfg.dim * m_config->tf_cfg.n_kv_heads) / m_config->tf_cfg.n_heads;
-    const int32_t *pos_data = static_cast<int32_t *>(pos->get<Buffer>().m_data);
+void GGMLBackend::rope(Tensor *out, const Tensor *src, const Tensor *pos, const RopeConfig &rope_cfg) const {
+    auto dst_tensor  = convert_to_ggml(out);
+    auto src0_tensor = convert_to_ggml(src);
+    auto src1_tensor = convert_to_ggml(pos);
 
-    memcpy(q_out->get<Buffer>().m_data, q->get<Buffer>().m_data, q->n_elements() * sizeof(float));
-    memcpy(k_out->get<Buffer>().m_data, k->get<Buffer>().m_data, k->n_elements() * sizeof(float));
+    rope_compute_params rope_params = {
+        .n_dims      = rope_cfg.n_dims,
+        .n_ctx_orig  = rope_cfg.n_ctx_orig,
+        .freq_base   = rope_cfg.freq_base,
+        .freq_scale  = rope_cfg.freq_scale,
+        .ext_factor  = rope_cfg.ext_factor,
+        .attn_factor = rope_cfg.attn_factor,
+        .beta_fast   = rope_cfg.beta_fast,
+        .beta_slow   = rope_cfg.beta_slow
+    };
 
-    for (size_t i = 0; i < dim; i += 2) {
-        int head_dim = i % head_size;
-        float freq   = 1.0f / powf(10000.0f, head_dim / (float)head_size);
-        float val    = pos_data[0] * freq;
-        float fcr    = cosf(val);
-        float fci    = sinf(val);
-        int rotn     = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
-        for (int v = 0; v < rotn; v++) {
-            float *vec = v == 0 ? static_cast<float *>(q_out->get<Buffer>().m_data)
-                                : static_cast<float *>(k_out->get<Buffer>().m_data);
-            float v0   = vec[i];
-            float v1   = vec[i + 1];
-            vec[i]     = v0 * fcr - v1 * fci;
-            vec[i + 1] = v0 * fci + v1 * fcr;
-        }
-    }
+    m_thread_pool->run([&](size_t thread_id) {
+        op_compute_params params = m_params;
+
+        params.ith = thread_id;
+        params.nth = m_thread_pool->size();
+
+        smart_compute_forward_rope(
+            &params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get(), nullptr, &rope_params
+        );
+    });
 }
 
 void GGMLBackend::multihead_attention(
@@ -140,46 +138,55 @@ void GGMLBackend::multihead_attention(
     const Tensor *key_cache,
     const Tensor *val_cache,
     const Tensor *pos,
-    const int64_t L
+    const int64_t L,
+    const uint32_t n_heads
 ) const {
-    auto dim                = m_config->tf_cfg.dim;
-    auto kv_dim             = (m_config->tf_cfg.dim * m_config->tf_cfg.n_kv_heads) / m_config->tf_cfg.n_heads;
-    auto kv_mul             = m_config->tf_cfg.n_heads / m_config->tf_cfg.n_kv_heads;
-    auto head_size          = dim / m_config->tf_cfg.n_heads;
-    uint64_t loff           = L * m_config->tf_cfg.seq_len * kv_dim;
+    auto dim                = q->m_shape[0];
+    auto kv_dim             = key_cache->m_shape[0];
+    auto seq_len            = key_cache->m_shape[1];
+    auto kv_mul             = dim / kv_dim;
+    auto head_size          = dim / n_heads;
+    uint64_t loff           = L * seq_len * kv_dim;
     const int32_t *pos_data = static_cast<int32_t *>(pos->get<Buffer>().m_data);
-    auto att                = std::vector<float>(m_config->tf_cfg.n_heads * m_config->tf_cfg.seq_len);
+    std::vector<std::vector<float>> att(pos->m_shape[0]);
 
-    uint32_t h = 0;
-    for (h = 0; h < m_config->tf_cfg.n_heads; h++) {
-        auto q_buf   = static_cast<float *>(q->get<Buffer>().m_data) + h * head_size;
-        auto att_buf = att.data() + h * m_config->tf_cfg.seq_len;
+    for (size_t p = 0; p < pos->m_shape[0]; p++) { // batch size
+        auto out_buf = static_cast<float *>(out->get<Buffer>().m_data) + p * out->m_shape[0];
+        att[p]       = std::vector<float>(n_heads * seq_len, 0);
+        // auto mask_buf = static_cast<float *>(mask->get<Buffer>().m_data);
+        // SMART_UNUSED(mask_buf);
+        uint32_t h = 0;
+        for (h = 0; h < n_heads; h++) {
+            auto q_buf   = static_cast<float *>(q->get<Buffer>().m_data) + p * q->m_shape[0] + h * head_size;
+            auto att_buf = att[p].data() + h * seq_len;
 
-        for (auto t = 0; t <= pos_data[0]; t++) {
-            auto k =
-                static_cast<float *>(key_cache->get<Buffer>().m_data) + loff + t * kv_dim + (h / kv_mul) * head_size;
-            auto score = 0.0f;
+            for (auto t = 0; t <= pos_data[p]; t++) {
+                auto k = static_cast<float *>(key_cache->get<Buffer>().m_data) + loff + t * kv_dim +
+                         (h / kv_mul) * head_size;
+                auto score = 0.0f;
 
-            for (size_t i = 0; i < head_size; i++) {
-                score += q_buf[i] * k[i];
+                for (size_t i = 0; i < head_size; i++) {
+                    score += q_buf[i] * k[i];
+                }
+
+                score /= sqrtf(head_size);
+                att_buf[t] = score;
+                // att_buf[t] += mask_buf[p * mask->m_shape[1] * mask->m_shape[2] + t];
             }
 
-            score /= sqrtf(head_size);
-            att_buf[t] = score;
-        }
+            softmax_internal(att_buf, att_buf, pos_data[p] + 1);
 
-        softmax_internal(att_buf, att_buf, pos_data[0] + 1);
+            auto xb = out_buf + h * head_size;
+            memset(xb, 0, head_size * sizeof(float));
 
-        auto xb = static_cast<float *>(out->get<Buffer>().m_data) + h * head_size;
-        memset(xb, 0, head_size * sizeof(float));
+            for (auto t = 0; t <= pos_data[p]; t++) {
+                auto v = static_cast<float *>(val_cache->get<Buffer>().m_data) + loff + t * kv_dim +
+                         (h / kv_mul) * head_size;
+                auto a = att_buf[t];
 
-        for (auto t = 0; t <= pos_data[0]; t++) {
-            auto v =
-                static_cast<float *>(val_cache->get<Buffer>().m_data) + loff + t * kv_dim + (h / kv_mul) * head_size;
-            auto a = att_buf[t];
-
-            for (size_t i = 0; i < head_size; i++) {
-                xb[i] += a * v[i];
+                for (size_t i = 0; i < head_size; i++) {
+                    xb[i] += a * v[i];
+                }
             }
         }
     }
@@ -202,13 +209,18 @@ void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1)
 }
 
 void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const {
-    for (size_t i = 0; i < m_config->tf_cfg.hidden_dim; i++) {
-        float val = static_cast<float *>(hb->get<Buffer>().m_data)[i];
-        // silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
+    SMART_ASSERT(is_contiguous(out, 0));
+    SMART_ASSERT(is_contiguous(hb, 0));
+    SMART_ASSERT(is_contiguous(hb2, 0));
+    float *out_data = static_cast<float *>(out->get<Buffer>().m_data);
+    float *hb_data  = static_cast<float *>(hb->get<Buffer>().m_data);
+    float *hb2_data = static_cast<float *>(hb2->get<Buffer>().m_data);
+
+    for (size_t j = 0; j < hb->n_elements(); j++) {
+        float val = hb_data[j];
         val *= (1.0f / (1.0f + expf(-val)));
-        // elementwise multiply with w3(x)
-        val *= static_cast<float *>(hb2->get<Buffer>().m_data)[i];
-        static_cast<float *>(out->get<Buffer>().m_data)[i] = val;
+        val *= hb2_data[j];
+        out_data[j] = val;
     }
 }
 
@@ -225,15 +237,18 @@ void GGMLBackend::quest_attention(
     const Tensor *val_cache,
     const Tensor *pos,
     const int64_t L,
-    std::vector<Region> &regions
-) const {
-    auto dim         = m_config->tf_cfg.dim;
-    auto kv_dim      = (m_config->tf_cfg.dim * m_config->tf_cfg.n_kv_heads) / m_config->tf_cfg.n_heads;
-    auto kv_mul      = m_config->tf_cfg.n_heads / m_config->tf_cfg.n_kv_heads;
-    auto head_size   = dim / m_config->tf_cfg.n_heads;
-    uint64_t loff    = L * m_config->tf_cfg.seq_len * kv_dim;
+    std::vector<Region> &regions,
+    const uint32_t n_heads
+) const { // No batch size -- no need
+    auto dim       = q->m_shape[0];
+    auto kv_dim    = key_cache->m_shape[0];
+    auto seq_len   = key_cache->m_shape[1];
+    auto kv_mul    = dim / kv_dim;
+    auto head_size = dim / n_heads;
+    uint64_t loff  = L * seq_len * kv_dim;
+
     auto pos_data    = static_cast<int32_t *>(pos->get<Buffer>().m_data);
-    auto att         = std::vector<float>(m_config->tf_cfg.n_heads * m_config->tf_cfg.seq_len, -INFINITY);
+    auto att         = std::vector<float>(n_heads * seq_len, -INFINITY);
     uint32_t n_init  = 1;
     uint32_t topK    = 2; // head + topK + tails // cosine similarity
     uint32_t n_local = 4;
@@ -243,7 +258,7 @@ void GGMLBackend::quest_attention(
         regions.emplace_back(kv_dim, REGION_TOKENS);
     }
     regions[regions.size() - 1].update_score(
-        static_cast<float *>(key_cache->get<Buffer>().m_data), m_config->tf_cfg.seq_len, L, pos_data[0]
+        static_cast<float *>(key_cache->get<Buffer>().m_data), seq_len, L, pos_data[0]
     );
 
     // Multihead attention for target regions' tokens
@@ -269,13 +284,13 @@ void GGMLBackend::quest_attention(
     }
 
     uint32_t h = 0;
-    for (h = 0; h < m_config->tf_cfg.n_heads; h++) {
+    for (h = 0; h < n_heads; h++) {
         auto q_   = static_cast<float *>(q->get<Buffer>().m_data) + h * head_size;
-        auto att_ = att.data() + h * m_config->tf_cfg.seq_len;
+        auto att_ = att.data() + h * seq_len;
 
         for (auto &r : top_regions) {
             for (auto &t : r.region_tensors) {
-                uint64_t off = t.L * m_config->tf_cfg.seq_len * kv_dim + t.pos * kv_dim + (h / kv_mul) * head_size;
+                uint64_t off = t.L * seq_len * kv_dim + t.pos * kv_dim + (h / kv_mul) * head_size;
                 auto k       = static_cast<float *>(key_cache->get<Buffer>().m_data) + off;
 
                 auto score = 0.0f;
@@ -333,4 +348,36 @@ void GGMLBackend::cos_sim_internal(float *x_, float *y_, size_t size) const {
     }
 }
 
+void GGMLBackend::print(const Tensor *x, size_t size) const {
+    SMART_UNUSED(size);
+    SMART_ASSERT(x->m_dtype == DataType::FP32);
+    printf("\n{%ld, %ld, %ld, %ld}\n", x->m_shape[3], x->m_shape[2], x->m_shape[1], x->m_shape[0]);
+    auto shape  = x->m_shape;
+    auto stride = x->get<Buffer>().m_stride;
+    for (size_t i3 = 0; i3 < shape[3]; i3++) {
+        for (size_t i2 = 0; i2 < shape[2]; i2++) {
+            for (size_t i1 = 0; i1 < shape[1]; i1++) {
+                for (size_t i0 = 0; i0 < shape[0]; i0++) {
+                    float *ptr = (float *)((char *)x->get<Buffer>().m_data + i3 * stride[3] + i2 * stride[2] +
+                                           i1 * stride[1] + i0 * stride[0]);
+                    // printf("[%ld][%ld][%ld][%ld] = %.6f\n", i3, i2, i1, i0, (double)*ptr);
+                    printf("%.6f\n", (double)*ptr);
+                }
+            }
+        }
+    }
+    exit(0);
+}
+
+bool GGMLBackend::is_contiguous(const Tensor *tensor, int n) const {
+    SMART_ASSERT(n >= 0 && n <= 2);
+    if (n == 0) {
+        return ggml_is_contiguous_0(convert_to_ggml(tensor).get());
+    } else if (n == 1) {
+        return ggml_is_contiguous_1(convert_to_ggml(tensor).get());
+    } else if (n == 2) {
+        return ggml_is_contiguous_2(convert_to_ggml(tensor).get());
+    }
+    return false;
+}
 } // namespace smart::ggml

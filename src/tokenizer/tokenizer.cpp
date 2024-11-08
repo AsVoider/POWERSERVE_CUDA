@@ -17,6 +17,8 @@ Tokenizer::Tokenizer(const Path &vocab_path) {
     llm_load_vocab(m_vocab, meta);
 
     gguf_free(meta);
+
+    debug_tokenizer();
 }
 
 size_t Tokenizer::n_vocabs() const {
