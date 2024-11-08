@@ -13,7 +13,7 @@
 
 namespace smart::ggml {
 
-void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
+void  GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
     // W (d,n) @ x (n,) -> xout (d,)
     // by far the most amount of time is spent inside this little function
     auto dst_tensor  = convert_to_ggml(dst);
