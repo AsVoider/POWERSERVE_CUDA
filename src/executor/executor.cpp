@@ -12,23 +12,11 @@ void Executor::allocate_buffers() {
 
         switch (tensor->m_dtype) {
         case DataType::FP32: {
-            if (tensor->type == NodeType::TENSOR_VIEW) {
-                tensor->m_data = m_platform.ggml_backend.create_buffer_view<float>(
-                    tensor->tensor_view()->parent->get<ggml::Buffer>(), tensor->m_shape
-                );
-            } else {
-                tensor->m_data = m_platform.ggml_backend.create_buffer<float>(tensor->m_shape);
-            }
+            create_ggml_buffer<float>(tensor);
         } break;
 
         case DataType::INT32: {
-            if (tensor->type == NodeType::TENSOR_VIEW) {
-                tensor->m_data = m_platform.ggml_backend.create_buffer_view<int32_t>(
-                    tensor->tensor_view()->parent->get<ggml::Buffer>(), tensor->m_shape
-                );
-            } else {
-                tensor->m_data = m_platform.ggml_backend.create_buffer<int32_t>(tensor->m_shape);
-            }
+            create_ggml_buffer<int32_t>(tensor);
         } break;
 
         default:
