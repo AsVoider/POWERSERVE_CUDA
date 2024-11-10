@@ -7,3 +7,6 @@
 [submodule "libs/fmt"]
 	path = libs/fmt
 	url = https://github.com/fmtlib/fmt.git
+[submodule "libs/cli11"]
+	path = libs/cli11
+	url = https://github.com/CLIUtils/CLI11.git
