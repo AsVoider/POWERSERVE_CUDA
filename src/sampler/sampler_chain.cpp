@@ -3,7 +3,7 @@
 namespace smart {
 
 SamplerChain::SamplerChain(SamplerConfig config) : m_config(config) {
-    m_penalties_checker = std::make_shared<PenaltyChecker>(
+    m_samplers.emplace_back(std::make_shared<PenaltyChecker>(
         config.vocab_size,
         config.special_eos_id,
         config.linefeed_id,
@@ -13,9 +13,7 @@ SamplerChain::SamplerChain(SamplerConfig config) : m_config(config) {
         config.penalty_present,
         config.penalize_nl,
         config.ignore_eos
-    );
-
-    m_samplers.emplace_back(m_penalties_checker); // TODO: the first or the last?
+    )); // TODO: the first or the last?
     m_samplers.emplace_back(std::make_shared<TopKSampler>(config.top_k));
     m_samplers.emplace_back(std::make_shared<TemperatureExtSampler>(config.temp));
     m_samplers.emplace_back(std::make_shared<SoftmaxSampler>());
@@ -33,7 +31,9 @@ void SamplerChain::apply(ProbArray &probs) {
 }
 
 void SamplerChain::accept(Tokenizer::Token token) {
-    m_penalties_checker->accept(token);
+    for (auto &sampler : m_samplers) {
+        sampler->accept(token);
+    }
 }
 
 } // namespace smart

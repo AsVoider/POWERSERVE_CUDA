@@ -28,9 +28,9 @@ public:
 public:
     Graph *prefill() override;
     Graph *decode() override;
-    void generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps) override;
+    void generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) override;
 
-    std::vector<float> forward(int token, int pos);
+    auto forward(int token, int pos) -> std::vector<float>;
 };
 
 } // namespace smart
