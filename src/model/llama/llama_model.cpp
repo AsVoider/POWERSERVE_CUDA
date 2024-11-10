@@ -58,7 +58,7 @@ Graph *LlamaModel::decode() {
     return nullptr;
 }
 
-std::vector<float> LlamaModel::forward(int token, int pos) {
+auto LlamaModel::forward(int token, int pos) -> std::vector<float> {
     Graph g;
     // input embedding
     size_t batch_size = 1;
@@ -95,12 +95,12 @@ std::vector<float> LlamaModel::forward(int token, int pos) {
     return std::vector<float>(logits_data, logits_data + m_config->tf_cfg.vocab_size);
 }
 
-void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, int steps) {
+void LlamaModel::generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) {
     SMART_ASSERT(m_attn != nullptr);
     // encode the (string) prompt into tokens sequence
 
     int num_prompt_tokens = 0;
-    auto prompt_tokens    = tk->tokenize(prompt, tk->m_vocab.tokenizer_add_bos);
+    auto prompt_tokens    = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos);
     // fmt::println("tokens: {}", prompt_tokens);
     num_prompt_tokens = prompt_tokens.size();
 
@@ -118,29 +118,29 @@ void LlamaModel::generate(Tokenizer *tk, Sampler *sampler, std::string prompt, i
         if (pos < num_prompt_tokens - 1) {
             // TODO: prefill
             // if we are still processing the input prompt, force the next prompt token
-            next = tk->m_vocab.tokenizer_add_bos ? prompt_tokens[pos + 1] : prompt_tokens[pos];
+            next = tokenizer.m_vocab.tokenizer_add_bos ? prompt_tokens[pos + 1] : prompt_tokens[pos];
         } else {
             // TODO: Decode
             // otherwise sample the next token from the logits
             auto probs = ProbArray(logits);
-            sampler->apply(probs);
+            sampler.apply(probs);
             std::mt19937 gen(std::random_device{}());
             next = probs.sample(gen).index;
-            ((SamplerChain *)sampler)->accept(next);
+            sampler.accept(next);
         }
         pos++;
 
         // data-dependent terminating condition: the BOS token delimits sequences
-        if (next == tk->bos_token()) {
+        if (next == tokenizer.bos_token()) {
             break;
-        } else if (next == tk->m_vocab.special_eos_id || next == tk->m_vocab.special_eom_id ||
-                   next == tk->m_vocab.special_eot_id) {
+        } else if (next == tokenizer.m_vocab.special_eos_id || next == tokenizer.m_vocab.special_eom_id ||
+                   next == tokenizer.m_vocab.special_eot_id) {
             fmt::print("[end of text]");
             break;
         }
 
         // print the token as string, decode it with the Tokenizer object
-        auto piece = tk->to_string(next);
+        auto piece = tokenizer.to_string(next);
         fmt::print("{}", piece);
         fflush(stdout);
         token = next;

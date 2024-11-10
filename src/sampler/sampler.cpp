@@ -95,19 +95,6 @@ void TopPSampler::apply(ProbArray &probs) {
     probs.m_probs.resize(last_idx);
 }
 
-// void StochasticSampler::apply(ProbArray &probs) {
-//     SMART_ASSERT(probs.m_is_normalized);
-//     SMART_ASSERT(probs.m_is_sorted);
-
-//     std::discrete_distribution<int> dist(
-//         probs_iterator{probs.m_probs.data()}, probs_iterator{probs.m_probs.data() + probs.m_probs.size()}
-//     );
-//     std::mt19937 gen(m_seed);
-//     auto idx         = dist(gen);
-//     probs.m_probs[0] = probs.m_probs[idx];
-//     probs.m_probs.resize(1);
-// }
-
 void TemperatureExtSampler::apply(ProbArray &probs) {
     if (m_delta > 0) {
         const float min_temp = std::max(0.0f, m_temperature - m_delta);

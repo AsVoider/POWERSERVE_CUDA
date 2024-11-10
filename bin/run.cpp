@@ -119,5 +119,5 @@ int main(int argc, char *argv[]) {
     }
 
     // generate
-    model->generate(&tokenizer, (smart::Sampler *)(&sampler), prompt, steps);
+    model->generate(tokenizer, sampler, prompt, steps);
 }
