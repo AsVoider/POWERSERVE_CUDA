@@ -19,7 +19,6 @@ ColumnLimit: 120
 ContinuationIndentWidth: 4
 IncludeBlocks: Regroup
 IndentWidth: 4
-InsertNewlineAtEOF: true
 PackConstructorInitializers: CurrentLine
 PenaltyReturnTypeOnItsOwnLine: 100000
 ReflowComments: false
