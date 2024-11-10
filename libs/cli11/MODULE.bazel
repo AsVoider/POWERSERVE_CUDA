@@ -1,3 +1,0 @@
-module(name = "cli11")
-
-bazel_dep(name = "catch2", version = "3.5.4", dev_dependency = True)

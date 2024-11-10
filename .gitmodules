@@ -1,3 +1,12 @@
 [submodule "libs/libuv"]
 	path = libs/libuv
 	url = https://github.com/libuv/libuv.git
+[submodule "libs/json"]
+	path = libs/json
+	url = https://github.com/nlohmann/json.git
+[submodule "libs/fmt"]
+	path = libs/fmt
+	url = https://github.com/fmtlib/fmt.git
+[submodule "libs/cli11"]
+	path = libs/cli11
+	url = https://github.com/CLIUtils/CLI11.git
