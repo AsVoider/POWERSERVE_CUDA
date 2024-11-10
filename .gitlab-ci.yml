@@ -16,6 +16,8 @@ check_formatting:
   stage: check_format
   before_script:
     - apt-get update && apt-get install -y clang-format git
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
   script:
     - echo `which clang-format`
     - cd "$CI_PROJECT_DIR"
