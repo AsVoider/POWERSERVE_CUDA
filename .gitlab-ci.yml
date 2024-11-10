@@ -19,9 +19,9 @@ check_formatting:
   script:
     - echo `which clang-format`
     - cd "$CI_PROJECT_DIR"
-    - echo "Checking formatting from $CI_MERGE_REQUEST_DIFF_BASE_SHA..."
-    - git-clang-format $CI_MERGE_REQUEST_DIFF_BASE_SHA --diff
-    - linter_errors=$(git-clang-format $CI_MERGE_REQUEST_DIFF_BASE_SHA --diff | grep -E --color=never "no modified files to format|clang-format did not modify any files" || true)
+    - echo "Checking formatting from ${CI_MERGE_REQUEST_DIFF_BASE_SHA}..."
+    - git-clang-format ${CI_MERGE_REQUEST_DIFF_BASE_SHA} --diff
+    - linter_errors=$(git-clang-format ${CI_MERGE_REQUEST_DIFF_BASE_SHA} --diff | grep -E --color=never "no modified files to format|clang-format did not modify any files" || true)
     - echo "$linter_errors"
     - if [ -z "$linter_errors" ]; then echo "Detected formatting issues; please fix"; exit 1; else echo "Formatting is correct"; exit 0; fi
 
