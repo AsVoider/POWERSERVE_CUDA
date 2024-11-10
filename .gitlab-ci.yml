@@ -19,7 +19,7 @@ check_formatting:
   script:
     - echo `which clang-format`
     - cd "$CI_PROJECT_DIR"
-    - echo "Checking formatting..."
+    - echo "Checking formatting from $CI_MERGE_REQUEST_DIFF_BASE_SHA..."
     - git-clang-format $CI_MERGE_REQUEST_DIFF_BASE_SHA --diff
     - linter_errors=$(git-clang-format $CI_MERGE_REQUEST_DIFF_BASE_SHA --diff | grep -E --color=never "no modified files to format|clang-format did not modify any files" || true)
     - echo "$linter_errors"
