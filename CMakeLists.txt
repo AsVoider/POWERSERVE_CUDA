@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project("SmartServing" C CXX)
 
-option(SMART_ENABLE_SANITIZERS "Enable address and undefined santizers" OFF)
+option(SMART_ENABLE_ASAN "Enable address santizer" OFF)
+option(SMART_ENABLE_UBSAN "Enable undefined santizer" OFF)
 option(SMART_ENABLE_LTO "Enable link-time optimization" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -21,9 +22,19 @@ string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWI
 
 set(BUILD_SHARED_LIBS OFF)
 
-if (SMART_ENABLE_SANITIZERS)
-    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
-    link_libraries(-fsanitize=address,undefined)
+if (SMART_ENABLE_ASAN)
+    if (ANDROID)
+        add_compile_options(-fsanitize=hwaddress -fno-omit-frame-pointer)
+        link_libraries(-fsanitize=hwaddress)
+    else()
+        add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+        link_libraries(-fsanitize=address)
+    endif()
+endif()
+
+if (SMART_ENABLE_UBSAN)
+    add_compile_options(-fsanitize=undefined)
+    link_libraries(-fsanitize=undefined)
 endif()
 
 if (SMART_ENABLE_LTO)
