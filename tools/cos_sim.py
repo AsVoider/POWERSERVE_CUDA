@@ -17,7 +17,7 @@ if __name__ == "__main__":
         lines1 = f1.readlines()
         lines2 = f2.readlines()
 
-    a = np.array([float(line) for line in lines1])
-    b = np.array([float(line) for line in lines2])
+    a = np.array([float(line.replace("\n", "")) for line in lines1 if line.replace("\n", "").strip()])
+    b = np.array([float(line.replace("\n", "")) for line in lines2 if line.replace("\n", "").strip()])
 
     print(cos_sim(a, b))

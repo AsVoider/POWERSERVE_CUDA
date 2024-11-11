@@ -16,6 +16,18 @@ public:
 public:
     void allocate_buffers();
     void run();
+
+private:
+    template <typename T>
+    void create_ggml_buffer(std::shared_ptr<TensorNode> tensor) {
+        if (tensor->type == NodeType::TENSOR_VIEW) {
+            tensor->m_data = m_platform.ggml_backend.create_buffer_view<T>(
+                tensor->tensor_view()->parent->get<ggml::Buffer>(), tensor->m_shape
+            );
+        } else {
+            tensor->m_data = m_platform.ggml_backend.create_buffer<T>(tensor->m_shape);
+        }
+    }
 };
 
 } // namespace smart

@@ -12,6 +12,9 @@ if (${CMAKE_C_COMPILER_ID} MATCHES "Clang")
     target_compile_options(ggml PRIVATE -Wno-double-promotion)
 endif()
 
+# json
+add_subdirectory(json)
+
 # libuv
 add_subdirectory(libuv)
 

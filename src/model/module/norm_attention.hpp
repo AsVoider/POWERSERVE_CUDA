@@ -1,8 +1,8 @@
 #pragma once
 
+#include "core/config.hpp"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
-#include "model/common/config.hpp"
 #include "model/common/weights.hpp"
 #include "model/module/attention.hpp"
 

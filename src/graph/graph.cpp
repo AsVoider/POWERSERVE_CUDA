@@ -21,6 +21,20 @@ auto Graph::dup_tensor(TensorNode *tensor) -> TensorNode * {
     return new_tensor(tensor->m_dtype, tensor->m_shape);
 }
 
+auto Graph::view_tensor(TensorNode *tensor, Tensor::Shape shape) -> TensorViewNode * {
+    return static_cast<TensorViewNode *>(tensors.emplace_back(new TensorViewNode(*tensor, shape)).get());
+}
+
+auto Graph::get_embedding(TensorNode *weight, TensorNode *tokens) -> TensorNode * {
+    auto op         = new_op(OpType::GET_EMBEDDING);
+    auto out        = dup_tensor(weight); // weights (dim, vocab_size)
+    out->m_dtype    = DataType::FP32;
+    out->m_shape[1] = tokens->m_shape[0]; // batch size   // inp (dim, batch_size)
+    op->set_inputs({weight, tokens});
+    op->set_outputs({out});
+    return out;
+}
+
 auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
     SMART_ASSERT(a->m_dtype == b->m_dtype);
     SMART_ASSERT(a->m_shape == b->m_shape);
@@ -72,16 +86,14 @@ auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
     return out;
 }
 
-auto Graph::rope(TensorNode *q, TensorNode *k, TensorNode *pos) -> RopeResult {
-    // TODO: Add checks
+auto Graph::rope(TensorNode *src, TensorNode *pos, const RopeConfig &params) -> TensorNode * {
+    auto out = dup_tensor(src);
+    auto op  = new_op(OpType::ROPE);
+    op->set_inputs({src, pos});
+    op->set_outputs({out});
+    op->set_params(RopeParams{params});
 
-    auto q_out = dup_tensor(q);
-    auto k_out = dup_tensor(k);
-    auto op    = new_op(OpType::ROPE);
-    op->set_inputs({q, k, pos});
-    op->set_outputs({q_out, k_out});
-
-    return {.q_out = q_out, .k_out = k_out};
+    return out;
 }
 
 auto Graph::softmax(TensorNode *x) -> TensorNode * {
@@ -93,15 +105,16 @@ auto Graph::softmax(TensorNode *x) -> TensorNode * {
     return out;
 }
 
-auto Graph::mha(TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id)
-    -> TensorNode * {
+auto Graph::mha(
+    TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id, uint32_t n_heads
+) -> TensorNode * {
     // TODO: Add checks
 
     auto out = dup_tensor(q);
     auto op  = new_op(OpType::MHA);
     op->set_inputs({q, key_cache, val_cache, pos});
     op->set_outputs({out});
-    op->set_params(MHAParams{.layer_id = layer_id});
+    op->set_params(MHAParams{.layer_id = layer_id, .n_heads = n_heads});
 
     return out;
 }
@@ -124,13 +137,14 @@ auto Graph::quest_attention(
     TensorNode *val_cache,
     TensorNode *pos,
     size_t layer_id,
-    std::vector<Region> &regions
+    std::vector<Region> &regions,
+    uint32_t n_heads
 ) -> TensorNode * {
     auto out = dup_tensor(q);
     auto op  = new_op(OpType::QUEST_ATTN);
     op->set_inputs({q, key_cache, val_cache, pos});
     op->set_outputs({out});
-    op->set_params(QuestAttnParams(layer_id, regions));
+    op->set_params(QuestAttnParams{.layer_id = layer_id, .regions = regions, .n_heads = n_heads});
 
     return out;
 }

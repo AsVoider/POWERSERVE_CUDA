@@ -12,8 +12,8 @@
 namespace smart {
 
 struct ProbIndex {
-    float prob;
-    Tokenizer::Token index;
+    float prob             = 0.0f;
+    Tokenizer::Token index = -1;
 
     bool operator<(const ProbIndex &other) const {
         return prob < other.prob;
@@ -31,7 +31,7 @@ public:
     bool m_is_normalized = false;
 
 public:
-    ProbArray(std::vector<float> &logits) {
+    ProbArray(const std::vector<float> &logits) {
         m_probs.resize(logits.size());
         for (size_t i = 0; i < logits.size(); i++) {
             m_probs[i].index = i;
@@ -39,50 +39,16 @@ public:
         }
     }
 
-private:
-    struct probs_iterator {
-        using iterator_category = std::input_iterator_tag;
-        using value_type        = float;
-        using pointer           = float *;
-        using reference         = float &;
-        using difference_type   = ptrdiff_t;
-
-        const ProbIndex *data;
-
-        probs_iterator(const ProbIndex *data) : data(data) {}
-
-        bool operator==(const probs_iterator &other) const {
-            return data == other.data;
-        }
-
-        bool operator!=(const probs_iterator &other) const {
-            return !(*this == other);
-        }
-
-        const float &operator*() const {
-            return data->prob;
-        }
-
-        probs_iterator &operator++() {
-            ++data;
-            return *this;
-        }
-
-        probs_iterator operator++(int) {
-            probs_iterator tmp = *this;
-            ++data;
-            return tmp;
-        }
-    };
-
 public:
     template <typename RandomEngine>
     ProbIndex sample(RandomEngine &&gen) {
-        std::discrete_distribution<int> dist(
-            probs_iterator{m_probs.data()}, probs_iterator{m_probs.data() + m_probs.size()}
-        );
-        auto idx = dist(gen);
-        return m_probs[idx];
+        size_t index = std::discrete_distribution(m_probs.size(), 0, m_probs.size(), [&](double x) {
+            // https://en.cppreference.com/w/cpp/numeric/random/discrete_distribution/discrete_distribution
+            // x = i + 0.5
+            return m_probs[(size_t)x].prob;
+        })(gen);
+
+        return m_probs[index];
     }
 
 public:
@@ -107,7 +73,6 @@ static uint64_t get_rng_seed(uint64_t seed) {
 
 struct Sampler {
 public:
-    Sampler()          = default;
     virtual ~Sampler() = default;
 
 public:

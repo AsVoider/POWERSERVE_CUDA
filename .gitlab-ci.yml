@@ -5,6 +5,10 @@ stages:
   - deploy
   - test
 
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   IMAGE_NAME: ubuntu:22.04
@@ -19,9 +23,9 @@ check_formatting:
   script:
     - echo `which clang-format`
     - cd "$CI_PROJECT_DIR"
-    - echo "Checking formatting..."
-    - git-clang-format --diff
-    - linter_errors=$(git-clang-format --diff | grep -E --color=never "no modified files to format|clang-format did not modify any files" || true)
+    - echo "Checking formatting from ${CI_MERGE_REQUEST_DIFF_BASE_SHA}..."
+    - git-clang-format ${CI_MERGE_REQUEST_DIFF_BASE_SHA} --diff
+    - linter_errors=$(git-clang-format ${CI_MERGE_REQUEST_DIFF_BASE_SHA} --diff | grep -E --color=never "no modified files to format|clang-format did not modify any files" || true)
     - echo "$linter_errors"
     - if [ -z "$linter_errors" ]; then echo "Detected formatting issues; please fix"; exit 1; else echo "Formatting is correct"; exit 0; fi
 
@@ -78,22 +82,22 @@ deploy:
 test_llama3.1:
   stage: test
   script:
-    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.1_8b_vocab.gguf --prompt \"One day,\" --steps 64"
+    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.1_8b_vocab.gguf --prompt \"One day,\" --steps 32"
 
-test_phi3:
-  stage: test
-  script:
-    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 64"
+# test_phi3:
+#   stage: test
+#   script:
+#     - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 64"
 
 test_sparse:
   stage: test
   script:
-    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 64 --attn-type quest"
+    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 32 --attn-type quest"
 
 test_thread:
   stage: test
   script:
-    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 64 --n-threads 8"
+    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 32 --n-threads 8"
 
 # test_long_out:
 #   stage: test

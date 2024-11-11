@@ -622,18 +622,30 @@ extern "C" {
         // char padding[4];
     };
 
-struct op_compute_params {
-    // ith = thread index, nth = number of threads
-    int ith, nth;
+    struct op_compute_params {
+        // ith = thread index, nth = number of threads
+        int ith, nth;
 
-    // work buffer for all threads
-    size_t wsize;
-    void * wdata;
+        // work buffer for all threads
+        size_t wsize;
+        void * wdata;
 
-    void *thread_pool;
-    void (*barrier_fn)(void *thread_pool);
-    atomic_int *current_chunk;
-};
+        void *thread_pool;
+        void (*barrier_fn)(void *thread_pool);
+        atomic_int *current_chunk;
+    };
+
+    struct rope_compute_params {
+        int n_dims;
+        int n_ctx_orig;
+        float freq_base;
+        float freq_scale; 
+        float ext_factor; 
+        float attn_factor; 
+        float beta_fast; 
+        float beta_slow;
+    };
+
     static const size_t GGML_TENSOR_SIZE = sizeof(struct ggml_tensor);
 
     // Abort callback
@@ -759,6 +771,15 @@ struct op_compute_params {
         struct ggml_tensor * dst,
         struct ggml_tensor * src0,
         struct ggml_tensor * src1
+    );
+
+    GGML_API GGML_CALL void smart_compute_forward_rope(
+        struct op_compute_params * params,
+        struct ggml_tensor * dst,
+        struct ggml_tensor * src0,
+        struct ggml_tensor * src1,
+        struct ggml_tensor * src2,
+        struct rope_compute_params *rope_params
     );
 
     GGML_API GGML_CALL int64_t ggml_blck_size(enum ggml_type type);

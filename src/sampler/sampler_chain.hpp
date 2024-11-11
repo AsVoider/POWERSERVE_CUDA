@@ -30,9 +30,8 @@ struct SamplerConfig {
 
 struct SamplerChain : Sampler {
 public:
-    SamplerConfig m_config{};
-    std::vector<std::shared_ptr<Sampler>> m_samplers{};
-    std::shared_ptr<PenaltyChecker> m_penalties_checker{};
+    SamplerConfig m_config;
+    std::vector<std::shared_ptr<Sampler>> m_samplers;
 
 public:
     SamplerChain(SamplerConfig config);

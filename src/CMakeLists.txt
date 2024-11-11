@@ -6,6 +6,11 @@ target_link_libraries(smart_serving PUBLIC
     ggml
     llama_tokenizer
     uv_a
+    nlohmann_json::nlohmann_json
+)
+
+target_sources(smart_serving PRIVATE
+    "common.cpp"
 )
 
 add_subdirectory(backend)

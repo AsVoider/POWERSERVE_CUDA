@@ -33,7 +33,7 @@ public:
     virtual Graph *prefill() = 0;
     virtual Graph *decode()  = 0;
 
-    virtual void generate(Tokenizer *tokenizer, Sampler *sampler, std::string prompt, int steps) = 0;
+    virtual void generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) = 0;
 };
 
 } // namespace smart
