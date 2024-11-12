@@ -17,6 +17,7 @@ int main(int argc, char *argv[]) {
     // 0. load config
     std::string file_path      = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama-2-7b.f32.gguf";
     std::string tokenizer_path = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama2_7b_vocab.gguf";
+    std::string config_path    = "/home/zwb/SS/smartserving/llama3.2.json";
     float temperature          = 0.8f; // 0.0 = greedy deterministic. 1.0 = original. don't set higher
     float top_p                = 0.95f;
     size_t top_k               = 40;
@@ -30,6 +31,7 @@ int main(int argc, char *argv[]) {
 
     app.add_option("--file-path", file_path)->required();
     app.add_option("--vocab-path", tokenizer_path)->required();
+    app.add_option("--config-path", config_path)->required();
     app.add_option("--prompt", prompt);
     app.add_option("--steps", steps);
     app.add_option("--attn-type", attn_type);
@@ -48,30 +50,26 @@ int main(int argc, char *argv[]) {
         n_threads = std::min((unsigned int)n_threads, n_cpus - 1);
     }
 
-    // get model type
-    std::string model_arch;
-    {
-        ggml_context *ggml_ctx;
-        gguf_context *gguf_ctx;
+    // get config
+    std::shared_ptr<smart::Config> config = std::make_shared<smart::Config>(config_path);
 
-        gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
-        gguf_ctx                = gguf_init_from_file(file_path.c_str(), params);
-        SMART_ASSERT(gguf_ctx != nullptr);
-        SMART_ASSERT(ggml_ctx != nullptr);
-        model_arch = gguf_get_val_str(gguf_ctx, gguf_find_key(gguf_ctx, "general.architecture"));
-        gguf_free(gguf_ctx);
-    }
+    // get platform
+    std::shared_ptr<smart::Platform> platform = std::make_shared<smart::Platform>(config, n_threads);
+
+    // get model type
+    std::string model_arch = config->arch;
     smart::get_memory_usage("begin");
 
     std::unique_ptr<smart::Model> model;
     // TODO: move into Model.cpp like build_model
     if (model_arch == "llama") {
-        model = std::make_unique<smart::LlamaModel>(file_path, n_threads);
+        model = std::make_unique<smart::LlamaModel>(file_path, config);
     } else if (model_arch == "phi3") {
         SMART_ASSERT(false);
     } else {
         fmt::print("Unknown model type\n");
     }
+    model->m_plat = platform;
     smart::get_memory_usage("after model init");
 
     if (attn_type == "normal") {
@@ -86,7 +84,7 @@ int main(int argc, char *argv[]) {
     smart::get_memory_usage("after tokenizer init");
 
     // load sampler
-    smart::SamplerConfig config{
+    smart::SamplerConfig sample_config{
         .seed            = rng_seed,
         .temp            = temperature,
         .top_p           = top_p,
@@ -101,7 +99,7 @@ int main(int argc, char *argv[]) {
         .penalize_nl     = false,
         .ignore_eos      = false,
     };
-    smart::SamplerChain sampler{config};
+    smart::SamplerChain sampler{sample_config};
     smart::get_memory_usage("after sampler init");
 
     {

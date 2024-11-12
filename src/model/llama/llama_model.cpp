@@ -6,7 +6,7 @@
 #include "executor/executor.hpp"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
-#include "model/llama/llama_config.hpp"
+// #include "model/llama/llama_config.hpp"
 #include "model/llama/llama_weight.hpp"
 #include "sampler/sampler.hpp"
 #include "sampler/sampler_chain.hpp"
@@ -19,7 +19,7 @@
 
 namespace smart {
 
-LlamaModel::LlamaModel(const std::string &filename, int n_threads) : Model(filename) {
+LlamaModel::LlamaModel(const std::string &filename, std::shared_ptr<Config> config) : Model(filename) {
     // load file meta data (+ 4G)
     {
         gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
@@ -28,14 +28,14 @@ LlamaModel::LlamaModel(const std::string &filename, int n_threads) : Model(filen
         SMART_ASSERT(ggml_ctx != nullptr);
     }
     // prepare data
-    m_config = std::make_shared<LlamaConfig>(gguf_ctx);
+    m_config = config;
     // prepare weights (+ 2G)
     m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->tf_cfg.n_layers);
     // modules
     m_attn = nullptr;
     m_ffn  = std::make_shared<FFN>(m_config, m_weights);
     // platform
-    plat = std::make_shared<Platform>(m_config, n_threads);
+    m_plat = nullptr;
 
     // debug model info
     {
@@ -80,7 +80,7 @@ auto LlamaModel::forward(int token, int pos) -> std::vector<float> {
     auto output_w = g.add_tensor(m_weights->output_weight);
     auto logits   = g.mat_mul(final_rms_norm, output_w);
 
-    Executor executor(*plat.get(), g);
+    Executor executor(*m_plat.get(), g);
     executor.allocate_buffers();
 
     for (size_t i = 0; i < batch_size; i++) {

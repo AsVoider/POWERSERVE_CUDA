@@ -1,5 +1,6 @@
 #pragma once
 
+#include "backend/platform.hpp"
 #include "graph/graph.hpp"
 #include "model/module/attention.hpp"
 #include "model/module/ffn.hpp"
@@ -18,6 +19,7 @@ public:
     std::shared_ptr<Weight> m_weights;
     std::shared_ptr<Attention> m_attn;
     std::shared_ptr<FFN> m_ffn;
+    std::shared_ptr<Platform> m_plat;
 
 public:
     Model(const std::string &filename) :

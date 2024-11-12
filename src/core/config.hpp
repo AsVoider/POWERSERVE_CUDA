@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.hpp"
+#include "nlohmann/json.hpp"
 
 #include <cstdint>
 
@@ -15,18 +16,6 @@ struct RopeConfig {
     float attn_factor = 1.0f;
     float beta_fast   = 32.0f;
     float beta_slow   = 0.0f;
-
-public:
-    void debug_config_info() {
-        fmt::println(stderr, "n_dims          :{:6}", n_dims);
-        fmt::println(stderr, "n_ctx_orig      :{:6}", n_ctx_orig);
-        fmt::println(stderr, "freq_base       :{:6}", freq_base);
-        fmt::println(stderr, "freq_scale      :{:6}", freq_scale);
-        fmt::println(stderr, "ext_factor      :{:6}", ext_factor);
-        fmt::println(stderr, "attn_factor     :{:6}", attn_factor);
-        fmt::println(stderr, "beta_fast       :{:6}", beta_fast);
-        fmt::println(stderr, "beta_slow       :{:6}", beta_slow);
-    }
 };
 
 struct TransformerConfig {
@@ -49,23 +38,6 @@ public:
 public:
     TransformerConfig()          = default;
     virtual ~TransformerConfig() = default;
-
-public:
-    void debug_config_info() {
-        fmt::println(stderr, "dim             :{:6}", dim);
-        fmt::println(stderr, "hidden_dim      :{:6}", hidden_dim);
-        fmt::println(stderr, "n_layers        :{:6}", n_layers);
-        fmt::println(stderr, "n_heads         :{:6}", n_heads);
-        fmt::println(stderr, "n_kv_heads      :{:6}", n_kv_heads);
-        fmt::println(stderr, "seq_len         :{:6}", seq_len);
-        fmt::println(stderr, "vocab_size      :{:6}", vocab_size);
-        fmt::println(stderr, "rope_dim_count  :{:6}", rope_dim_count);
-        fmt::println(stderr, "rope_freq_base  :{:6}", rope_freq_base);
-        fmt::println(stderr, "n_embd_head_k   :{:6}", n_embd_head_k);
-        fmt::println(stderr, "n_embd_head_v   :{:6}", n_embd_head_v);
-
-        rope_cfg.debug_config_info();
-    }
 };
 
 struct ViTConfig {
@@ -74,17 +46,47 @@ struct ViTConfig {
 
 struct Config {
 public:
+    std::string arch;
     TransformerConfig tf_cfg;
     ViTConfig vit_cfg;
 
 public:
-    Config()          = default;
-    virtual ~Config() = default;
+    Config(std::string config_path) {
+        nlohmann::json j;
+        std::ifstream file(config_path);
+        file >> j;
 
-public:
-    void debug_config_info() {
-        tf_cfg.debug_config_info();
+        arch = std::string(j["model_arch"]);
+
+        {
+            tf_cfg.dim        = j["embd_dim"].get<uint32_t>();
+            tf_cfg.hidden_dim = j["ffn_dim"].get<uint32_t>();
+            tf_cfg.n_layers   = j["n_layers"].get<uint32_t>();
+            tf_cfg.n_heads    = j["n_attn_heads"].get<uint32_t>();
+            tf_cfg.n_kv_heads = j["n_attn_kv_heads"].get<uint32_t>();
+            tf_cfg.seq_len    = j["n_ctx"].get<uint32_t>();
+
+            tf_cfg.vocab_size     = j["vocab_size"].get<uint32_t>();
+            tf_cfg.rope_dim_count = j["rope_dim"].get<uint32_t>();
+            tf_cfg.rope_freq_base = std::stof((std::string)j["rope_freq_base"]);
+            tf_cfg.n_embd_head_k  = j["kv_dim"].get<uint32_t>();
+            tf_cfg.n_embd_head_v  = j["kv_dim"].get<uint32_t>();
+
+            {
+                auto &rope_cfg       = tf_cfg.rope_cfg;
+                rope_cfg.n_dims      = tf_cfg.rope_dim_count;
+                rope_cfg.n_ctx_orig  = j["n_rope_ctx_orig"].get<uint32_t>();
+                rope_cfg.freq_base   = tf_cfg.rope_freq_base;
+                rope_cfg.ext_factor  = 0.0f; // TODO: depends on scale type
+                rope_cfg.attn_factor = std::stof((std::string)j["rope_attn_factor"]);
+                // TODO: read from command args
+                rope_cfg.beta_fast = 32.0f;
+                rope_cfg.beta_slow = 0.0f;
+            }
+        }
     }
+
+    virtual ~Config() = default;
 };
 
 } // namespace smart
