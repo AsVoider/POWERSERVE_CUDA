@@ -21,6 +21,7 @@ check_formatting:
   before_script:
     - apt-get update && apt-get install -y git wget
     - https_proxy=http://ipads:ipads123@202.120.40.82:11235 wget -O ~/.local/bin/clang-format https://github.com/muttleyxd/clang-tools-static-binaries/releases/download/master-32d3ac78/clang-format-18_linux-amd64
+    - chmod +x ~/.local/bin/clang-format
   script:
     - export PATH=$(realpath ~/.local/bin):$PATH
     - echo `which clang-format`
