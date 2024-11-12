@@ -21,7 +21,7 @@ Config::Config(const std::string &path) {
 
         tf_cfg.vocab_size     = j["vocab_size"].get<uint32_t>();
         tf_cfg.rope_dim_count = j["rope_dim"].get<uint32_t>();
-        tf_cfg.rope_freq_base = j["rope_freq_base"].get<float>();
+        tf_cfg.rope_freq_base = std::stof(j["rope_freq_base"].get<std::string>());
         tf_cfg.n_embd_head_k  = j["kv_dim"].get<uint32_t>();
         tf_cfg.n_embd_head_v  = j["kv_dim"].get<uint32_t>();
 
@@ -31,7 +31,7 @@ Config::Config(const std::string &path) {
             rope_cfg.n_ctx_orig  = j["n_rope_ctx_orig"].get<uint32_t>();
             rope_cfg.freq_base   = tf_cfg.rope_freq_base;
             rope_cfg.ext_factor  = 0.0f; // TODO: depends on scale type
-            rope_cfg.attn_factor = j["rope_attn_factor"].get<float>();
+            rope_cfg.attn_factor = std::stof(j["rope_attn_factor"].get<std::string>());
             // TODO: read from command args
             rope_cfg.beta_fast = 32.0f;
             rope_cfg.beta_slow = 0.0f;
