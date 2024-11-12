@@ -1,5 +1,7 @@
 #include "core/config.hpp"
 
+#include "nlohmann/json.hpp"
+
 namespace smart {
 
 Config::Config(const std::string &path) {
