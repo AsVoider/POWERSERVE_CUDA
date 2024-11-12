@@ -21,7 +21,9 @@ public:
     gguf_context *gguf_ctx;
 
 public:
-    explicit LlamaModel(const std::string &filename, std::shared_ptr<Config> config);
+    explicit LlamaModel(
+        const std::string &filename, const std::shared_ptr<Config> &config, const std::shared_ptr<Platform> &plat
+    );
     ~LlamaModel() override;
 
 public:

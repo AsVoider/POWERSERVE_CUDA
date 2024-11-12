@@ -63,13 +63,12 @@ int main(int argc, char *argv[]) {
     std::unique_ptr<smart::Model> model;
     // TODO: move into Model.cpp like build_model
     if (model_arch == "llama") {
-        model = std::make_unique<smart::LlamaModel>(file_path, config);
+        model = std::make_unique<smart::LlamaModel>(file_path, config, platform);
     } else if (model_arch == "phi3") {
         SMART_ASSERT(false);
     } else {
         fmt::print("Unknown model type\n");
     }
-    model->m_plat = platform;
     smart::get_memory_usage("after model init");
 
     if (attn_type == "normal") {

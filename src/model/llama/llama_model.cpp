@@ -19,7 +19,10 @@
 
 namespace smart {
 
-LlamaModel::LlamaModel(const std::string &filename, std::shared_ptr<Config> config) : Model(filename) {
+LlamaModel::LlamaModel(
+    const std::string &filename, const std::shared_ptr<Config> &config, const std::shared_ptr<Platform> &plat
+) :
+    Model(filename) {
     // load file meta data (+ 4G)
     {
         gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
@@ -35,7 +38,7 @@ LlamaModel::LlamaModel(const std::string &filename, std::shared_ptr<Config> conf
     m_attn = nullptr;
     m_ffn  = std::make_shared<FFN>(m_config, m_weights);
     // platform
-    m_plat = nullptr;
+    m_plat = plat;
 
     // debug model info
     {
@@ -80,7 +83,7 @@ auto LlamaModel::forward(int token, int pos) -> std::vector<float> {
     auto output_w = g.add_tensor(m_weights->output_weight);
     auto logits   = g.mat_mul(final_rms_norm, output_w);
 
-    Executor executor(*m_plat.get(), g);
+    Executor executor(*m_plat, g);
     executor.allocate_buffers();
 
     for (size_t i = 0; i < batch_size; i++) {
