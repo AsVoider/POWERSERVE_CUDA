@@ -19,18 +19,18 @@ check_formatting:
   image: ubuntu:22.04
   stage: check_format
   before_script:
-    - apt-get update && apt-get install -y git wget
+    - apt-get update && apt-get install -y git wget clang-format
     - mkdir -p ~/.local/bin
     - https_proxy=http://ipads:ipads123@202.120.40.82:11235 wget -O ~/.local/bin/clang-format https://github.com/muttleyxd/clang-tools-static-binaries/releases/download/master-32d3ac78/clang-format-18_linux-amd64
     - chmod +x ~/.local/bin/clang-format
   script:
-    - export PATH=$(realpath ~/.local/bin):$PATH
-    - echo `which clang-format`
-    - clang-format --version
+    - CLANG_FORMAT=$(realpath ~/.local/bin/clang-format)
+    - $CLANG_FORMAT --version
     - cd "$CI_PROJECT_DIR"
     - echo "Checking formatting from ${CI_MERGE_REQUEST_DIFF_BASE_SHA}..."
-    - git-clang-format ${CI_MERGE_REQUEST_DIFF_BASE_SHA} --diff
-    - linter_errors=$(git-clang-format ${CI_MERGE_REQUEST_DIFF_BASE_SHA} --diff | grep -E --color=never "no modified files to format|clang-format did not modify any files" || true)
+    - format_diff=$(git-clang-format --binary $CLANG_FORMAT ${CI_MERGE_REQUEST_DIFF_BASE_SHA} --diff)
+    - echo $format_diff
+    - linter_errors=$(echo $format_diff | grep -E --color=never "no modified files to format|clang-format did not modify any files" || true)
     - echo "$linter_errors"
     - if [ -z "$linter_errors" ]; then echo "Detected formatting issues; please fix"; exit 1; else echo "Formatting is correct"; exit 0; fi
 
