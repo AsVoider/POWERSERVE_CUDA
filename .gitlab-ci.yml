@@ -14,6 +14,8 @@ variables:
   IMAGE_NAME: ubuntu:22.04
   CONTAINER_NAME: ndk
   HF_TOKEN: "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"
+  HOME: /tmp
+
 
 check_formatting:
   image: ubuntu:22.04
