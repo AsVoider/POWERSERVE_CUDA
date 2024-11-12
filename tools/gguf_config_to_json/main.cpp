@@ -111,11 +111,10 @@ void collect_config(gguf_context *ctx, nlohmann::json &config) {
     { // rope_dim
         config["rope_dim"] =
             get_u32(ctx, get_arch_config("{}.rope.dimension_count"), false, (uint32_t)config["kv_dim"]);
-        config["rope_freq_base"]  = std::to_string(get_f32(ctx, get_arch_config("{}.rope.freq_base"), false, 10000.0f));
-        auto scale_type           = get_str(ctx, get_arch_config("{}.rope.scaling.type"), false, "linear");
-        config["rope_scale_type"] = scale_type;
-        config["rope_attn_factor"] =
-            std::to_string(get_f32(ctx, get_arch_config("{}.rope.scaling.attn_factor"), false, 1.0f));
+        config["rope_freq_base"]   = get_f32(ctx, get_arch_config("{}.rope.freq_base"), false, 10000.0f);
+        auto scale_type            = get_str(ctx, get_arch_config("{}.rope.scaling.type"), false, "linear");
+        config["rope_scale_type"]  = scale_type;
+        config["rope_attn_factor"] = get_f32(ctx, get_arch_config("{}.rope.scaling.attn_factor"), false, 1.0f);
         config["n_rope_ctx_orig"] =
             get_u32(ctx, get_arch_config("{}.rope.scaling.original_context_length"), false, (uint32_t)config["n_ctx"]);
 
@@ -128,6 +127,6 @@ void collect_config(gguf_context *ctx, nlohmann::json &config) {
             rope_scale = gguf_get_val_f32(ctx, idx);
         }
         rope_scale                = rope_scale == 0.0f ? 1.0f : 1.0f / rope_scale;
-        config["rope_freq_scale"] = std::to_string(rope_scale);
+        config["rope_freq_scale"] = rope_scale;
     }
 }
