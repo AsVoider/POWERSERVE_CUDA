@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
 void collect_config(gguf_context *ctx, nlohmann::json &config) {
     std::string model_arch = gguf_get_val_str(ctx, gguf_find_key(ctx, "general.architecture"));
     config["model_arch"]   = model_arch;
-    auto get_arch_config([&model_arch](const std::string c) { return fmt::format(fmt::runtime(c), model_arch); });
+    auto get_arch_config([&model_arch](const std::string &c) { return fmt::format(fmt::runtime(c), model_arch); });
 
     { // embd_dim, ffn_dim, n_heads, n_kv_heads, n_layers, n_ctx
         config["embd_dim"]        = get_u32(ctx, get_arch_config("{}.embedding_length"));
@@ -106,14 +106,7 @@ void collect_config(gguf_context *ctx, nlohmann::json &config) {
         if (idx != -1) {
             norm_eps = gguf_get_val_f32(ctx, idx);
         }
-        config["norm_eps"] = std::to_string(norm_eps);
-        // Note: float -> string for percision
-        fmt::println(
-            "norm_eps: {} -> {} -> {}",
-            norm_eps,
-            (std::string)config["norm_eps"],
-            std::stof((std::string)config["norm_eps"])
-        );
+        config["norm_eps"] = norm_eps;
     }
     { // rope_dim
         config["rope_dim"] =
