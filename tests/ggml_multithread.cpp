@@ -1,9 +1,10 @@
 #include "backend/platform.hpp"
-#include "executor/executor.hpp"
 #include "common.hpp"
+#include "executor/executor.hpp"
 #include "ggml.h"
 #include "graph/node.hpp"
 #include "model/llama/llama_config.hpp"
+
 #include <string>
 #include <unistd.h>
 
@@ -16,7 +17,7 @@ int main() {
     gguf_context *gguf_ctx = nullptr;
 
     TensorNode *a, *b, *out;
-    int n_round  = 1;
+    int n_round = 1;
     size_t dim1 = 4;
     size_t dim2 = 2;
     Graph g;
@@ -32,8 +33,8 @@ int main() {
 
     std::shared_ptr<LlamaConfig> m_config = std::make_shared<LlamaConfig>(gguf_ctx);
 
-    a   = g.new_tensor(DataType::FP32, {dim1, dim2});
-    b   = g.new_tensor(DataType::FP32, {dim1, dim2});
+    a = g.new_tensor(DataType::FP32, {dim1, dim2});
+    b = g.new_tensor(DataType::FP32, {dim1, dim2});
     // out = g.add(a, b);
     out = g.mat_mul(a, b);
 
@@ -62,7 +63,7 @@ int main() {
     {
         auto out_buf = static_cast<float *>(out->get<ggml::Buffer>().m_data);
         for (int j = 0; j < out->m_shape[1]; j++)
-            for (int i = 0; i < out->m_shape[0] ; i++) {
+            for (int i = 0; i < out->m_shape[0]; i++) {
                 fmt::println("c[{}][{}] {}", j, i, out_buf[j * out->m_shape[0] + i]);
             }
     }

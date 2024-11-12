@@ -19,9 +19,12 @@ check_formatting:
   image: ubuntu:22.04
   stage: check_format
   before_script:
-    - apt-get update && apt-get install -y clang-format git
+    - apt-get update && apt-get install -y git curl
+    - curl -O ~/.local/bin/clang-format https://github.com/muttleyxd/clang-tools-static-binaries/releases/download/master-32d3ac78/clang-format-18_linux-amd64
   script:
+    - export PATH=$(realpath ~/.local/bin):$PATH
     - echo `which clang-format`
+    - clang-format --version
     - cd "$CI_PROJECT_DIR"
     - echo "Checking formatting from ${CI_MERGE_REQUEST_DIFF_BASE_SHA}..."
     - git-clang-format ${CI_MERGE_REQUEST_DIFF_BASE_SHA} --diff
