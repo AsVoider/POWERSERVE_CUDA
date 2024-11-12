@@ -51,10 +51,10 @@ int main(int argc, char *argv[]) {
     }
 
     // get config
-    std::shared_ptr<smart::Config> config = std::make_shared<smart::Config>(config_path);
+    auto config = std::make_shared<smart::Config>(config_path);
 
     // get platform
-    std::shared_ptr<smart::Platform> platform = std::make_shared<smart::Platform>(config, n_threads);
+    auto platform = std::make_shared<smart::Platform>(config, n_threads);
 
     // get model type
     std::string model_arch = config->arch;
