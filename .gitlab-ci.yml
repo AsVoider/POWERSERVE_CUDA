@@ -108,7 +108,7 @@ test_thread:
   stage: test
   script:
     - adb shell "/data/local/tmp/config_generator --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --target-path /data/local/tmp/llama3.2.json"
-    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 32 --n-threads 8 --config-path /data/local/tmp/llama3.2.jsoncm"
+    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 32 --n-threads 8 --config-path /data/local/tmp/llama3.2.json"
 
 # test_long_out:
 #   stage: test
