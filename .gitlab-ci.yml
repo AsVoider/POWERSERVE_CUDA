@@ -76,7 +76,7 @@ deploy:
     - echo "Deploying binaries and models to your Android device."
     - sleep 2
     - adb push ~/Downloads/build_android/bin/run /data/local/tmp/
-    - adb push ~/Downloads/build_android/config_generator /data/local/tmp/config_generator
+    - adb push ~/Downloads/build_android/tools/gguf_config_to_json/config_generator /data/local/tmp/config_generator
     - sleep 2
     - adb shell "ls -ahl /data/local/tmp/run"
 
