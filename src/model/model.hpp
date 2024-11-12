@@ -1,5 +1,6 @@
 #pragma once
 
+#include "backend/platform.hpp"
 #include "graph/graph.hpp"
 #include "model/module/attention.hpp"
 #include "model/module/ffn.hpp"
@@ -11,13 +12,13 @@
 namespace smart {
 
 struct Model {
-
 public:
     std::string m_filename;
     std::shared_ptr<Config> m_config;
     std::shared_ptr<Weight> m_weights;
     std::shared_ptr<Attention> m_attn;
     std::shared_ptr<FFN> m_ffn;
+    std::shared_ptr<Platform> m_platform;
 
 public:
     Model(const std::string &filename) :

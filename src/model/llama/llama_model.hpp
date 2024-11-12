@@ -19,10 +19,11 @@ public:
     // ggml need those context
     ggml_context *ggml_ctx;
     gguf_context *gguf_ctx;
-    std::shared_ptr<Platform> plat;
 
 public:
-    explicit LlamaModel(const std::string &filename, int n_threads = 1);
+    explicit LlamaModel(
+        const std::string &filename, const std::shared_ptr<Config> &config, const std::shared_ptr<Platform> &platform
+    );
     ~LlamaModel() override;
 
 public:
