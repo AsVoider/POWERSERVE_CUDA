@@ -8,6 +8,9 @@ stages:
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    # 如果branch名称里含ci，就执行
+    - if: $CI_COMMIT_BRANCH =~ /ci/
+
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
@@ -15,18 +18,16 @@ variables:
   CONTAINER_NAME: ndk
   HF_TOKEN: "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"
   HOME: /tmp
+  # CI_DEBUG_TRACE: true
+  # 如果branch名称里含ci，就把CI_DEBUG_TRACE设置为true
+
+
 
 
 check_formatting:
-  image: ubuntu:22.04
   stage: check_format
-  before_script:
-    - apt-get update && apt-get install -y git wget clang-format
-    - mkdir -p ~/.local/bin
-    - https_proxy=http://ipads:ipads123@202.120.40.82:11235 wget -O ~/.local/bin/clang-format https://github.com/muttleyxd/clang-tools-static-binaries/releases/download/master-32d3ac78/clang-format-18_linux-amd64
-    - chmod +x ~/.local/bin/clang-format
   script:
-    - CLANG_FORMAT=$(realpath ~/.local/bin/clang-format)
+    - CLANG_FORMAT=/home/gitlab-runner/Downloads/clang-format-18
     - $CLANG_FORMAT --version
     - cd "$CI_PROJECT_DIR"
     - echo "Checking formatting from ${CI_MERGE_REQUEST_DIFF_BASE_SHA}..."
@@ -38,13 +39,23 @@ check_formatting:
 
 setup:
   stage: setup
+  # hooks:
+  #   pre_get_sources_script:
+  #   - sudo rm -rf /home/gitlab-runner/builds/ZxyLxtSdy/
+  #   - sudo rm -rf /tmp/ZxyLxtSdy/
+  #   - ls -ahl /tmp/${RUNNER_ID}
+  # before_script:
+  #   - pwd .
+  #   - echo "$CI_PROJECT_DIR"
+  #   - sudo chmod -R 777 .
   script:
     - pwd
     - sudo podman stop $CONTAINER_NAME || true
     - sudo podman rm $CONTAINER_NAME || true
     # - export https_proxy=http://ipads:ipads123@202.120.40.82:11235
     - git submodule update --init --recursive
-    - sudo -E podman run -v $(realpath .):/code -v $(realpath ~/Downloads):/data -dit --name ndk ubuntu:22.04
+    - sudo -E podman run -v $(realpath .):/code -v $(realpath /home/gitlab-runner/Downloads):/data -dit --name ndk ubuntu:22.04
+    - sudo podman exec -it $CONTAINER_NAME bash -c "echo -e 'deb http://mirrors.aliyun.com/ubuntu/ jammy main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-updates main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-backports main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-security main restricted universe multiverse' | tee /etc/apt/sources.list"
     - sudo podman exec -it $CONTAINER_NAME bash -c "apt update && apt upgrade -y && apt install -y sudo vim cmake unzip git python-is-python3 python3-pip build-essential"
     # - sudo podman exec -it $CONTAINER_NAME bash -c "pip install -r /code/requirements.txt"
     - sudo podman exec -it $CONTAINER_NAME bash -c "git config --global --add safe.directory /code"
@@ -82,13 +93,17 @@ deploy:
   script:
     - echo "Deploying binaries and models to your Android device."
     - sleep 2
-    - adb push ~/Downloads/build_android/bin/run /data/local/tmp/
-    - adb push ~/Downloads/build_android/tools/gguf_config_to_json/config_generator /data/local/tmp/config_generator
+    - adb push /home/gitlab-runner/Downloads/build_android/bin/run /data/local/tmp/
+    - adb push /home/gitlab-runner/Downloads/build_android/tools/gguf_config_to_json/config_generator /data/local/tmp/config_generator
     - sleep 2
     - adb shell "ls -ahl /data/local/tmp/run"
 
 test_llama3.1:
   stage: test
+  before_script:
+    - pwd .
+    - echo "$CI_PROJECT_DIR"
+    - sudo chmod -R 777 .
   script:
     - adb shell "/data/local/tmp/config_generator --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --target-path /data/local/tmp/llama3.1.json"
     - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.1_8b_vocab.gguf --prompt \"One day,\" --steps 32 --config-path /data/local/tmp/llama3.1.json"
