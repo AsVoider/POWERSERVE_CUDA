@@ -192,7 +192,7 @@ public:
 public:
     void get_embedding(const Tensor *dst, const Tensor *weight, const std::vector<int> &tokens) const;
     void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
-    void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const;
+    void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight, float eps) const;
     void softmax(const Tensor *out, const Tensor *x) const;
     void rope(Tensor *out, const Tensor *src, const std::vector<int> &pos, const RopeConfig &rope_cfg) const;
     void multihead_attention(

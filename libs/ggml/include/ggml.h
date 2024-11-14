@@ -771,7 +771,8 @@ extern "C" {
         struct op_compute_params * params,
         struct ggml_tensor * dst,
         struct ggml_tensor * src0,
-        struct ggml_tensor * src1
+        struct ggml_tensor * src1,
+        float eps
     );
 
     GGML_API GGML_CALL void smart_compute_forward_rope(

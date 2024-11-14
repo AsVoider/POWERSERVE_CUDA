@@ -24,6 +24,7 @@ Config::Config(const std::string &path) {
         tf_cfg.rope_freq_base = j["rope_freq_base"].get<float>();
         tf_cfg.kv_dim         = j["kv_dim"].get<uint32_t>();
         tf_cfg.head_size      = j["head_size"].get<uint32_t>();
+        tf_cfg.norm_eps       = j["norm_eps"].get<float>();
 
         {
             auto &rope_cfg       = tf_cfg.rope_cfg;

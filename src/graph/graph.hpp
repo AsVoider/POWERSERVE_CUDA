@@ -20,7 +20,7 @@ public:
     auto get_embedding(TensorNode *weight, const std::vector<int> &tokens) -> TensorNode *;
     auto add(TensorNode *a, TensorNode *b) -> TensorNode *;
     auto mat_mul(TensorNode *x, TensorNode *weight) -> TensorNode *;
-    auto rms_norm(TensorNode *x, TensorNode *weight) -> TensorNode *;
+    auto rms_norm(TensorNode *x, TensorNode *weight, float eps) -> TensorNode *;
     auto silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode *;
     void copy(TensorNode *dst, TensorNode *src, size_t off);
 

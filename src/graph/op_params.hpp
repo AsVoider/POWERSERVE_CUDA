@@ -27,6 +27,10 @@ struct GetEmbeddingParams {
     std::vector<int> tokens;
 };
 
+struct RMSNormParams {
+    float eps;
+};
+
 struct RopeParams {
     std::vector<int> pos;
     RopeConfig rope_cfg;

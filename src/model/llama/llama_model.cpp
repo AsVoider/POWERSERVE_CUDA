@@ -87,7 +87,7 @@ auto LlamaModel::forward(
 
         // final output
         auto rms_final_w    = g.add_tensor(m_weights->rms_final_weight);
-        auto final_rms_norm = g.rms_norm(x, rms_final_w);
+        auto final_rms_norm = g.rms_norm(x, rms_final_w, m_config->tf_cfg.norm_eps);
 
         auto output_w = g.add_tensor(m_weights->output_weight);
         logits        = g.mat_mul(final_rms_norm, output_w);

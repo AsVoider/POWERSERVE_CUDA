@@ -12606,7 +12606,8 @@ static void smart_compute_forward_rms_norm_f32(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0,
-    struct ggml_tensor * src1 // weight
+    struct ggml_tensor * src1, // weight
+    float eps
 ) {
 
     GGML_ASSERT(ggml_are_same_shape(src0, dst));
@@ -12619,9 +12620,6 @@ static void smart_compute_forward_rms_norm_f32(
     const int nth = params->nth;
 
     GGML_TENSOR_UNARY_OP_LOCALS
-
-    float eps = 1e-5f;
-    // memcpy(&eps, dst->op_params, sizeof(float));
 
     GGML_ASSERT(eps > 0.0f);
     const float * w = NULL;
@@ -12664,12 +12662,13 @@ void smart_compute_forward_rms_norm(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0,
-    struct ggml_tensor * src1
+    struct ggml_tensor * src1,
+    float eps
 ) {
     switch (src0->type) {
         case GGML_TYPE_F32:
             {
-                smart_compute_forward_rms_norm_f32(params, dst, src0, src1);
+                smart_compute_forward_rms_norm_f32(params, dst, src0, src1, eps);
             } break;
         default:
             {

@@ -12,7 +12,7 @@ TensorNode *QuestAttention::build(
     auto cfg = m_config->tf_cfg;
 
     auto att_norm_w = g.add_tensor(m_weights->lw[L].attn_norm);
-    auto att_norm_o = g.rms_norm(x, att_norm_w);
+    auto att_norm_o = g.rms_norm(x, att_norm_w, m_config->tf_cfg.norm_eps);
 
     // Quest QKV
 

@@ -86,7 +86,7 @@ void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t si
     }
 }
 
-void GGMLBackend::rmsnorm(const Tensor *out, const Tensor *x, const Tensor *weight) const {
+void GGMLBackend::rmsnorm(const Tensor *out, const Tensor *x, const Tensor *weight, float eps) const {
     auto dst_tensor  = convert_to_ggml(out);
     auto src0_tensor = convert_to_ggml(x);
     auto src1_tensor = convert_to_ggml(weight);
@@ -97,7 +97,7 @@ void GGMLBackend::rmsnorm(const Tensor *out, const Tensor *x, const Tensor *weig
         params.ith = thread_id;
         params.nth = m_thread_pool->size();
 
-        smart_compute_forward_rms_norm(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get());
+        smart_compute_forward_rms_norm(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get(), eps);
     });
 }
 

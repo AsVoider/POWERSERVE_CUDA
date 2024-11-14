@@ -56,7 +56,8 @@ void Executor::run() {
             auto x      = op->prev[0]->tensor();
             auto weight = op->prev[1]->tensor();
             auto out    = op->output();
-            m_platform.ggml_backend->rmsnorm(out, x, weight);
+            auto [eps]  = op->get_params<RMSNormParams>();
+            m_platform.ggml_backend->rmsnorm(out, x, weight, eps);
         } break;
 
         case OpType::SILU_HADAMARD: {

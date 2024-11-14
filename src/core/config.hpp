@@ -34,6 +34,7 @@ public:
     float rope_freq_base    = 10000.0f;
     uint32_t kv_dim         = 0; // head_size * n_kv_heads
     uint32_t head_size      = 0; // dim / n_heads
+    float norm_eps          = 1e-5f;
 
 public:
     TransformerConfig()          = default;

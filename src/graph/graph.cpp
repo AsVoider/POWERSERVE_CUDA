@@ -62,7 +62,7 @@ auto Graph::mat_mul(TensorNode *x, TensorNode *weight) -> TensorNode * {
     return out;
 }
 
-auto Graph::rms_norm(TensorNode *x, TensorNode *weight) -> TensorNode * {
+auto Graph::rms_norm(TensorNode *x, TensorNode *weight, float eps) -> TensorNode * {
     SMART_ASSERT(weight->n_dims() == 1);
     SMART_ASSERT(x->m_dtype == weight->m_dtype);
     SMART_ASSERT(x->m_shape[0] == weight->m_shape[0]);
@@ -71,6 +71,7 @@ auto Graph::rms_norm(TensorNode *x, TensorNode *weight) -> TensorNode * {
     auto op  = new_op(OpType::RMS_NORM);
     op->set_inputs({x, weight});
     op->set_outputs({out});
+    op->set_params(RMSNormParams{.eps = eps});
 
     return out;
 }
