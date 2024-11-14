@@ -9,7 +9,6 @@
 // #include "model/llama/llama_config.hpp"
 #include "model/llama/llama_weight.hpp"
 #include "sampler/sampler.hpp"
-#include "sampler/sampler_chain.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cstring>
@@ -61,45 +60,57 @@ Graph *LlamaModel::decode() {
     return nullptr;
 }
 
-auto LlamaModel::forward(int token, int pos) -> std::vector<float> {
+auto LlamaModel::forward(
+    const std::vector<int> &tokens, const std::vector<int> &pos, const CausalAttentionMask &mask, bool lm_head
+) -> std::vector<std::vector<float>> {
     Graph g;
     // input embedding
-    size_t batch_size = 1;
-    auto tokens       = g.new_tensor(DataType::INT32, {batch_size});
+    size_t batch_size = tokens.size();
     auto embd_tb      = g.add_tensor(m_weights->token_embedding_table);
     auto x            = g.get_embedding(embd_tb, tokens);
-    auto pos_tensor   = g.new_tensor(DataType::INT32, {1, batch_size});
-    // attention and ffn
-    for (size_t L = 0; L < m_config->tf_cfg.n_layers; L++) {
-        auto att_o = m_attn->build(g, x, L, pos_tensor, pos);
-        auto ffn_o = m_ffn->build(g, att_o, L);
-        x          = ffn_o;
+    Tensor *logits    = nullptr;
+
+#if defined(SMART_WITH_QNN)
+    if (m_platform->qnn_backend) {
+        logits = g.qnn_forward(x, pos, mask, m_config->tf_cfg.vocab_size, lm_head);
+    } else
+#endif
+
+    {
+        SMART_UNUSED(lm_head);
+        // attention and ffn
+        for (size_t L = 0; L < m_config->tf_cfg.n_layers; L++) {
+            auto att_o = m_attn->build(g, x, L, pos, mask);
+            auto ffn_o = m_ffn->build(g, att_o, L);
+            x          = ffn_o;
+        }
+
+        // final output
+        auto rms_final_w    = g.add_tensor(m_weights->rms_final_weight);
+        auto final_rms_norm = g.rms_norm(x, rms_final_w);
+
+        auto output_w = g.add_tensor(m_weights->output_weight);
+        logits        = g.mat_mul(final_rms_norm, output_w);
     }
-
-    // final output
-    auto rms_final_w    = g.add_tensor(m_weights->rms_final_weight);
-    auto final_rms_norm = g.rms_norm(x, rms_final_w);
-
-    auto output_w = g.add_tensor(m_weights->output_weight);
-    auto logits   = g.mat_mul(final_rms_norm, output_w);
 
     Executor executor(*m_platform, g);
     executor.allocate_buffers();
 
-    for (size_t i = 0; i < batch_size; i++) {
-        // TODO: support batch
-        static_cast<int32_t *>(tokens->get<ggml::Buffer>().m_data)[i]     = token;
-        static_cast<int32_t *>(pos_tensor->get<ggml::Buffer>().m_data)[i] = pos;
-    }
-
     executor.run();
     float *logits_data = static_cast<float *>(logits->get<ggml::Buffer>().m_data);
-    // TODO: support batch
-    return std::vector<float>(logits_data, logits_data + m_config->tf_cfg.vocab_size);
+    auto res           = std::vector<std::vector<float>>();
+    if (lm_head) {
+        for (size_t i = 0; i < batch_size; i++) {
+            res.emplace_back(std::vector<float>(
+                logits_data + i * m_config->tf_cfg.vocab_size, logits_data + (i + 1) * m_config->tf_cfg.vocab_size
+            ));
+        }
+    }
+
+    return res;
 }
 
 void LlamaModel::generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) {
-    SMART_ASSERT(m_attn != nullptr);
     // encode the (string) prompt into tokens sequence
 
     int num_prompt_tokens = 0;
@@ -109,13 +120,41 @@ void LlamaModel::generate(Tokenizer &tokenizer, Sampler &sampler, const std::str
 
     SMART_ASSERT(num_prompt_tokens >= 1);
     // start the main loop
-    long start = 0;                // used to time our code, only initialized after first iteration
-    int next;                      // will store the next token in the sequence
-    auto token = prompt_tokens[0]; // kick off with the first token in the prompt
-    int pos    = 0;                // position in the sequence
+    long start = 0; // used to time our code, only initialized after first iteration
+    int next;       // will store the next token in the sequence
+    int pos = 0;    // position in the sequence
+#if defined(SMART_WITH_QNN)
+    if (m_platform->qnn_backend) {
+        pos = m_platform->qnn_backend->m_causalLM->kv_cache->position;
+    }
+#endif
+    //prefill
+    auto prefill_start = time_in_ms();
+    auto prefill_pos   = std::vector<int>(num_prompt_tokens - 1);
+    std::iota(prefill_pos.begin(), prefill_pos.end(), pos);
+    auto prefill_attention_mask = CausalAttentionMask(num_prompt_tokens - 1);
+    forward(
+        std::vector<int>(prompt_tokens.begin(), std::prev(prompt_tokens.end())),
+        prefill_pos,
+        prefill_attention_mask,
+        false
+    );
+    fmt::print("{}", prompt);
+    auto prefill_end           = time_in_ms();
+    auto token                 = prompt_tokens[num_prompt_tokens - 1]; // kick off with the first token in the prompt
+    auto decode_attention_mask = CausalAttentionMask(1);
+#if defined(SMART_WITH_QNN)
+    if (m_platform->qnn_backend) {
+        pos = m_platform->qnn_backend->m_causalLM->kv_cache->position;
+    } else
+#endif
+    {
+        pos = num_prompt_tokens - 1;
+    }
     while (pos < steps) {
         // forward the transformer to get logits for the next token
-        std::vector<float> logits = forward(token, pos);
+        std::vector<float> logits =
+            forward(std::vector<int>(1, token), std::vector<int>(1, pos), decode_attention_mask)[0];
 
         // advance the state machine
         if (pos < num_prompt_tokens - 1) {
@@ -157,7 +196,11 @@ void LlamaModel::generate(Tokenizer &tokenizer, Sampler &sampler, const std::str
 
     if (pos > 1) {
         long end = time_in_ms();
-        fmt::println(stderr, "achieved tok/s: {}\n", (pos - 1) / (double)(end - start) * 1000);
+        fmt::println(
+            "prefill speed: {} tokens/s", (num_prompt_tokens - 1) / (double)(prefill_end - prefill_start) * 1000
+        );
+        fmt::println(stderr, "decode speed: {} tokens/s", (pos - num_prompt_tokens) / (double)(end - start) * 1000);
+        fmt::println(stderr, "total speed: {} tokens/s", (pos - 1) / (double)(end - prefill_start) * 1000);
     }
 }
 

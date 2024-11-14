@@ -32,7 +32,8 @@ public:
     ~QuestAttention() = default;
 
 public:
-    TensorNode *build(Graph &g, TensorNode *x, int64_t L, TensorNode *pos_tensor, int32_t pos) override;
+    TensorNode *build(Graph &g, TensorNode *x, int64_t L, const std::vector<int> &pos, const CausalAttentionMask &mask)
+        override;
 };
 
 } // namespace smart

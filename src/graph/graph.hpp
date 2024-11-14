@@ -17,31 +17,30 @@ public:
     auto view_tensor(TensorNode *tensor, Tensor::Shape shape) -> TensorViewNode *;
 
 public:
-    auto get_embedding(TensorNode *weight, TensorNode *tokens) -> TensorNode *;
+    auto get_embedding(TensorNode *weight, const std::vector<int> &tokens) -> TensorNode *;
     auto add(TensorNode *a, TensorNode *b) -> TensorNode *;
     auto mat_mul(TensorNode *x, TensorNode *weight) -> TensorNode *;
     auto rms_norm(TensorNode *x, TensorNode *weight) -> TensorNode *;
     auto silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode *;
-    auto copy(TensorNode *dst, TensorNode *src, size_t off) -> void;
+    void copy(TensorNode *dst, TensorNode *src, size_t off);
 
-    auto rope(TensorNode *src, TensorNode *pos, const RopeConfig &params) -> TensorNode *;
+#if defined(SMART_WITH_QNN)
+    auto qnn_forward(
+        TensorNode *x, std::vector<int> pos, const CausalAttentionMask &mask, size_t vocab_size, bool lm_head
+    ) -> TensorNode *;
+#endif
+
+    auto rope(TensorNode *src, const std::vector<int> &pos, const RopeConfig &params) -> TensorNode *;
 
     auto softmax(TensorNode *x) -> TensorNode *;
-    auto mha(
-        TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id, uint32_t n_heads
-    ) -> TensorNode *;
-    auto print(TensorNode *x, size_t size) -> void;
+    auto mha(TensorNode *q, const std::vector<int> &pos, size_t layer_id, uint32_t n_heads) -> TensorNode *;
+    void print(TensorNode *x, size_t size);
 
     auto quest_attention(
-        TensorNode *q,
-        TensorNode *key_cache,
-        TensorNode *val_cache,
-        TensorNode *pos,
-        size_t layer_id,
-        std::vector<Region> &regions,
-        uint32_t n_heads
+        TensorNode *q, const std::vector<int> &pos, size_t layer_id, std::vector<Region> &regions, uint32_t n_heads
     ) -> TensorNode *;
-    auto cos_sim(TensorNode *src0, TensorNode *src1) -> void;
+    void cos_sim(TensorNode *src0, TensorNode *src1);
+    void add_cache(TensorNode *src, size_t L, const std::vector<int> &pos, size_t head_id, bool is_k);
 };
 
 } // namespace smart

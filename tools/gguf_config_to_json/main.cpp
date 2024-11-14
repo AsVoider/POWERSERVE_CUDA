@@ -5,6 +5,12 @@
 
 #include <string>
 
+enum class rope_type {
+    NONE   = -1,
+    NORMAL = 0,
+    NEOX   = 2,
+};
+
 static uint32_t get_u32(gguf_context *ctx, const std::string &key, bool required = true, uint32_t default_value = 0) {
     int idx = gguf_find_key(ctx, key.c_str());
     if (idx == -1) {
@@ -32,6 +38,17 @@ static std::string get_str(
         return default_value;
     }
     return gguf_get_val_str(ctx, idx);
+}
+
+// see: llama_rope_type in llama.cpp
+rope_type get_rope_type(std::string arch) {
+    // TODO: wait for complement
+    if (arch == "llama") {
+        return rope_type::NORMAL;
+    } else if (arch == "qwen" || arch == "phi3") {
+        return rope_type::NEOX;
+    }
+    return rope_type::NONE;
 }
 
 void collect_config(gguf_context *gguf_ctx, nlohmann::json &config);
@@ -76,6 +93,8 @@ void collect_config(gguf_context *ctx, nlohmann::json &config) {
         config["n_attn_kv_heads"] = get_u32(ctx, get_arch_config("{}.attention.head_count_kv"));
         config["n_layers"]        = get_u32(ctx, get_arch_config("{}.block_count"));
         config["n_ctx"]           = get_u32(ctx, get_arch_config("{}.context_length"));
+        config["head_size"]       = (uint32_t)config["embd_dim"] / (uint32_t)config["n_attn_heads"];
+        config["kv_dim"]          = (uint32_t)config["head_size"] * (uint32_t)config["n_attn_kv_heads"];
     }
     { // vocab_size
         auto idx = gguf_find_key(ctx, get_arch_config("{}.vocab_size").c_str());
@@ -88,15 +107,15 @@ void collect_config(gguf_context *ctx, nlohmann::json &config) {
         }
     }
     { // kv_dim, norm_eps or norm_rms_eps
-        if (config["n_attn_heads"] > 0) {
-            auto default_kv_dim = (uint32_t)config["embd_dim"] / (uint32_t)config["n_attn_heads"];
-            auto k_dim          = get_u32(ctx, get_arch_config("{}.attention.key_length"), false, default_kv_dim);
-            auto v_dim          = get_u32(ctx, get_arch_config("{}.attention.value_length"), false, default_kv_dim);
-            SMART_ASSERT(k_dim == v_dim);
-            config["kv_dim"] = k_dim;
-        } else {
-            config["kv_dim"] = 0;
-        }
+        // if (config["n_attn_heads"] > 0) { // FIXME: actually is head_size
+        //     auto default_kv_dim = (uint32_t)config["embd_dim"] / (uint32_t)config["n_attn_heads"];
+        //     auto k_dim          = get_u32(ctx, get_arch_config("{}.attention.key_length"), false, default_kv_dim);
+        //     auto v_dim          = get_u32(ctx, get_arch_config("{}.attention.value_length"), false, default_kv_dim);
+        //     SMART_ASSERT(k_dim == v_dim);
+        //     config["kv_dim"] = k_dim;
+        // } else {
+        //     config["kv_dim"] = 0;
+        // }
 
         auto idx      = gguf_find_key(ctx, get_arch_config("{}.attention.layer_norm_epsilon").c_str());
         auto norm_eps = 1e-5f;
@@ -108,7 +127,7 @@ void collect_config(gguf_context *ctx, nlohmann::json &config) {
         }
         config["norm_eps"] = norm_eps;
     }
-    { // rope_dim
+    { // rope
         config["rope_dim"] =
             get_u32(ctx, get_arch_config("{}.rope.dimension_count"), false, (uint32_t)config["kv_dim"]);
         config["rope_freq_base"]   = get_f32(ctx, get_arch_config("{}.rope.freq_base"), false, 10000.0f);
@@ -128,5 +147,6 @@ void collect_config(gguf_context *ctx, nlohmann::json &config) {
         }
         rope_scale                = rope_scale == 0.0f ? 1.0f : 1.0f / rope_scale;
         config["rope_freq_scale"] = rope_scale;
+        config["rope_type"]       = get_rope_type(model_arch);
     }
 }

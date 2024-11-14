@@ -1,6 +1,7 @@
 #pragma once
 
 #include "backend/platform.hpp"
+#include "core/kv_cache.hpp"
 #include "graph/graph.hpp"
 #include "model/module/attention.hpp"
 #include "model/module/ffn.hpp"

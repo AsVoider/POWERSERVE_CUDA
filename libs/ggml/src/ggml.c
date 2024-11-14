@@ -12611,7 +12611,7 @@ static void smart_compute_forward_rms_norm_f32(
 
     GGML_ASSERT(ggml_are_same_shape(src0, dst));
     if (src1)
-        GGML_ASSERT(ggml_are_same_shape(src0, src1));
+        GGML_ASSERT(src0->ne[0] == src1->ne[0]);
 
     GGML_ASSERT(src0->nb[0] == sizeof(float));
 
@@ -12624,15 +12624,15 @@ static void smart_compute_forward_rms_norm_f32(
     // memcpy(&eps, dst->op_params, sizeof(float));
 
     GGML_ASSERT(eps > 0.0f);
+    const float * w = NULL;
+    if (src1)
+        w = (float *)src1->data;
 
     // TODO: optimize
     for (int64_t i03 = 0; i03 < ne03; i03++) {
         for (int64_t i02 = 0; i02 < ne02; i02++) {
             for (int64_t i01 = ith; i01 < ne01; i01 += nth) {
                 const float * x = (float *) ((char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03);
-                const float * w = NULL;
-                if (src1)
-                    w = (float *) ((char *) src1->data + i01*nb01 + i02*nb02 + i03*nb03);
 
                 ggml_float sum = 0.0;
                 for (int64_t i00 = 0; i00 < ne00; i00++) {
@@ -15717,7 +15717,7 @@ void smart_compute_forward_rope(
     dst->src[1] = src1;
     dst->src[2] = src2;
     ((int32_t *)dst->op_params)[1] = rope_params->n_dims;
-    ((int32_t *)dst->op_params)[2] = 0; // mode
+    ((int32_t *)dst->op_params)[2] = rope_params->mode; // mode
     ((int32_t *)dst->op_params)[4] = rope_params->n_ctx_orig; // mode
     memcpy((int32_t *) dst->op_params + 5, &(rope_params->freq_base), sizeof(float));
     memcpy((int32_t *) dst->op_params + 6, &(rope_params->freq_scale), sizeof(float));

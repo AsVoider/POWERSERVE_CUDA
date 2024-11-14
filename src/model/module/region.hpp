@@ -54,7 +54,9 @@ struct Region {
     void update_score(float *key_cache, uint32_t seq_len, uint32_t L, uint32_t pos) {
         SMART_ASSERT((int64_t)region_tensors.size() < tokens_limit);
         region_tensors.emplace_back(L, pos);
-        auto new_score = key_cache + L * seq_len * kv_dim + pos * kv_dim;
+        SMART_UNUSED(seq_len);
+        // auto new_score = key_cache + L * seq_len * kv_dim + pos * kv_dim;
+        auto new_score = key_cache + pos * kv_dim;
 
         for (uint32_t i = 0; i < kv_dim; ++i) {
             key_max_scores[i] = std::max(key_max_scores[i], new_score[i]);

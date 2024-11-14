@@ -9,7 +9,7 @@ set(GGML_OPENMP OFF)
 add_subdirectory(ggml)
 
 if (${CMAKE_C_COMPILER_ID} MATCHES "Clang")
-    target_compile_options(ggml PRIVATE -Wno-double-promotion)
+    target_compile_options(ggml PRIVATE -Wno-double-promotion -Wno-unreachable-code-break)
 endif()
 
 # json
@@ -26,3 +26,6 @@ endif()
 
 # llama_tokenizer
 add_subdirectory(llama_tokenizer)
+
+# QNN headers
+add_subdirectory(qnn_headers)

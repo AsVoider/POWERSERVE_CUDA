@@ -2,6 +2,7 @@
 
 #include "backend/backend.hpp"
 #include "backend/ggml/buffer.hpp"
+#include "backend/ggml/ggml_kv_cache.hpp"
 #include "common.hpp"
 #include "core/config.hpp"
 #include "core/data_type.hpp"
@@ -164,9 +165,10 @@ struct GGMLBackend : Backend {
 public:
     op_compute_params m_params;
     std::vector<char> m_wdata; // TODO: m_wdata create after
+    std::unique_ptr<GGMLKV> m_kv;
 
 public:
-    explicit GGMLBackend(std::shared_ptr<Config> config, int n_threads = 1) : m_wdata(config->tf_cfg.dim * 32) {
+    explicit GGMLBackend(const std::shared_ptr<Config> &config, int n_threads = 1) : m_wdata(config->tf_cfg.dim * 32) {
         m_params = {
             .ith           = 0,
             .nth           = 1,
@@ -177,29 +179,24 @@ public:
             .current_chunk = nullptr,
         };
 
-        std::vector<ThreadConfig> configs;
+        std::vector<ThreadConfig> thread_configs;
         for (int i = 0; i < n_threads; i++) {
-            configs.emplace_back(ThreadConfig{.cpu_ids = {(size_t)i}});
+            thread_configs.emplace_back(ThreadConfig{.cpu_ids = {(size_t)i}});
         }
-        m_thread_pool = std::make_unique<ThreadPool>(configs);
+        m_thread_pool = std::make_unique<ThreadPool>(thread_configs);
+        m_kv          = std::make_unique<GGMLKV>(config);
     }
 
     ~GGMLBackend() override = default;
 
 public:
-    void get_embedding(const Tensor *dst, const Tensor *weight, const Tensor *tokens) const;
+    void get_embedding(const Tensor *dst, const Tensor *weight, const std::vector<int> &tokens) const;
     void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight) const;
     void softmax(const Tensor *out, const Tensor *x) const;
-    void rope(Tensor *out, const Tensor *src, const Tensor *pos, const RopeConfig &rope_cfg) const;
+    void rope(Tensor *out, const Tensor *src, const std::vector<int> &pos, const RopeConfig &rope_cfg) const;
     void multihead_attention(
-        const Tensor *out,
-        const Tensor *q,
-        const Tensor *key_cache,
-        const Tensor *val_cache,
-        const Tensor *pos,
-        const int64_t L,
-        const uint32_t n_heads
+        const Tensor *out, const Tensor *q, const std::vector<int> &pos, const int64_t L, const uint32_t n_heads
     ) const;
     void silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const;
     void add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
@@ -207,15 +204,15 @@ public:
     void quest_attention(
         const Tensor *out,
         const Tensor *q,
-        const Tensor *key_cache,
-        const Tensor *val_cache,
-        const Tensor *pos,
+        const std::vector<int> &pos,
         const int64_t L,
         std::vector<Region> &regions,
         const uint32_t n_heads
     ) const;
     void cos_sim(const Tensor *src0, const Tensor *src1) const;
     void print(const Tensor *x, size_t size) const;
+    void reset_kv_batch_size(const size_t batch_size) const;
+    void add_cache(const Tensor *src, size_t L, const std::vector<int> &pos, size_t head_id, bool is_k);
 
 public:
     template <typename T>

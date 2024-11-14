@@ -25,13 +25,14 @@ auto Graph::view_tensor(TensorNode *tensor, Tensor::Shape shape) -> TensorViewNo
     return static_cast<TensorViewNode *>(tensors.emplace_back(new TensorViewNode(*tensor, shape)).get());
 }
 
-auto Graph::get_embedding(TensorNode *weight, TensorNode *tokens) -> TensorNode * {
+auto Graph::get_embedding(TensorNode *weight, const std::vector<int> &tokens) -> TensorNode * {
     auto op         = new_op(OpType::GET_EMBEDDING);
     auto out        = dup_tensor(weight); // weights (dim, vocab_size)
     out->m_dtype    = DataType::FP32;
-    out->m_shape[1] = tokens->m_shape[0]; // batch size   // inp (dim, batch_size)
-    op->set_inputs({weight, tokens});
+    out->m_shape[1] = tokens.size(); // batch size   // inp (dim, batch_size)
+    op->set_inputs({weight});
     op->set_outputs({out});
+    op->set_params(GetEmbeddingParams{tokens});
     return out;
 }
 
@@ -86,12 +87,12 @@ auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
     return out;
 }
 
-auto Graph::rope(TensorNode *src, TensorNode *pos, const RopeConfig &params) -> TensorNode * {
+auto Graph::rope(TensorNode *src, const std::vector<int> &pos, const RopeConfig &params) -> TensorNode * {
     auto out = dup_tensor(src);
     auto op  = new_op(OpType::ROPE);
-    op->set_inputs({src, pos});
+    op->set_inputs({src});
     op->set_outputs({out});
-    op->set_params(RopeParams{params});
+    op->set_params(RopeParams{pos, params});
 
     return out;
 }
@@ -105,54 +106,70 @@ auto Graph::softmax(TensorNode *x) -> TensorNode * {
     return out;
 }
 
-auto Graph::mha(
-    TensorNode *q, TensorNode *key_cache, TensorNode *val_cache, TensorNode *pos, size_t layer_id, uint32_t n_heads
-) -> TensorNode * {
+auto Graph::mha(TensorNode *q, const std::vector<int> &pos, size_t layer_id, uint32_t n_heads) -> TensorNode * {
     // TODO: Add checks
 
     auto out = dup_tensor(q);
     auto op  = new_op(OpType::MHA);
-    op->set_inputs({q, key_cache, val_cache, pos});
+    op->set_inputs({q});
     op->set_outputs({out});
-    op->set_params(MHAParams{.layer_id = layer_id, .n_heads = n_heads});
+    op->set_params(MHAParams{.pos = pos, .layer_id = layer_id, .n_heads = n_heads});
 
     return out;
 }
 
-auto Graph::copy(TensorNode *dst, TensorNode *src, size_t off) -> void {
+#if defined(SMART_WITH_QNN)
+auto Graph::qnn_forward(
+    TensorNode *x, std::vector<int> pos, const CausalAttentionMask &mask, size_t vocab_size, bool lm_head
+) -> TensorNode * {
+    TensorNode *out = nullptr;
+    auto op         = new_op(OpType::QNN_FORWARD);
+    op->set_inputs({x});
+    op->set_params(QNNForwardParams(pos, mask));
+    if (lm_head) {
+        out = new_tensor(DataType::FP32, {vocab_size, x->m_shape[1]});
+    } else {
+        out = new_tensor(DataType::FP32, {0});
+    }
+    op->set_outputs({out});
+    return out;
+}
+#endif
+
+void Graph::copy(TensorNode *dst, TensorNode *src, size_t off) {
     auto op = new_op(OpType::COPY);
     op->set_inputs({dst, src});
     op->set_params(CopyParams{.off = off});
 }
 
-auto Graph::print(TensorNode *x, size_t size) -> void {
+void Graph::print(TensorNode *x, size_t size) {
     auto op = new_op(OpType::PRINT);
     op->set_inputs({x});
     op->set_params(PrintParams{.size = size});
 }
 
 auto Graph::quest_attention(
-    TensorNode *q,
-    TensorNode *key_cache,
-    TensorNode *val_cache,
-    TensorNode *pos,
-    size_t layer_id,
-    std::vector<Region> &regions,
-    uint32_t n_heads
+    TensorNode *q, const std::vector<int> &pos, size_t layer_id, std::vector<Region> &regions, uint32_t n_heads
 ) -> TensorNode * {
     auto out = dup_tensor(q);
     auto op  = new_op(OpType::QUEST_ATTN);
-    op->set_inputs({q, key_cache, val_cache, pos});
+    op->set_inputs({q});
     op->set_outputs({out});
-    op->set_params(QuestAttnParams{.layer_id = layer_id, .regions = regions, .n_heads = n_heads});
+    op->set_params(QuestAttnParams{.pos = pos, .layer_id = layer_id, .regions = regions, .n_heads = n_heads});
 
     return out;
 }
 
-auto Graph::cos_sim(TensorNode *src0, TensorNode *src1) -> void {
+void Graph::cos_sim(TensorNode *src0, TensorNode *src1) {
     auto op = new_op(OpType::COS_SIM);
     op->set_inputs({src0, src1});
     op->set_outputs({});
+}
+
+void Graph::add_cache(TensorNode *src, size_t L, const std::vector<int> &pos, size_t head_id, bool is_k) {
+    auto op = new_op(OpType::ADD_CACHE);
+    op->set_inputs({src});
+    op->set_params(AddCacheParams{L, pos, head_id, is_k});
 }
 
 } // namespace smart

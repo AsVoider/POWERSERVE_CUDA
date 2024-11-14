@@ -644,6 +644,7 @@ extern "C" {
         float attn_factor; 
         float beta_fast; 
         float beta_slow;
+        int mode; // rope_type
     };
 
     static const size_t GGML_TENSOR_SIZE = sizeof(struct ggml_tensor);

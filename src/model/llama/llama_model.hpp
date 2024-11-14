@@ -31,7 +31,12 @@ public:
     Graph *decode() override;
     void generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) override;
 
-    auto forward(int token, int pos) -> std::vector<float>;
+    auto forward(
+        const std::vector<int> &tokens,
+        const std::vector<int> &pos,
+        const CausalAttentionMask &mask,
+        bool lm_head = true
+    ) -> std::vector<std::vector<float>>;
 };
 
 } // namespace smart

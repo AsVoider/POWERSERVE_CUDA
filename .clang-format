@@ -13,6 +13,7 @@ AlwaysBreakAfterReturnType: None
 AlwaysBreakTemplateDeclarations: Yes
 BinPackArguments: false
 BinPackParameters: false
+BreakAfterAttributes: Always
 BreakBeforeBraces: Attach
 BreakConstructorInitializers: AfterColon
 ColumnLimit: 120

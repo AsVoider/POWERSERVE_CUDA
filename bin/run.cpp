@@ -1,11 +1,9 @@
 
 #include "CLI/CLI.hpp"
 #include "common.hpp"
-#include "ggml.h"
 #include "model/llama/llama_model.hpp"
 #include "model/module/norm_attention.hpp"
 #include "model/module/quest_attention.hpp"
-#include "sampler/sampler.hpp"
 #include "sampler/sampler_chain.hpp"
 #include "tokenizer/tokenizer.hpp"
 
@@ -40,6 +38,11 @@ int main(int argc, char *argv[]) {
     app.add_option("--top-p", top_p);
     app.add_option("--top-k", top_k);
     app.add_option("--rng-seed", rng_seed);
+#if defined(SMART_WITH_QNN)
+    std::string qnn_path = "";
+    app.add_option("--qnn-path", qnn_path);
+#endif
+
     CLI11_PARSE(app, argc, argv);
 
     // get number of CPUs
@@ -54,7 +57,13 @@ int main(int argc, char *argv[]) {
     auto config = std::make_shared<smart::Config>(config_path);
 
     // get platform
-    auto platform = std::make_shared<smart::Platform>(config, n_threads);
+    auto platform = std::make_shared<smart::Platform>();
+    platform->init_ggml_backend(config, n_threads);
+#if defined(SMART_WITH_QNN)
+    if (qnn_path != "") {
+        platform->init_qnn_backend(qnn_path, config);
+    }
+#endif
 
     // get model type
     std::string model_arch = config->arch;
@@ -75,6 +84,7 @@ int main(int argc, char *argv[]) {
         model->m_attn = std::make_shared<smart::NormAttention>(model->m_config, model->m_weights);
     } else if (attn_type == "quest") {
         model->m_attn = std::make_shared<smart::QuestAttention>(model->m_config, model->m_weights);
+        // SMART_ASSERT(false);
     }
     smart::get_memory_usage("after attn init");
 
@@ -83,7 +93,7 @@ int main(int argc, char *argv[]) {
     smart::get_memory_usage("after tokenizer init");
 
     // load sampler
-    smart::SamplerConfig sample_config{
+    smart::SamplerConfig sampler_config{
         .seed            = rng_seed,
         .temp            = temperature,
         .top_p           = top_p,
@@ -98,7 +108,7 @@ int main(int argc, char *argv[]) {
         .penalize_nl     = false,
         .ignore_eos      = false,
     };
-    smart::SamplerChain sampler{sample_config};
+    smart::SamplerChain sampler{sampler_config};
     smart::get_memory_usage("after sampler init");
 
     {

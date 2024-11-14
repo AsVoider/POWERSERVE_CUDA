@@ -5,6 +5,8 @@ option(SMART_ENABLE_ASAN "Enable address santizer" OFF)
 option(SMART_ENABLE_UBSAN "Enable undefined santizer" OFF)
 option(SMART_ENABLE_LTO "Enable link-time optimization" OFF)
 
+option(SMART_WITH_QNN "Enable QNN backend" OFF)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_STANDARD 20)

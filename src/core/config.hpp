@@ -15,6 +15,7 @@ struct RopeConfig {
     float attn_factor = 1.0f;
     float beta_fast   = 32.0f;
     float beta_slow   = 0.0f;
+    int rope_type     = -1;
 };
 
 struct TransformerConfig {
@@ -31,8 +32,8 @@ public:
     uint32_t vocab_size     = 0;
     uint32_t rope_dim_count = 0; // n_rot in rope
     float rope_freq_base    = 10000.0f;
-    uint32_t n_embd_head_k  = 0; // n_embd / n_heads
-    uint32_t n_embd_head_v  = 0; // n_embd / n_heads
+    uint32_t kv_dim         = 0; // head_size * n_kv_heads
+    uint32_t head_size      = 0; // dim / n_heads
 
 public:
     TransformerConfig()          = default;
