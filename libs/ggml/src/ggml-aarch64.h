@@ -36,4 +36,3 @@ void ggml_gemm_q4_0_8x8_q8_0(int n, float * GGML_RESTRICT s, size_t bs, const vo
 #ifdef __cplusplus
 }
 #endif
-

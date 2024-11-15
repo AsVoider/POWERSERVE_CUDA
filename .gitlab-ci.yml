@@ -22,20 +22,18 @@ variables:
   # 如果branch名称里含ci，就把CI_DEBUG_TRACE设置为true
 
 
-
-
 check_formatting:
   stage: check_format
   script:
-    - CLANG_FORMAT=/home/gitlab-runner/Downloads/clang-format-18
+    - export CLANG_FORMAT=/home/gitlab-runner/Downloads/clang-format-18
     - $CLANG_FORMAT --version
     - cd "$CI_PROJECT_DIR"
     - echo "Checking formatting from ${CI_MERGE_REQUEST_DIFF_BASE_SHA}..."
-    - format_diff=$(git-clang-format --binary $CLANG_FORMAT ${CI_MERGE_REQUEST_DIFF_BASE_SHA} --diff)
-    - echo $format_diff
-    - linter_errors=$(echo $format_diff | grep -E --color=never "no modified files to format|clang-format did not modify any files" || true)
-    - echo "$linter_errors"
-    - if [ -z "$linter_errors" ]; then echo "Detected formatting issues; please fix"; exit 1; else echo "Formatting is correct"; exit 0; fi
+    - changed_files=$(git diff ${CI_MERGE_REQUEST_DIFF_BASE_SHA} --name-only)
+    - echo "$changed_files"
+    - format_diff=$(python tools/format.py $changed_files)
+    - echo "$format_diff"
+    - if [[ "${format_diff%$'\n'}" == "git diff returns 0" ]]; then echo "Formatting is correct"; exit 0; else echo "Detected formatting issues; please fix"; exit 1; fi
 
 setup:
   stage: setup

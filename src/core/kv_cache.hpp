@@ -30,26 +30,22 @@ struct KVView {
             auto src = (uint16_t *)other.data;
             auto dst = (uint8_t *)data;
 
-            // clang-format off
             #pragma unroll(4)
             for (size_t i = 0; i < n_elements; i++) {
                 *(uint16_t *)dst = *src;
                 src++;
                 dst += stride;
             }
-            // clang-format on
         } else if (element_size == 2) {
             auto src = (uint8_t *)other.data;
             auto dst = (uint8_t *)data;
 
-            // clang-format off
             #pragma unroll(4)
             for (size_t i = 0; i < n_elements; i++) {
                 *(uint16_t *)dst = *(uint16_t *)src;
                 src += other.stride;
                 dst += stride;
             }
-            // clang-format on
         } else {
             SMART_ASSERT(false);
         }

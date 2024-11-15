@@ -1,4 +1,3 @@
-
 #include "CLI/CLI.hpp"
 #include "common.hpp"
 #include "model/llama/llama_model.hpp"
