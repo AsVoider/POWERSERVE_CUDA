@@ -69,8 +69,8 @@ struct QNNConfig {
                 data.at("end_layer_id").get_to(info.end_layer_id);
                 data.at("batch_size").get_to(info.batch_size);
                 data.at("cache_size").get_to(info.cache_size);
-                data.at("context_size").get_to(info.context_size);
-                //info.context_size = info.batch_size + info.cache_size;
+                // data.at("context_size").get_to(info.context_size);
+                info.context_size = info.batch_size + info.cache_size;
                 data.at("model_path").get_to(info.model_path);
                 data.at("kv_path_format").get_to(info.kv_path_format);
                 data.at("kv_size").get_to(info.kv_size);

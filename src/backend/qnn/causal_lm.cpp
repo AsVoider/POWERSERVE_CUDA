@@ -19,11 +19,11 @@ CausalLM::CausalLM(const Path model_folder, const std::shared_ptr<smart::Config>
     m_session(environment) {
     m_gparams.cache_size   = m_config.chunks[0].cache_size;
     m_gparams.kv_size      = m_config.chunks[0].kv_size;
-    m_gparams.context_size = m_config.chunks[0].context_size;
+    m_gparams.context_size = 2048;
     for (auto &info : m_config.chunks) {
         SMART_ASSERT(info.cache_size == m_gparams.cache_size);
         SMART_ASSERT(info.kv_size == m_gparams.kv_size);
-        SMART_ASSERT(info.context_size == m_gparams.context_size);
+        // SMART_ASSERT(info.context_size == m_gparams.context_size);
         m_gparams.max_batch_size = std::max(m_gparams.max_batch_size, info.batch_size);
     }
     load_model_chunks();

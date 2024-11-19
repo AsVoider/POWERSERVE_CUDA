@@ -53,7 +53,7 @@ setup:
     - sudo podman rm $CONTAINER_NAME || true
     # - export https_proxy=http://ipads:ipads123@202.120.40.82:11235
     - git submodule update --init --recursive
-    - sudo -E podman run -v $(realpath .):/code -v $(realpath /home/gitlab-runner/Downloads):/data -v $(realpath /opt/qcom/aistack/qairt/2.28):/qnn -dit --name ndk ubuntu:22.04
+    - sudo -E podman run -v $(realpath .):/code -v $(realpath /home/gitlab-runner/Downloads):/data -v $(realpath /opt/qcom/aistack/qairt/2.26.0.240828):/qnn -dit --name ndk ubuntu:22.04
     - sudo podman exec -it $CONTAINER_NAME bash -c "echo -e 'deb http://mirrors.aliyun.com/ubuntu/ jammy main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-updates main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-backports main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-security main restricted universe multiverse' | tee /etc/apt/sources.list"
     - sudo podman exec -it $CONTAINER_NAME bash -c "apt update && apt upgrade -y && apt install -y sudo vim cmake unzip git python-is-python3 python3-pip build-essential"
     # - sudo podman exec -it $CONTAINER_NAME bash -c "pip install -r /code/requirements.txt"
@@ -61,6 +61,8 @@ setup:
     # - sudo wget https://dl.google.com/android/repository/android-ndk-r27b-linux.zip?hl=zh-cn -O ~/Downloads/android-ndk-r27b-linux.zip
     # - export https_proxy=http://ipads:ipads123@202.120.40.82:11235
     # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && git submodule update --init --recursive"
+    - sudo podman exec -it $CONTAINER_NAME bash -c "pip install pandas requests"
+
 
 # convert:
 #   stage: convert
@@ -103,6 +105,7 @@ deploy:
     - echo "Deploying binaries and models to your Android device."
     - scp -P 8022 -r /home/gitlab-runner/Downloads/build_android/bin/run u0_a334@192.168.61.65:/data/data/com.termux/files/home
     - scp -P 8022 -r /home/gitlab-runner/Downloads/build_android/tools/gguf_config_to_json/config_generator u0_a334@192.168.61.65:/data/data/com.termux/files/home
+    - scp -P 8022 /home/gitlab-runner/Downloads/build_android/bin/server u0_a334@192.168.61.65:/data/data/com.termux/files/home/ss_server
     - ssh -p 8022 u0_a334@192.168.61.65 "ls -ahl /data/data/com.termux/files/home"
 
 test_llama3.1:
@@ -144,3 +147,15 @@ test_qnn:
   stage: test
   script:
     - ./.gitlab/deploy_to_remote_phone.sh
+
+test_server:
+  when: manual
+  stage: test
+  script:
+    # - ssh -p 8022 u0_a334@192.168.61.65 "sudo pkill ss_server && echo 0"
+    - sleep 2
+    - ssh -p 8022 u0_a334@192.168.61.65 "LD_LIBRARY_PATH=/vendor/lib64 sudo ./ss_server --host 192.168.61.65 --port 18080 --file-path 3_1/llama_3.1_8b_q4_0.gguf --vocab-path 3_1/Llama-3.1-Instruct-vocab.gguf --qnn-path ./libdir32_i --config-path 3_1/model_config.json >/dev/null 2>&1 &"
+    - sleep 10
+    - sudo podman exec -it $CONTAINER_NAME bash -c -i "cd /code/tools/mmlu && python ./mmlu_test.py --host 192.168.61.65 --port 18080 -s 1"
+    - ssh -p 8022 u0_a334@192.168.61.65 "sudo pkill ss_server && echo 0"
+  
