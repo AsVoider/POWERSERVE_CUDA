@@ -6,7 +6,6 @@
 #include "executor/executor.hpp"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
-// #include "model/llama/llama_config.hpp"
 #include "model/llama/llama_weight.hpp"
 #include "sampler/sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
@@ -50,14 +49,6 @@ LlamaModel::LlamaModel(
 
 LlamaModel::~LlamaModel() {
     gguf_free(gguf_ctx);
-}
-
-Graph *LlamaModel::prefill() {
-    return nullptr;
-}
-
-Graph *LlamaModel::decode() {
-    return nullptr;
 }
 
 auto LlamaModel::forward(
@@ -110,98 +101,111 @@ auto LlamaModel::forward(
     return res;
 }
 
-void LlamaModel::generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) {
-    // encode the (string) prompt into tokens sequence
+// void LlamaModel::generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) {
+//     // encode the (string) prompt into tokens sequence
 
-    int num_prompt_tokens = 0;
-    auto prompt_tokens    = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos);
-    // fmt::println("tokens: {}", prompt_tokens);
-    num_prompt_tokens = prompt_tokens.size();
+//     int num_prompt_tokens = 0;
+//     auto prompt_tokens    = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos);
+//     // fmt::println("tokens: {}", prompt_tokens);
+//     num_prompt_tokens = prompt_tokens.size();
 
-    SMART_ASSERT(num_prompt_tokens >= 1);
-    // start the main loop
-    long start = 0; // used to time our code, only initialized after first iteration
-    int next;       // will store the next token in the sequence
-    int pos = 0;    // position in the sequence
-#if defined(SMART_WITH_QNN)
-    if (m_platform->qnn_backend) {
-        pos = m_platform->qnn_backend->m_causalLM->kv_cache->position;
+//     SMART_ASSERT(num_prompt_tokens >= 1);
+//     // start the main loop
+//     long start = 0; // used to time our code, only initialized after first iteration
+//     int next;       // will store the next token in the sequence
+//     int pos = 0;    // position in the sequence
+// #if defined(SMART_WITH_QNN)
+//     if (m_platform->qnn_backend) {
+//         pos = m_platform->qnn_backend->m_causal_lm->kv_cache->position;
+//     }
+// #endif
+//     //prefill
+//     auto prefill_start = time_in_ms();
+//     auto prefill_pos   = std::vector<int>(num_prompt_tokens - 1);
+//     std::iota(prefill_pos.begin(), prefill_pos.end(), pos);
+//     auto prefill_attention_mask = CausalAttentionMask(num_prompt_tokens - 1);
+//     forward(
+//         std::vector<int>(prompt_tokens.begin(), std::prev(prompt_tokens.end())),
+//         prefill_pos,
+//         prefill_attention_mask,
+//         false
+//     );
+//     fmt::print("{}", prompt);
+//     auto prefill_end           = time_in_ms();
+//     auto token                 = prompt_tokens[num_prompt_tokens - 1]; // kick off with the first token in the prompt
+//     auto decode_attention_mask = CausalAttentionMask(1);
+// #if defined(SMART_WITH_QNN)
+//     if (m_platform->qnn_backend) {
+//         pos = m_platform->qnn_backend->m_causal_lm->kv_cache->position;
+//     } else
+// #endif
+//     {
+//         pos = num_prompt_tokens - 1;
+//     }
+//     while (pos < steps + num_prompt_tokens - 1) {
+//         // forward the transformer to get logits for the next token
+//         std::vector<float> logits =
+//             forward(std::vector<int>(1, token), std::vector<int>(1, pos), decode_attention_mask)[0];
+
+//         auto probs = ProbArray(logits);
+//         sampler.apply(probs);
+//         std::mt19937 gen(std::random_device{}());
+//         next = probs.sample(gen).index;
+//         sampler.accept(next);
+//         pos++;
+
+//         // data-dependent terminating condition: the BOS token delimits sequences
+//         if (next == tokenizer.bos_token()) {
+//             break;
+//         } else if (next == tokenizer.m_vocab.special_eos_id || next == tokenizer.m_vocab.special_eom_id ||
+//                    next == tokenizer.m_vocab.special_eot_id) {
+//             fmt::print("[end of text]");
+//             break;
+//         }
+
+//         // print the token as string, decode it with the Tokenizer object
+//         auto piece = tokenizer.to_string(next);
+//         fmt::print("{}", piece);
+//         fflush(stdout);
+//         token = next;
+
+//         // init the timer here because the first iteration can be slower
+//         if (start == 0) {
+//             start = time_in_ms();
+//         }
+//     }
+//     fmt::println("");
+
+//     if (pos > num_prompt_tokens) {
+//         long end = time_in_ms();
+//         fmt::println(
+//             "prefill speed: {} tokens/s", (num_prompt_tokens - 1) / (double)(prefill_end - prefill_start) * 1000
+//         );
+//         fmt::println(stderr, "decode speed: {} tokens/s", (pos - num_prompt_tokens) / (double)(end - start) * 1000);
+//         fmt::println(stderr, "total speed: {} tokens/s", (pos - 1) / (double)(end - prefill_start) * 1000);
+//     }
+// }
+
+auto LlamaModel::decode(
+    Sampler &sampler, const std::vector<Tokenizer::Token> tokens, const std::vector<int> pos, bool lm_head
+) -> std::vector<Tokenizer::Token> {
+    auto mask = CausalAttentionMask(tokens.size());
+    auto ret  = forward(tokens, pos, mask, lm_head);
+    std::vector<Tokenizer::Token> toks;
+    for (auto logits : ret) {
+        auto probs = ProbArray(logits);
+        sampler.apply(probs);
+        std::mt19937 gen(std::random_device{}());
+        auto next = probs.sample(gen).index;
+        sampler.accept(next);
+        toks.push_back(next);
     }
-#endif
-    //prefill
-    auto prefill_start = time_in_ms();
-    auto prefill_pos   = std::vector<int>(num_prompt_tokens - 1);
-    std::iota(prefill_pos.begin(), prefill_pos.end(), pos);
-    auto prefill_attention_mask = CausalAttentionMask(num_prompt_tokens - 1);
-    forward(
-        std::vector<int>(prompt_tokens.begin(), std::prev(prompt_tokens.end())),
-        prefill_pos,
-        prefill_attention_mask,
-        false
-    );
-    fmt::print("{}", prompt);
-    auto prefill_end           = time_in_ms();
-    auto token                 = prompt_tokens[num_prompt_tokens - 1]; // kick off with the first token in the prompt
-    auto decode_attention_mask = CausalAttentionMask(1);
-#if defined(SMART_WITH_QNN)
-    if (m_platform->qnn_backend) {
-        pos = m_platform->qnn_backend->m_causalLM->kv_cache->position;
-    } else
-#endif
-    {
-        pos = num_prompt_tokens - 1;
-    }
-    while (pos < steps) {
-        // forward the transformer to get logits for the next token
-        std::vector<float> logits =
-            forward(std::vector<int>(1, token), std::vector<int>(1, pos), decode_attention_mask)[0];
+    return toks;
+}
 
-        // advance the state machine
-        if (pos < num_prompt_tokens - 1) {
-            // TODO: prefill
-            // if we are still processing the input prompt, force the next prompt token
-            next = tokenizer.m_vocab.tokenizer_add_bos ? prompt_tokens[pos + 1] : prompt_tokens[pos];
-        } else {
-            // TODO: Decode
-            // otherwise sample the next token from the logits
-            auto probs = ProbArray(logits);
-            sampler.apply(probs);
-            std::mt19937 gen(std::random_device{}());
-            next = probs.sample(gen).index;
-            sampler.accept(next);
-        }
-        pos++;
-
-        // data-dependent terminating condition: the BOS token delimits sequences
-        if (next == tokenizer.bos_token()) {
-            break;
-        } else if (next == tokenizer.m_vocab.special_eos_id || next == tokenizer.m_vocab.special_eom_id ||
-                   next == tokenizer.m_vocab.special_eot_id) {
-            fmt::print("[end of text]");
-            break;
-        }
-
-        // print the token as string, decode it with the Tokenizer object
-        auto piece = tokenizer.to_string(next);
-        fmt::print("{}", piece);
-        fflush(stdout);
-        token = next;
-
-        // init the timer here because the first iteration can be slower
-        if (start == 0) {
-            start = time_in_ms();
-        }
-    }
-    fmt::println("");
-
-    if (pos > 1) {
-        long end = time_in_ms();
-        fmt::println(
-            "prefill speed: {} tokens/s", (num_prompt_tokens - 1) / (double)(prefill_end - prefill_start) * 1000
-        );
-        fmt::println(stderr, "decode speed: {} tokens/s", (pos - num_prompt_tokens) / (double)(end - start) * 1000);
-        fmt::println(stderr, "total speed: {} tokens/s", (pos - 1) / (double)(end - prefill_start) * 1000);
-    }
+auto LlamaModel::generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps)
+    -> Model::TokenRange {
+    return Model::TokenRange(*this, tokenizer, sampler, prompt, steps);
 }
 
 } // namespace smart

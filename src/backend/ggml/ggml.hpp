@@ -168,11 +168,12 @@ public:
     std::unique_ptr<GGMLKV> m_kv;
 
 public:
-    explicit GGMLBackend(const std::shared_ptr<Config> &config, int n_threads = 1) : m_wdata(config->tf_cfg.dim * 32) {
+    explicit GGMLBackend(const std::shared_ptr<Config> &config, int n_threads = 1) :
+        m_wdata(config->tf_cfg.dim * config->tf_cfg.dim) {
         m_params = {
             .ith           = 0,
             .nth           = 1,
-            .wsize         = (size_t)config->tf_cfg.dim * 32,
+            .wsize         = (size_t)config->tf_cfg.dim * config->tf_cfg.dim, // TODO: Replace wdata with max data size
             .wdata         = m_wdata.data(),
             .thread_pool   = nullptr,
             .barrier_fn    = nullptr,

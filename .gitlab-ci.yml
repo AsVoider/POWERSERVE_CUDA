@@ -31,6 +31,7 @@ check_formatting:
     - echo "Checking formatting from ${CI_MERGE_REQUEST_DIFF_BASE_SHA}..."
     - changed_files=$(git diff ${CI_MERGE_REQUEST_DIFF_BASE_SHA} --name-only)
     - echo "$changed_files"
+    - if [[ -z "$changed_files" ]]; then echo "No files changed; nothing to format"; exit 0; fi
     - format_diff=$(python tools/format.py $changed_files)
     - echo "$format_diff"
     - if [[ "${format_diff%$'\n'}" == "git diff returns 0" ]]; then echo "Formatting is correct"; exit 0; else echo "Detected formatting issues; please fix"; exit 1; fi
@@ -52,7 +53,7 @@ setup:
     - sudo podman rm $CONTAINER_NAME || true
     # - export https_proxy=http://ipads:ipads123@202.120.40.82:11235
     - git submodule update --init --recursive
-    - sudo -E podman run -v $(realpath .):/code -v $(realpath /home/gitlab-runner/Downloads):/data -v $(realpath /opt/qcom/aistack/qairt/2.26.0.240828):/qnn -dit --name ndk ubuntu:22.04
+    - sudo -E podman run -v $(realpath .):/code -v $(realpath /home/gitlab-runner/Downloads):/data -v $(realpath /opt/qcom/aistack/qairt/2.28):/qnn -dit --name ndk ubuntu:22.04
     - sudo podman exec -it $CONTAINER_NAME bash -c "echo -e 'deb http://mirrors.aliyun.com/ubuntu/ jammy main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-updates main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-backports main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-security main restricted universe multiverse' | tee /etc/apt/sources.list"
     - sudo podman exec -it $CONTAINER_NAME bash -c "apt update && apt upgrade -y && apt install -y sudo vim cmake unzip git python-is-python3 python3-pip build-essential"
     # - sudo podman exec -it $CONTAINER_NAME bash -c "pip install -r /code/requirements.txt"
@@ -92,13 +93,17 @@ build:
 deploy:
   stage: deploy
   script:
+    # - echo "Deploying binaries and models to your Android device."
+    # - sleep 2
+    # - adb push /home/gitlab-runner/Downloads/build_android/bin/run /data/local/tmp/
+    # - adb push /home/gitlab-runner/Downloads/build_android/tools/gguf_config_to_json/config_generator /data/local/tmp/config_generator
+    # - sleep 2
+    # - adb shell "ls -ahl /data/local/tmp/run"
+    # - scp -P 8022 -r ~/Downloads/build_android/bin/run u0_a334@192.168.61.65:/data/data/com.termux/files/home
     - echo "Deploying binaries and models to your Android device."
-    - sleep 2
-    - adb push /home/gitlab-runner/Downloads/build_android/bin/run /data/local/tmp/
-    - adb push /home/gitlab-runner/Downloads/build_android/tools/gguf_config_to_json/config_generator /data/local/tmp/config_generator
-    - sleep 2
-    - adb shell "ls -ahl /data/local/tmp/run"
-    - scp -P 8022 -r ~/Downloads/build_android/bin/run u0_a334@192.168.61.65:/data/data/com.termux/files/home
+    - scp -P 8022 -r /home/gitlab-runner/Downloads/build_android/bin/run u0_a334@192.168.61.65:/data/data/com.termux/files/home
+    - scp -P 8022 -r /home/gitlab-runner/Downloads/build_android/tools/gguf_config_to_json/config_generator u0_a334@192.168.61.65:/data/data/com.termux/files/home
+    - ssh -p 8022 u0_a334@192.168.61.65 "ls -ahl /data/data/com.termux/files/home"
 
 test_llama3.1:
   stage: test
@@ -107,8 +112,9 @@ test_llama3.1:
     - echo "$CI_PROJECT_DIR"
     - sudo chmod -R 777 .
   script:
-    - adb shell "/data/local/tmp/config_generator --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --target-path /data/local/tmp/llama3.1.json"
-    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.1_8b_vocab.gguf --prompt \"One day,\" --steps 32 --config-path /data/local/tmp/llama3.1.json"
+    # - adb shell "/data/local/tmp/config_generator --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --target-path /data/local/tmp/llama3.1.json"
+    # - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.1_8b_vocab.gguf --prompt \"One day,\" --steps 32 --config-path /data/local/tmp/llama3.1.json"
+    - ssh -p 8022 u0_a334@192.168.61.65 "sudo ./run --file-path 3_1/llama_3.1_8b_q4_0.gguf --vocab-path 3_1/Llama-3.1-Instruct-vocab.gguf --config-path 3_1/model_config.json --prompt \"One day,\" --steps 32"
 
 # test_phi3:
 #   stage: test
@@ -124,8 +130,9 @@ test_llama3.1:
 test_thread:
   stage: test
   script:
-    - adb shell "/data/local/tmp/config_generator --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --target-path /data/local/tmp/llama3.2.json"
-    - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 32 --n-threads 8 --config-path /data/local/tmp/llama3.2.json"
+    # - adb shell "/data/local/tmp/config_generator --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --target-path /data/local/tmp/llama3.2.json"
+    # - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 32 --n-threads 8 --config-path /data/local/tmp/llama3.2.json"
+    - ssh -p 8022 u0_a334@192.168.61.65 "sudo ./run --file-path 3_1/llama_3.1_8b_q4_0.gguf --vocab-path 3_1/Llama-3.1-Instruct-vocab.gguf --config-path 3_1/model_config.json --prompt \"One day,\" --steps 32 --n-threads 8"
 
 # test_long_out:
 #   stage: test

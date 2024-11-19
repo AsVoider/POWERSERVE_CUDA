@@ -2,7 +2,6 @@
 
 #include "backend/platform.hpp"
 #include "ggml.h"
-#include "graph/graph.hpp"
 #include "model/model.hpp"
 #include "sampler/sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
@@ -27,9 +26,10 @@ public:
     ~LlamaModel() override;
 
 public:
-    Graph *prefill() override;
-    Graph *decode() override;
-    void generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) override;
+    // void generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) override;
+    auto decode(Sampler &sampler, const std::vector<Tokenizer::Token> tokens, const std::vector<int> pos, bool lm_head)
+        -> std::vector<Tokenizer::Token> override;
+    auto generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) -> TokenRange override;
 
     auto forward(
         const std::vector<int> &tokens,

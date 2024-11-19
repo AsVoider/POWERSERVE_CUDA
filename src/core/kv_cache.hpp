@@ -29,8 +29,9 @@ struct KVView {
         } else if (other.is_contiguous() && element_size == 2) {
             auto src = (uint16_t *)other.data;
             auto dst = (uint8_t *)data;
-
+            // clang-format off
             #pragma unroll(4)
+            // clang-format on
             for (size_t i = 0; i < n_elements; i++) {
                 *(uint16_t *)dst = *src;
                 src++;
@@ -40,7 +41,9 @@ struct KVView {
             auto src = (uint8_t *)other.data;
             auto dst = (uint8_t *)data;
 
+            // clang-format off
             #pragma unroll(4)
+            // clang-format on
             for (size_t i = 0; i < n_elements; i++) {
                 *(uint16_t *)dst = *(uint16_t *)src;
                 src += other.stride;

@@ -1,14 +1,15 @@
 #include "CLI/CLI.hpp"
+#include "backend/platform.hpp"
 #include "common.hpp"
+#include "core/config.hpp"
+#include "crow.h"
 #include "model/llama/llama_model.hpp"
+#include "model/model.hpp"
 #include "model/module/norm_attention.hpp"
 #include "model/module/quest_attention.hpp"
 #include "sampler/sampler_chain.hpp"
-#include "tokenizer/tokenizer.hpp"
 
 #include <cstdlib>
-#include <memory>
-#include <string>
 
 int main(int argc, char *argv[]) {
     // 0. load config
@@ -18,25 +19,25 @@ int main(int argc, char *argv[]) {
     float temperature          = 0.8f; // 0.0 = greedy deterministic. 1.0 = original. don't set higher
     float top_p                = 0.95f;
     size_t top_k               = 40;
-    int steps                  = 64;         // number of steps to run for
-    std::string prompt         = "One day,"; // prompt string
     std::string attn_type      = "normal";
     int n_threads              = 4;
     uint64_t rng_seed          = uint64_t(-1); // uint64_t(-1) = random seed
+    std::string host           = "127.0.0.1";
+    int port                   = 8080;
 
-    CLI::App app("Demo program for llama3");
+    CLI::App app("Server program");
 
     app.add_option("--file-path", file_path)->required();
     app.add_option("--vocab-path", tokenizer_path)->required();
     app.add_option("--config-path", config_path)->required();
-    app.add_option("--prompt", prompt);
-    app.add_option("--steps", steps);
     app.add_option("--attn-type", attn_type);
     app.add_option("--n-threads", n_threads);
     app.add_option("--temperature", temperature);
     app.add_option("--top-p", top_p);
     app.add_option("--top-k", top_k);
     app.add_option("--rng-seed", rng_seed);
+    app.add_option("--host", host);
+    app.add_option("--port", port);
 #if defined(SMART_WITH_QNN)
     std::string qnn_path = "";
     app.add_option("--qnn-path", qnn_path);
@@ -66,10 +67,10 @@ int main(int argc, char *argv[]) {
     std::string model_arch = config->arch;
     smart::get_memory_usage("begin");
 
-    std::unique_ptr<smart::Model> model;
+    std::shared_ptr<smart::Model> model;
     // TODO: move into Model.cpp like build_model
     if (model_arch == "llama") {
-        model = std::make_unique<smart::LlamaModel>(file_path, config, platform);
+        model = std::make_shared<smart::LlamaModel>(file_path, config, platform);
     } else if (model_arch == "phi3") {
         SMART_ASSERT(false);
     } else {
@@ -105,59 +106,54 @@ int main(int argc, char *argv[]) {
         .penalize_nl     = false,
         .ignore_eos      = false,
     };
-    smart::SamplerChain sampler{sampler_config};
-    smart::get_memory_usage("after sampler init");
 
-    {
-        fmt::println(stderr, "file_path   : {}", file_path);
-        fmt::println(stderr, "vocab_path  : {}", tokenizer_path);
-        fmt::println(stderr, "prompt      : {}", prompt);
-        fmt::println(stderr, "steps       : {}", steps);
-        fmt::println(stderr, "attn_type   : {}", attn_type);
-        fmt::println(stderr, "model arch  : {}", model_arch);
-        fmt::println(stderr, "n_threads   : {}", n_threads);
-        fmt::println(stderr, "temperature : {}", temperature);
-        fmt::println(stderr, "top_p       : {}", top_p);
-        fmt::println(stderr, "top_k       : {}", top_k);
-        fmt::println(stderr, "rng_seed    : {}", rng_seed);
-    }
+    crow::SimpleApp server;
+    server.bindaddr(host).port(port);
 
-    // generate
-    long prefill_start = 0;
-    long prefill_end   = 0;
-    long decode_end    = 0;
-    bool start         = false;
-    int actual_predict = 0;
-    fmt::print("{}", prompt);
-    prefill_start = smart::time_in_ms();
-    for (auto next : model->generate(tokenizer, sampler, prompt, steps)) {
-        if (!start) {
-            prefill_end = smart::time_in_ms();
-            start       = true;
-            continue;
+    CROW_ROUTE(server, "/completion").methods("POST"_method)([&](const crow::request &req) {
+        // fmt::println(stderr, "{}", req.headers);
+        // fmt::println(stderr, "{}", req.body);
+        auto body = crow::json::load(req.body);
+        if (!body)
+            return crow::response(400);
+
+        auto prompt         = std::string(body["prompt"].s());
+        auto n_predict      = body["n_predict"].i();
+        auto temperature    = body["temperature"].d();
+        auto repeat_penalty = body["repeat_penalty"].d();
+        // fmt::println(stderr, "prompt        : {}", prompt);
+        // fmt::println(stderr, "n_predict     : {}", n_predict);
+        // fmt::println(stderr, "temperature   : {}", temperature);
+        // fmt::println(stderr, "repeat_penalty: {}", repeat_penalty);
+
+        sampler_config.temp           = temperature;
+        sampler_config.penalty_repeat = repeat_penalty;
+        smart::SamplerChain sampler{sampler_config};
+
+        crow::json::wvalue resp;
+
+        std::stringstream ss;
+        auto start = 0;
+        for (auto next : model->generate(tokenizer, sampler, prompt, n_predict)) {
+            if (start == 0) {
+                start = 1; // filter the last prompt token
+                continue;
+            }
+            if (next == tokenizer.bos_token()) {
+                continue;
+            }
+            if (next == tokenizer.m_vocab.special_eos_id || next == tokenizer.m_vocab.special_eom_id ||
+                next == tokenizer.m_vocab.special_eot_id) {
+                ss << "[end of text]";
+                break;
+            }
+            ss << tokenizer.to_string(next);
         }
-        actual_predict += 1;
-        if (next == tokenizer.bos_token()) {
-            break;
-        }
-        if (next == tokenizer.m_vocab.special_eos_id || next == tokenizer.m_vocab.special_eom_id ||
-            next == tokenizer.m_vocab.special_eot_id) {
-            fmt::print("[end of text]");
-            break;
-        }
-        fmt::print("{}", tokenizer.to_string(next));
-        fflush(stdout);
-    }
-    fmt::println("");
-    if (start) {
-        decode_end     = smart::time_in_ms();
-        auto n_prefill = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
-        fmt::println(stderr, "prefill speed: {} tokens/s", n_prefill / (double)(prefill_end - prefill_start) * 1000);
-        fmt::println(stderr, "decode speed: {} tokens/s", actual_predict / (double)(decode_end - prefill_end) * 1000);
-        fmt::println(
-            stderr,
-            "total speed: {} tokens/s",
-            (n_prefill + actual_predict) / (double)(decode_end - prefill_start) * 1000
-        );
-    }
+        resp["content"] = ss.str();
+
+        smart::get_memory_usage("after chat");
+        return crow::response(resp);
+    });
+
+    server.run();
 }

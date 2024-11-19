@@ -9,11 +9,11 @@ QNNBackend::QNNBackend(Path working_folder, const std::shared_ptr<smart::Config>
     }
     ++session->m_count;
 
-    m_causalLM = std::make_unique<CausalLM>(working_folder, model_config, *session);
+    m_causal_lm = std::make_unique<CausalLM>(working_folder, model_config, *session);
 }
 
 QNNBackend::~QNNBackend() {
-    m_causalLM.reset(nullptr);
+    m_causal_lm.reset(nullptr);
     --session->m_count;
     if (session->m_count == 0) {
         session.reset();
@@ -26,7 +26,7 @@ void QNNBackend::forward(
     auto token_embeddings = std::span<const float>((float *)src->get<smart::ggml::Buffer>().m_data, src->n_elements());
     auto pos_size_t       = std::vector<size_t>(pos.size());
     std::transform(pos.begin(), pos.end(), pos_size_t.begin(), [](int v) { return size_t(v); });
-    auto main_batches = m_causalLM->split_batch(token_embeddings, pos_size_t, mask);
+    auto main_batches = m_causal_lm->split_batch(token_embeddings, pos_size_t, mask);
     float *dst_data_ptr{};
     if (dst->n_elements() > 1) {
         dst_data_ptr = (float *)dst->get<ggml::Buffer>().m_data;

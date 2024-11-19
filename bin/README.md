@@ -29,7 +29,8 @@ BOS token: 128000
 <|begin_of_text|>Penguins are superbly adapted to aquatic life.
 ```
 
-# how to run `run_qnn`
-1. set the right values in config.json and push it to the device
-2. push the necessary qnn libs and model context binary files to the device
-3. run: sudo ./run_qnn --file-path path/to/model_gguf_file --vocab-path path/to/vocab_gguf_file --qnn_path path/to/qnn_folder --prompt "Once upon a time" --steps 64
+# how to run `server`
+- request:
+```
+apt install libboost-all-dev libasio-dev
+```
