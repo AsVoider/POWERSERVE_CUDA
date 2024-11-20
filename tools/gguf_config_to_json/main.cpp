@@ -5,6 +5,8 @@
 
 #include <string>
 
+constexpr int VERSION = 20241120;
+
 enum class rope_type {
     NONE   = -1,
     NORMAL = 0,
@@ -72,6 +74,7 @@ int main(int argc, char *argv[]) {
     SMART_ASSERT(ggml_ctx != nullptr);
 
     nlohmann::json config;
+    config["version"] = VERSION;
 
     collect_config(gguf_ctx, config);
 

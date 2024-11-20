@@ -53,6 +53,7 @@ int main(int argc, char *argv[]) {
 
     // get config
     auto config = std::make_shared<smart::Config>(config_path);
+    fmt::println("config version: {}", config->version);
 
     // get platform
     auto platform = std::make_shared<smart::Platform>();

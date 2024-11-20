@@ -47,6 +47,7 @@ struct ViTConfig {
 
 struct Config {
 public:
+    int version;
     std::string arch;
     TransformerConfig tf_cfg;
     ViTConfig vit_cfg;

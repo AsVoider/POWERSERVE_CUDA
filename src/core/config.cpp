@@ -8,8 +8,8 @@ Config::Config(const std::string &path) {
     nlohmann::json j;
     std::ifstream file(path);
     file >> j;
-
-    arch = std::string(j["model_arch"]);
+    version = j["version"].get<uint32_t>();
+    arch    = j["model_arch"].get<std::string>();
 
     {
         tf_cfg.dim        = j["embd_dim"].get<uint32_t>();
