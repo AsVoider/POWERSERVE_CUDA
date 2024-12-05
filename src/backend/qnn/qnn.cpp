@@ -567,6 +567,8 @@ static void deep_copy_tensor(Qnn_Tensor_t &dst, const Qnn_Tensor_t &src) {
     QNN_TENSOR_SET_SPARSE_PARAMS(dst, QNN_TENSOR_GET_SPARSE_PARAMS(src));
 }
 
+std::unordered_map<Tensor *, void *> buffer_map{};
+
 Tensor::Tensor(const Qnn_Tensor_t &source) {
     deep_copy_tensor(m_tensor, source);
     SMART_ASSERT(QNN_TENSOR_GET_MEM_TYPE(m_tensor) == QNN_TENSORMEMTYPE_UNDEFINED);
@@ -630,6 +632,7 @@ void Tensor::setup_normal_buffer() {
 void Tensor::setup_shared_buffer(SharedBuffer &buffer) {
     QNN_TENSOR_SET_MEM_TYPE(m_tensor, QNN_TENSORMEMTYPE_MEMHANDLE);
     QNN_TENSOR_SET_MEM_HANDLE(m_tensor, buffer.m_handle);
+    buffer_map.emplace(this, buffer.m_data);
 }
 
 auto Tensor::data() -> void * {
@@ -655,6 +658,20 @@ auto Tensor::check(const std::vector<size_t> &shape, Qnn_DataType_t datatype) ->
     SMART_ASSERT(this->shape() == shape);
     SMART_ASSERT(this->type() == datatype);
     return this;
+}
+
+void Tensor::print() {
+    if (type() == QNN_DATATYPE_FLOAT_32) {
+        auto buf = (const float *)buffer_map.at(this);
+        for (size_t i = 0; i < n_elements(); i++) {
+            fmt::println(stderr, "{}", buf[i]);
+        }
+    } else if (type() == QNN_DATATYPE_FLOAT_16) {
+        auto buf = (const __fp16 *)buffer_map.at(this);
+        for (size_t i = 0; i < n_elements(); i++) {
+            fmt::println(stderr, "{}", (float)buf[i]);
+        }
+    }
 }
 
 Graph::Graph(Context &context, const std::string &name) {

@@ -12,6 +12,8 @@
 #include <cstdlib>
 
 int main(int argc, char *argv[]) {
+    smart::print_timestamp();
+
     // 0. load config
     std::string file_path      = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama-2-7b.f32.gguf";
     std::string tokenizer_path = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama2_7b_vocab.gguf";
@@ -70,7 +72,7 @@ int main(int argc, char *argv[]) {
 
     std::shared_ptr<smart::Model> model;
     // TODO: move into Model.cpp like build_model
-    if (model_arch == "llama") {
+    if (model_arch == "llama" || model_arch == "qwen2") {
         model = std::make_shared<smart::LlamaModel>(file_path, config, platform);
     } else if (model_arch == "phi3") {
         SMART_ASSERT(false);

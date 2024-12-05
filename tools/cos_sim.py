@@ -1,7 +1,22 @@
-import numpy as np
 import argparse
-def cos_sim(a, b):
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+try:
+    import numpy as np
+
+    def cos_sim(a, b):
+        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+except ImportError:
+
+    def dot_product(a, b):
+        return sum(x * y for x, y in zip(a, b))
+
+    def norm(a):
+        return sum(x * x for x in a) ** 0.5
+
+    def cos_sim(a, b):
+        return dot_product(a, b) / (norm(a) * norm(b))
+
 
 if __name__ == "__main__":
 
@@ -17,7 +32,16 @@ if __name__ == "__main__":
         lines1 = f1.readlines()
         lines2 = f2.readlines()
 
-    a = np.array([float(line.replace("\n", "")) for line in lines1 if line.replace("\n", "").strip()])
-    b = np.array([float(line.replace("\n", "")) for line in lines2 if line.replace("\n", "").strip()])
+    a = [
+        float(line.replace("\n", ""))
+        for line in lines1
+        if line.replace("\n", "").strip()
+    ]
+    b = [
+        float(line.replace("\n", ""))
+        for line in lines2
+        if line.replace("\n", "").strip()
+    ]
 
+    assert len(a) == len(b), "two file's length must be equal!"
     print(cos_sim(a, b))

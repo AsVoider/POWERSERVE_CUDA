@@ -141,7 +141,8 @@ struct CausalLM {
         std::span<const size_t> pos;
         AttentionMaskView mask;
         ChunkVector &chunks;
-        Embedding &lm_head;
+        // Embedding &lm_head;
+        Embedding *lm_head;
 
         void forward();
         void compute_logits();

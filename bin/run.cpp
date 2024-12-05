@@ -11,6 +11,8 @@
 #include <string>
 
 int main(int argc, char *argv[]) {
+    smart::print_timestamp();
+
     // 0. load config
     std::string file_path      = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama-2-7b.f32.gguf";
     std::string tokenizer_path = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama2_7b_vocab.gguf";
@@ -20,6 +22,7 @@ int main(int argc, char *argv[]) {
     size_t top_k               = 40;
     int steps                  = 64;         // number of steps to run for
     std::string prompt         = "One day,"; // prompt string
+    std::string prompt_file    = "";
     std::string attn_type      = "normal";
     int n_threads              = 4;
     uint64_t rng_seed          = uint64_t(-1); // uint64_t(-1) = random seed
@@ -30,6 +33,7 @@ int main(int argc, char *argv[]) {
     app.add_option("--vocab-path", tokenizer_path)->required();
     app.add_option("--config-path", config_path)->required();
     app.add_option("--prompt", prompt);
+    app.add_option("--prompt-file", prompt_file);
     app.add_option("--steps", steps);
     app.add_option("--attn-type", attn_type);
     app.add_option("--n-threads", n_threads);
@@ -43,6 +47,22 @@ int main(int argc, char *argv[]) {
 #endif
 
     CLI11_PARSE(app, argc, argv);
+
+    SMART_ASSERT(prompt != "" || prompt_file != "");
+    if (prompt_file != "") {
+        prompt = "";
+        std::ifstream f(prompt_file);
+        if (f.is_open()) {
+            std::string line;
+            while (std::getline(f, line)) {
+                prompt += line + '\n';
+            }
+            f.close();
+        } else {
+            fmt::print(stderr, "Error: could not open file {}\n", prompt_file);
+            SMART_ASSERT(f.is_open());
+        }
+    }
 
     // get number of CPUs
     {
@@ -69,7 +89,7 @@ int main(int argc, char *argv[]) {
 
     std::unique_ptr<smart::Model> model;
     // TODO: move into Model.cpp like build_model
-    if (model_arch == "llama") {
+    if (model_arch == "llama" || model_arch == "qwen2") {
         model = std::make_unique<smart::LlamaModel>(file_path, config, platform);
     } else if (model_arch == "phi3") {
         SMART_ASSERT(false);
@@ -110,17 +130,17 @@ int main(int argc, char *argv[]) {
     smart::get_memory_usage("after sampler init");
 
     {
-        fmt::println(stderr, "file_path   : {}", file_path);
-        fmt::println(stderr, "vocab_path  : {}", tokenizer_path);
-        fmt::println(stderr, "prompt      : {}", prompt);
-        fmt::println(stderr, "steps       : {}", steps);
-        fmt::println(stderr, "attn_type   : {}", attn_type);
-        fmt::println(stderr, "model arch  : {}", model_arch);
-        fmt::println(stderr, "n_threads   : {}", n_threads);
-        fmt::println(stderr, "temperature : {}", temperature);
-        fmt::println(stderr, "top_p       : {}", top_p);
-        fmt::println(stderr, "top_k       : {}", top_k);
-        fmt::println(stderr, "rng_seed    : {}", rng_seed);
+        fmt::println("file_path   : {}", file_path);
+        fmt::println("vocab_path  : {}", tokenizer_path);
+        fmt::println("prompt      : {}", prompt);
+        fmt::println("steps       : {}", steps);
+        fmt::println("attn_type   : {}", attn_type);
+        fmt::println("model arch  : {}", model_arch);
+        fmt::println("n_threads   : {}", n_threads);
+        fmt::println("temperature : {}", temperature);
+        fmt::println("top_p       : {}", top_p);
+        fmt::println("top_k       : {}", top_k);
+        fmt::println("rng_seed    : {}", rng_seed);
     }
 
     // generate
@@ -153,12 +173,10 @@ int main(int argc, char *argv[]) {
     if (start) {
         decode_end     = smart::time_in_ms();
         auto n_prefill = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
-        fmt::println(stderr, "prefill speed: {} tokens/s", n_prefill / (double)(prefill_end - prefill_start) * 1000);
-        fmt::println(stderr, "decode speed: {} tokens/s", actual_predict / (double)(decode_end - prefill_end) * 1000);
+        fmt::println("prefill speed: {} tokens/s", n_prefill / (double)(prefill_end - prefill_start) * 1000);
+        fmt::println("decode speed: {} tokens/s", actual_predict / (double)(decode_end - prefill_end) * 1000);
         fmt::println(
-            stderr,
-            "total speed: {} tokens/s",
-            (n_prefill + actual_predict) / (double)(decode_end - prefill_start) * 1000
+            "total speed: {} tokens/s", (n_prefill + actual_predict) / (double)(decode_end - prefill_start) * 1000
         );
     }
 }

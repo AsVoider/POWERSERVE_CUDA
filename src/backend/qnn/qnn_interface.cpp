@@ -35,10 +35,22 @@ void QNNBackend::forward(
         auto &batch = main_batches[i];
         batch.forward();
         if (dst->n_elements() > 1) {
-            batch.compute_logits();
-            auto vocab_size = batch.parent.m_model_config->tf_cfg.vocab_size;
-            memcpy(dst_data_ptr, batch.lm_head.output_buffer(), batch.pos.size() * vocab_size * sizeof(float));
-            dst_data_ptr += batch.pos.size() * vocab_size;
+            auto vocab_size   = batch.parent.m_model_config->tf_cfg.vocab_size;
+            size_t batch_size = batch.pos.size();
+            size_t dim        = m_causal_lm->m_model_config->tf_cfg.dim;
+
+            const float *out_buf = batch.chunks.back()->output_buffer();
+            size_t size          = batch_size * dim * sizeof(float);
+
+            if (batch.lm_head != nullptr) {
+                batch.compute_logits();
+                out_buf = batch.lm_head->output_buffer();
+                size    = batch_size * vocab_size * sizeof(float);
+            }
+            memcpy(dst_data_ptr, out_buf, size);
+            if (batch.lm_head != nullptr) {
+                dst_data_ptr += batch_size * vocab_size;
+            }
         }
         batch.save_kv();
         batch.advance();

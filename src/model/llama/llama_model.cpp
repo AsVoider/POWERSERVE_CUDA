@@ -56,14 +56,27 @@ auto LlamaModel::forward(
 ) -> std::vector<std::vector<float>> {
     Graph g;
     // input embedding
-    size_t batch_size = tokens.size();
-    auto embd_tb      = g.add_tensor(m_weights->token_embedding_table);
-    auto x            = g.get_embedding(embd_tb, tokens);
-    Tensor *logits    = nullptr;
+    size_t batch_size  = tokens.size();
+    auto embd_tb       = g.add_tensor(m_weights->token_embedding_table);
+    auto x             = g.get_embedding(embd_tb, tokens);
+    TensorNode *logits = nullptr;
 
 #if defined(SMART_WITH_QNN)
     if (m_platform->qnn_backend) {
-        logits = g.qnn_forward(x, pos, mask, m_config->tf_cfg.vocab_size, lm_head);
+        auto size            = m_config->tf_cfg.dim;
+        bool use_qnn_lm_head = m_platform->qnn_backend->m_causal_lm->m_config.lm_heads.size() > 0;
+        if (use_qnn_lm_head) {
+            size   = m_config->tf_cfg.vocab_size;
+            logits = g.qnn_forward(x, pos, mask, size, lm_head);
+        } else {
+            x = g.qnn_forward(x, pos, mask, size, lm_head);
+            if (lm_head) {
+                auto rms_final_w    = g.add_tensor(m_weights->rms_final_weight);
+                auto final_rms_norm = g.rms_norm(x, rms_final_w, m_config->tf_cfg.norm_eps);
+                auto output_w       = g.add_tensor(m_weights->output_weight);
+                logits              = g.mat_mul(final_rms_norm, output_w);
+            }
+        }
     } else
 #endif
 
@@ -88,9 +101,9 @@ auto LlamaModel::forward(
     executor.allocate_buffers();
 
     executor.run();
-    float *logits_data = static_cast<float *>(logits->get<ggml::Buffer>().m_data);
-    auto res           = std::vector<std::vector<float>>();
+    auto res = std::vector<std::vector<float>>();
     if (lm_head) {
+        float *logits_data = static_cast<float *>(logits->get<ggml::Buffer>().m_data);
         for (size_t i = 0; i < batch_size; i++) {
             res.emplace_back(std::vector<float>(
                 logits_data + i * m_config->tf_cfg.vocab_size, logits_data + (i + 1) * m_config->tf_cfg.vocab_size

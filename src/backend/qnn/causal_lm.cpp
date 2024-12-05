@@ -23,11 +23,11 @@ CausalLM::CausalLM(const Path model_folder, const std::shared_ptr<smart::Config>
     for (auto &info : m_config.chunks) {
         SMART_ASSERT(info.cache_size == m_gparams.cache_size);
         SMART_ASSERT(info.kv_size == m_gparams.kv_size);
-        // SMART_ASSERT(info.context_size == m_gparams.context_size);
+        SMART_ASSERT(info.context_size == m_gparams.context_size);
         m_gparams.max_batch_size = std::max(m_gparams.max_batch_size, info.batch_size);
     }
     load_model_chunks();
-    {
+    if (m_config.lm_heads.size() > 0) {
         for (auto &config : m_config.lm_heads) {
             m_lm_heads.emplace(config.batch_size, std::make_unique<Embedding>(*this, config));
         }
@@ -236,14 +236,15 @@ void CausalLM::Batch::forward() {
 }
 
 void CausalLM::Batch::compute_logits() {
+    SMART_ASSERT(lm_head != nullptr);
     size_t batch_size = pos.size();
 
     memcpy(
-        lm_head.input_buffer(),
+        lm_head->input_buffer(),
         chunks.back()->output_buffer(),
         batch_size * parent.m_model_config->tf_cfg.dim * sizeof(float)
     );
-    lm_head.execute();
+    lm_head->execute();
 }
 
 void CausalLM::Batch::save_kv() {
@@ -257,7 +258,8 @@ void CausalLM::Batch::advance() {
 auto CausalLM::split_batch(
     std::span<const float> token_embeddings, std::span<const size_t> pos, const CausalAttentionMask &mask
 ) -> std::vector<Batch> {
-    size_t batch_size = token_embeddings.size() / m_model_config->tf_cfg.dim;
+    auto embedding_dim = m_model_config->tf_cfg.dim;
+    size_t batch_size  = token_embeddings.size() / embedding_dim;
     SMART_ASSERT(pos.size() == batch_size);
     SMART_ASSERT(mask.size == batch_size);
 
@@ -267,18 +269,29 @@ auto CausalLM::split_batch(
         auto it_chunk   = m_chunks_map.lower_bound(n_remain);
         auto &chunks    = it_chunk == m_chunks_map.end() ? largest_chunks() : it_chunk->second;
         step_size       = std::min(n_remain, chunks[0]->m_config.batch_size);
-        auto it_lm_head = m_lm_heads.lower_bound(n_remain);
-        auto &lm_head_ptr =
-            it_lm_head == m_lm_heads.end() ? m_lm_heads.at(m_gparams.max_batch_size) : it_lm_head->second;
-        auto &lm_head = *lm_head_ptr;
-        batches.emplace_back(
-            *this,
-            token_embeddings.subspan(index, step_size),
-            pos.subspan(index, step_size),
-            AttentionMaskView(mask, index, step_size),
-            chunks,
-            lm_head
-        );
+        if (m_lm_heads.size() > 0) {
+            auto it_lm_head = m_lm_heads.lower_bound(n_remain);
+            auto &lm_head_ptr =
+                it_lm_head == m_lm_heads.end() ? m_lm_heads.at(m_gparams.max_batch_size) : it_lm_head->second;
+            auto lm_head = lm_head_ptr.get();
+            batches.emplace_back(
+                *this,
+                token_embeddings.subspan(index * embedding_dim, step_size * embedding_dim),
+                pos.subspan(index, step_size),
+                AttentionMaskView(mask, index, step_size),
+                chunks,
+                lm_head
+            );
+        } else {
+            batches.emplace_back(
+                *this,
+                token_embeddings.subspan(index * embedding_dim, step_size * embedding_dim),
+                pos.subspan(index, step_size),
+                AttentionMaskView(mask, index, step_size),
+                chunks,
+                nullptr
+            );
+        }
     }
 
     return batches;

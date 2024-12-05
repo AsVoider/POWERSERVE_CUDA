@@ -5,7 +5,7 @@
 
 #include <string>
 
-constexpr int VERSION = 20241120;
+constexpr int VERSION = 20241202;
 
 enum class rope_type {
     NONE   = -1,
@@ -110,16 +110,6 @@ void collect_config(gguf_context *ctx, nlohmann::json &config) {
         }
     }
     { // kv_dim, norm_eps or norm_rms_eps
-        // if (config["n_attn_heads"] > 0) { // FIXME: actually is head_size
-        //     auto default_kv_dim = (uint32_t)config["embd_dim"] / (uint32_t)config["n_attn_heads"];
-        //     auto k_dim          = get_u32(ctx, get_arch_config("{}.attention.key_length"), false, default_kv_dim);
-        //     auto v_dim          = get_u32(ctx, get_arch_config("{}.attention.value_length"), false, default_kv_dim);
-        //     SMART_ASSERT(k_dim == v_dim);
-        //     config["kv_dim"] = k_dim;
-        // } else {
-        //     config["kv_dim"] = 0;
-        // }
-
         auto idx      = gguf_find_key(ctx, get_arch_config("{}.attention.layer_norm_epsilon").c_str());
         auto norm_eps = 1e-5f;
         if (idx == -1) {
@@ -132,7 +122,7 @@ void collect_config(gguf_context *ctx, nlohmann::json &config) {
     }
     { // rope
         config["rope_dim"] =
-            get_u32(ctx, get_arch_config("{}.rope.dimension_count"), false, (uint32_t)config["kv_dim"]);
+            get_u32(ctx, get_arch_config("{}.rope.dimension_count"), false, (uint32_t)config["head_size"]);
         config["rope_freq_base"]   = get_f32(ctx, get_arch_config("{}.rope.freq_base"), false, 10000.0f);
         auto scale_type            = get_str(ctx, get_arch_config("{}.rope.scaling.type"), false, "linear");
         config["rope_scale_type"]  = scale_type;

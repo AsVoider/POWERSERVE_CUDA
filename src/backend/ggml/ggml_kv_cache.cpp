@@ -8,7 +8,7 @@ GGMLKV::GGMLKV(const std::shared_ptr<Config> &config) :
     m_n_ctx(config->tf_cfg.seq_len),
     m_n_layers(config->tf_cfg.n_layers),
     m_head_size(config->tf_cfg.head_size),
-    m_batch_size(config->tf_cfg.seq_len),
+    m_batch_size(1), // FIXME:
     m_config(config) {
 
     prepare_model_chunk();

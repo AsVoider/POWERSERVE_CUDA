@@ -25,9 +25,8 @@ public:
     void copy(TensorNode *dst, TensorNode *src, size_t off);
 
 #if defined(SMART_WITH_QNN)
-    auto qnn_forward(
-        TensorNode *x, std::vector<int> pos, const CausalAttentionMask &mask, size_t vocab_size, bool lm_head
-    ) -> TensorNode *;
+    auto qnn_forward(TensorNode *x, std::vector<int> pos, const CausalAttentionMask &mask, size_t size, bool lm_head)
+        -> TensorNode *;
 #endif
 
     auto rope(TensorNode *src, const std::vector<int> &pos, const RopeConfig &params) -> TensorNode *;

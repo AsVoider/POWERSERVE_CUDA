@@ -65,10 +65,9 @@ public:
             m_tokens.push_back(prompt_tokens.back());
             // m_current_pos = m_model.m_platform->ggml_backend->m_kv->kv_cache->position;
 #if defined(SMART_WITH_QNN)
-            // FIXME: why this will case segfault?
-            // if (m_platform->qnn_backend) {
-            //     m_current_pos = m_platform->qnn_backend->m_causal_lm->kv_cache->position;
-            // }
+            if (m_platform->qnn_backend) {
+                m_current_pos = m_platform->qnn_backend->m_causal_lm->kv_cache->position;
+            }
 #endif
         }
 

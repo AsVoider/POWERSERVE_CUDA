@@ -8,8 +8,9 @@ stages:
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-    # 如果branch名称里含ci，就执行
-    - if: $CI_COMMIT_BRANCH =~ /ci/
+    - if: $DAILY_TEST == "true"
+#     # 如果branch名称里含ci，就执行
+#     - if: $CI_COMMIT_BRANCH =~ /ci/
 
 
 variables:
@@ -18,147 +19,119 @@ variables:
   CONTAINER_NAME: ndk
   HF_TOKEN: "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"
   HOME: /tmp
+  BUILD_ROOT: "/home/gitlab-runner/Downloads"
+  QNN_SDK_ROOT: "/opt/qcom/aistack/qairt/2.26.0.240828"
+  DEVICE_ROOT: "/data/data/com.termux/files/home/CI"
+  DEVICE_BIN: "${DEVICE_ROOT}/bin"
+  DEVICE_URL: "u0_a342@192.168.60.173"
+  DEVICE_PORT: 8022
+  CHECK_FORMAT: "true"
   # CI_DEBUG_TRACE: true
   # 如果branch名称里含ci，就把CI_DEBUG_TRACE设置为true
 
 
 check_formatting:
   stage: check_format
+  rules:
+    - if: $CHECK_FORMAT == "true"
+      when: always
   script:
-    - export CLANG_FORMAT=/home/gitlab-runner/Downloads/clang-format-18
+    - export CLANG_FORMAT=${BUILD_ROOT}/clang-format-18
     - $CLANG_FORMAT --version
     - cd "$CI_PROJECT_DIR"
     - echo "Checking formatting from ${CI_MERGE_REQUEST_DIFF_BASE_SHA}..."
+    - pwd
+    - sleep 1
     - changed_files=$(git diff ${CI_MERGE_REQUEST_DIFF_BASE_SHA} --name-only)
     - echo "$changed_files"
     - if [[ -z "$changed_files" ]]; then echo "No files changed; nothing to format"; exit 0; fi
     - format_diff=$(python tools/format.py $changed_files)
-    - echo "$format_diff"
-    - if [[ "${format_diff%$'\n'}" == "git diff returns 0" ]]; then echo "Formatting is correct"; exit 0; else echo "Detected formatting issues; please fix"; exit 1; fi
+    - format_exit_status=$?
+    - echo "$format_exit_status"
+    - if [[ "$format_exit_status" -eq "0" ]]; then echo "Formatting is correct"; exit 0; else echo "Detected formatting issues; please fix"; exit 1; fi
 
 setup:
   stage: setup
-  # hooks:
-  #   pre_get_sources_script:
-  #   - sudo rm -rf /home/gitlab-runner/builds/ZxyLxtSdy/
-  #   - sudo rm -rf /tmp/ZxyLxtSdy/
-  #   - ls -ahl /tmp/${RUNNER_ID}
-  # before_script:
-  #   - pwd .
-  #   - echo "$CI_PROJECT_DIR"
-  #   - sudo chmod -R 777 .
   script:
     - pwd
     - sudo podman stop $CONTAINER_NAME || true
     - sudo podman rm $CONTAINER_NAME || true
-    # - export https_proxy=http://ipads:ipads123@202.120.40.82:11235
     - git submodule update --init --recursive
-    - sudo -E podman run -v $(realpath .):/code -v $(realpath /home/gitlab-runner/Downloads):/data -v $(realpath /opt/qcom/aistack/qairt/2.26.0.240828):/qnn -dit --name ndk ubuntu:22.04
+    - sudo -E podman run -v $(realpath .):/code -v $(realpath ${BUILD_ROOT}):/data -v $(realpath ${QNN_SDK_ROOT}):/qnn -dit --name ndk ubuntu:22.04
     - sudo podman exec -it $CONTAINER_NAME bash -c "echo -e 'deb http://mirrors.aliyun.com/ubuntu/ jammy main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-updates main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-backports main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-security main restricted universe multiverse' | tee /etc/apt/sources.list"
     - sudo podman exec -it $CONTAINER_NAME bash -c "apt update && apt upgrade -y && apt install -y sudo vim cmake unzip git python-is-python3 python3-pip build-essential"
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "pip install -r /code/requirements.txt"
     - sudo podman exec -it $CONTAINER_NAME bash -c "git config --global --add safe.directory /code"
-    # - sudo wget https://dl.google.com/android/repository/android-ndk-r27b-linux.zip?hl=zh-cn -O ~/Downloads/android-ndk-r27b-linux.zip
-    # - export https_proxy=http://ipads:ipads123@202.120.40.82:11235
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && git submodule update --init --recursive"
     - sudo podman exec -it $CONTAINER_NAME bash -c "pip install pandas requests"
 
-
-# convert:
-#   stage: convert
-#   script:
-#     - if [ "$REBUILD_ENV" = "true" ]; then
-#       sudo podman exec -it $CONTAINER_NAME bash -c "pip install 'huggingface_hub[cli]'";
-#       sudo podman exec -it $CONTAINER_NAME bash -c "huggingface-cli login --token $HF_TOKEN";
-#       sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && export HF_ENDPOINT=https://hf-mirror.com";
-#       sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && huggingface-cli download --cache-dir /data/hf_cache --resume-download meta-llama/Meta-Llama-3.1-8B --exclude original/ --local-dir /data/llama_3.1_8b";
-#       sudo podman exec -it $CONTAINER_NAME bash -c "cd /code/tools/convert_hf_to_gguf && python convert_hf_to_gguf.py /data/llama_3.1_8b --outtype f16 --outfile /data/llama_3.1_8b.gguf";
-#       fi
-# - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake -DCMAKE_BUILD_TYPE=Release -S . -B build_native"
-# - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && cmake --build build_native --config Release --target llama-quantize"
-# - sudo podman exec -it $CONTAINER_NAME bash -c "cd /code && ./build_native/bin/llama-quantize --pure /data/llama_3.1_8b.gguf /data/llama_3.1_8b_q4_0.gguf q4_0"
 
 build:
   stage: build
   script:
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "unzip /data/android-ndk-r27b-linux.zip -d /data"
+    - sleep 3
     - sudo podman exec -it $CONTAINER_NAME bash -c "export QNN_SDK_ROOT=/qnn"
     - sudo podman exec -it $CONTAINER_NAME bash -c "echo 'export QNN_SDK_ROOT=/qnn' >> ~/.bashrc"
     - sudo podman exec -it $CONTAINER_NAME bash -c "echo 'export NDK=/data/android-ndk-r27b' >> ~/.bashrc"
     - sudo podman exec -it $CONTAINER_NAME bash -c "source ~/.bashrc"
-    # - sudo podman exec -it $CONTAINER_NAME bash -c "cd /data/android-ndk-r27b && ./build/tools/make_standalone_toolchain.py --arch arm64 --api 30 --install-dir /data/android-ndk-r27b"
     - sleep 1
     - sudo podman exec -it $CONTAINER_NAME bash -c -i "cd /code && cmake -DCMAKE_TOOLCHAIN_FILE=/data/android-ndk-r27b/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF -DGGML_OPENMP=OFF -DSMART_ENABLE_ASAN=OFF -DSMART_WITH_QNN=ON -S . -B build_android"
-    - sudo podman exec -it $CONTAINER_NAME bash -c -i "cd /code && cmake --build build_android --config RelWithDebInfo --parallel 12"
+    - sudo podman exec -it $CONTAINER_NAME bash -c -i "cd /code && cmake --build build_android --config RelWithDebInfo --parallel 12 && sudo chmod -R 777 build_android"
     - sudo podman exec -it $CONTAINER_NAME bash -c -i "cp -r /code/build_android /data"
 
 deploy:
   stage: deploy
   script:
-    # - echo "Deploying binaries and models to your Android device."
-    # - sleep 2
-    # - adb push /home/gitlab-runner/Downloads/build_android/bin/run /data/local/tmp/
-    # - adb push /home/gitlab-runner/Downloads/build_android/tools/gguf_config_to_json/config_generator /data/local/tmp/config_generator
-    # - sleep 2
-    # - adb shell "ls -ahl /data/local/tmp/run"
-    # - scp -P 8022 -r ~/Downloads/build_android/bin/run u0_a334@192.168.61.65:/data/data/com.termux/files/home
-    - echo "Deploying binaries and models to your Android device."
-    - scp -P 8022 -r /home/gitlab-runner/Downloads/build_android/bin/run u0_a334@192.168.61.65:/data/data/com.termux/files/home
-    - scp -P 8022 -r /home/gitlab-runner/Downloads/build_android/tools/gguf_config_to_json/config_generator u0_a334@192.168.61.65:/data/data/com.termux/files/home
-    - scp -P 8022 /home/gitlab-runner/Downloads/build_android/bin/server u0_a334@192.168.61.65:/data/data/com.termux/files/home/ss_server
-    - ssh -p 8022 u0_a334@192.168.61.65 "ls -ahl /data/data/com.termux/files/home"
+    - sleep 2
+    - echo "Deploying binaries and models to your Android device. You must add gitlab-runner's ssh public key to device's ~/.ssh/authorized_keys."
+    - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/bin/run ${DEVICE_URL}:${DEVICE_BIN}
+    - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/tools/gguf_config_to_json/config_generator ${DEVICE_URL}:${DEVICE_BIN}
+    - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/bin/server ${DEVICE_URL}:${DEVICE_BIN}
+    - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/tools/perpelxity/perpelxity_test ${DEVICE_URL}:${DEVICE_BIN}
+    - ./.gitlab/ecmd.sh ssh -o StrictHostKeyChecking=no -p "${DEVICE_PORT}" "${DEVICE_URL}" "ls -ahl ${DEVICE_BIN}"
 
+# =============== Required Tests ===============
 test_llama3.1:
   stage: test
-  before_script:
-    - pwd .
-    - echo "$CI_PROJECT_DIR"
-    - sudo chmod -R 777 .
   script:
-    # - adb shell "/data/local/tmp/config_generator --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --target-path /data/local/tmp/llama3.1.json"
-    # - adb shell "/data/local/tmp/config_generator --file-path /data/local/tmp/llama_3.1_8b_q4_0.gguf --target-path /data/local/tmp/llama3.1.json"
-    - ssh -p 8022 u0_a334@192.168.61.65 "./config_generator --file-path 3_1/llama_3.1_8b_q4_0.gguf --target-path 3_1/model_config.json"
-    - ssh -p 8022 u0_a334@192.168.61.65 "sudo ./run --file-path 3_1/llama_3.1_8b_q4_0.gguf --vocab-path 3_1/Llama-3.1-Instruct-vocab.gguf --config-path 3_1/model_config.json --prompt \"One day,\" --steps 32"
-
-# test_phi3:
-#   stage: test
-#   script:
-#     - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 64"
-
-# test_sparse:
-#   stage: test
-#   script:
-#     - adb shell "/data/local/tmp/config_generator --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --target-path /data/local/tmp/llama3.2.json"
-#     - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 32 --attn-type quest --config-path /data/local/tmp/llama3.2.json"
+    - sleep 2 # just relax
+    - .gitlab/test-llama3.1.sh ${DEVICE_ROOT} ${DEVICE_URL} ${DEVICE_PORT} 4 32
 
 test_thread:
   stage: test
   script:
-    # - adb shell "/data/local/tmp/config_generator --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --target-path /data/local/tmp/llama3.2.json"
-    # - adb shell "/data/local/tmp/run --file-path /data/local/tmp/llama_3.2_1b_q4_0.gguf --vocab-path /data/local/tmp/llama_3.2_1b_vocab.gguf --prompt \"One day,\" --steps 32 --n-threads 8 --config-path /data/local/tmp/llama3.2.json"
-    - ssh -p 8022 u0_a334@192.168.61.65 "./config_generator --file-path 3_1/llama_3.1_8b_q4_0.gguf --target-path 3_1/model_config.json"
-    - ssh -p 8022 u0_a334@192.168.61.65 "sudo ./run --file-path 3_1/llama_3.1_8b_q4_0.gguf --vocab-path 3_1/Llama-3.1-Instruct-vocab.gguf --config-path 3_1/model_config.json --prompt \"One day,\" --steps 32 --n-threads 8"
+    - sleep 2
+    - .gitlab/test-llama3.1.sh ${DEVICE_ROOT} ${DEVICE_URL} ${DEVICE_PORT} 8 32
 
-# test_long_out:
-#   stage: test
-#   script:
-#     - adb shell "/data/local/tmp/run --file-path /data/local/tmp/phi3_mini_4k_instruct_q4_0.gguf --vocab-path /data/local/tmp/phi3_mini_4k_instruct_vocab.gguf --prompt \"One day,\" --steps 4096"
-
+# =============== Manual Tests ===============
 test_qnn:
   when: manual
   stage: test
   script:
-    - ssh -p 8022 u0_a334@192.168.61.65 "./config_generator --file-path 3_1/llama_3.1_8b_q4_0.gguf --target-path 3_1/model_config.json"
-    - ./.gitlab/deploy_to_remote_phone.sh
+    - .gitlab/test-qwen2.sh ${DEVICE_ROOT} ${DEVICE_URL} ${DEVICE_PORT} 8 300 1
 
-test_server:
-  when: manual
+test_ppl:
   stage: test
+  when: manual
+  allow_failure: true
   script:
-    - ssh -p 8022 u0_a334@192.168.61.65 "./config_generator --file-path 3_1/llama_3.1_8b_q4_0.gguf --target-path 3_1/model_config.json"
-    - sleep 2
-    - ssh -p 8022 u0_a334@192.168.61.65 "LD_LIBRARY_PATH=/vendor/lib64 sudo ./ss_server --host 192.168.61.65 --port 18080 --file-path 3_1/llama_3.1_8b_q4_0.gguf --vocab-path 3_1/Llama-3.1-Instruct-vocab.gguf --qnn-path ./libdir32_i --config-path 3_1/model_config.json >/dev/null 2>&1 &"
-    - sleep 10
-    - sudo podman exec -it $CONTAINER_NAME bash -c -i "cd /code/tools/mmlu && python ./mmlu_test.py --host 192.168.61.65 --port 18080 -s 1"
-    - ssh -p 8022 u0_a334@192.168.61.65 "sudo pkill ss_server && echo 0"
-  
+    - .gitlab/test-ppl.sh ${DEVICE_ROOT} ${DEVICE_URL} ${DEVICE_PORT}
+
+# =============== Daily Tests ===============
+test_long_out:
+  stage: test
+  when: manual
+  allow_failure: true
+  rules:
+    - if: $CI_TEST_LONG_OUT == "true"
+      when: always
+  script:
+    - .gitlab/test-qwen2.sh ${DEVICE_ROOT} ${DEVICE_URL} ${DEVICE_PORT} 8 4096 1
+
+test_mmlu:
+  stage: test
+  when: manual
+  allow_failure: true
+  rules:
+    - if: $CI_TEST_MMLU == "true"
+      when: always
+  script:
+    - .gitlab/test-mmlu.sh ${DEVICE_ROOT} ${DEVICE_URL} ${DEVICE_PORT} ${CONTAINER_NAME}

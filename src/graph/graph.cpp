@@ -120,15 +120,14 @@ auto Graph::mha(TensorNode *q, const std::vector<int> &pos, size_t layer_id, uin
 }
 
 #if defined(SMART_WITH_QNN)
-auto Graph::qnn_forward(
-    TensorNode *x, std::vector<int> pos, const CausalAttentionMask &mask, size_t vocab_size, bool lm_head
-) -> TensorNode * {
+auto Graph::qnn_forward(TensorNode *x, std::vector<int> pos, const CausalAttentionMask &mask, size_t size, bool lm_head)
+    -> TensorNode * {
     TensorNode *out = nullptr;
     auto op         = new_op(OpType::QNN_FORWARD);
     op->set_inputs({x});
     op->set_params(QNNForwardParams(pos, mask));
     if (lm_head) {
-        out = new_tensor(DataType::FP32, {vocab_size, x->m_shape[1]});
+        out = new_tensor(DataType::FP32, {size, x->m_shape[1]}); // size can be vocab_size or dim
     } else {
         out = new_tensor(DataType::FP32, {0});
     }

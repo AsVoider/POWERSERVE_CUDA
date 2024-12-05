@@ -103,6 +103,9 @@ def handle_cpp_sources(path: Path):
 
 for path in args.files:
     path = Path(path)
+    if not path.exists():
+        print(f'{path} does not exist')
+        continue
 
     if (path.suffix in ['.py', 'md', '.sh', '.yml'] or
         path.name in ['CMakeLists.txt', '.gitignore', '.gitmodules', 'requirements.txt']):
@@ -112,3 +115,4 @@ for path in args.files:
 
 ret = os.system('git -c color.ui=always diff --exit-code')
 print(f'git diff returns {ret}')
+exit(ret)

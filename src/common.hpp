@@ -76,4 +76,7 @@ inline auto read_binary_file(const Path &path, size_t n_elements) -> std::vector
     return data;
 }
 
+inline void print_timestamp() {
+    fmt::println(stderr, "Compiled on: {} at {}", __DATE__, __TIME__);
+}
 } // namespace smart

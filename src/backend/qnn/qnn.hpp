@@ -186,6 +186,7 @@ struct Tensor {
     int quantization_offset() const;
     float quantization_scale() const;
     auto check(const std::vector<size_t> &shape, Qnn_DataType_t datatype) -> Tensor *;
+    void print();
 };
 
 struct Graph {

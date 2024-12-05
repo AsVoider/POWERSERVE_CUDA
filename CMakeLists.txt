@@ -34,9 +34,13 @@ if (SMART_ENABLE_ASAN)
     endif()
 endif()
 
-if (SMART_ENABLE_UBSAN)
+if (SMART_ENABLE_UBSAN) # use with --target, not use full compilition
     add_compile_options(-fsanitize=undefined)
     link_libraries(-fsanitize=undefined)
+    if (ANDROID)
+        add_compile_options(-static-libsan)
+        link_libraries(-static-libsan)
+    endif()
 endif()
 
 if (SMART_ENABLE_LTO)
