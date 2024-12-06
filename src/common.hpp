@@ -45,6 +45,8 @@ static long time_in_ms() {
 
 void get_memory_usage(const std::string &msg = "");
 
+void get_system_temperature(const std::string &msg = "");
+
 inline void read_binary_file(const Path &path, uint8_t *buffer, size_t size) {
     uv_fs_t req;
     uv_fs_open(nullptr, &req, path.c_str(), O_RDONLY, 0, nullptr);

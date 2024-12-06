@@ -143,6 +143,8 @@ int main(int argc, char *argv[]) {
         fmt::println("rng_seed    : {}", rng_seed);
     }
 
+    smart::get_system_temperature("Before Decode");
+
     // generate
     long prefill_start = 0;
     long prefill_end   = 0;
@@ -179,4 +181,6 @@ int main(int argc, char *argv[]) {
             "total speed: {} tokens/s", (n_prefill + actual_predict) / (double)(decode_end - prefill_start) * 1000
         );
     }
+
+    smart::get_system_temperature("After Decode");
 }

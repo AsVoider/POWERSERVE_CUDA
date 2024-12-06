@@ -26,9 +26,9 @@ set -e
 source .gitlab/common.sh
 clean_workspace ${DEVICE_ROOT} ${DEVICE_URL} ${DEVICE_PORT} ${WORKSPACE_PATH} ${BIN_PATH} ${QNN_PATH} ${SDK_PATH}
 
-set -x
 
 echo '>>>>>>>>>>>> Test ppl. <<<<<<<<<<<<';
+set -x
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
     LD_LIBRARY_PATH=/vendor/lib64 sudo ${BIN_PATH}/perpelxity_test \
     --qnn-path ${WORKSPACE_PATH} \
@@ -38,4 +38,5 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
     --prompt-file ${PROMPT_PATH} \
     --batch-size 32
 "
+set +x
 echo '>>>>>>>>>>>> Test ppl over. <<<<<<<<<<<<';

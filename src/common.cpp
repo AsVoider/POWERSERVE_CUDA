@@ -41,4 +41,27 @@ void get_memory_usage(const std::string &msg) {
 #endif
 }
 
+void get_system_temperature(const std::string &msg) {
+    Path thermal_zone_path{"/sys/class/thermal/thermal_zone0/temp"};
+    std::ifstream thermal_zone_file(thermal_zone_path);
+    if (!thermal_zone_file.is_open()) {
+        fmt::println(stderr, "Failed to open: {}, Please check file or permission", thermal_zone_path);
+        return;
+    }
+
+    long long temperature_val;
+    thermal_zone_file >> temperature_val;
+    thermal_zone_file.close();
+
+    double celsius = 0;
+#if defined(__ANDROID__)
+    celsius = temperature_val / 100.0;
+#elif defined(__linux__)
+    celsius = temperature_val / 1000.0;
+#endif
+
+    fmt::println("[{}] Current CPU temperature: {}°C", msg, celsius);
+    return;
+}
+
 } // namespace smart

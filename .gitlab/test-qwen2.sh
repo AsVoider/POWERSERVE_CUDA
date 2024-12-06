@@ -95,3 +95,4 @@ else
         echo '>>>>>>>>>>>> Run over. <<<<<<<<<<<<';
     "
 fi
+set +x

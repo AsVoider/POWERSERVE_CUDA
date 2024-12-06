@@ -92,7 +92,7 @@ function clean_workspace() {
     QNN_PATH=$6
     SDK_PATH=$7
 
-    ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
+    temp_disable_errexit try_twice 10 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
         cd ${WORKSPACE_PATH};
         echo '>>>>>>>>>>>> Cleaning files. <<<<<<<<<<<<';
         ls -Alh;
@@ -112,5 +112,10 @@ function clean_workspace() {
         cp -r ${SDK_PATH}/* .;
         echo '>>>>>>>>>>>> Copying over. <<<<<<<<<<<<';
         ls -Alh;
+        if [ \$(ls | grep mixed_layers.json | wc -l) -lt 1 ]; then
+            echo 'No Mixed Layers Info.';
+        else
+            cat mixed_layers.json;
+        fi
     "
 }

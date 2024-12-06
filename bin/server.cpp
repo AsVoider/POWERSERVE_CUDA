@@ -155,6 +155,7 @@ int main(int argc, char *argv[]) {
         resp["content"] = ss.str();
 
         smart::get_memory_usage("after chat");
+        smart::get_system_temperature("After chat");
         return crow::response(resp);
     });
 
