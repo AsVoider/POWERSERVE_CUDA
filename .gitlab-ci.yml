@@ -20,7 +20,10 @@ variables:
   HF_TOKEN: "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"
   HOME: /tmp
   BUILD_ROOT: "/home/gitlab-runner/Downloads"
-  QNN_SDK_ROOT: "/opt/qcom/aistack/qairt/2.26.0.240828"
+  QNN_SDK_26_ROOT: "/opt/qcom/aistack/qairt/2.26.0.240828"
+  QNN_SDK_27_ROOT: "/opt/qcom/aistack/qairt/2.27.7.241014"
+  QNN_SDK_28_ROOT: "/opt/qcom/aistack/qairt/2.28"
+  QNN_SDK_ROOT: ${QNN_SDK_27_ROOT}
   DEVICE_ROOT: "/data/data/com.termux/files/home/CI"
   DEVICE_BIN: "${DEVICE_ROOT}/bin"
   DEVICE_HOST: "192.168.60.173"

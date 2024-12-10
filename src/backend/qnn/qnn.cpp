@@ -398,7 +398,6 @@ Context::Context(Backend &backend, const Path &binary_file_path, ContextGroup *g
         m_system_context, binary_data.data(), binary_data.size(), &m_binary_info, &binary_info_size
     );
     SMART_ASSERT(ret == QNN_SUCCESS);
-    SMART_ASSERT(m_binary_info->version == QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_1);
 }
 
 Context::~Context() {
@@ -409,18 +408,46 @@ Context::~Context() {
 
 void Context::print_info() {
     SMART_ASSERT(m_binary_info);
+    switch (m_binary_info->version) {
+    case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_1: {
+        auto &info = m_binary_info->contextBinaryInfoV1;
 
-    auto &info = m_binary_info->contextBinaryInfoV1;
+        auto hw_blob_info_ptr = (QnnHtpSystemContext_HwBlobInfo_t *)info.hwInfoBlob;
+        SMART_ASSERT(hw_blob_info_ptr->version == QNN_SYSTEM_CONTEXT_HTP_HW_INFO_BLOB_VERSION_V1);
+        auto &hw_blob_info = hw_blob_info_ptr->contextBinaryHwInfoBlobV1_t;
 
-    auto hw_blob_info_ptr = (QnnHtpSystemContext_HwBlobInfo_t *)info.hwInfoBlob;
-    SMART_ASSERT(hw_blob_info_ptr->version == QNN_SYSTEM_CONTEXT_HTP_HW_INFO_BLOB_VERSION_V1);
-    auto &hw_blob_info = hw_blob_info_ptr->contextBinaryHwInfoBlobV1_t;
+        fmt::println("Context core API version: {}", format_qnn_version(info.coreApiVersion));
+        fmt::println("Context backend API version: {}", format_qnn_version(info.backendApiVersion));
+        fmt::println("Context blob version: {}", format_qnn_version(info.contextBlobVersion));
+        fmt::println("Number of graphs: {}", info.numGraphs);
+        fmt::println("Spill-fill buffer size: {:.3f} MiB", hw_blob_info.spillFillBufferSize / 1024.0 / 1024);
 
-    fmt::println("Context core API version: {}", format_qnn_version(info.coreApiVersion));
-    fmt::println("Context backend API version: {}", format_qnn_version(info.backendApiVersion));
-    fmt::println("Context blob version: {}", format_qnn_version(info.contextBlobVersion));
-    fmt::println("Number of graphs: {}", info.numGraphs);
-    fmt::println("Spill-fill buffer size: {:.3f} MiB", hw_blob_info.spillFillBufferSize / 1024.0 / 1024);
+    } break;
+    case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_2: {
+        auto &info = m_binary_info->contextBinaryInfoV2;
+
+        auto hw_blob_info_ptr = (QnnHtpSystemContext_HwBlobInfo_t *)info.hwInfoBlob;
+        SMART_ASSERT(hw_blob_info_ptr->version == QNN_SYSTEM_CONTEXT_HTP_HW_INFO_BLOB_VERSION_V1);
+        auto &hw_blob_info = hw_blob_info_ptr->contextBinaryHwInfoBlobV1_t;
+
+        fmt::println("Context core API version: {}", format_qnn_version(info.coreApiVersion));
+        fmt::println("Context backend API version: {}", format_qnn_version(info.backendApiVersion));
+        fmt::println("Context blob version: {}", format_qnn_version(info.contextBlobVersion));
+        fmt::println("Number of graphs: {}", info.numGraphs);
+        fmt::println("Spill-fill buffer size: {:.3f} MiB", hw_blob_info.spillFillBufferSize / 1024.0 / 1024);
+    } break;
+#if (QNN_API_VERSION_MINOR == 21)
+    case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_3: {
+        auto &info = m_binary_info->contextBinaryInfoV3;
+        fmt::println("Context core API version: {}", format_qnn_version(info.coreApiVersion));
+        fmt::println("Context backend API version: {}", format_qnn_version(info.backendApiVersion));
+        fmt::println("Context blob version: {}", format_qnn_version(info.contextBlobVersion));
+        fmt::println("Number of graphs: {}", info.numGraphs);
+    } break;
+#endif
+    default:
+        break;
+    }
 }
 
 void Context::free_system_context() {
@@ -675,33 +702,65 @@ void Tensor::print() {
 }
 
 Graph::Graph(Context &context, const std::string &name) {
-    auto &info = context.m_binary_info->contextBinaryInfoV1;
-
-    const QnnSystemContext_GraphInfoV1_t *graph_info = nullptr;
-    for (size_t i = 0; i < info.numGraphs; i++) {
-        const auto *current_graph = &info.graphs[i];
-        SMART_ASSERT(current_graph->version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_1);
-        if (current_graph->graphInfoV1.graphName == name) {
-            graph_info = &current_graph->graphInfoV1;
-            break;
+    auto processGraphInfo = [&](auto &graph_info) {
+        size_t n_inputs = graph_info.numGraphInputs;
+        m_inputs.reserve(n_inputs);
+        for (size_t i = 0; i < n_inputs; i++) {
+            m_inputs.emplace_back(graph_info.graphInputs[i]);
         }
-    }
-    SMART_ASSERT(graph_info);
 
-    size_t n_inputs = graph_info->numGraphInputs;
-    m_inputs.reserve(n_inputs);
-    for (size_t i = 0; i < n_inputs; i++) {
-        m_inputs.emplace_back(graph_info->graphInputs[i]);
-    }
+        size_t n_outputs = graph_info.numGraphOutputs;
+        m_outputs.reserve(n_outputs);
+        for (size_t i = 0; i < n_outputs; i++) {
+            m_outputs.emplace_back(graph_info.graphOutputs[i]);
+        }
 
-    size_t n_outputs = graph_info->numGraphOutputs;
-    m_outputs.reserve(n_outputs);
-    for (size_t i = 0; i < n_outputs; i++) {
-        m_outputs.emplace_back(graph_info->graphOutputs[i]);
+        auto ret = lib.m_qnn_backend.graphRetrieve(context.m_handle, name.c_str(), &m_handle);
+        SMART_ASSERT(ret == QNN_SUCCESS);
+    };
+    switch (context.m_binary_info->version) {
+    case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_1: {
+        auto &info                                       = context.m_binary_info->contextBinaryInfoV1;
+        const QnnSystemContext_GraphInfoV1_t *graph_info = nullptr;
+        for (size_t i = 0; i < info.numGraphs; i++) {
+            const auto *current_graph = &info.graphs[i];
+            SMART_ASSERT(current_graph->version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_1);
+            if (current_graph->graphInfoV1.graphName == name) {
+                processGraphInfo(current_graph->graphInfoV1);
+                break;
+            }
+        }
+    } break;
+    case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_2: {
+        auto &info                                       = context.m_binary_info->contextBinaryInfoV2;
+        const QnnSystemContext_GraphInfoV2_t *graph_info = nullptr;
+        for (size_t i = 0; i < info.numGraphs; i++) {
+            const auto *current_graph = &info.graphs[i];
+            SMART_ASSERT(current_graph->version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_2);
+            if (current_graph->graphInfoV2.graphName == name) {
+                processGraphInfo(current_graph->graphInfoV2);
+                break;
+            }
+        }
+    } break;
+#if (QNN_API_VERSION_MINOR == 21)
+    case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_3: {
+        auto &info                                       = context.m_binary_info->contextBinaryInfoV3;
+        const QnnSystemContext_GraphInfoV3_t *graph_info = nullptr;
+        for (size_t i = 0; i < info.numGraphs; i++) {
+            const auto *current_graph = &info.graphs[i];
+            SMART_ASSERT(current_graph->version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_3);
+            if (current_graph->graphInfoV3.graphName == name) {
+                processGraphInfo(current_graph->graphInfoV3);
+                break;
+            }
+        }
+    } break;
+#endif
+    default:
+        SMART_ASSERT(false);
+        break;
     }
-
-    auto ret = lib.m_qnn_backend.graphRetrieve(context.m_handle, name.c_str(), &m_handle);
-    SMART_ASSERT(ret == QNN_SUCCESS);
 }
 
 auto Graph::get_tensor(const std::string &name, bool required) -> Tensor * {
