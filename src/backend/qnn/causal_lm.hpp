@@ -13,7 +13,7 @@ struct CausalLM {
 
     Path m_model_folder;
     QNNConfig m_config;
-    const std::shared_ptr<smart::Config> &m_model_config;
+    const std::shared_ptr<smart::Config> m_model_config;
 
     struct {
         size_t max_batch_size = 0;
