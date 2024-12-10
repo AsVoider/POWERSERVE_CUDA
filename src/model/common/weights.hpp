@@ -47,13 +47,14 @@ public:
     std::vector<LayerWeights> lw;
 
 public:
-    Weight(ggml_context *ctx) :
-        token_embedding_table(ggml::convert_from_ggml(ggml_get_tensor(ctx, "token_embd.weight"))),
-        output_weight(ggml::convert_from_ggml(
-            ggml_get_tensor(ctx, "output.weight") == nullptr ? ggml_get_tensor(ctx, "token_embd.weight")
-                                                             : ggml_get_tensor(ctx, "output.weight")
-        )),
-        rms_final_weight(ggml::convert_from_ggml(ggml_get_tensor(ctx, "output_norm.weight"))) {}
+    Weight(ggml_context *ctx, bool lazy_load) {
+        token_embedding_table = ggml::convert_from_ggml(ggml_get_tensor(ctx, "token_embd.weight"));
+        if (!lazy_load) {
+            auto ow_name     = ggml_get_tensor(ctx, "output.weight") == nullptr ? "token_embd.weight" : "output.weight";
+            output_weight    = ggml::convert_from_ggml(ggml_get_tensor(ctx, ow_name));
+            rms_final_weight = ggml::convert_from_ggml(ggml_get_tensor(ctx, "output_norm.weight"));
+        }
+    }
 
     virtual ~Weight() = default;
 };

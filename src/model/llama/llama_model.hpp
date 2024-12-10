@@ -18,6 +18,7 @@ public:
     // ggml need those context
     ggml_context *ggml_ctx;
     gguf_context *gguf_ctx;
+    bool lazy_load;
 
 public:
     explicit LlamaModel(

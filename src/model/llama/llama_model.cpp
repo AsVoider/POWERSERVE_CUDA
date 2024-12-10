@@ -31,7 +31,11 @@ LlamaModel::LlamaModel(
     // prepare data
     m_config = config;
     // prepare weights (+ 2G)
-    m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->tf_cfg.n_layers);
+    lazy_load = ggml_get_tensor(ggml_ctx, "output.weight") == nullptr ? true : false;
+    m_weights =
+        std::make_shared<LlamaWeight>(ggml_ctx, m_config->tf_cfg.n_layers, lazy_load); // TODO: only load embedding
+    if (lazy_load)
+        fmt::println(stderr, "\033[33m<warning> You only load embedding table\033[0m");
     // modules
     m_attn = nullptr;
     m_ffn  = std::make_shared<FFN>(m_config, m_weights);
@@ -79,22 +83,23 @@ auto LlamaModel::forward(
         }
     } else
 #endif
-
     {
-        SMART_UNUSED(lm_head);
-        // attention and ffn
-        for (size_t L = 0; L < m_config->tf_cfg.n_layers; L++) {
-            auto att_o = m_attn->build(g, x, L, pos, mask);
-            auto ffn_o = m_ffn->build(g, att_o, L);
-            x          = ffn_o;
+        if (!lazy_load) {
+            SMART_UNUSED(lm_head);
+            // attention and ffn
+            for (size_t L = 0; L < m_config->tf_cfg.n_layers; L++) {
+                auto att_o = m_attn->build(g, x, L, pos, mask);
+                auto ffn_o = m_ffn->build(g, att_o, L);
+                x          = ffn_o;
+            }
+
+            // final output
+            auto rms_final_w    = g.add_tensor(m_weights->rms_final_weight);
+            auto final_rms_norm = g.rms_norm(x, rms_final_w, m_config->tf_cfg.norm_eps);
+
+            auto output_w = g.add_tensor(m_weights->output_weight);
+            logits        = g.mat_mul(final_rms_norm, output_w);
         }
-
-        // final output
-        auto rms_final_w    = g.add_tensor(m_weights->rms_final_weight);
-        auto final_rms_norm = g.rms_norm(x, rms_final_w, m_config->tf_cfg.norm_eps);
-
-        auto output_w = g.add_tensor(m_weights->output_weight);
-        logits        = g.mat_mul(final_rms_norm, output_w);
     }
 
     Executor executor(*m_platform, g);
@@ -103,6 +108,7 @@ auto LlamaModel::forward(
     executor.run();
     auto res = std::vector<std::vector<float>>();
     if (lm_head) {
+        SMART_ASSERT(logits != nullptr);
         float *logits_data = static_cast<float *>(logits->get<ggml::Buffer>().m_data);
         for (size_t i = 0; i < batch_size; i++) {
             res.emplace_back(std::vector<float>(
