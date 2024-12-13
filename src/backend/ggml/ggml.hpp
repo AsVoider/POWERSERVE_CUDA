@@ -168,12 +168,12 @@ public:
     std::unique_ptr<GGMLKV> m_kv;
 
 public:
-    explicit GGMLBackend(const std::shared_ptr<Config> &config, int n_threads = 1) :
-        m_wdata(config->tf_cfg.dim * config->tf_cfg.dim) {
+    explicit GGMLBackend(const std::shared_ptr<LLMConfig> &config, int n_threads = 1) :
+        m_wdata(config->dim * config->dim) {
         m_params = {
             .ith           = 0,
             .nth           = 1,
-            .wsize         = (size_t)config->tf_cfg.dim * config->tf_cfg.dim, // TODO: Replace wdata with max data size
+            .wsize         = (size_t)config->dim * config->dim, // TODO: Replace wdata with max data size
             .wdata         = m_wdata.data(),
             .thread_pool   = nullptr,
             .barrier_fn    = nullptr,
@@ -195,7 +195,7 @@ public:
     void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight, float eps) const;
     void softmax(const Tensor *out, const Tensor *x) const;
-    void rope(Tensor *out, const Tensor *src, const std::vector<int> &pos, const RopeConfig &rope_cfg) const;
+    void rope(Tensor *out, const Tensor *src, const std::vector<int> &pos, const LLMConfig::RopeConfig &rope_cfg) const;
     void multihead_attention(
         const Tensor *out, const Tensor *q, const std::vector<int> &pos, const int64_t L, const uint32_t n_heads
     ) const;

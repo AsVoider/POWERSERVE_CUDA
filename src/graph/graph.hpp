@@ -29,7 +29,7 @@ public:
         -> TensorNode *;
 #endif
 
-    auto rope(TensorNode *src, const std::vector<int> &pos, const RopeConfig &params) -> TensorNode *;
+    auto rope(TensorNode *src, const std::vector<int> &pos, const LLMConfig::RopeConfig &params) -> TensorNode *;
 
     auto softmax(TensorNode *x) -> TensorNode *;
     auto mha(TensorNode *q, const std::vector<int> &pos, size_t layer_id, uint32_t n_heads) -> TensorNode *;

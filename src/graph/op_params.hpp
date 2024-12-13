@@ -33,7 +33,7 @@ struct RMSNormParams {
 
 struct RopeParams {
     std::vector<int> pos;
-    RopeConfig rope_cfg;
+    LLMConfig::RopeConfig rope_cfg;
 };
 
 struct AddCacheParams {

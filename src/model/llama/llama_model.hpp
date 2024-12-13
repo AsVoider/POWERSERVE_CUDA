@@ -21,15 +21,12 @@ public:
     bool lazy_load;
 
 public:
-    explicit LlamaModel(
-        const std::string &filename, const std::shared_ptr<Config> &config, const std::shared_ptr<Platform> &platform
-    );
+    explicit LlamaModel(const std::string &filename, const std::shared_ptr<LLMConfig> &config);
     ~LlamaModel() override;
 
 public:
-    // void generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) override;
-    auto decode(Sampler &sampler, const std::vector<Tokenizer::Token> tokens, const std::vector<int> pos, bool lm_head)
-        -> std::vector<Tokenizer::Token> override;
+    auto decode(Sampler &sampler, const std::vector<Token> tokens, const std::vector<int> pos, bool lm_head)
+        -> std::vector<Token> override;
     auto generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) -> TokenRange override;
 
     auto forward(
@@ -37,7 +34,7 @@ public:
         const std::vector<int> &pos,
         const CausalAttentionMask &mask,
         bool lm_head = true
-    ) -> std::vector<std::vector<float>>;
+    ) -> std::vector<std::vector<float>> override;
 };
 
 } // namespace smart

@@ -2,12 +2,12 @@
 
 namespace smart::ggml {
 
-GGMLKV::GGMLKV(const std::shared_ptr<Config> &config) :
-    m_kv_dim(config->tf_cfg.kv_dim),
-    m_n_kv_heads(config->tf_cfg.n_kv_heads),
-    m_n_ctx(config->tf_cfg.seq_len),
-    m_n_layers(config->tf_cfg.n_layers),
-    m_head_size(config->tf_cfg.head_size),
+GGMLKV::GGMLKV(const std::shared_ptr<LLMConfig> &config) :
+    m_kv_dim(config->kv_dim),
+    m_n_kv_heads(config->n_kv_heads),
+    m_n_ctx(config->seq_len),
+    m_n_layers(config->n_layers),
+    m_head_size(config->head_size),
     m_batch_size(1), // FIXME:
     m_config(config) {
 

@@ -3,6 +3,7 @@
 #include "fmt/base.h"
 #include "fmt/ranges.h"
 #include "fmt/std.h"
+#include "llama-vocab.h"
 #include "uv.h"
 
 #include <cstdlib>
@@ -34,7 +35,8 @@
 
 namespace smart {
 
-using Path = std::filesystem::path;
+using Path  = std::filesystem::path;
+using Token = llama_vocab::id;
 
 static long time_in_ms() {
     // return time in milliseconds, for benchmarking the model speed
@@ -44,8 +46,6 @@ static long time_in_ms() {
 }
 
 void get_memory_usage(const std::string &msg = "");
-
-void get_system_temperature(const std::string &msg = "");
 
 inline void read_binary_file(const Path &path, uint8_t *buffer, size_t size) {
     uv_fs_t req;
@@ -81,4 +81,7 @@ inline auto read_binary_file(const Path &path, size_t n_elements) -> std::vector
 inline void print_timestamp() {
     fmt::println(stderr, "Compiled on: {} at {}", __DATE__, __TIME__);
 }
+
+std::string abbreviation(std::string text, size_t limit = 10);
+
 } // namespace smart

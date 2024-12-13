@@ -11,7 +11,7 @@ struct CausalLM;
 
 struct GraphInterface {
     CausalLM &m_parent;
-    const std::shared_ptr<smart::Config> &m_model_config;
+    const std::shared_ptr<LLMConfig> &m_model_config;
     ContextBinary &m_context_binary;
     std::unique_ptr<qnn::Graph> m_graph;
 

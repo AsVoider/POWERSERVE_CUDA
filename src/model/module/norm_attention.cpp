@@ -13,10 +13,10 @@ TensorNode *NormAttention::build(
     Graph &g, TensorNode *x, int64_t L, const std::vector<int> &pos, const CausalAttentionMask &mask
 ) {
     SMART_UNUSED(mask);
-    auto &cfg = m_config->tf_cfg;
+    auto &llm_config = *m_config;
 
-    auto att_norm_w = g.add_tensor(m_weights->lw[L].attn_norm);             // (embd_dim, 1, 1, 1)
-    auto att_norm_o = g.rms_norm(x, att_norm_w, m_config->tf_cfg.norm_eps); // (embd_dim, bs, 1, 1)
+    auto att_norm_w = g.add_tensor(m_weights->lw[L].attn_norm);       // (embd_dim, 1, 1, 1)
+    auto att_norm_o = g.rms_norm(x, att_norm_w, llm_config.norm_eps); // (embd_dim, bs, 1, 1)
 
     // QKV
     auto q_w = g.add_tensor(m_weights->lw[L].attn_q); // (embd_dim, embd_dim, 1, 1)
@@ -29,14 +29,14 @@ TensorNode *NormAttention::build(
     auto v_w = g.add_tensor(m_weights->lw[L].attn_v); // (embd_dim, kv_dim, 1, 1)
     auto v   = g.mat_mul(att_norm_o, v_w);            // (kv_dim, batch_size, 1, 1)
 
-    const size_t head_size = cfg.head_size;
-    SMART_ASSERT(head_size == cfg.rope_dim_count);
+    const size_t head_size = llm_config.head_size;
+    SMART_ASSERT(head_size == (size_t)llm_config.rope_config.n_dims);
     // (head_size, n_heads, bs, 1)
-    auto q_view = g.view_tensor(q, {head_size, cfg.n_heads, q->m_shape[1], q->m_shape[2]});
+    auto q_view = g.view_tensor(q, {head_size, llm_config.n_heads, q->m_shape[1], q->m_shape[2]});
     // (head_size, n_kv_heads, bs, 1)
-    auto k_view = g.view_tensor(k, {head_size, cfg.n_kv_heads, k->m_shape[1], k->m_shape[2]});
-    auto rope_q = g.rope(q_view, pos, m_config->tf_cfg.rope_cfg); // (head_size, n_heads, bs, 1)
-    auto rope_k = g.rope(k_view, pos, m_config->tf_cfg.rope_cfg); // (head_size, n_kv_heads, bs, 1)
+    auto k_view = g.view_tensor(k, {head_size, llm_config.n_kv_heads, k->m_shape[1], k->m_shape[2]});
+    auto rope_q = g.rope(q_view, pos, llm_config.rope_config); // (head_size, n_heads, bs, 1)
+    auto rope_k = g.rope(k_view, pos, llm_config.rope_config); // (head_size, n_kv_heads, bs, 1)
 
     // multihead attention
     rope_q = g.view_tensor(rope_q, q->m_shape); // (embd_dim, bs, 1, 1)
@@ -44,7 +44,7 @@ TensorNode *NormAttention::build(
     g.add_cache(rope_k, L, pos, 0, true);
     g.add_cache(v, L, pos, 0, false);
 
-    auto att_scores = g.mha(rope_q, pos, L, cfg.n_heads); // (embd_dim, bs, 1, 1)
+    auto att_scores = g.mha(rope_q, pos, L, llm_config.n_heads); // (embd_dim, bs, 1, 1)
 
     auto attn_output_w = g.add_tensor(m_weights->lw[L].attn_output);
     auto attn_o        = g.mat_mul(att_scores, attn_output_w); // (embd_dim, bs, 1, 1)

@@ -2,11 +2,11 @@
 
 namespace smart {
 
-SamplerChain::SamplerChain(SamplerConfig config) : m_config(config) {
+SamplerChain::SamplerChain(HyperParams::SamplerConfig config, const Tokenizer &tokenizer) : m_config(config) {
     m_samplers.emplace_back(std::make_shared<PenaltyChecker>(
-        config.vocab_size,
-        config.special_eos_id,
-        config.linefeed_id,
+        tokenizer.n_vocabs(),
+        tokenizer.m_vocab.special_eos_id,
+        tokenizer.m_vocab.linefeed_id,
         config.penalty_last_n,
         config.penalty_repeat,
         config.penalty_freq,
@@ -15,7 +15,7 @@ SamplerChain::SamplerChain(SamplerConfig config) : m_config(config) {
         config.ignore_eos
     )); // TODO: the first or the last?
     m_samplers.emplace_back(std::make_shared<TopKSampler>(config.top_k));
-    m_samplers.emplace_back(std::make_shared<TemperatureExtSampler>(config.temp));
+    m_samplers.emplace_back(std::make_shared<TemperatureExtSampler>(config.temperature));
     m_samplers.emplace_back(std::make_shared<SoftmaxSampler>());
     m_samplers.emplace_back(std::make_shared<TopPSampler>(config.top_p));
     m_samplers.emplace_back(std::make_shared<NormalizeSampler>());
@@ -30,7 +30,7 @@ void SamplerChain::apply(ProbArray &probs) {
     }
 }
 
-void SamplerChain::accept(Tokenizer::Token token) {
+void SamplerChain::accept(Token token) {
     for (auto &sampler : m_samplers) {
         sampler->accept(token);
     }

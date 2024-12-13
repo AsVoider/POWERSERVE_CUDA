@@ -34,7 +34,7 @@ static std::shared_ptr<qnn::Session> session;
 struct QNNBackend : smart::Backend {
     std::unique_ptr<CausalLM> m_causal_lm;
 
-    QNNBackend(Path working_folder, const std::shared_ptr<smart::Config> &model_config);
+    QNNBackend(Path working_folder, const std::shared_ptr<LLMConfig> &model_config);
     virtual ~QNNBackend() override;
     void forward(
         const smart::Tensor *dst, const smart::Tensor *src, const std::vector<int> &pos, const CausalAttentionMask &mask

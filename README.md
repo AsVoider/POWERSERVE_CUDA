@@ -74,3 +74,22 @@ python ./mmlu_test.py --host 0.0.0.0 --port 18080 -s 1
 # npu
 export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ./build/tools/perpelxity/perpelxity_test --file-path ./llama3.1-q4_0.gguf --vocab-path ./llama3.1-vocab.gguf --config-path ./llama3.1.json --prompt-file ./prompt.txt --batch-size 32 --qnn-path ./workspace
 ```
+
+# cmdline-tools
+- generate config (support gguf, safetensors)
+```
+smartserving create -m ./models/ -o ./proj.config
+```
+- generate qnn models
+```
+smartserving create -m ./models/ --qnn-out ./qnn_models/ -o ./proj.config
+```
+[optional] Modify Config by manual or cli
+- run with config
+```
+smartserving run -c ./proj.config
+```
+- run server with config
+```
+smartserving server -c ./proj.config
+```

@@ -13,7 +13,7 @@ namespace smart {
 struct NormAttention : Attention {
 
 public:
-    NormAttention(std::shared_ptr<Config> config, std::shared_ptr<Weight> weights) : Attention(config, weights) {}
+    NormAttention(std::shared_ptr<LLMConfig> config, std::shared_ptr<Weight> weights) : Attention(config, weights) {}
 
     ~NormAttention() = default;
 

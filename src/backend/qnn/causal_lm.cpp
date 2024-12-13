@@ -12,7 +12,7 @@ auto CausalLM::ChunkVector::get_chunk(size_t layer_id) -> ModelChunk & {
     SMART_ASSERT(false);
 }
 
-CausalLM::CausalLM(const Path model_folder, const std::shared_ptr<smart::Config> &model_config, Session &environment) :
+CausalLM::CausalLM(const Path model_folder, const std::shared_ptr<LLMConfig> &model_config, Session &environment) :
     m_model_folder(model_folder),
     m_config(model_folder / m_config_file_name, model_config),
     m_model_config(model_config),
@@ -104,7 +104,7 @@ void CausalLM::load_model_chunks() {
 
     auto &max_chunks = m_chunks_map[m_gparams.max_batch_size];
     kv_cache         = std::make_unique<KVCache<CausalLMKV>>(
-        m_model_config->tf_cfg.n_layers, m_model_config->tf_cfg.n_kv_heads, m_gparams.cache_size, *this, max_chunks
+        m_model_config->n_layers, m_model_config->n_kv_heads, m_gparams.cache_size, *this, max_chunks
     );
     dummy_buffer.reset(nullptr);
     dummy_alloc.reset(nullptr);
@@ -142,10 +142,10 @@ void CausalLM::load_model_chunks() {
 }
 
 void CausalLM::compute_rope_embeds() {
-    auto head_dim = m_model_config->tf_cfg.head_size;
+    auto head_dim = m_model_config->head_size;
     std::vector<float> inv_freqs(head_dim / 2);
     for (size_t i = 0; i < head_dim / 2; i++) {
-        inv_freqs[i] = 1.0f / std::pow(m_model_config->tf_cfg.rope_freq_base, 2.0f * i / head_dim);
+        inv_freqs[i] = 1.0f / std::pow(m_model_config->rope_config.freq_base, 2.0f * i / head_dim);
     }
 
     m_rope_embeds.resize(m_gparams.context_size);
@@ -162,7 +162,7 @@ void CausalLM::compute_rope_embeds() {
 }
 
 void CausalLM::fill_rope_embeds(std::span<const size_t> pos) {
-    auto head_dim = m_model_config->tf_cfg.head_size;
+    auto head_dim = m_model_config->head_size;
     for (auto &chunk_ptr : largest_chunks()) {
         auto &chunk = *chunk_ptr;
         SMART_ASSERT(pos.size() <= chunk.m_config.batch_size);
@@ -211,11 +211,9 @@ void CausalLM::Batch::forward() {
     size_t batch_size = pos.size();
 
     for (size_t i = 0; i < batch_size; i++) {
-        auto buffer = (float *)chunks[0]->input_buffer() + i * parent.m_model_config->tf_cfg.dim;
+        auto buffer = (float *)chunks[0]->input_buffer() + i * parent.m_model_config->dim;
         memcpy(
-            buffer,
-            token_embeddings.data() + i * parent.m_model_config->tf_cfg.dim,
-            sizeof(float) * parent.m_model_config->tf_cfg.dim
+            buffer, token_embeddings.data() + i * parent.m_model_config->dim, sizeof(float) * parent.m_model_config->dim
         );
     }
 
@@ -229,7 +227,7 @@ void CausalLM::Batch::forward() {
             memcpy(
                 chunks[i + 1]->input_buffer(),
                 chunks[i]->output_buffer(),
-                batch_size * parent.m_model_config->tf_cfg.dim * sizeof(float)
+                batch_size * parent.m_model_config->dim * sizeof(float)
             );
         }
     }
@@ -240,9 +238,7 @@ void CausalLM::Batch::compute_logits() {
     size_t batch_size = pos.size();
 
     memcpy(
-        lm_head->input_buffer(),
-        chunks.back()->output_buffer(),
-        batch_size * parent.m_model_config->tf_cfg.dim * sizeof(float)
+        lm_head->input_buffer(), chunks.back()->output_buffer(), batch_size * parent.m_model_config->dim * sizeof(float)
     );
     lm_head->execute();
 }
@@ -258,7 +254,7 @@ void CausalLM::Batch::advance() {
 auto CausalLM::split_batch(
     std::span<const float> token_embeddings, std::span<const size_t> pos, const CausalAttentionMask &mask
 ) -> std::vector<Batch> {
-    auto embedding_dim = m_model_config->tf_cfg.dim;
+    auto embedding_dim = m_model_config->dim;
     size_t batch_size  = token_embeddings.size() / embedding_dim;
     SMART_ASSERT(pos.size() == batch_size);
     SMART_ASSERT(mask.size == batch_size);

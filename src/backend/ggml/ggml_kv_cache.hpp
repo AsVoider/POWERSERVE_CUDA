@@ -15,7 +15,7 @@ public:
     size_t m_n_layers   = 0;
     size_t m_head_size  = 0;
     size_t m_batch_size = 0;
-    std::shared_ptr<Config> m_config;
+    std::shared_ptr<LLMConfig> m_config;
 
     struct GGMLChunk {
         KVBuffer key_buffer;   // [n_layers][seq_len * kv_dim]) kv_dim == n_kv_heads * head_size
@@ -104,7 +104,7 @@ public:
     std::unique_ptr<KVCache<GGMLKVInterface>> kv_cache;
 
 public:
-    GGMLKV(const std::shared_ptr<Config> &config);
+    GGMLKV(const std::shared_ptr<LLMConfig> &config);
 
     ~GGMLKV() = default;
 

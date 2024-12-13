@@ -35,7 +35,6 @@ ThreadPool::ThreadPool(const std::vector<ThreadConfig> &configs) : m_configs(con
 }
 
 ThreadPool::~ThreadPool() {
-    // fmt::print("thread pool destructor\n");
     m_exited = true;
     uv_barrier_wait(&m_run_barrier);
 
@@ -59,7 +58,6 @@ void ThreadPool::run(TaskFn task) { // main thread entry point
 void ThreadPool::async_run(TaskFn task) {
     SMART_ASSERT(m_current_task == nullptr);
     m_current_task = task;
-    // fmt::println("kick off");
     uv_barrier_wait(&m_run_barrier); // kick off all threads in thread_main
 }
 
@@ -78,12 +76,9 @@ void ThreadPool::thread_main(size_t thread_id) {
     }
 
     while (!m_exited) {
-        // fmt::print("thread {} waiting for run barrier\n", thread_id);
         uv_barrier_wait(&m_run_barrier); // when main thread runs, it will wait for all threads to reach this barrier
-        // fmt::print("thread {} passed run barrier\n", thread_id);
 
         if (m_current_task) {
-            // fmt::print("thread {} running task\n", thread_id);
             m_current_task(thread_id);
             uv_barrier_wait(&m_run_barrier);
         }

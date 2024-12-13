@@ -23,9 +23,12 @@ variables:
   QNN_SDK_26_ROOT: "/opt/qcom/aistack/qairt/2.26.0.240828"
   QNN_SDK_27_ROOT: "/opt/qcom/aistack/qairt/2.27.7.241014"
   QNN_SDK_28_ROOT: "/opt/qcom/aistack/qairt/2.28"
-  QNN_SDK_ROOT: ${QNN_SDK_27_ROOT}
+  QNN_SDK_ROOT: ${QNN_SDK_28_ROOT}
   DEVICE_ROOT: "/data/data/com.termux/files/home/CI"
-  DEVICE_BIN: "${DEVICE_ROOT}/bin"
+  DEVICE_BIN: "${DEVICE_ROOT}/smart-llama3.1-8b/bin/aarch64"
+  TARGET_LLAMA3_1: "smart-llama3.1-8b"
+  TARGET_LLAMA3_1_SPEC: "smart-llama3.1-8b-spec"
+  TARGET_QWEN2: "smart-qwen2-7b"
   DEVICE_HOST: "192.168.60.173"
   DEVICE_USER: "u0_a342"
   DEVICE_PORT: 8022
@@ -78,17 +81,15 @@ build:
     - sudo podman exec -it $CONTAINER_NAME bash -c -i "cd /code && cmake -DCMAKE_TOOLCHAIN_FILE=/data/android-ndk-r27b/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF -DGGML_OPENMP=OFF -DSMART_ENABLE_ASAN=OFF -DSMART_WITH_QNN=ON -S . -B build_android"
     - sudo podman exec -it $CONTAINER_NAME bash -c -i "cd /code && cmake --build build_android --config RelWithDebInfo --parallel 12 && sudo chmod -R 777 build_android"
     - sudo podman exec -it $CONTAINER_NAME bash -c -i "cp -r /code/build_android /data"
+    - sudo podman exec -it $CONTAINER_NAME bash -c -i "cp /code/smartserving /data"
 
 deploy:
   stage: deploy
   script:
     - sleep 2
     - echo "Deploying binaries and models to your Android device. You must add gitlab-runner's and root's ssh public key to device's ~/.ssh/authorized_keys."
-    - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/bin/run ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_BIN}
-    - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/bin/speculative ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_BIN}
-    - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/tools/gguf_config_to_json/config_generator ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_BIN}
-    - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/bin/server ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_BIN}
-    - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/tools/perpelxity/perpelxity_test ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_BIN}
+    - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/out/* ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_BIN}
+    - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/smartserving ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_ROOT}
     - ./.gitlab/ecmd.sh ssh -o StrictHostKeyChecking=no -p "${DEVICE_PORT}" "${DEVICE_USER}@${DEVICE_HOST}" "ls -ahl ${DEVICE_BIN}"
 
 # =============== Required Tests ===============
@@ -96,12 +97,12 @@ test_llama3.1:
   stage: test
   script:
     - sleep 2 # just relax
-    - .gitlab/test-llama3.1.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} 4 32
+    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 0 32 4
 
 test_thread:
   stage: test
   script:
-    - .gitlab/test-llama3.1.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} 8 32
+    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 0 32 8
   needs:
     - test_llama3.1
 
@@ -113,8 +114,8 @@ test_qnn:
       when: always
     - when: manual
   script:
-    - sleep 10
-    - .gitlab/test-qwen2.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} 8 300 1
+    - sleep 2
+    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_QWEN2} 1 300 4
   needs:
     - test_thread
 
@@ -128,7 +129,7 @@ test_ppl:
     - when: manual
   script:
     - sleep 10
-    - .gitlab/test-ppl.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT}
+    - .gitlab/test-ppl.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1}
   needs:
     - test_qnn
 
@@ -140,10 +141,10 @@ test_speculative:
       when: always
     - when: manual
   script:
-    - sleep 10
+    - echo "PASS"
     - .gitlab/test-speculative.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT}
   needs:
-    - test_qnn
+    - test_ppl
 
 # =============== Daily Tests ===============
 test_long_out:
@@ -154,12 +155,12 @@ test_long_out:
       when: always
     - when: manual
   script:
-    - sleep 30
-    - .gitlab/test-qwen2.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} 8 4096 1
+    - sleep 10
+    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 1 2000 8 "math.txt"
   needs:
-    - test_ppl
+    - test_speculative
 
-test_mmlu:
+test_mmlu_llama3.1:
   stage: test
   allow_failure: true
   rules:
@@ -167,7 +168,20 @@ test_mmlu:
       when: always
     - when: manual
   script:
-    - sleep 60
-    - .gitlab/test-mmlu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME}
+    - sleep 10
+    - .gitlab/test-mmlu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_LLAMA3_1}
   needs:
     - test_long_out
+
+test_mmlu_qwen2:
+  stage: test
+  allow_failure: true
+  rules:
+    - if: $CI_TEST_MMLU == "true"
+      when: always
+    - when: manual
+  script:
+    - sleep 10
+    - .gitlab/test-mmlu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_QWEN2}
+  needs:
+    - test_mmlu_llama3.1

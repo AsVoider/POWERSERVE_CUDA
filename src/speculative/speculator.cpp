@@ -45,8 +45,7 @@ void Speculative::TokenTree::build_tree(
     fa_list.push_back(father_id);
 
     long temp_start = time_in_ms();
-    auto model      = std::dynamic_pointer_cast<smart::LlamaModel>(m_model);
-    auto logits     = model->forward({father}, {m_previous_position + now_depth}, CausalAttentionMask(1));
+    auto logits     = m_model->forward({father}, {m_previous_position + now_depth}, CausalAttentionMask(1));
     long temp_end   = time_in_ms();
     elapsed_time += temp_end - temp_start;
 
@@ -82,9 +81,6 @@ void Speculative::TokenTree::build_tree(
 }
 
 void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) {
-    // m_target_model->generate(tokenizer, sampler, prompt, steps);
-    // m_draft_model->generate(tokenizer, sampler, prompt, steps);
-    // return;
     m_tokenizer = &tokenizer;
 
     int num_prompt_tokens = 0;
@@ -106,16 +102,14 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
     auto prefill_pos   = std::vector<int>(num_prompt_tokens - 1);
     std::iota(prefill_pos.begin(), prefill_pos.end(), pos);
     auto prefill_attention_mask = CausalAttentionMask(num_prompt_tokens - 1);
-    auto target_model           = std::dynamic_pointer_cast<smart::LlamaModel>(m_target_model);
-    auto draft_model            = std::dynamic_pointer_cast<smart::LlamaModel>(m_draft_model);
-    target_model->forward(
+    m_target_model->forward(
         std::vector<int>(prompt_tokens.begin(), std::prev(prompt_tokens.end())),
         prefill_pos,
         prefill_attention_mask,
         false
     );
     // long temp_start = time_in_ms();
-    draft_model->forward(
+    m_draft_model->forward(
         std::vector<int>(prompt_tokens.begin(), std::prev(prompt_tokens.end())),
         prefill_pos,
         prefill_attention_mask,
@@ -168,8 +162,7 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
         CausalAttentionMask batch_mask(bs, mask);
 
         long temp_start                        = time_in_ms();
-        auto target_model                      = std::dynamic_pointer_cast<smart::LlamaModel>(m_target_model);
-        std::vector<std::vector<float>> logits = target_model->forward(token_vec, pos_vec, batch_mask);
+        std::vector<std::vector<float>> logits = m_target_model->forward(token_vec, pos_vec, batch_mask);
         long temp_end                          = time_in_ms();
         stats.target_time += temp_end - temp_start;
 

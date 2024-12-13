@@ -3,7 +3,7 @@
 #include "backend/ggml/buffer.hpp"
 
 namespace smart::qnn {
-QNNBackend::QNNBackend(Path working_folder, const std::shared_ptr<smart::Config> &model_config) {
+QNNBackend::QNNBackend(Path working_folder, const std::shared_ptr<LLMConfig> &model_config) {
     if (session.get() == nullptr) {
         session = std::make_shared<qnn::Session>(working_folder);
     }
@@ -35,9 +35,9 @@ void QNNBackend::forward(
         auto &batch = main_batches[i];
         batch.forward();
         if (dst->n_elements() > 1) {
-            auto vocab_size   = batch.parent.m_model_config->tf_cfg.vocab_size;
+            auto vocab_size   = batch.parent.m_model_config->vocab_size;
             size_t batch_size = batch.pos.size();
-            size_t dim        = m_causal_lm->m_model_config->tf_cfg.dim;
+            size_t dim        = m_causal_lm->m_model_config->dim;
 
             const float *out_buf = batch.chunks.back()->output_buffer();
             size_t size          = batch_size * dim * sizeof(float);

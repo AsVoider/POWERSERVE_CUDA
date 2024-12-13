@@ -110,7 +110,7 @@ auto ModelChunk::io_tensor_size() const -> size_t {
     size += m_tensors.out->size();
 
     for (size_t i = 0; i < n_layers(); i++) {
-        for (size_t j = 0; j < m_model_config->tf_cfg.n_kv_heads; j++) {
+        for (size_t j = 0; j < m_model_config->n_kv_heads; j++) {
             size += m_tensors.kvs[i].keys[j]->size();
             size += m_tensors.kvs[i].values[j]->size();
         }
@@ -123,7 +123,7 @@ auto ModelChunk::kv_cache_size() const -> size_t {
     size_t size = 0;
 
     for (size_t i = 0; i < n_layers(); i++) {
-        for (size_t j = 0; j < m_model_config->tf_cfg.n_kv_heads; j++) {
+        for (size_t j = 0; j < m_model_config->n_kv_heads; j++) {
             size += m_tensors.caches[i].keys_t[j]->size();
             size += m_tensors.caches[i].values[j]->size();
         }
@@ -143,9 +143,11 @@ auto ModelChunk::output_buffer() const -> const float * {
 }
 
 void ModelChunk::setup_tensors() {
-    auto head_dim = m_model_config->tf_cfg.head_size;
-    m_tensors.x =
-        m_graph->get_tensor("x")->check({m_config.batch_size, m_model_config->tf_cfg.dim}, QNN_DATATYPE_FLOAT_32);
+    auto &llm_config = m_model_config;
+    auto head_dim    = llm_config->head_size;
+    auto dim         = llm_config->dim;
+    auto n_kv_heads  = llm_config->n_kv_heads;
+    m_tensors.x      = m_graph->get_tensor("x")->check({m_config.batch_size, dim}, QNN_DATATYPE_FLOAT_32);
 
     m_tensors.attn_bias =
         m_graph->get_tensor("attn_bias")->check({m_config.batch_size, m_config.context_size}, QNN_DATATYPE_FLOAT_16);
@@ -160,9 +162,9 @@ void ModelChunk::setup_tensors() {
     for (size_t i = 0; i < n_layers(); i++) {
         auto &cache = m_tensors.caches[i];
 
-        cache.keys_t.resize(m_model_config->tf_cfg.n_kv_heads);
-        cache.values.resize(m_model_config->tf_cfg.n_kv_heads);
-        for (size_t j = 0; j < m_model_config->tf_cfg.n_kv_heads; j++) {
+        cache.keys_t.resize(n_kv_heads);
+        cache.values.resize(n_kv_heads);
+        for (size_t j = 0; j < n_kv_heads; j++) {
             cache.keys_t[j] =
                 m_graph->get_tensor(fmt::format("layer_{}_key_t_cache_{}", m_config.start_layer_id + i, j))
                     ->check({head_dim, m_config.cache_size}, kv_type);
@@ -173,16 +175,15 @@ void ModelChunk::setup_tensors() {
         }
     }
 
-    m_tensors.out =
-        m_graph->get_tensor("out")->check({m_config.batch_size, m_model_config->tf_cfg.dim}, QNN_DATATYPE_FLOAT_32);
+    m_tensors.out = m_graph->get_tensor("out")->check({m_config.batch_size, dim}, QNN_DATATYPE_FLOAT_32);
 
     m_tensors.kvs.resize(n_layers());
     for (size_t i = 0; i < n_layers(); i++) {
         auto &kv = m_tensors.kvs[i];
 
-        kv.keys.resize(m_model_config->tf_cfg.n_kv_heads);
-        kv.values.resize(m_model_config->tf_cfg.n_kv_heads);
-        for (size_t j = 0; j < m_model_config->tf_cfg.n_kv_heads; j++) {
+        kv.keys.resize(n_kv_heads);
+        kv.values.resize(n_kv_heads);
+        for (size_t j = 0; j < n_kv_heads; j++) {
             kv.keys[j] = m_graph->get_tensor(fmt::format("layer_{}_key_{}", m_config.start_layer_id + i, j))
                              ->check({m_config.batch_size, head_dim}, QNN_DATATYPE_FLOAT_16);
             kv.values[j] = m_graph->get_tensor(fmt::format("layer_{}_value_{}", m_config.start_layer_id + i, j))
@@ -204,6 +205,9 @@ void ModelChunk::initialize(KVCacheInterface &kv_cache) {
 }
 
 void ModelChunk::setup_buffers() {
+    auto &llm_config = m_model_config;
+    auto n_kv_heads  = llm_config->n_kv_heads;
+
     // Share buffers with sibling chunk
     if (m_sibling_chunk) {
         m_buffers = m_sibling_chunk->m_buffers;
@@ -228,12 +232,12 @@ void ModelChunk::setup_buffers() {
     m_buffers.kvs.resize(n_layers());
     m_buffers.caches.resize(n_layers());
     for (size_t i = 0; i < n_layers(); i++) {
-        m_buffers.kvs[i].keys.resize(m_model_config->tf_cfg.n_kv_heads);
-        m_buffers.caches[i].keys_t.resize(m_model_config->tf_cfg.n_kv_heads);
-        m_buffers.kvs[i].values.resize(m_model_config->tf_cfg.n_kv_heads);
-        m_buffers.caches[i].values.resize(m_model_config->tf_cfg.n_kv_heads);
+        m_buffers.kvs[i].keys.resize(n_kv_heads);
+        m_buffers.caches[i].keys_t.resize(n_kv_heads);
+        m_buffers.kvs[i].values.resize(n_kv_heads);
+        m_buffers.caches[i].values.resize(n_kv_heads);
 
-        for (size_t j = 0; j < m_model_config->tf_cfg.n_kv_heads; j++) {
+        for (size_t j = 0; j < n_kv_heads; j++) {
             setup(m_buffers.kvs[i].keys[j], m_tensors.kvs[i].keys[j]);
             setup(m_buffers.kvs[i].values[j], m_tensors.kvs[i].values[j]);
             setup(m_buffers.caches[i].keys_t[j], m_tensors.caches[i].keys_t[j]);
@@ -243,8 +247,11 @@ void ModelChunk::setup_buffers() {
 }
 
 void ModelChunk::load_kv(KVCacheInterface &kv_cache) {
-    auto head_dim = m_model_config->tf_cfg.head_size;
-    auto load     = [&](const std::string &kv_type, size_t layer_id, size_t head_id) {
+    auto &llm_config = m_model_config;
+    auto head_dim    = llm_config->head_size;
+    auto n_kv_heads  = llm_config->n_kv_heads;
+
+    auto load = [&](const std::string &kv_type, size_t layer_id, size_t head_id) {
         auto layer_id_arg = fmt::arg("layer_id", layer_id);
         auto kv_type_arg  = fmt::arg("kv_type", kv_type);
         auto head_id_arg  = fmt::arg("head_id", head_id);
@@ -270,17 +277,17 @@ void ModelChunk::load_kv(KVCacheInterface &kv_cache) {
             }
 
             entry.copy_from({
-                    .n_elements   = head_dim,
-                    .element_size = kv_element_size,
-                    .stride       = kv_element_size,
-                    .data         = fp16_data.data() + i * head_dim,
+                .n_elements   = head_dim,
+                .element_size = kv_element_size,
+                .stride       = kv_element_size,
+                .data         = fp16_data.data() + i * head_dim,
             });
         }
     };
 
     for (size_t i = 0; i < n_layers(); i++) {
         size_t layer_id = m_config.start_layer_id + i;
-        for (size_t j = 0; j < m_model_config->tf_cfg.n_kv_heads; j++) {
+        for (size_t j = 0; j < n_kv_heads; j++) {
             load("key", layer_id, j);
             load("value", layer_id, j);
         }

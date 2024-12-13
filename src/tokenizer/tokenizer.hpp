@@ -1,14 +1,10 @@
 #pragma once
 
 #include "common.hpp"
-#include "llama-vocab.h"
 
 namespace smart {
 
 struct Tokenizer {
-public:
-    using Token = llama_vocab::id;
-
 public:
     struct llama_vocab m_vocab;
 

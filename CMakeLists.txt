@@ -51,6 +51,20 @@ if (SMART_ENABLE_LTO)
     endif()
 endif()
 
+add_custom_target(
+    MAKEDIR_OUT
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/out
+)
+
+function(add_artifact target_name)
+    add_custom_command(
+        TARGET ${target_name} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                $<TARGET_FILE:${target_name}>
+                ${CMAKE_BINARY_DIR}/out/smart-${target_name}
+    )
+endfunction()
+
 add_subdirectory(libs)
 add_subdirectory(src)
 add_subdirectory(bin)

@@ -1,6 +1,6 @@
 #include "CLI/CLI.hpp"
 #include "common.hpp"
-#include "model/llama/llama_model.hpp"
+#include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
 #include "model/module/quest_attention.hpp"
 #include "sampler/sampler_chain.hpp"
@@ -13,137 +13,55 @@
 int main(int argc, char *argv[]) {
     smart::print_timestamp();
 
-    // 0. load config
-    std::string file_path      = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama-2-7b.f32.gguf";
-    std::string tokenizer_path = "/home/zwb/Downloads/Llama-2-7b-chat-hf/llama2_7b_vocab.gguf";
-    std::string config_path    = "/home/zwb/SS/smartserving/llama3.2.json";
-    float temperature          = 0.8f; // 0.0 = greedy deterministic. 1.0 = original. don't set higher
-    float top_p                = 0.95f;
-    size_t top_k               = 40;
-    int steps                  = 64;         // number of steps to run for
-    std::string prompt         = "One day,"; // prompt string
-    std::string prompt_file    = "";
-    std::string attn_type      = "normal";
-    int n_threads              = 4;
-    uint64_t rng_seed          = uint64_t(-1); // uint64_t(-1) = random seed
+    std::string config_path = "/home/zwb/SS/smartserving/";
+    std::string attn_type   = "normal";
 
     CLI::App app("Demo program for llama3");
 
-    app.add_option("--file-path", file_path)->required();
-    app.add_option("--vocab-path", tokenizer_path)->required();
     app.add_option("--config-path", config_path)->required();
-    app.add_option("--prompt", prompt);
-    app.add_option("--prompt-file", prompt_file);
-    app.add_option("--steps", steps);
     app.add_option("--attn-type", attn_type);
-    app.add_option("--n-threads", n_threads);
-    app.add_option("--temperature", temperature);
-    app.add_option("--top-p", top_p);
-    app.add_option("--top-k", top_k);
-    app.add_option("--rng-seed", rng_seed);
 #if defined(SMART_WITH_QNN)
-    std::string qnn_path = "";
-    app.add_option("--qnn-path", qnn_path);
+    bool use_qnn = false;
+    app.add_flag("--use-qnn", use_qnn);
 #endif
 
     CLI11_PARSE(app, argc, argv);
 
-    SMART_ASSERT(prompt != "" || prompt_file != "");
-    if (prompt_file != "") {
-        prompt = "";
-        std::ifstream f(prompt_file);
-        if (f.is_open()) {
-            std::string line;
-            while (std::getline(f, line)) {
-                prompt += line + '\n';
-            }
-            f.close();
-        } else {
-            fmt::print(stderr, "Error: could not open file {}\n", prompt_file);
-            SMART_ASSERT(f.is_open());
-        }
-    }
+    auto config                                     = std::make_shared<smart::Config>(config_path);
+    std::unique_ptr<smart::Model> model             = smart::load_model(config->main_llm_config, config->main_llm_dir);
+    auto [sampler_config, steps, n_threads, prompt] = config->hyper_params;
 
-    // get number of CPUs
-    {
-        auto n_cpus = uv_available_parallelism(); // Default fallback value
-        n_threads   = std::min((unsigned int)n_threads, n_cpus);
-    }
-
-    // get config
-    auto config = std::make_shared<smart::Config>(config_path);
-    fmt::println("config version: {}", config->version);
-
-    // get platform
-    auto platform = std::make_shared<smart::Platform>();
-    platform->init_ggml_backend(config, n_threads);
+    model->m_platform = std::make_shared<smart::Platform>();
+    model->m_platform->init_ggml_backend(model->m_config, n_threads);
 #if defined(SMART_WITH_QNN)
-    if (qnn_path != "") {
-        platform->init_qnn_backend(qnn_path, config);
+    if (use_qnn) {
+        model->m_platform->init_qnn_backend(
+            config->main_llm_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, config->main_llm_config
+        );
     }
 #endif
-
-    // get model type
-    std::string model_arch = config->arch;
-    smart::get_memory_usage("begin");
-
-    std::unique_ptr<smart::Model> model;
-    // TODO: move into Model.cpp like build_model
-    if (model_arch == "llama" || model_arch == "qwen2") {
-        model = std::make_unique<smart::LlamaModel>(file_path, config, platform);
-    } else if (model_arch == "phi3") {
-        SMART_ASSERT(false);
-    } else {
-        fmt::print("Unknown model type\n");
-    }
-    smart::get_memory_usage("after model init");
 
     if (attn_type == "normal") {
         model->m_attn = std::make_shared<smart::NormAttention>(model->m_config, model->m_weights);
     } else if (attn_type == "quest") {
         model->m_attn = std::make_shared<smart::QuestAttention>(model->m_config, model->m_weights);
-        // SMART_ASSERT(false);
     }
     smart::get_memory_usage("after attn init");
 
-    // load tokenizer
+    std::string tokenizer_path = config->main_llm_dir / smart::LLM_VOCAB_FILENAME;
     smart::Tokenizer tokenizer(tokenizer_path);
     smart::get_memory_usage("after tokenizer init");
 
-    // load sampler
-    smart::SamplerConfig sampler_config{
-        .seed            = rng_seed,
-        .temp            = temperature,
-        .top_p           = top_p,
-        .top_k           = top_k,
-        .vocab_size      = static_cast<int32_t>(tokenizer.n_vocabs()),
-        .special_eos_id  = tokenizer.m_vocab.special_eos_id,
-        .linefeed_id     = tokenizer.m_vocab.linefeed_id,
-        .penalty_last_n  = 64,
-        .penalty_repeat  = 2.0f,
-        .penalty_freq    = 1.0f,
-        .penalty_present = 0.1f,
-        .penalize_nl     = false,
-        .ignore_eos      = false,
-    };
-    smart::SamplerChain sampler{sampler_config};
+    smart::SamplerChain sampler{sampler_config, tokenizer};
     smart::get_memory_usage("after sampler init");
 
     {
-        fmt::println("file_path   : {}", file_path);
-        fmt::println("vocab_path  : {}", tokenizer_path);
-        fmt::println("prompt      : {}", prompt);
+        fmt::println("prompt      : {}", smart::abbreviation(prompt, 50));
         fmt::println("steps       : {}", steps);
         fmt::println("attn_type   : {}", attn_type);
-        fmt::println("model arch  : {}", model_arch);
+        fmt::println("model arch  : {}", config->main_llm_config->arch);
         fmt::println("n_threads   : {}", n_threads);
-        fmt::println("temperature : {}", temperature);
-        fmt::println("top_p       : {}", top_p);
-        fmt::println("top_k       : {}", top_k);
-        fmt::println("rng_seed    : {}", rng_seed);
     }
-
-    smart::get_system_temperature("Before Decode");
 
     // generate
     long prefill_start = 0;
@@ -151,7 +69,7 @@ int main(int argc, char *argv[]) {
     long decode_end    = 0;
     bool start         = false;
     int actual_predict = 0;
-    fmt::print("{}", prompt);
+    fmt::print("{}", config->hyper_params.prompt);
     prefill_start = smart::time_in_ms();
     for (auto next : model->generate(tokenizer, sampler, prompt, steps)) {
         if (!start) {
@@ -181,6 +99,4 @@ int main(int argc, char *argv[]) {
             "total speed: {} tokens/s", (n_prefill + actual_predict) / (double)(decode_end - prefill_start) * 1000
         );
     }
-
-    smart::get_system_temperature("After Decode");
 }

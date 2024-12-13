@@ -13,7 +13,7 @@ struct CausalLM {
 
     Path m_model_folder;
     QNNConfig m_config;
-    const std::shared_ptr<smart::Config> m_model_config;
+    const std::shared_ptr<LLMConfig> m_model_config;
 
     struct {
         size_t max_batch_size = 0;
@@ -50,11 +50,11 @@ struct CausalLM {
             SMART_ASSERT(token_pos.index < chunk.m_config.batch_size);
 
             return {
-                .n_elements   = chunk.m_model_config->tf_cfg.head_size,
+                .n_elements   = chunk.m_model_config->head_size,
                 .element_size = chunk.kv_element_size,
                 .stride       = chunk.kv_element_size,
-                .data         = (char *)buffer.m_data +
-                        token_pos.index * chunk.m_model_config->tf_cfg.head_size * chunk.kv_element_size,
+                .data =
+                    (char *)buffer.m_data + token_pos.index * chunk.m_model_config->head_size * chunk.kv_element_size,
             };
         }
 
@@ -65,11 +65,11 @@ struct CausalLM {
             SMART_ASSERT(token_pos.index < chunk.m_config.batch_size);
 
             return {
-                .n_elements   = chunk.m_model_config->tf_cfg.head_size,
+                .n_elements   = chunk.m_model_config->head_size,
                 .element_size = chunk.kv_element_size,
                 .stride       = chunk.kv_element_size,
-                .data         = (char *)buffer.m_data +
-                        token_pos.index * chunk.m_model_config->tf_cfg.head_size * chunk.kv_element_size,
+                .data =
+                    (char *)buffer.m_data + token_pos.index * chunk.m_model_config->head_size * chunk.kv_element_size,
             };
         }
 
@@ -80,7 +80,7 @@ struct CausalLM {
             SMART_ASSERT(cache_pos.index < chunk.m_config.cache_size);
 
             return {
-                .n_elements   = chunk.m_model_config->tf_cfg.head_size,
+                .n_elements   = chunk.m_model_config->head_size,
                 .element_size = chunk.kv_element_size,
                 .stride       = chunk.kv_element_size * chunk.m_config.cache_size,
                 .data         = (char *)buffer.m_data + cache_pos.index * chunk.kv_element_size,
@@ -94,11 +94,11 @@ struct CausalLM {
             SMART_ASSERT(cache_pos.index < chunk.m_config.cache_size);
 
             return {
-                .n_elements   = chunk.m_model_config->tf_cfg.head_size,
+                .n_elements   = chunk.m_model_config->head_size,
                 .element_size = chunk.kv_element_size,
                 .stride       = chunk.kv_element_size,
-                .data         = (char *)buffer.m_data +
-                        cache_pos.index * chunk.m_model_config->tf_cfg.head_size * chunk.kv_element_size,
+                .data =
+                    (char *)buffer.m_data + cache_pos.index * chunk.m_model_config->head_size * chunk.kv_element_size,
             };
         }
 
@@ -121,7 +121,7 @@ struct CausalLM {
 
     std::unique_ptr<KVCache<CausalLMKV>> kv_cache;
 
-    CausalLM(const Path model_folder, const std::shared_ptr<smart::Config> &model_config, Session &environment);
+    CausalLM(const Path model_folder, const std::shared_ptr<LLMConfig> &model_config, Session &environment);
 
     auto load_context_binary(const Path &path) -> ContextBinary &;
     void load_model_chunks();

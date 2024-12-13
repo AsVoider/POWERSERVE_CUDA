@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common.hpp"
-#include "tokenizer/tokenizer.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -12,8 +11,8 @@
 namespace smart {
 
 struct ProbIndex {
-    float prob             = 0.0f;
-    Tokenizer::Token index = -1;
+    float prob  = 0.0f;
+    Token index = -1;
 
     bool operator<(const ProbIndex &other) const {
         return prob < other.prob;
@@ -78,7 +77,7 @@ public:
 public:
     virtual void apply(ProbArray &probs) = 0;
 
-    virtual void accept(Tokenizer::Token token) {
+    virtual void accept(Token token) {
         SMART_UNUSED(token);
     }
 };
@@ -173,8 +172,8 @@ constexpr auto NULL_TOKEN = -1;
 struct PenaltyChecker : Sampler {
 public:
     int32_t m_vocab_size;
-    Tokenizer::Token m_special_eos_id;
-    Tokenizer::Token m_linefeed_id;
+    Token m_special_eos_id;
+    Token m_linefeed_id;
 
     int32_t m_penalty_last_n;
     float m_penalty_repeat;
@@ -184,13 +183,13 @@ public:
     bool m_penalize_nl;
     bool m_ignore_eos;
 
-    std::deque<Tokenizer::Token> m_prev;
+    std::deque<Token> m_prev;
 
 public:
     PenaltyChecker(
         int32_t vocab_size,
-        Tokenizer::Token special_eos_id,
-        Tokenizer::Token linefeed_id,
+        Token special_eos_id,
+        Token linefeed_id,
         int32_t penalty_last_n,
         float penalty_repeat,
         float penalty_freq,
@@ -222,7 +221,7 @@ public:
 
 public:
     void apply(ProbArray &probs) override;
-    void accept(Tokenizer::Token token) override;
+    void accept(Token token) override;
 };
 
 } // namespace smart

@@ -8,7 +8,6 @@ void ProbArray::normalize() {
         sum += p.prob;
     }
 
-    // normalize
     for (auto &p : m_probs) {
         p.prob /= sum;
     }
@@ -24,12 +23,10 @@ void ProbArray::softmax() {
 
     auto max_val = m_probs[0].prob;
 
-    // exp
     for (auto &p : m_probs) {
         p.prob = std::exp(p.prob - max_val);
     }
 
-    // normalize
     normalize();
 }
 
@@ -127,15 +124,6 @@ void TemperatureExtSampler::apply(ProbArray &probs) {
         // Map the normalized entropy to the desired temperature range using the power function
         float dyn_temp = min_temp + (max_temp - min_temp) * std::pow(normalized_entropy, exponent_val);
 
-        {
-            // fmt::println("Your text maxtemp value is: {}", max_temp);
-            // fmt::println("Entropy: {}", entropy);
-            // fmt::println("Max Possible Entropy: {}", max_entropy);
-            // fmt::println("Normalized Entropy: {}", normalized_entropy);
-            // fmt::println("Exponent: {}", exponent_val);
-            // fmt::println("Dynamic Temperature (dyn_temp): {}", dyn_temp);
-        }
-
         // Re-compute softmax probabilities after scaling logits with dynamic temperature
         const double max_l_double = probs.m_probs[0].prob / dyn_temp;
 
@@ -146,13 +134,6 @@ void TemperatureExtSampler::apply(ProbArray &probs) {
         }
 
         probs.normalize();
-        {
-            // Print the updated top 25 probabilities after temperature scaling
-            // fmt::println("\nUpdated Top 25 Probabilities After Dynamic Temperature Scaling (in percentages):");
-            // for (size_t i = 0; i < 25 && i < probs.size(); ++i) {
-            //     fmt::println("Token {}: {}%", i + 1, probs[i].prob * 100.0f);
-            // }
-        }
 
     } else {
         for (size_t i = 0; i < probs.m_probs.size(); ++i) {
@@ -245,7 +226,7 @@ void PenaltyChecker::apply(ProbArray &probs) {
     }
 }
 
-void PenaltyChecker::accept(Tokenizer::Token token) {
+void PenaltyChecker::accept(Token token) {
     if (m_penalty_last_n > 0) {
         m_prev.push_back(token);
     }

@@ -16,7 +16,7 @@ void get_memory_usage(const std::string &msg) {
     size_t rss     = resident * page_size;
     size_t vms     = pages * page_size;
 
-    fmt::println(stderr, "[{}] RSS: {} MB, VMS: {} MB", msg, rss / 1024 / 1024, vms / 1024 / 1024);
+    fmt::println("[{}] RSS: {} MB, VMS: {} MB", msg, rss / 1024 / 1024, vms / 1024 / 1024);
 #elif defined(__linux__)
     FILE *file = fopen("/proc/self/status", "r");
     SMART_ASSERT(file != nullptr);
@@ -35,33 +35,18 @@ void get_memory_usage(const std::string &msg) {
     }
 
     fclose(file);
-    fmt::println(stderr, "[{}] RSS: {} MB, VMS: {} MB", msg, rss / 1024 / 1024, vms / 1024 / 1024);
+    fmt::println("[{}] RSS: {} MB, VMS: {} MB", msg, rss / 1024 / 1024, vms / 1024 / 1024);
 #else
     SMART_UNUSED(msg);
 #endif
 }
 
-void get_system_temperature(const std::string &msg) {
-    Path thermal_zone_path{"/sys/class/thermal/thermal_zone0/temp"};
-    std::ifstream thermal_zone_file(thermal_zone_path);
-    if (!thermal_zone_file.is_open()) {
-        fmt::println(stderr, "Failed to open: {}, Please check file or permission", thermal_zone_path);
-        return;
+std::string abbreviation(std::string text, size_t limit) {
+    auto len = text.length();
+    if (len > limit) {
+        return fmt::format("{}...[omit {} chars]", text.substr(0, limit), len - limit);
     }
-
-    long long temperature_val;
-    thermal_zone_file >> temperature_val;
-    thermal_zone_file.close();
-
-    double celsius = 0;
-#if defined(__ANDROID__)
-    celsius = temperature_val / 100.0;
-#elif defined(__linux__)
-    celsius = temperature_val / 1000.0;
-#endif
-
-    fmt::println("[{}] Current CPU temperature: {}°C", msg, celsius);
-    return;
+    return text;
 }
 
 } // namespace smart

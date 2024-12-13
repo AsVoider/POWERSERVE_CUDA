@@ -14,10 +14,10 @@ struct Model {
 public:
     struct TokenIterator {
     public:
-        size_t n_reset                        = 0;
-        std::string m_prompt                  = "";
-        std::deque<Tokenizer::Token> m_tokens = {};
-        size_t m_current_pos                  = 0;
+        size_t n_reset             = 0;
+        std::string m_prompt       = "";
+        std::deque<Token> m_tokens = {};
+        size_t m_current_pos       = 0;
 
         Model &m_model;
         Tokenizer &m_tokenizer;
@@ -45,7 +45,7 @@ public:
 
             auto prompt_tokens   = m_tokenizer.tokenize(m_prompt, m_tokenizer.m_vocab.tokenizer_add_bos);
             auto n_prompt_tokens = prompt_tokens.size();
-            std::vector<Tokenizer::Token> tokens;
+            std::vector<Token> tokens;
             std::copy(prompt_tokens.begin(), std::prev(prompt_tokens.end()), std::back_inserter(tokens));
             int position = 0;
 #if defined(SMART_WITH_QNN)
@@ -57,7 +57,7 @@ public:
                 position = m_platform->qnn_backend->m_causal_lm->kv_cache->position;
             }
 #endif
-            std::vector<int> pos(n_prompt_tokens - 1);
+            std::vector<int> pos(n_prompt_tokens - 1); // FIXME: cpu need split small batch-size, else be oom
             std::iota(pos.begin(), pos.end(), position);
             // prefill
             m_model.decode(m_sampler, tokens, pos, false); // UNUSED ret
@@ -73,8 +73,7 @@ public:
 
         ~TokenIterator() = default;
 
-        auto operator*() const -> Tokenizer::Token {
-            // return m_tokens[m_current_pos];
+        auto operator*() const -> Token {
             return m_tokens.front();
         }
 
@@ -132,7 +131,7 @@ public:
 
 public:
     std::string m_filename;
-    std::shared_ptr<Config> m_config;
+    std::shared_ptr<LLMConfig> m_config;
     std::shared_ptr<Weight> m_weights;
     std::shared_ptr<Attention> m_attn;
     std::shared_ptr<FFN> m_ffn;
@@ -144,15 +143,21 @@ public:
         m_config(nullptr),
         m_weights(nullptr),
         m_attn(nullptr),
-        m_ffn(nullptr) {}
+        m_ffn(nullptr),
+        m_platform(nullptr) {}
 
     virtual ~Model() = default;
 
+    virtual auto forward(
+        const std::vector<int> &tokens,
+        const std::vector<int> &pos,
+        const CausalAttentionMask &mask,
+        bool lm_head = true
+    ) -> std::vector<std::vector<float>> = 0;
+
 public:
-    // virtual void generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) = 0;
-    virtual auto decode(
-        Sampler &sampler, const std::vector<Tokenizer::Token> tokens, const std::vector<int> pos, bool lm_head
-    ) -> std::vector<Tokenizer::Token> = 0;
+    virtual auto decode(Sampler &sampler, const std::vector<Token> tokens, const std::vector<int> pos, bool lm_head)
+        -> std::vector<Token> = 0;
     virtual auto generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps)
         -> TokenRange = 0;
 };

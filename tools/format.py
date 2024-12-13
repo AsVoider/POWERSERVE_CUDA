@@ -115,4 +115,4 @@ for path in args.files:
 
 ret = os.system('git -c color.ui=always diff --exit-code')
 print(f'git diff returns {ret}')
-exit(ret)
+exit(0 if ret == 0 else 1)

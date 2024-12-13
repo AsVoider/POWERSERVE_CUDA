@@ -9,11 +9,11 @@ namespace smart {
 struct Attention {
 
 public:
-    std::shared_ptr<Config> m_config;
+    std::shared_ptr<LLMConfig> m_config;
     std::shared_ptr<Weight> m_weights;
 
 public:
-    Attention(const std::shared_ptr<Config> &config, const std::shared_ptr<Weight> &weights) :
+    Attention(const std::shared_ptr<LLMConfig> &config, const std::shared_ptr<Weight> &weights) :
         m_config(config),
         m_weights(weights) {}
 

@@ -7,6 +7,8 @@
 
 namespace smart::qnn {
 
+const std::string QNN_WORKSPACE_DIR_NAME = "qnn-workspace";
+
 struct QNNGraphConfig {
     std::string type;
     std::string graph_name;
@@ -39,12 +41,12 @@ struct EmbeddingConfig : QNNGraphConfig {
 struct QNNConfig {
     size_t n_hvx_threads;
     float attention_mask_value;
-    const std::shared_ptr<smart::Config> &model_config;
+    const std::shared_ptr<LLMConfig> &model_config;
     std::vector<EmbeddingConfig> lm_heads;
 
     std::vector<ChunkConfig> chunks;
 
-    QNNConfig(const Path &path, const std::shared_ptr<smart::Config> &model_config) : model_config(model_config) {
+    QNNConfig(const Path &path, const std::shared_ptr<LLMConfig> &model_config) : model_config(model_config) {
         std::ifstream f(path);
         auto json = nlohmann::json::parse(f);
         {
@@ -70,7 +72,6 @@ struct QNNConfig {
                 data.at("batch_size").get_to(info.batch_size);
                 data.at("cache_size").get_to(info.cache_size);
                 data.at("context_size").get_to(info.context_size);
-                // info.context_size = info.batch_size + info.cache_size; // FIXME: what's this
                 data.at("model_path").get_to(info.model_path);
                 data.at("kv_path_format").get_to(info.kv_path_format);
                 data.at("kv_size").get_to(info.kv_size);

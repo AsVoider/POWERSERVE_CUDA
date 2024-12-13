@@ -1,0 +1,522 @@
+#!/usr/bin/python3
+
+import argparse
+import os
+from pathlib import Path
+from typing import List, Dict, Set
+import subprocess
+import shutil
+import json
+from datetime import datetime
+import logging
+import platform
+
+# gloabl config
+HYPER_PARAMS_FILENAME_KEY = "params_config"
+MAIN_LLM_KEY = "llm_main"
+DRAFT_LLM_KEY = "llm_draft"
+LLM_CONFIG_FILENAME_KEY = "llm_config"
+VISION_CONFIG_FILENAME_KEY = "vision_config"
+ARTIFACT_CONFIG_FILENAME = "artifact.json"
+QNN_WORKSPACE_DIR_NAME = "qnn-workspace"
+LLM_VOCAB_FILENAME = "vocab"
+EXECUTABLE_PATH_KEY = "executables"
+
+logging.basicConfig(
+    filename=f'smartserving_{datetime.today().strftime("%Y_%m_%d")}.log',
+    level=logging.INFO,
+    format="[%(asctime)s] - [%(levelname)s] - %(funcName)s - %(message)s",
+    datefmt="%Y-%m-%d-%H:%M:%S",
+)
+
+root_folder = Path(".").absolute()
+current_platform = platform.machine()
+logging.info(f"current root: {root_folder}")
+logging.info(f"current platform: {current_platform}")
+
+
+default_params = {
+    "n_predicts": 32,
+    "n_threads": 4,
+    "prompt_file": "",
+    "sampler": {
+        "seed": 20241211,
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "top_k": 40,
+        "min_keep": 0,
+        "penalty_last_n": 64,
+        "penalty_repeat": 1,
+        "penalty_freq": 0,
+        "penalty_present": 0,
+        "penalize_nl": False,
+        "ignore_eos": False,
+    },
+}
+
+
+def exec(cmd_args):
+    cmd = " ".join(map(str, cmd_args))
+    print(f"> {cmd}")
+    p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE, encoding="utf-8")
+    p.wait()
+    if p.returncode != 0:
+        logging.error(p.stderr.read())
+        print(p.stderr.read())
+    assert p.returncode == 0
+
+
+def export_gguf(model_path: Path, out_path: Path, out_type: List[str]) -> Path:
+    config: Dict = {}
+    file_dir = Path("model")
+    generate_model_path = out_path / file_dir
+    config_path: Path = generate_model_path / "config.json"
+
+    if not generate_model_path.exists():
+        generate_model_path.mkdir(parents=True, exist_ok=True)
+
+    config["src"] = str(model_path.absolute())
+
+    # generate vocab.gguf
+    print(">>>>>>>>>> generate vocab file <<<<<<<<<<")
+    tool_path = root_folder / "tools/convert_hf_to_gguf/convert_hf_to_gguf.py"
+    vocab_file_name = "vocab.gguf"
+    exec(["python", tool_path, model_path, "--outfile", generate_model_path / vocab_file_name, "--vocab-only"])
+    config["vocab"] = vocab_file_name
+
+    # generate weights file
+    print(f">>>>>>>>>> generate weight files: {out_type} <<<<<<<<<<")
+    tool_path = root_folder / "tools/convert_hf_to_gguf/convert_hf_to_gguf.py"
+    config["weights"] = {}
+    for typ in out_type:
+        weight_file_name = f"{typ}.gguf"
+        exec(["python", tool_path, model_path, "--outfile", generate_model_path / weight_file_name, "--outtype", typ])
+        config["weights"][typ] = weight_file_name
+
+    print(f">>>>>>>>>> generate config file <<<<<<<<<<")
+    # TODO: use python tools replace cpp tools
+    tool_path = out_path / f"bin/{current_platform}/config_generator"
+    params_file_name = "model.config"
+    exec([
+        tool_path,
+        "--file-path",
+        generate_model_path / f"{out_type[0]}.gguf",
+        "--target-path",
+        generate_model_path / params_file_name,
+    ])
+    config["model_config"] = params_file_name
+
+    with open(config_path, "w") as fp:
+        json.dump(config, fp, indent=4)
+
+    return file_dir
+
+
+def generate_qnn_model():
+    pass
+
+
+def export_qnn(model_path: Path, out_path: Path, sdk_version: str, hexagon_version: str) -> Path:
+    config: Dict = {}
+    file_dir = Path("qnn_model")
+    generate_model_path = out_path / file_dir
+    config_path: Path = generate_model_path / "config.json"
+    qnn_sdk_folder = os.getenv("QNN_SDK_ROOT")
+
+    htp_collection = ["libQnnHtp.so", f"libQnnHtp{hexagon_version}Stub.so", "libQnnSystem.so"]
+    hexagon_collections = [f"libQnnHtp{hexagon_version}Skel.so", f"libQnnHtp{hexagon_version}.so"]
+
+    assert qnn_sdk_folder, "QNN_SDK_ROOT is not set"
+    qnn_sdk_folder = Path(qnn_sdk_folder)
+
+    if not generate_model_path.exists():
+        generate_model_path.mkdir(parents=True, exist_ok=True)
+
+    print(f">>>>>>>>>> prepare sdk files <<<<<<<<<<")
+    for file in htp_collection:
+        src = qnn_sdk_folder / "lib/aarch64-android" / file
+        dst = generate_model_path / file
+        shutil.copy(src, dst)
+
+    for file in hexagon_collections:
+        src = qnn_sdk_folder / f"lib/hexagon-{hexagon_version.lower()}/unsigned/" / file
+        dst = generate_model_path / file
+        shutil.copy(src, dst)
+
+    config["sdk_version"] = sdk_version
+
+    print(f">>>>>>>>>> prepare qnn model files <<<<<<<<<<")
+    qnn_config_name = "qnn.config"
+    # TODO: Generate qnn models by scripts
+    generate_qnn_model()
+    config["model_config.json"] = qnn_config_name
+
+    with open(config_path, "w") as fp:
+        json.dump(config, fp, indent=4)
+
+    return file_dir
+
+
+def export_executable(out_path: Path, plats: Set) -> Path:
+    config: Dict = {}
+    file_dir = Path("bin")
+    generate_model_path = out_path / file_dir
+    config_path: Path = generate_model_path / "config.json"
+    base_targets = ["run", "server", "config_generator", "perpelxity_test"]
+
+    if not generate_model_path.exists():
+        generate_model_path.mkdir(parents=True, exist_ok=True)
+
+    config["executables"] = []
+    for plat in plats:
+        targets = base_targets.copy()
+        build_dir = f"build_{plat}"
+
+        if not (bin_dir := generate_model_path / plat).exists():
+            bin_dir.mkdir(parents=True, exist_ok=True)
+
+        print(f">>>>>>>>>> prepare executables files [{plat}] <<<<<<<<<<")
+        if plat == "aarch64":
+            exec([
+                "cmake",
+                "-DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake",
+                "-DANDROID_ABI=arm64-v8a",
+                "-DANDROID_PLATFORM=android-34",
+                "-DBUILD_SHARED_LIBS=OFF",
+                "-DGGML_OPENMP=OFF",
+                "-DSMART_WITH_QNN=ON",
+                "-S",
+                root_folder,
+                "-B",
+                root_folder / build_dir,
+            ])
+            targets.append("speculative")
+        elif plat == "x86_64":
+            exec([
+                "cmake",
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DSMART_WITH_QNN=OFF",
+                "-S",
+                root_folder,
+                "-B",
+                root_folder / build_dir,
+            ])
+        else:
+            assert False, f"{plat} not support"
+
+        for exe in targets:
+            exec(["cmake", "--build", build_dir, "--target", exe, "-j12"])
+            src = root_folder / build_dir / "out" / exe
+            dst = generate_model_path / f"{plat}/{exe}"
+            shutil.copy(src, dst)
+            config["executables"].append(f"{plat}/{exe}")
+
+    with open(config_path, "w") as fp:
+        json.dump(config, fp, indent=4)
+
+    return file_dir
+
+
+def export_params(out_path: Path, config: Dict) -> Path:
+    params_file = Path("params.json")
+    with open(out_path / params_file, "w") as fp:
+        json.dump(config, fp, indent=4)
+    return params_file
+
+
+def read_json(path: Path) -> Dict:
+    config = {}
+    with open(path, "r") as fp:
+        config = json.load(fp)
+    return config
+
+
+def write_json(path: Path, config: Dict):
+    with open(path, "w") as fp:
+        json.dump(config, fp, indent=4)
+
+
+def smart_create(args):
+    out_path: Path = args.out_path
+    main_model_path: Path = args.main_model
+    draft_model_path: Path = args.draft_model
+    exe_path: Path = args.exe_path
+
+    if not out_path.exists():
+        out_path.mkdir(parents=True, exist_ok=True)
+    assert out_path.is_dir(), f"{out_path} is not a directory"
+
+    artifact_config = {}
+
+    artifact_config[HYPER_PARAMS_FILENAME_KEY] = "params.json"
+    write_json(out_path / artifact_config[HYPER_PARAMS_FILENAME_KEY], default_params)
+
+    artifact_config[VISION_CONFIG_FILENAME_KEY] = "vision.json"
+    write_json(out_path / artifact_config[VISION_CONFIG_FILENAME_KEY], {})
+
+    artifact_config[MAIN_LLM_KEY] = main_model_path.name
+    exec(["cp", "-r", main_model_path, out_path / artifact_config[MAIN_LLM_KEY]])
+
+    if draft_model_path:
+        artifact_config[DRAFT_LLM_KEY] = draft_model_path.name
+        exec(["cp", "-r", draft_model_path, out_path / artifact_config[DRAFT_LLM_KEY]])
+    else:
+        artifact_config[DRAFT_LLM_KEY] = ""
+
+    artifact_config[EXECUTABLE_PATH_KEY] = "bin"
+    bin_path = out_path / artifact_config[EXECUTABLE_PATH_KEY]
+    if not bin_path.exists():
+        bin_path.mkdir(parents=True, exist_ok=True)
+
+    if exe_path:
+        exec(["cp", "-r", exe_path, bin_path / current_platform])
+
+    write_json(out_path / ARTIFACT_CONFIG_FILENAME, artifact_config)
+
+
+def smart_run(args):
+    package_path: Path = args.pkg_path
+    cmd = []
+
+    assert package_path.is_dir(), f"{package_path} is not a directory"
+
+    artifact_config = read_json(package_path / ARTIFACT_CONFIG_FILENAME)
+
+    # assamble executable args
+    run_path: Path = package_path / artifact_config[EXECUTABLE_PATH_KEY] / f"{current_platform}/smart-run"
+    cmd.append(run_path)
+
+    # assamnle model args
+    cmd.extend(["--config-path", package_path.absolute()])
+
+    if args.use_qnn:
+        cmd.extend(["--use-qnn"])
+        cmd.insert(0, "export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ")
+
+    exec(cmd)
+
+
+def smart_server(args):
+    package_path: Path = args.pkg_path
+    cmd = []
+
+    assert package_path.is_dir(), f"{package_path} is not a directory"
+
+    artifact_config = read_json(package_path / ARTIFACT_CONFIG_FILENAME)
+
+    # assamble executable args
+    run_path: Path = package_path / artifact_config[EXECUTABLE_PATH_KEY] / f"{current_platform}/smart-server"
+    cmd.append(run_path)
+
+    # assamnle model args
+    cmd.extend(["--config-path", package_path.absolute(), "--host", args.host, "--port", args.port])
+
+    if args.use_qnn:
+        cmd.extend(["--use-qnn"])
+        cmd.insert(0, "export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ")
+
+    exec(cmd)
+
+
+def smart_ppl(args):
+    package_path: Path = args.pkg_path
+    cmd = []
+
+    assert package_path.is_dir(), f"{package_path} is not a directory"
+
+    artifact_config = read_json(package_path / ARTIFACT_CONFIG_FILENAME)
+
+    # assamble executable args
+    run_path: Path = package_path / artifact_config[EXECUTABLE_PATH_KEY] / f"{current_platform}/smart-perplexity_test"
+    cmd.append(run_path)
+
+    cmd.extend(["--config-path", package_path.absolute(), "--batch-size", args.batch_size])
+
+    if args.use_qnn:
+        cmd.extend(["--use-qnn"])
+        cmd.insert(0, "export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ")
+
+    exec(cmd)
+
+
+def smart_speculate(args):
+    package_path: Path = args.pkg_path
+    cmd = []
+
+    assert package_path.is_dir(), f"{package_path} is not a directory"
+
+    artifact_config = read_json(package_path / ARTIFACT_CONFIG_FILENAME)
+
+    # assamble executable args
+    run_path: Path = package_path / artifact_config[EXECUTABLE_PATH_KEY] / f"{current_platform}/smart-speculative"
+    cmd.append(run_path)
+
+    # assamnle model args
+    cmd.extend(["--config-path", package_path.absolute()])
+
+    if args.use_qnn:
+        cmd.extend(["--use-qnn"])
+        cmd.insert(0, "export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ")
+    else:
+        print("cpu is not supported now")
+        exit(0)
+
+    exec(cmd)
+
+
+class ParametersManager:
+
+    @staticmethod
+    def check_params_file(file: Path) -> bool:
+        if file.exists():
+            return True
+        print(f"Not found params file: {file}, please create one")
+        return False
+
+    @staticmethod
+    def get_params(args):
+        package_path: Path = args.pkg_path
+        assert package_path.is_dir(), f"{package_path} is not a directory"
+        artifact_config = read_json(package_path / ARTIFACT_CONFIG_FILENAME)
+        hyper_params_path = package_path / artifact_config[HYPER_PARAMS_FILENAME_KEY]
+
+        print_dict = lambda parent_key, d: [
+            (print(f"{parent_key}{k}: {v}") if type(v) is not dict else print_dict(f"{parent_key}{k}.", v))
+            for k, v in d.items()
+        ]
+
+        if ParametersManager.check_params_file(hyper_params_path):
+            hyper_params = read_json(hyper_params_path)
+            print_dict("", hyper_params)
+
+    @staticmethod
+    def set_params(args):
+        package_path: Path = args.pkg_path
+        entries: List[str] = args.entries
+        assert package_path.is_dir(), f"{package_path} is not a directory"
+        artifact_config = read_json(package_path / ARTIFACT_CONFIG_FILENAME)
+        hyper_params_path = package_path / artifact_config[HYPER_PARAMS_FILENAME_KEY]
+
+        def set_entry(d: Dict, k: List, v):
+            if len(k) < 0:
+                return
+
+            first_k = k.pop(0)
+            if len(k) == 0:
+                v_type = type(v)
+                if first_k in d:
+                    v_type = type(d[first_k])
+                    print(f"{first_k}: {d[first_k]} -> {v}")
+                else:
+                    print(f"Unrecongized parameter: {first_k}")
+                    return
+
+                if v_type in [list, set, tuple, dict]:
+                    d[first_k] = eval(v)
+                else:
+                    d[first_k] = v_type(v)
+            else:
+                if first_k not in d:
+                    d[first_k] = {}
+                set_entry(d[first_k], k, v)
+
+        def parse_entry(params: Dict, entry: str):
+            try:
+                k, v = entry.strip().split("=")
+                k = k.split(".")
+                set_entry(params, k, v)
+            except:
+                raise SyntaxError(f"parse error: {entry}")
+
+        if ParametersManager.check_params_file(hyper_params_path):
+            hyper_params = read_json(hyper_params_path)
+            for entry in entries:
+                parse_entry(hyper_params, entry)
+            write_json(hyper_params_path, hyper_params)
+
+    @staticmethod
+    def store_params(args):
+        package_path: Path = args.pkg_path
+        file: Path = args.file
+
+        assert package_path.is_dir(), f"{package_path} is not a directory"
+        artifact_config = read_json(package_path / ARTIFACT_CONFIG_FILENAME)
+        hyper_params_path = package_path / artifact_config[HYPER_PARAMS_FILENAME_KEY]
+
+        write_json(file, read_json(hyper_params_path))
+
+    @staticmethod
+    def load_params(args):
+        package_path: Path = args.pkg_path
+        file: Path = args.file
+
+        assert package_path.is_dir(), f"{package_path} is not a directory"
+        artifact_config = read_json(package_path / ARTIFACT_CONFIG_FILENAME)
+        hyper_params_path = package_path / artifact_config[HYPER_PARAMS_FILENAME_KEY]
+
+        assert file.exists(), f"Not found {file}"
+        write_json(hyper_params_path, read_json(file))
+
+
+def command():
+    parser = argparse.ArgumentParser(prog="SmartServing", description="SmartServing CommandLine Tool")
+    subparser = parser.add_subparsers()
+    # ============== Create ==============
+    create_parser = subparser.add_parser("create")
+    create_parser.add_argument("-m", "--main-model", type=Path, required=True, help="Main model path")
+    create_parser.add_argument("-d", "--draft-model", type=Path, help="Draft model path", default=None)
+    create_parser.add_argument("-o", "--out-path", type=Path, default=Path("./proj/"), help="Output path")
+    create_parser.add_argument("--exe-path", type=Path, default=None)
+    create_parser.set_defaults(func=smart_create)
+    # ============== Run ==============
+    run_parser = subparser.add_parser("run")
+    run_parser.add_argument("-c", "--pkg-path", type=Path, required=True, help="Package Path")
+    run_parser.add_argument("--use-qnn", action="store_true")
+    run_parser.set_defaults(func=smart_run)
+    # ============== Server ==============
+    server_parser = subparser.add_parser("server")
+    server_parser.add_argument("-c", "--pkg-path", type=Path, required=True, help="Package Path")
+    server_parser.add_argument("--host", type=str, default="0.0.0.0", help="Server host")
+    server_parser.add_argument("-p", "--port", type=int, default=18080, help="Server port")
+    server_parser.add_argument("--use-qnn", action="store_true")
+    server_parser.set_defaults(func=smart_server)
+    # ============== PPL ==============
+    ppl_parser = subparser.add_parser("ppl")
+    ppl_parser.add_argument("-c", "--pkg-path", type=Path, required=True, help="Package Path")
+    ppl_parser.add_argument("-b", "--batch-size", type=int, default=32)
+    ppl_parser.add_argument("--use-qnn", action="store_true")
+    ppl_parser.set_defaults(func=smart_ppl)
+    # ============== Speculate ==============
+    speculate_parser = subparser.add_parser("speculate")
+    speculate_parser.add_argument("-c", "--pkg-path", type=Path, required=True, help="Package Path")
+    speculate_parser.add_argument("--use-qnn", action="store_true")
+    speculate_parser.set_defaults(func=smart_speculate)
+
+    # ============== Parameters ==============
+    parameters_subparser = subparser.add_parser("params").add_subparsers()
+    # ============== GetParameters ==============
+    get_params_parser = parameters_subparser.add_parser("get")
+    get_params_parser.add_argument("-c", "--pkg-path", type=Path, required=True, help="Package Path")
+    get_params_parser.set_defaults(func=ParametersManager.get_params)
+    # ============== SetParameters ==============
+    set_params_parser = parameters_subparser.add_parser("set")
+    set_params_parser.add_argument("-c", "--pkg-path", type=Path, required=True, help="Package Path")
+    set_params_parser.add_argument("-e", "--entries", type=str, required=True, nargs="+")
+    set_params_parser.set_defaults(func=ParametersManager.set_params)
+    # =============== StoreParameters ==============
+    store_params_parser = parameters_subparser.add_parser("store")
+    store_params_parser.add_argument("-c", "--pkg-path", type=Path, required=True, help="Package Path")
+    store_params_parser.add_argument("-f", "--file", type=Path, required=True)
+    store_params_parser.set_defaults(func=ParametersManager.store_params)
+    # =============== LoadParameters ==============
+    load_params_parser = parameters_subparser.add_parser("load")
+    load_params_parser.add_argument("-c", "--pkg-path", type=Path, required=True, help="Package Path")
+    load_params_parser.add_argument("-f", "--file", type=Path, required=True)
+    load_params_parser.set_defaults(func=ParametersManager.load_params)
+
+    args = parser.parse_args()
+
+    args.func(args)
+
+
+command()
