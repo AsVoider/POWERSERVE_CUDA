@@ -1,6 +1,19 @@
 # SmartServing
 
+## Support models
+| model    | CPU      | NPU      |Note      |
+|----------|----------|----------|----------|
+| LLaMA 3.2 🦙🦙🦙  | ✔️    | ✔️    |    |
+| LLaMA 3.2 🦙🦙🦙  | ✔️    | ✔️    |   |
+| Qwen2  | ✔️    | ✔️    |    |
+| Phi3  | ✔️    |     |    |
+| InternVL2(1B,2B,8B) |     |✔️    |    |
+| Qwen2-VL(2B) |   | ✔️   | Only fixed-size image input is supported    |
+
+
 [项目日志](https://ipads.se.sjtu.edu.cn:1312/smartserving/smartserving/-/wikis/%E9%A1%B9%E7%9B%AE%E6%97%A5%E5%BF%97)
+
+
 
 ```bash
 pip install -r requirements.txt
