@@ -33,3 +33,11 @@ add_subdirectory(llama_tokenizer)
 
 # QNN headers
 add_subdirectory(qnn_headers)
+
+# xtl(Required by xtensor)
+add_subdirectory(xtl)
+
+# xtensor
+add_subdirectory(xtensor)
+
+add_subdirectory(stb_headers)

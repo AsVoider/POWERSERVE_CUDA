@@ -6,14 +6,13 @@
 
 namespace smart {
 
-const std::string HYPER_PARAMS_FILENAME_KEY  = "params_config";
-const std::string MAIN_LLM_KEY               = "llm_main";
-const std::string DRAFT_LLM_KEY              = "llm_draft";
-const std::string LLM_CONFIG_FILENAME        = "llm.json";
-const std::string LLM_WEIGHTS_FILENAME       = "weights.gguf";
-const std::string LLM_VOCAB_FILENAME         = "vocab.gguf";
-const std::string VISION_CONFIG_FILENAME_KEY = "vision_config";
-const std::string ARTIFACT_CONFIG_FILENAME   = "artifact.json";
+const std::string HYPER_PARAMS_FILENAME_KEY = "hparams_config";
+const std::string MAIN_MODEL_KEY            = "model_main";
+const std::string DRAFT_MODEL_KEY           = "model_draft";
+const std::string MODEL_CONFIG_FILENAME     = "model.json";
+const std::string MODEL_WEIGHTS_FILENAME    = "weights.gguf";
+const std::string MODEL_VOCAB_FILENAME      = "vocab.gguf";
+const std::string ARTIFACT_CONFIG_FILENAME  = "artifact.json";
 
 struct HyperParams {
     struct SamplerConfig {
@@ -61,61 +60,71 @@ struct SamplerConfig {
     virtual ~SamplerConfig() = default;
 };
 
-struct LLMConfig {
-
-    struct RopeConfig {
-        int n_dims        = 128; // rope_dim_count
-        int n_ctx_orig    = 2048;
-        float freq_base   = 10000.0f;
-        float freq_scale  = 1.0f;
-        float ext_factor  = 0.0f; // linear scaling factor, 1.0f for yarn
-        float attn_factor = 1.0f;
-        float beta_fast   = 32.0f;
-        float beta_slow   = 0.0f;
-        int rope_type     = -1;
-    } rope_config;
-
+struct ModelConfig {
     uint32_t version;
     std::string arch;
+    std::string model_id;
 
-    uint32_t dim        = 0; // n_embd
-    uint32_t hidden_dim = 0;
-    uint32_t n_layers   = 0;
-    uint32_t n_heads    = 0;
-    uint32_t n_kv_heads = 0;
-    uint32_t seq_len    = 0; // n_ctx_orig in rope
-    uint32_t vocab_size = 0;
-    uint32_t kv_dim     = 0; // head_size * n_kv_heads
-    uint32_t head_size  = 0; // dim / n_heads
-    float norm_eps      = 1e-5f;
+    struct LLMConfig {
+        struct RopeConfig {
+            int n_dims        = 128; // rope_dim_count
+            int n_ctx_orig    = 2048;
+            float freq_base   = 10000.0f;
+            float freq_scale  = 1.0f;
+            float ext_factor  = 0.0f; // linear scaling factor, 1.0f for yarn
+            float attn_factor = 1.0f;
+            float beta_fast   = 32.0f;
+            float beta_slow   = 0.0f;
+            int rope_type     = -1;
+        } rope_config;
 
-    LLMConfig() = default;
-    LLMConfig(const Path &llm_config_file);
+        uint32_t dim        = 0; // n_embd
+        uint32_t hidden_dim = 0;
+        uint32_t n_layers   = 0;
+        uint32_t n_heads    = 0;
+        uint32_t n_kv_heads = 0;
+        uint32_t seq_len    = 0; // n_ctx_orig in rope
+        uint32_t vocab_size = 0;
+        uint32_t kv_dim     = 0; // head_size * n_kv_heads
+        uint32_t head_size  = 0; // dim / n_heads
+        float norm_eps      = 1e-5f;
+    } llm;
 
-    virtual ~LLMConfig() = default;
-};
+    struct VisionConfig {
+        std::string model_id;
+        uint32_t depth                = 0;
+        uint32_t embed_dim            = 0;
+        uint32_t mlp_ratio            = 0;
+        uint32_t num_heads            = 0;
+        uint32_t in_chans             = 0;
+        uint32_t hidden_size          = 0;
+        uint32_t patch_size           = 0;
+        uint32_t spatial_merge_size   = 0;
+        uint32_t spatial_patch_size   = 0;
+        uint32_t temporal_patch_size  = 0;
+        uint32_t image_size           = 0;
+        uint32_t num_patches          = 0;
+        uint32_t num_tokens_per_patch = 0;
+    } vision;
 
-struct VisionConfig {
+    ModelConfig() = default;
+    ModelConfig(const Path &model_config_file);
 
-    VisionConfig() = default;
-    VisionConfig(const Path &vision_config_file);
-
-    virtual ~VisionConfig() = default;
+    virtual ~ModelConfig() = default;
 };
 
 struct Config {
 public:
-    Path main_llm_dir;
-    Path draft_llm_dir;
+    Path main_model_dir;
+    Path draft_model_dir;
 
     HyperParams hyper_params;
 
-    std::shared_ptr<LLMConfig> main_llm_config;
-    std::shared_ptr<LLMConfig> draft_llm_config;
-    VisionConfig vision_config;
+    std::shared_ptr<ModelConfig> main_model_config;
+    std::shared_ptr<ModelConfig> draft_model_config;
 
 public:
-    Config(const Path &config_path);
+    Config(const Path &work_folder);
 
     virtual ~Config() = default;
 };

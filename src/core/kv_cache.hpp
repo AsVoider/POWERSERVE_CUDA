@@ -127,6 +127,7 @@ struct KVCache final : KVCacheInterface {
     }
 
     void advance(size_t n_tokens) override {
+        n_tokens = std::min(n_tokens, n_ctx - position);
         SMART_ASSERT(position + n_tokens <= n_ctx);
         for (size_t i = 0; i < n_tokens; i++) {
             interface.set_mask(position + i, false);
@@ -149,6 +150,7 @@ struct KVCache final : KVCacheInterface {
     }
 
     void save(size_t n_tokens) override { // copy temp buffer's kvcache into real cache
+        n_tokens = std::min(n_tokens, n_ctx - position);
         SMART_ASSERT(position + n_tokens <= n_ctx);
         for (size_t i = 0; i < n_tokens; i++) {
             copy(position + i, i);

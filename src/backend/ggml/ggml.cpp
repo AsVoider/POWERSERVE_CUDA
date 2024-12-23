@@ -137,7 +137,7 @@ void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
 }
 
 void GGMLBackend::rope(
-    Tensor *out, const Tensor *src, const std::vector<int> &pos, const LLMConfig::RopeConfig &rope_cfg
+    Tensor *out, const Tensor *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &rope_cfg
 ) const {
     auto dst_tensor  = convert_to_ggml(out);
     auto src0_tensor = convert_to_ggml(src);

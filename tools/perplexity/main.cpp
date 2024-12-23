@@ -46,44 +46,44 @@ void PerplexityCalculator::accept(smart::Token token) {
 
 int main(int argc, char *argv[]) {
     // 0. load config
-    std::string config_path = "/home/zwb/SS/smartserving/llama3.2.json";
+    std::string work_folder = "/home/zwb/SS/smartserving/llama3.2.json";
     int batch_size          = 32;
 
     CLI::App app("Demo program for llama3");
 
-    app.add_option("--config-path", config_path)->required();
+    app.add_option("--work-folder", work_folder)->required();
     app.add_option("--batch-size", batch_size);
 #if defined(SMART_WITH_QNN)
-    bool use_qnn = false;
-    app.add_flag("--use-qnn", use_qnn);
+    bool no_qnn = false;
+    app.add_flag("--no-qnn", no_qnn);
 #endif
 
     CLI11_PARSE(app, argc, argv);
 
-    auto config                                     = std::make_shared<smart::Config>(config_path);
-    std::unique_ptr<smart::Model> model             = smart::load_model(config->main_llm_config, config->main_llm_dir);
+    auto config                                     = std::make_shared<smart::Config>(work_folder);
+    std::unique_ptr<smart::Model> model             = smart::load_model(config);
     auto [sampler_config, steps, n_threads, prompt] = config->hyper_params;
 
     model->m_platform = std::make_shared<smart::Platform>();
     model->m_platform->init_ggml_backend(model->m_config, n_threads);
 #if defined(SMART_WITH_QNN)
-    if (use_qnn) {
-        model->m_platform->init_qnn_backend(
-            config->main_llm_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, config->main_llm_config
-        );
+    if (!no_qnn) {
+        auto &qnn_backend = model->m_platform->qnn_backend;
+        model->m_platform->init_qnn_backend(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME);
+        qnn_backend->load_model(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, model->m_config);
     }
 #endif
 
-    model->m_attn = std::make_shared<smart::NormAttention>(model->m_config, model->m_weights);
+    model->m_attn = std::make_shared<smart::NormAttention>(model->m_config->llm, model->m_weights);
     smart::get_memory_usage("after attn init");
 
     // load tokenizer
-    std::string tokenizer_path = config->main_llm_dir / smart::LLM_VOCAB_FILENAME;
+    std::string tokenizer_path = config->main_model_dir / smart::MODEL_VOCAB_FILENAME;
     smart::Tokenizer tokenizer(tokenizer_path);
     smart::get_memory_usage("after tokenizer init");
 
     // ppl
-    PerplexityCalculator ppl_calculator(model->m_config->vocab_size);
+    PerplexityCalculator ppl_calculator(model->m_config->llm.vocab_size);
 
     { fmt::println(stderr, "batch_size  : {}", batch_size); }
 

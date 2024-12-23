@@ -17,7 +17,7 @@
 
 namespace smart {
 
-LlamaModel::LlamaModel(const std::string &filename, const std::shared_ptr<LLMConfig> &config) : Model(filename) {
+LlamaModel::LlamaModel(const std::string &filename, const std::shared_ptr<ModelConfig> &config) : Model(filename) {
     {
         gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
         gguf_ctx                = gguf_init_from_file(filename.c_str(), params);
@@ -26,10 +26,10 @@ LlamaModel::LlamaModel(const std::string &filename, const std::shared_ptr<LLMCon
     }
     m_config  = config;
     lazy_load = ggml_get_tensor(ggml_ctx, "output_norm.weight") == nullptr ? true : false;
-    m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->n_layers, lazy_load);
+    m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->llm.n_layers, lazy_load);
     if (lazy_load)
         fmt::println(stderr, "\033[33m<warning> You only load embedding table\033[0m");
-    m_ffn = std::make_shared<FFN>(m_config, m_weights);
+    m_ffn = std::make_shared<FFN>(m_config->llm, m_weights);
 }
 
 LlamaModel::~LlamaModel() {
@@ -39,19 +39,19 @@ LlamaModel::~LlamaModel() {
 auto LlamaModel::forward(
     const std::vector<int> &tokens, const std::vector<int> &pos, const CausalAttentionMask &mask, bool lm_head
 ) -> std::vector<std::vector<float>> {
-    Graph g;
+    Graph g(m_config->model_id);
     // input embedding
     size_t batch_size  = tokens.size();
     auto embd_tb       = g.add_tensor(m_weights->token_embedding_table);
     auto x             = g.get_embedding(embd_tb, tokens);
     TensorNode *logits = nullptr;
 
-    auto &llm_config = *m_config;
+    auto &llm_config = m_config->llm;
 
 #if defined(SMART_WITH_QNN)
     if (m_platform->qnn_backend) {
         auto size            = llm_config.dim;
-        bool use_qnn_lm_head = m_platform->qnn_backend->m_causal_lm->m_config.lm_heads.size() > 0;
+        bool use_qnn_lm_head = m_platform->qnn_backend->m_models[m_config->model_id]->m_config.lm_heads.size() > 0;
         if (use_qnn_lm_head) {
             size   = llm_config.vocab_size;
             logits = g.qnn_forward(x, pos, mask, size, lm_head);

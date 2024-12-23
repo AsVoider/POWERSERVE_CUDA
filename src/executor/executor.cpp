@@ -100,7 +100,18 @@ void Executor::run() {
             auto out   = op->output();
             auto pos   = op->get_params<QNNForwardParams>().pos;
             auto &mask = op->get_params<QNNForwardParams>().mask;
-            m_platform.qnn_backend->forward(out, x, pos, mask);
+            m_platform.qnn_backend->forward(m_graph.m_model_id, out, x, pos, mask);
+        } break;
+        case OpType::QNN_FORWARD_VL: {
+            auto x                  = op->prev[0]->tensor();
+            auto out                = op->output();
+            auto pos                = op->get_params<QNNForwardVLParams>().pos;
+            auto &mask              = op->get_params<QNNForwardVLParams>().mask;
+            auto &pixel_values_list = op->get_params<QNNForwardVLParams>().pixel_values_list;
+            auto &img_infos         = op->get_params<QNNForwardVLParams>().img_infos;
+            m_platform.qnn_backend->forward(m_graph.m_model_id, out, x, pixel_values_list, img_infos, pos, mask);
+            pixel_values_list.clear();
+            img_infos.clear();
         } break;
 #endif
 
@@ -129,7 +140,6 @@ void Executor::run() {
             auto [L, pos, head_id, is_k] = op->get_params<AddCacheParams>();
             m_platform.ggml_backend->add_cache(src, L, pos, head_id, is_k);
         } break;
-
         default:
             SMART_ASSERT(false);
         }

@@ -14,7 +14,8 @@ struct QNNGraphConfig {
     std::string graph_name;
     size_t batch_size;
     Path model_path;
-
+    std::string x_name;
+    std::string out_name;
     virtual ~QNNGraphConfig() = default;
 };
 
@@ -24,29 +25,27 @@ struct ChunkConfig : QNNGraphConfig {
     size_t cache_size;
     size_t context_size;
     std::string kv_path_format;
+    size_t head_dim;
     size_t kv_size;
-
-    virtual ~ChunkConfig() override = default;
 };
 
-struct EmbeddingConfig : QNNGraphConfig {
-    size_t input_type;
-    size_t output_dim;
-    size_t input_dim;
-    std::string input_name;
-    std::string output_name;
-    virtual ~EmbeddingConfig() override = default;
+struct VisionConfig : QNNGraphConfig {
+    size_t image_size;
+    size_t num_channels;
+    size_t num_patches;
+    size_t num_patches_tokens;
 };
 
 struct QNNConfig {
+
     size_t n_hvx_threads;
     float attention_mask_value;
-    const std::shared_ptr<LLMConfig> &model_config;
-    std::vector<EmbeddingConfig> lm_heads;
-
+    std::vector<QNNGraphConfig> lm_heads;
+    const std::shared_ptr<ModelConfig> &model_config;
     std::vector<ChunkConfig> chunks;
+    VisionConfig vision;
 
-    QNNConfig(const Path &path, const std::shared_ptr<LLMConfig> &model_config) : model_config(model_config) {
+    QNNConfig(const Path &path, const std::shared_ptr<ModelConfig> &model_config) : model_config(model_config) {
         std::ifstream f(path);
         auto json = nlohmann::json::parse(f);
         {
@@ -74,7 +73,10 @@ struct QNNConfig {
                 data.at("context_size").get_to(info.context_size);
                 data.at("model_path").get_to(info.model_path);
                 data.at("kv_path_format").get_to(info.kv_path_format);
+                data.at("kv_size").get_to(info.head_dim);
                 data.at("kv_size").get_to(info.kv_size);
+                data.at("x_name").get_to(info.x_name);
+                data.at("out_name").get_to(info.out_name);
                 chunks.push_back(info);
             }
         }
@@ -83,17 +85,25 @@ struct QNNConfig {
             auto data_array = json.at("embeddings");
             lm_heads.reserve(data_array.size());
             for (auto data : data_array) {
-                EmbeddingConfig info;
+                QNNGraphConfig info;
                 data.at("graph_name").get_to(info.graph_name);
                 data.at("batch_size").get_to(info.batch_size);
                 data.at("model_path").get_to(info.model_path);
-                data.at("input_type").get_to(info.input_type);
-                data.at("input_dim").get_to(info.input_dim);
-                data.at("output_dim").get_to(info.output_dim);
-                data.at("input_name").get_to(info.input_name);
-                data.at("output_name").get_to(info.output_name);
+                data.at("x_name").get_to(info.x_name);
+                data.at("out_name").get_to(info.out_name);
                 lm_heads.push_back(info);
             }
+        }
+        if (json.contains("vision")) {
+            auto &data = json.at("vision");
+            data.at("graph_name").get_to(vision.graph_name);
+            data.at("model_path").get_to(vision.model_path);
+            data.at("num_channels").get_to(vision.num_channels);
+            data.at("image_size").get_to(vision.image_size);
+            data.at("num_patches").get_to(vision.num_patches);
+            data.at("num_patches_tokens").get_to(vision.num_patches_tokens);
+            data.at("x_name").get_to(vision.x_name);
+            data.at("out_name").get_to(vision.out_name);
         }
     }
 };

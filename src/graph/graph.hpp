@@ -8,6 +8,9 @@ struct Graph {
 public:
     std::vector<std::shared_ptr<TensorNode>> tensors;
     std::vector<std::shared_ptr<OpNode>> ops;
+    std::string m_model_id;
+
+    Graph(std::string model_id) : m_model_id(model_id) {}
 
 public:
     auto add_tensor(const Tensor &tensor) -> TensorNode *;
@@ -25,11 +28,22 @@ public:
     void copy(TensorNode *dst, TensorNode *src, size_t off);
 
 #if defined(SMART_WITH_QNN)
-    auto qnn_forward(TensorNode *x, std::vector<int> pos, const CausalAttentionMask &mask, size_t size, bool lm_head)
-        -> TensorNode *;
+    auto qnn_forward(
+        TensorNode *x, std::vector<int> pos, const CausalAttentionMask &mask, size_t vocab_size, bool lm_head
+    ) -> TensorNode *;
+    auto qnn_forward_vl(
+        TensorNode *x,
+        std::vector<int> pos,
+        const CausalAttentionMask &mask,
+        size_t vocab_size,
+        bool lm_head,
+        std::vector<std::vector<float>> &pixel_values_list,
+        std::vector<std::pair<int, size_t>> &img_infos
+    ) -> TensorNode *;
 #endif
 
-    auto rope(TensorNode *src, const std::vector<int> &pos, const LLMConfig::RopeConfig &params) -> TensorNode *;
+    auto rope(TensorNode *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &params)
+        -> TensorNode *;
 
     auto softmax(TensorNode *x) -> TensorNode *;
     auto mha(TensorNode *q, const std::vector<int> &pos, size_t layer_id, uint32_t n_heads) -> TensorNode *;

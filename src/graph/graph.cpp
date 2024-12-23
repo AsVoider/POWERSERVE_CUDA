@@ -88,7 +88,8 @@ auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
     return out;
 }
 
-auto Graph::rope(TensorNode *src, const std::vector<int> &pos, const LLMConfig::RopeConfig &params) -> TensorNode * {
+auto Graph::rope(TensorNode *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &params)
+    -> TensorNode * {
     auto out = dup_tensor(src);
     auto op  = new_op(OpType::ROPE);
     op->set_inputs({src});
@@ -128,6 +129,28 @@ auto Graph::qnn_forward(TensorNode *x, std::vector<int> pos, const CausalAttenti
     op->set_params(QNNForwardParams(pos, mask));
     if (lm_head) {
         out = new_tensor(DataType::FP32, {size, x->m_shape[1]}); // size can be vocab_size or dim
+    } else {
+        out = new_tensor(DataType::FP32, {0});
+    }
+    op->set_outputs({out});
+    return out;
+}
+
+auto Graph::qnn_forward_vl(
+    TensorNode *x,
+    std::vector<int> pos,
+    const CausalAttentionMask &mask,
+    size_t vocab_size,
+    bool lm_head,
+    std::vector<std::vector<float>> &pixel_values_list,
+    std::vector<std::pair<int, size_t>> &img_infos
+) -> TensorNode * {
+    TensorNode *out = nullptr;
+    auto op         = new_op(OpType::QNN_FORWARD_VL);
+    op->set_inputs({x});
+    op->set_params(QNNForwardVLParams(pos, mask, pixel_values_list, img_infos));
+    if (lm_head) {
+        out = new_tensor(DataType::FP32, {vocab_size, x->m_shape[1]});
     } else {
         out = new_tensor(DataType::FP32, {0});
     }

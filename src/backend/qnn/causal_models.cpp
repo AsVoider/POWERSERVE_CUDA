@@ -1,4 +1,4 @@
-#include "causal_lm.hpp"
+#include "causal_models.hpp"
 
 namespace smart::qnn {
 
@@ -12,14 +12,14 @@ auto CausalLM::ChunkVector::get_chunk(size_t layer_id) -> ModelChunk & {
     SMART_ASSERT(false);
 }
 
-CausalLM::CausalLM(const Path model_folder, const std::shared_ptr<LLMConfig> &model_config, Session &environment) :
+CausalLM::CausalLM(const Path model_folder, const std::shared_ptr<ModelConfig> &model_config, Session &environment) :
     m_model_folder(model_folder),
     m_config(model_folder / m_config_file_name, model_config),
     m_model_config(model_config),
     m_session(environment) {
     m_gparams.cache_size   = m_config.chunks[0].cache_size;
     m_gparams.kv_size      = m_config.chunks[0].kv_size;
-    m_gparams.context_size = 2048;
+    m_gparams.context_size = m_config.chunks[0].context_size;
     for (auto &info : m_config.chunks) {
         SMART_ASSERT(info.cache_size == m_gparams.cache_size);
         SMART_ASSERT(info.kv_size == m_gparams.kv_size);
@@ -33,18 +33,18 @@ CausalLM::CausalLM(const Path model_folder, const std::shared_ptr<LLMConfig> &mo
         }
         auto max_lm_head_ptr   = m_lm_heads.at(m_gparams.max_batch_size).get();
         auto &max_lm_head      = *max_lm_head_ptr;
-        auto &context_binary   = load_context_binary(max_lm_head.m_config.model_path);
+        auto &context_binary   = load_context_binary(max_lm_head.m_graph_config.model_path);
         context_binary.m_alloc = std::make_unique<SharedBufferAllocator>(max_lm_head.io_tensor_size());
         max_lm_head.setup_buffers();
         SMART_ASSERT(context_binary.m_alloc->unallocated_size() == 0);
         context_binary.m_context->free_system_context();
         for (auto &[batch_size, lm_head_ptr] : m_lm_heads) {
-            if (batch_size == max_lm_head.m_config.batch_size) {
+            if (batch_size == max_lm_head.m_graph_config.batch_size) {
                 continue;
             }
             auto &lm_head = *lm_head_ptr;
             SMART_ASSERT(lm_head.io_tensor_size() <= max_lm_head.io_tensor_size());
-            lm_head.m_sibling_embedding = &max_lm_head;
+            lm_head.m_sibling = &max_lm_head;
             lm_head.setup_buffers();
         }
     }
@@ -104,7 +104,7 @@ void CausalLM::load_model_chunks() {
 
     auto &max_chunks = m_chunks_map[m_gparams.max_batch_size];
     kv_cache         = std::make_unique<KVCache<CausalLMKV>>(
-        m_model_config->n_layers, m_model_config->n_kv_heads, m_gparams.cache_size, *this, max_chunks
+        m_model_config->llm.n_layers, m_model_config->llm.n_kv_heads, m_gparams.cache_size, *this, max_chunks
     );
     dummy_buffer.reset(nullptr);
     dummy_alloc.reset(nullptr);
@@ -112,7 +112,7 @@ void CausalLM::load_model_chunks() {
         auto &max_chunk = *max_chunks[i];
 
         auto &context_binary   = load_context_binary(max_chunk.m_config.model_path);
-        size_t buf_size        = max_chunk.io_tensor_size() + max_chunk.kv_cache_size();
+        size_t buf_size        = max_chunk.io_tensor_size();
         context_binary.m_alloc = std::make_unique<SharedBufferAllocator>(buf_size);
 
         max_chunk.initialize(*kv_cache);
@@ -131,9 +131,8 @@ void CausalLM::load_model_chunks() {
             SMART_ASSERT(chunk.m_config.end_layer_id == max_chunk.m_config.end_layer_id);
             SMART_ASSERT(chunk.m_config.kv_size == max_chunk.m_config.kv_size);
             SMART_ASSERT(chunk.io_tensor_size() <= max_chunk.io_tensor_size());
-            SMART_ASSERT(chunk.kv_cache_size() == max_chunk.kv_cache_size());
 
-            chunk.m_sibling_chunk = &max_chunk;
+            chunk.m_sibling = &max_chunk;
             chunk.initialize(*kv_cache);
         }
     }
@@ -142,10 +141,10 @@ void CausalLM::load_model_chunks() {
 }
 
 void CausalLM::compute_rope_embeds() {
-    auto head_dim = m_model_config->head_size;
+    auto head_dim = m_model_config->llm.head_size;
     std::vector<float> inv_freqs(head_dim / 2);
     for (size_t i = 0; i < head_dim / 2; i++) {
-        inv_freqs[i] = 1.0f / std::pow(m_model_config->rope_config.freq_base, 2.0f * i / head_dim);
+        inv_freqs[i] = 1.0f / std::pow(m_model_config->llm.rope_config.freq_base, 2.0f * i / head_dim);
     }
 
     m_rope_embeds.resize(m_gparams.context_size);
@@ -162,7 +161,7 @@ void CausalLM::compute_rope_embeds() {
 }
 
 void CausalLM::fill_rope_embeds(std::span<const size_t> pos) {
-    auto head_dim = m_model_config->head_size;
+    auto head_dim = m_model_config->llm.head_size;
     for (auto &chunk_ptr : largest_chunks()) {
         auto &chunk = *chunk_ptr;
         SMART_ASSERT(pos.size() <= chunk.m_config.batch_size);
@@ -173,12 +172,12 @@ void CausalLM::fill_rope_embeds(std::span<const size_t> pos) {
 
             auto &src = m_rope_embeds[p];
             memcpy(
-                (float *)chunk.m_buffers.rope_embed_cos->m_data + i * head_dim / 2,
+                (float *)chunk.m_buffers.at("rope_embed_cos")->m_data + i * head_dim / 2,
                 src.cos_values.data(),
                 sizeof(src.cos_values[0]) * src.cos_values.size()
             );
             memcpy(
-                (float *)chunk.m_buffers.rope_embed_sin->m_data + i * head_dim / 2,
+                (float *)chunk.m_buffers.at("rope_embed_sin")->m_data + i * head_dim / 2,
                 src.sin_values.data(),
                 sizeof(src.sin_values[0]) * src.sin_values.size()
             );
@@ -192,7 +191,7 @@ void CausalLM::fill_attention_mask(AttentionMaskView mask) {
     for (auto &chunk_ptr : largest_chunks()) {
         auto &chunk = *chunk_ptr;
         for (size_t i = 0; i < mask.size; i++) {
-            auto attn_bias = (__fp16 *)chunk.m_buffers.attn_bias->m_data + i * m_gparams.context_size;
+            auto attn_bias = (__fp16 *)chunk.m_buffers.at("attn_bias")->m_data + i * m_gparams.context_size;
             for (size_t j = 0; j < mask.size; j++) {
                 attn_bias[m_gparams.cache_size + j] = mask.not_masked(i, j) ? 0 : mask_value;
             }
@@ -211,9 +210,11 @@ void CausalLM::Batch::forward() {
     size_t batch_size = pos.size();
 
     for (size_t i = 0; i < batch_size; i++) {
-        auto buffer = (float *)chunks[0]->input_buffer() + i * parent.m_model_config->dim;
+        auto buffer = (float *)chunks[0]->input_buffer() + i * parent.m_model_config->llm.dim;
         memcpy(
-            buffer, token_embeddings.data() + i * parent.m_model_config->dim, sizeof(float) * parent.m_model_config->dim
+            buffer,
+            token_embeddings.data() + i * parent.m_model_config->llm.dim,
+            sizeof(float) * parent.m_model_config->llm.dim
         );
     }
 
@@ -221,13 +222,16 @@ void CausalLM::Batch::forward() {
     parent.fill_attention_mask(mask);
 
     for (size_t i = 0; i < chunks.size(); i++) {
+#if defined(QNN_TIMER)
+        chunks[i]->execute(parent.m_excute_time_ns);
+#else
         chunks[i]->execute();
-
+#endif
         if (i + 1 < chunks.size()) {
             memcpy(
                 chunks[i + 1]->input_buffer(),
                 chunks[i]->output_buffer(),
-                batch_size * parent.m_model_config->dim * sizeof(float)
+                batch_size * parent.m_model_config->llm.dim * sizeof(float)
             );
         }
     }
@@ -238,9 +242,15 @@ void CausalLM::Batch::compute_logits() {
     size_t batch_size = pos.size();
 
     memcpy(
-        lm_head->input_buffer(), chunks.back()->output_buffer(), batch_size * parent.m_model_config->dim * sizeof(float)
+        lm_head->input_buffer(),
+        chunks.back()->output_buffer(),
+        batch_size * parent.m_model_config->llm.dim * sizeof(float)
     );
+#if defined(QNN_TIMER)
+    lm_head->execute(parent.m_excute_time_ns);
+#else
     lm_head->execute();
+#endif
 }
 
 void CausalLM::Batch::save_kv() {
@@ -254,7 +264,7 @@ void CausalLM::Batch::advance() {
 auto CausalLM::split_batch(
     std::span<const float> token_embeddings, std::span<const size_t> pos, const CausalAttentionMask &mask
 ) -> std::vector<Batch> {
-    auto embedding_dim = m_model_config->dim;
+    auto embedding_dim = m_model_config->llm.dim;
     size_t batch_size  = token_embeddings.size() / embedding_dim;
     SMART_ASSERT(pos.size() == batch_size);
     SMART_ASSERT(mask.size == batch_size);
@@ -301,4 +311,13 @@ auto CausalLM::create_batch(
     return batches[0];
 }
 
+CausalVLM::CausalVLM(const Path model_folder, const std::shared_ptr<ModelConfig> &model_config, Session &environment) :
+    CausalLM(model_folder, model_config, environment) {
+    m_vision               = std::make_unique<Vision>(*this, m_config.vision);
+    auto &context_binary   = load_context_binary(m_config.vision.model_path);
+    context_binary.m_alloc = std::make_unique<SharedBufferAllocator>(m_vision->io_tensor_size());
+    m_vision->setup_buffers();
+    SMART_ASSERT(context_binary.m_alloc->unallocated_size() == 0);
+    context_binary.m_context->free_system_context();
+}
 } // namespace smart::qnn

@@ -89,14 +89,14 @@ void collect_config(gguf_context *ctx, nlohmann::json &config) {
     config["model_arch"]   = model_arch;
     auto get_arch_config([&model_arch](const std::string &c) { return fmt::format(fmt::runtime(c), model_arch); });
 
-    { // embd_dim, ffn_dim, n_heads, n_kv_heads, n_layers, n_ctx
-        config["embd_dim"]        = get_u32(ctx, get_arch_config("{}.embedding_length"));
+    { // embed_dim, ffn_dim, n_heads, n_kv_heads, n_layers, n_ctx
+        config["embed_dim"]       = get_u32(ctx, get_arch_config("{}.embedding_length"));
         config["ffn_dim"]         = get_u32(ctx, get_arch_config("{}.feed_forward_length"));
         config["n_attn_heads"]    = get_u32(ctx, get_arch_config("{}.attention.head_count"));
         config["n_attn_kv_heads"] = get_u32(ctx, get_arch_config("{}.attention.head_count_kv"));
         config["n_layers"]        = get_u32(ctx, get_arch_config("{}.block_count"));
         config["n_ctx"]           = get_u32(ctx, get_arch_config("{}.context_length"));
-        config["head_size"]       = (uint32_t)config["embd_dim"] / (uint32_t)config["n_attn_heads"];
+        config["head_size"]       = (uint32_t)config["embed_dim"] / (uint32_t)config["n_attn_heads"];
         config["kv_dim"]          = (uint32_t)config["head_size"] * (uint32_t)config["n_attn_kv_heads"];
     }
     { // vocab_size

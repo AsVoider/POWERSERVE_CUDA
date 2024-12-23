@@ -113,6 +113,6 @@ for path in args.files:
     elif path.suffix in ['.c', '.h', '.cpp', '.hpp']:
         handle_cpp_sources(path)
 
-ret = os.system('git -c color.ui=always diff --exit-code')
+ret = os.system('git -c color.ui=always diff --exit-code --ignore-submodules=dirty')
 print(f'git diff returns {ret}')
 exit(0 if ret == 0 else 1)

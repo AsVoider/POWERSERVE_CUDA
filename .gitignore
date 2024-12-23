@@ -6,4 +6,6 @@ __pycache__/
 *.data
 *.folded
 *.perf
+tools/llama_tf_to_qnn_bin
+tools/process_image
 *.log

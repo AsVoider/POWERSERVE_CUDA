@@ -94,7 +94,7 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
     int pos = 0;    // position in the sequence
 #if defined(SMART_WITH_QNN)
     if (m_target_model->m_platform->qnn_backend) {
-        pos = m_target_model->m_platform->qnn_backend->m_causal_lm->kv_cache->position;
+        pos = m_target_model->m_platform->qnn_backend->m_causal_vlm->kv_cache->position;
     }
 #endif
     //prefill
@@ -123,7 +123,7 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
     auto decode_attention_mask = CausalAttentionMask(1);
 #if defined(SMART_WITH_QNN)
     if (m_target_model->m_platform->qnn_backend) {
-        pos = m_target_model->m_platform->qnn_backend->m_causal_lm->kv_cache->position;
+        pos = m_target_model->m_platform->qnn_backend->m_causal_vlm->kv_cache->position;
     } else
 #endif
     {
@@ -184,8 +184,8 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
                     verified = true;
                     local_id = i;
                     cache_pos++;
-                    m_target_model->m_platform->qnn_backend->m_causal_lm->kv_cache->move(cache_pos, pos + i);
-                    m_draft_model->m_platform->qnn_backend->m_causal_lm->kv_cache->move(cache_pos, pos + i);
+                    m_target_model->m_platform->qnn_backend->m_causal_vlm->kv_cache->move(cache_pos, pos + i);
+                    m_draft_model->m_platform->qnn_backend->m_causal_vlm->kv_cache->move(cache_pos, pos + i);
                     break;
                 }
             }
@@ -213,8 +213,8 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
             } else
                 break;
         }
-        m_target_model->m_platform->qnn_backend->m_causal_lm->kv_cache->rollback(bs - n_accepted - 1);
-        m_draft_model->m_platform->qnn_backend->m_causal_lm->kv_cache->rollback(bs - n_accepted - 1);
+        m_target_model->m_platform->qnn_backend->m_causal_vlm->kv_cache->rollback(bs - n_accepted - 1);
+        m_draft_model->m_platform->qnn_backend->m_causal_vlm->kv_cache->rollback(bs - n_accepted - 1);
         pos += n_accepted + 1;
         stats.all_tk_num += draft_depth;
         stats.accept_tk_num += n_accepted;

@@ -9,9 +9,9 @@ HyperParams::HyperParams(const Path &params_file) {
     std::ifstream file(params_file);
     file >> j;
 
-    n_predicts = j["n_predicts"].get<size_t>();
+    j["n_predicts"].get_to(n_predicts);
 
-    n_threads   = j["n_threads"].get<size_t>();
+    j["n_threads"].get_to(n_threads);
     auto n_cpus = uv_available_parallelism();
     n_threads   = std::min((unsigned int)n_threads, n_cpus);
 
@@ -33,87 +33,87 @@ HyperParams::HyperParams(const Path &params_file) {
 
     auto sampler_j = j["sampler"];
     {
-        sampler_config.seed        = sampler_j["seed"].get<uint64_t>();
-        sampler_config.temperature = sampler_j["temperature"].get<float>();
-        sampler_config.top_p       = sampler_j["top_p"].get<float>();
-        sampler_config.top_k       = sampler_j["top_k"].get<size_t>();
-        sampler_config.min_keep    = sampler_j["min_keep"].get<size_t>();
+        sampler_j["seed"].get_to(sampler_config.seed);
+        sampler_j["temperature"].get_to(sampler_config.temperature);
+        sampler_j["top_p"].get_to(sampler_config.top_p);
+        sampler_j["top_k"].get_to(sampler_config.top_k);
+        sampler_j["min_keep"].get_to(sampler_config.min_keep);
 
-        sampler_config.penalty_last_n  = sampler_j["penalty_last_n"].get<int>();
-        sampler_config.penalty_repeat  = sampler_j["penalty_repeat"].get<float>();
-        sampler_config.penalty_freq    = sampler_j["penalty_freq"].get<float>();
-        sampler_config.penalty_present = sampler_j["penalty_present"].get<float>();
-        sampler_config.penalize_nl     = sampler_j["penalize_nl"].get<bool>();
-        sampler_config.ignore_eos      = sampler_j["ignore_eos"].get<bool>();
+        sampler_j["penalty_last_n"].get_to(sampler_config.penalty_last_n);
+        sampler_j["penalty_repeat"].get_to(sampler_config.penalty_repeat);
+        sampler_j["penalty_freq"].get_to(sampler_config.penalty_freq);
+        sampler_j["penalty_present"].get_to(sampler_config.penalty_present);
+        sampler_j["penalize_nl"].get_to(sampler_config.penalize_nl);
+        sampler_j["ignore_eos"].get_to(sampler_config.ignore_eos);
     }
 }
 
-LLMConfig::LLMConfig(const Path &llm_config_file) {
+ModelConfig::ModelConfig(const Path &model_config_file) {
     nlohmann::json j;
-    std::ifstream file(llm_config_file);
+    std::ifstream file(model_config_file);
     file >> j;
 
-    version = j["version"].get<uint32_t>();
-
-    arch       = j["model_arch"].get<std::string>();
-    dim        = j["embd_dim"].get<uint32_t>();
-    hidden_dim = j["ffn_dim"].get<uint32_t>();
-    n_layers   = j["n_layers"].get<uint32_t>();
-    n_heads    = j["n_attn_heads"].get<uint32_t>();
-    n_kv_heads = j["n_attn_kv_heads"].get<uint32_t>();
-    seq_len    = j["n_ctx"].get<uint32_t>();
-    vocab_size = j["vocab_size"].get<uint32_t>();
-    kv_dim     = j["kv_dim"].get<uint32_t>();
-    head_size  = j["head_size"].get<uint32_t>();
-    norm_eps   = j["norm_eps"].get<float>();
-
+    j["version"].get_to(version);
+    j["model_arch"].get_to(arch);
+    j["model_id"].get_to(model_id);
     {
-        rope_config.n_dims      = j["rope_dim"].get<uint32_t>();
-        rope_config.n_ctx_orig  = j["n_rope_ctx_orig"].get<uint32_t>();
-        rope_config.freq_base   = j["rope_freq_base"].get<float>();
-        rope_config.freq_scale  = j["rope_freq_scale"].get<float>();
-        rope_config.ext_factor  = 0.0f; // TODO: depends on scale type
-        rope_config.attn_factor = j["rope_attn_factor"].get<float>();
-        // TODO: config by user
-        rope_config.beta_fast = 32.0f;
-        rope_config.beta_slow = 0.0f;
-        rope_config.rope_type = j["rope_type"].get<int>();
+        auto &llm_info = j.at("llm_config");
+        llm_info["embed_dim"].get_to(llm.dim);
+        llm_info["ffn_dim"].get_to(llm.hidden_dim);
+        llm_info["n_layers"].get_to(llm.n_layers);
+        llm_info["n_attn_heads"].get_to(llm.n_heads);
+        llm_info["n_attn_kv_heads"].get_to(llm.n_kv_heads);
+        llm_info["n_ctx"].get_to(llm.seq_len);
+        llm_info["vocab_size"].get_to(llm.vocab_size);
+        llm_info["kv_dim"].get_to(llm.kv_dim);
+        llm_info["head_size"].get_to(llm.head_size);
+        llm_info["norm_eps"].get_to(llm.norm_eps);
+        {
+            auto &rope_info = llm_info.at("rope_config");
+            rope_info["rope_dim"].get_to(llm.rope_config.n_dims);
+            rope_info["n_rope_ctx_orig"].get_to(llm.rope_config.n_ctx_orig);
+            rope_info["rope_freq_base"].get_to(llm.rope_config.freq_base);
+            rope_info["rope_freq_scale"].get_to(llm.rope_config.freq_scale);
+            llm.rope_config.ext_factor = 0.0f; // TODO: depends on scale type
+            rope_info["rope_attn_factor"].get_to(llm.rope_config.attn_factor);
+            // TODO: config by user
+            llm.rope_config.beta_fast = 32.0f;
+            llm.rope_config.beta_slow = 0.0f;
+            rope_info["rope_type"].get_to(llm.rope_config.rope_type);
+        }
+    }
+    {
+        if (j.contains("vision_config")) {
+            auto &vision_config = j.at("vision_config");
+            vision_config["embed_dim"].get_to(vision.embed_dim);
+            vision_config["num_channels"].get_to(vision.in_chans);
+            vision_config["image_size"].get_to(vision.image_size);
+            vision_config["num_tokens_per_patch"].get_to(vision.num_tokens_per_patch);
+            vision_config["num_patches"].get_to(vision.num_patches);
+        }
     }
 }
 
-VisionConfig::VisionConfig(const Path &vision_config_file) {
+Config::Config(const Path &work_folder) {
+    SMART_ASSERT(std::filesystem::is_directory(work_folder));
     nlohmann::json j;
-    std::ifstream file(vision_config_file);
-    file >> j;
-}
-
-Config::Config(const Path &config_path) {
-    SMART_ASSERT(std::filesystem::is_directory(config_path));
-    nlohmann::json j;
-    std::ifstream file(config_path / ARTIFACT_CONFIG_FILENAME);
+    std::ifstream file(work_folder / ARTIFACT_CONFIG_FILENAME);
     file >> j;
 
     if (j.contains(HYPER_PARAMS_FILENAME_KEY)) {
-        hyper_params = HyperParams(config_path / j[HYPER_PARAMS_FILENAME_KEY].get<std::string>());
+        hyper_params = HyperParams(work_folder / j[HYPER_PARAMS_FILENAME_KEY].get<std::string>());
     } else {
         hyper_params = HyperParams();
     }
 
-    main_llm_dir = "";
-    if (j.contains(MAIN_LLM_KEY)) {
-        main_llm_dir = config_path / j[MAIN_LLM_KEY].get<std::string>();
+    main_model_dir = "";
+    if (j.contains(MAIN_MODEL_KEY)) {
+        main_model_dir = work_folder / j[MAIN_MODEL_KEY].get<std::string>();
     }
 
-    draft_llm_dir = "";
-    if (j.contains(DRAFT_LLM_KEY)) {
-        draft_llm_dir = config_path / j[DRAFT_LLM_KEY].get<std::string>();
-    }
-
-    if (j.contains(VISION_CONFIG_FILENAME_KEY)) {
-        vision_config = VisionConfig(config_path / j[VISION_CONFIG_FILENAME_KEY].get<std::string>());
-    } else {
-        vision_config = VisionConfig();
+    draft_model_dir = "";
+    if (j.contains(DRAFT_MODEL_KEY)) {
+        draft_model_dir = work_folder / j[DRAFT_MODEL_KEY].get<std::string>();
     }
 }
-
 } // namespace smart

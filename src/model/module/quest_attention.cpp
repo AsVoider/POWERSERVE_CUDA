@@ -9,7 +9,7 @@ TensorNode *QuestAttention::build(
     Graph &g, TensorNode *x, int64_t L, const std::vector<int> &pos, const CausalAttentionMask &mask
 ) {
     SMART_UNUSED(mask);
-    auto llm_config = *m_config;
+    auto &llm_config = m_config;
 
     auto att_norm_w = g.add_tensor(m_weights->lw[L].attn_norm);
     auto att_norm_o = g.rms_norm(x, att_norm_w, llm_config.norm_eps);

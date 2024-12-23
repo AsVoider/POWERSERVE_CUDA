@@ -15,6 +15,7 @@ enum class OpType {
 
 #if defined(SMART_WITH_QNN)
     QNN_FORWARD,
+    QNN_FORWARD_VL,
 #endif
 
     MHA,
@@ -23,6 +24,7 @@ enum class OpType {
     COS_SIM,
     GET_EMBEDDING,
     ADD_CACHE,
+    INSERT_IMG_EMBEDDIGN
 };
 
 } // namespace smart

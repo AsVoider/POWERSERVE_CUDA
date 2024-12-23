@@ -4,7 +4,7 @@
 #include "backend/ggml/ggml.hpp"
 
 #if defined(SMART_WITH_QNN)
-#include "backend/qnn/qnn_interface.hpp"
+#include "backend/qnn/qnn_backend.hpp"
 #endif
 
 namespace smart {
@@ -17,10 +17,10 @@ struct Platform {
 #endif
 
 public:
-    void init_ggml_backend(const std::shared_ptr<LLMConfig> &config, int n_threads);
+    void init_ggml_backend(const std::shared_ptr<ModelConfig> &config, int n_threads);
 
 #if defined(SMART_WITH_QNN)
-    void init_qnn_backend(const Path &qnn_path, const std::shared_ptr<LLMConfig> &config);
+    void init_qnn_backend(const Path &qnn_path);
 #endif
 };
 

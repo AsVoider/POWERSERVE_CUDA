@@ -20,8 +20,8 @@ public:
     std::vector<std::vector<Region>> regions_; // (seq_len / regions_tokens, n_layers)
 
 public:
-    QuestAttention(std::shared_ptr<LLMConfig> config, std::shared_ptr<Weight> weights) : Attention(config, weights) {
-        auto &llm_config = *config;
+    QuestAttention(ModelConfig::LLMConfig &config, std::shared_ptr<Weight> weights) : Attention(config, weights) {
+        auto &llm_config = config;
         auto kv_dim      = (llm_config.dim * llm_config.n_kv_heads) / llm_config.n_heads;
         regions_.resize(llm_config.n_layers - dense_layers);
         for (uint32_t i = 0; i < llm_config.n_layers - dense_layers; i++) {

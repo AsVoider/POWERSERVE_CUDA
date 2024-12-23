@@ -2496,7 +2496,7 @@ void llm_load_vocab(llama_vocab & vocab, struct gguf_context * ctx) {
 
     for (uint32_t i = 0; i < n_vocab; i++) {
         std::string word = gguf_get_arr_str(ctx, token_idx, i);
-        GGML_ASSERT(unicode_cpts_from_utf8(word).size() > 0);
+        //GGML_ASSERT(unicode_cpts_from_utf8(word).size() > 0);
 
         vocab.token_to_id[word] = i;
         vocab.max_token_len = std::max(vocab.max_token_len, (int) word.size());

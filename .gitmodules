@@ -19,3 +19,15 @@
 [submodule "tools/mmlu"]
 	path = tools/mmlu
 	url = https://github.com/bobozi-cmd/mmlu.git
+[submodule "libs/xtensor"]
+	path = libs/xtensor
+	url = https://github.com/xtensor-stack/xtensor.git
+[submodule "libs/xtl"]
+	path = libs/xtl
+	url = https://github.com/xtensor-stack/xtl.git
+[submodule "tools/mmmu_test/mmmu"]
+	path = tools/mmmu_test/mmmu
+	url = https://github.com/MMMU-Benchmark/MMMU.git
+[submodule "libs/stb_headers/stb"]
+	path = libs/stb_headers/stb
+	url = https://github.com/nothings/stb.git

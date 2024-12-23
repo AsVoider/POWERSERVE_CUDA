@@ -7,9 +7,9 @@ endif()
 message("QNN_SDK_ROOT=${QNN_SDK}")
 
 add_library(smart_serving.qnn STATIC
-    "causal_lm.cpp"
+    "causal_models.cpp"
     "graph_interface.cpp"
-    "qnn_interface.cpp"
+    "qnn_backend.cpp"
     "qnn.cpp"
 )
 target_include_directories(smart_serving.qnn PUBLIC ${QNN_SDK}/include/QNN)

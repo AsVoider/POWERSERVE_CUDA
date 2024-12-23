@@ -50,11 +50,12 @@ public:
             int position = 0;
 #if defined(SMART_WITH_QNN)
             auto &m_platform = m_model.m_platform;
+            auto &m_config   = m_model.m_config;
             if (m_platform->qnn_backend) {
-                m_platform->qnn_backend->m_causal_lm->kv_cache->truncate(
-                    m_platform->qnn_backend->m_causal_lm->largest_chunks()[0]->m_config.kv_size
+                m_platform->qnn_backend->m_models[m_config->model_id]->kv_cache->truncate(
+                    m_platform->qnn_backend->m_models[m_config->model_id]->largest_chunks()[0]->m_config.kv_size
                 );
-                position = m_platform->qnn_backend->m_causal_lm->kv_cache->position;
+                position = m_platform->qnn_backend->m_models[m_config->model_id]->kv_cache->position;
             }
 #endif
             std::vector<int> pos(n_prompt_tokens - 1); // FIXME: cpu need split small batch-size, else be oom
@@ -66,7 +67,7 @@ public:
             // m_current_pos = m_model.m_platform->ggml_backend->m_kv->kv_cache->position;
 #if defined(SMART_WITH_QNN)
             if (m_platform->qnn_backend) {
-                m_current_pos = m_platform->qnn_backend->m_causal_lm->kv_cache->position;
+                m_current_pos = m_platform->qnn_backend->m_models[m_config->model_id]->kv_cache->position;
             }
 #endif
         }
@@ -131,7 +132,7 @@ public:
 
 public:
     std::string m_filename;
-    std::shared_ptr<LLMConfig> m_config;
+    std::shared_ptr<ModelConfig> m_config;
     std::shared_ptr<Weight> m_weights;
     std::shared_ptr<Attention> m_attn;
     std::shared_ptr<FFN> m_ffn;

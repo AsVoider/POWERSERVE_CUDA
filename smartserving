@@ -12,14 +12,14 @@ import logging
 import platform
 
 # gloabl config
-HYPER_PARAMS_FILENAME_KEY = "params_config"
-MAIN_LLM_KEY = "llm_main"
-DRAFT_LLM_KEY = "llm_draft"
-LLM_CONFIG_FILENAME_KEY = "llm_config"
+HYPER_PARAMS_FILENAME_KEY = "hparams_config"
+MAIN_MODEL_KEY = "model_main"
+DRAFT_MODEL_KEY = "model_draft"
+MODEL_CONFIG_FILENAME_KEY = "model_config"
 VISION_CONFIG_FILENAME_KEY = "vision_config"
 ARTIFACT_CONFIG_FILENAME = "artifact.json"
 QNN_WORKSPACE_DIR_NAME = "qnn-workspace"
-LLM_VOCAB_FILENAME = "vocab"
+MODEL_VOCAB_FILENAME = "vocab"
 EXECUTABLE_PATH_KEY = "executables"
 
 logging.basicConfig(
@@ -254,14 +254,14 @@ def smart_create(args):
     artifact_config[VISION_CONFIG_FILENAME_KEY] = "vision.json"
     write_json(out_path / artifact_config[VISION_CONFIG_FILENAME_KEY], {})
 
-    artifact_config[MAIN_LLM_KEY] = main_model_path.name
-    exec(["cp", "-r", main_model_path, out_path / artifact_config[MAIN_LLM_KEY]])
+    artifact_config[MAIN_MODEL_KEY] = main_model_path.name
+    exec(["cp", "-r", main_model_path, out_path / artifact_config[MAIN_MODEL_KEY]])
 
     if draft_model_path:
-        artifact_config[DRAFT_LLM_KEY] = draft_model_path.name
-        exec(["cp", "-r", draft_model_path, out_path / artifact_config[DRAFT_LLM_KEY]])
+        artifact_config[DRAFT_MODEL_KEY] = draft_model_path.name
+        exec(["cp", "-r", draft_model_path, out_path / artifact_config[DRAFT_MODEL_KEY]])
     else:
-        artifact_config[DRAFT_LLM_KEY] = ""
+        artifact_config[DRAFT_MODEL_KEY] = ""
 
     artifact_config[EXECUTABLE_PATH_KEY] = "bin"
     bin_path = out_path / artifact_config[EXECUTABLE_PATH_KEY]
@@ -287,10 +287,11 @@ def smart_run(args):
     cmd.append(run_path)
 
     # assamnle model args
-    cmd.extend(["--config-path", package_path.absolute()])
+    cmd.extend(["--work-folder", package_path.absolute()])
 
-    if args.use_qnn:
-        cmd.extend(["--use-qnn"])
+    if args.no_qnn:
+        cmd.extend(["--no-qnn"])
+    else:
         cmd.insert(0, "export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ")
 
     exec(cmd)
@@ -309,10 +310,11 @@ def smart_server(args):
     cmd.append(run_path)
 
     # assamnle model args
-    cmd.extend(["--config-path", package_path.absolute(), "--host", args.host, "--port", args.port])
+    cmd.extend(["--work-folder", package_path.absolute(), "--host", args.host, "--port", args.port])
 
-    if args.use_qnn:
-        cmd.extend(["--use-qnn"])
+    if args.no_qnn:
+        cmd.extend(["--no-qnn"])
+    else:  
         cmd.insert(0, "export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ")
 
     exec(cmd)
@@ -330,10 +332,11 @@ def smart_ppl(args):
     run_path: Path = package_path / artifact_config[EXECUTABLE_PATH_KEY] / f"{current_platform}/smart-perplexity_test"
     cmd.append(run_path)
 
-    cmd.extend(["--config-path", package_path.absolute(), "--batch-size", args.batch_size])
+    cmd.extend(["--work-folder", package_path.absolute(), "--batch-size", args.batch_size])
 
-    if args.use_qnn:
-        cmd.extend(["--use-qnn"])
+    if args.no_qnn:
+        cmd.extend(["--no-qnn"])
+    else:  
         cmd.insert(0, "export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ")
 
     exec(cmd)
@@ -471,14 +474,14 @@ def command():
     # ============== Run ==============
     run_parser = subparser.add_parser("run")
     run_parser.add_argument("-c", "--pkg-path", type=Path, required=True, help="Package Path")
-    run_parser.add_argument("--use-qnn", action="store_true")
+    run_parser.add_argument("--no-qnn", action="store_true")
     run_parser.set_defaults(func=smart_run)
     # ============== Server ==============
     server_parser = subparser.add_parser("server")
     server_parser.add_argument("-c", "--pkg-path", type=Path, required=True, help="Package Path")
     server_parser.add_argument("--host", type=str, default="0.0.0.0", help="Server host")
     server_parser.add_argument("-p", "--port", type=int, default=18080, help="Server port")
-    server_parser.add_argument("--use-qnn", action="store_true")
+    server_parser.add_argument("--no-qnn", action="store_true")
     server_parser.set_defaults(func=smart_server)
     # ============== PPL ==============
     ppl_parser = subparser.add_parser("ppl")

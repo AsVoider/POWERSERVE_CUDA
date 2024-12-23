@@ -13,7 +13,10 @@ struct CausalLM {
 
     Path m_model_folder;
     QNNConfig m_config;
-    const std::shared_ptr<LLMConfig> m_model_config;
+#if defined(QNN_TIMER)
+    int64_t m_excute_time_ns{};
+#endif
+    const std::shared_ptr<ModelConfig> m_model_config;
 
     struct {
         size_t max_batch_size = 0;
@@ -44,43 +47,41 @@ struct CausalLM {
         CausalLMKV(CausalLM &parent, ChunkVector &chunks) : parent(parent), chunks(chunks) {}
 
         ALWAYS_INLINE auto get_key(KVPosition token_pos) const -> KVView {
-            auto &chunk = chunks.get_chunk(token_pos.layer_id);
-            auto &buffer =
-                *chunk.m_buffers.kvs[token_pos.layer_id - chunk.m_config.start_layer_id].keys[token_pos.head_id];
+            auto &chunk  = chunks.get_chunk(token_pos.layer_id);
+            auto &buffer = *chunk.m_buffers.at(fmt::format("layer_{}_key_{}", token_pos.layer_id, token_pos.head_id));
             SMART_ASSERT(token_pos.index < chunk.m_config.batch_size);
 
             return {
-                .n_elements   = chunk.m_model_config->head_size,
+                .n_elements   = chunk.m_model_config.llm.head_size,
                 .element_size = chunk.kv_element_size,
                 .stride       = chunk.kv_element_size,
-                .data =
-                    (char *)buffer.m_data + token_pos.index * chunk.m_model_config->head_size * chunk.kv_element_size,
+                .data         = (char *)buffer.m_data +
+                        token_pos.index * chunk.m_model_config.llm.head_size * chunk.kv_element_size,
             };
         }
 
         ALWAYS_INLINE auto get_value(KVPosition token_pos) const -> KVView {
-            auto &chunk = chunks.get_chunk(token_pos.layer_id);
-            auto &buffer =
-                *chunk.m_buffers.kvs[token_pos.layer_id - chunk.m_config.start_layer_id].values[token_pos.head_id];
+            auto &chunk  = chunks.get_chunk(token_pos.layer_id);
+            auto &buffer = *chunk.m_buffers.at(fmt::format("layer_{}_value_{}", token_pos.layer_id, token_pos.head_id));
             SMART_ASSERT(token_pos.index < chunk.m_config.batch_size);
 
             return {
-                .n_elements   = chunk.m_model_config->head_size,
+                .n_elements   = chunk.m_model_config.llm.head_size,
                 .element_size = chunk.kv_element_size,
                 .stride       = chunk.kv_element_size,
-                .data =
-                    (char *)buffer.m_data + token_pos.index * chunk.m_model_config->head_size * chunk.kv_element_size,
+                .data         = (char *)buffer.m_data +
+                        token_pos.index * chunk.m_model_config.llm.head_size * chunk.kv_element_size,
             };
         }
 
         ALWAYS_INLINE auto key_entry(KVPosition cache_pos) const -> KVView {
             auto &chunk = chunks.get_chunk(cache_pos.layer_id);
             auto &buffer =
-                *chunk.m_buffers.caches[cache_pos.layer_id - chunk.m_config.start_layer_id].keys_t[cache_pos.head_id];
+                *chunk.m_buffers.at(fmt::format("layer_{}_key_t_cache_{}", cache_pos.layer_id, cache_pos.head_id));
             SMART_ASSERT(cache_pos.index < chunk.m_config.cache_size);
 
             return {
-                .n_elements   = chunk.m_model_config->head_size,
+                .n_elements   = chunk.m_model_config.llm.head_size,
                 .element_size = chunk.kv_element_size,
                 .stride       = chunk.kv_element_size * chunk.m_config.cache_size,
                 .data         = (char *)buffer.m_data + cache_pos.index * chunk.kv_element_size,
@@ -90,15 +91,15 @@ struct CausalLM {
         ALWAYS_INLINE auto value_entry(KVPosition cache_pos) const -> KVView {
             auto &chunk = chunks.get_chunk(cache_pos.layer_id);
             auto &buffer =
-                *chunk.m_buffers.caches[cache_pos.layer_id - chunk.m_config.start_layer_id].values[cache_pos.head_id];
+                *chunk.m_buffers.at(fmt::format("layer_{}_value_cache_{}", cache_pos.layer_id, cache_pos.head_id));
             SMART_ASSERT(cache_pos.index < chunk.m_config.cache_size);
 
             return {
-                .n_elements   = chunk.m_model_config->head_size,
+                .n_elements   = chunk.m_model_config.llm.head_size,
                 .element_size = chunk.kv_element_size,
                 .stride       = chunk.kv_element_size,
-                .data =
-                    (char *)buffer.m_data + cache_pos.index * chunk.m_model_config->head_size * chunk.kv_element_size,
+                .data         = (char *)buffer.m_data +
+                        cache_pos.index * chunk.m_model_config.llm.head_size * chunk.kv_element_size,
             };
         }
 
@@ -108,7 +109,7 @@ struct CausalLM {
 
             for (auto &chunk : chunks) {
                 for (size_t i = 0; i < chunk->m_config.batch_size; i++) {
-                    auto attn_bias = (__fp16 *)chunk->m_buffers.attn_bias->m_data + i * chunk->m_config.context_size;
+                    auto attn_bias = (__fp16 *)chunk->m_buffers["attn_bias"]->m_data + i * chunk->m_config.context_size;
                     attn_bias[cache_index] = fill_value;
                 }
             }
@@ -121,8 +122,8 @@ struct CausalLM {
 
     std::unique_ptr<KVCache<CausalLMKV>> kv_cache;
 
-    CausalLM(const Path model_folder, const std::shared_ptr<LLMConfig> &model_config, Session &environment);
-
+    CausalLM(const Path model_folder, const std::shared_ptr<ModelConfig> &model_config, Session &environment);
+    virtual ~CausalLM() = default;
     auto load_context_binary(const Path &path) -> ContextBinary &;
     void load_model_chunks();
 
@@ -157,6 +158,13 @@ struct CausalLM {
     auto create_batch(
         std::span<const float> token_embeddings, std::span<const size_t> pos, const CausalAttentionMask &mask
     ) -> Batch;
+};
+
+struct CausalVLM : CausalLM {
+    std::unique_ptr<Vision> m_vision;
+
+    CausalVLM(const Path model_folder, const std::shared_ptr<ModelConfig> &model_config, Session &environment);
+    virtual ~CausalVLM() override = default;
 };
 
 } // namespace smart::qnn

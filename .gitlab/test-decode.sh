@@ -7,7 +7,7 @@ DEVICE_PORT=$3
 
 TARGET=$4
 if [ "${TARGET}" == "" ]; then
-    TARGET="smart-llama3.1-8b"
+    TARGET="smart-llama3.1-8b_n"
 fi
 
 USE_QNN=$5
@@ -64,11 +64,11 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
 set -x
 if [ "${USE_QNN}" == "1" ]; then
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving run -c ${CONFIG_PATH} --use-qnn;
+        ${DEVICE_ROOT}/smartserving run -c ${CONFIG_PATH};
     "
 else
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving run -c ${CONFIG_PATH};
+        ${DEVICE_ROOT}/smartserving run -c ${CONFIG_PATH} --no-qnn;
     "
 fi
 set +x

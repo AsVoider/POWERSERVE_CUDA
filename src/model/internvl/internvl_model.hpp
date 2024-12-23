@@ -13,22 +13,26 @@
 
 namespace smart {
 
-struct LlamaModel : Model {
+struct InternVL : Model {
 public:
     // ggml need those context
     ggml_context *ggml_ctx;
     gguf_context *gguf_ctx;
     bool lazy_load;
+    std::vector<std::pair<int, size_t>> img_infos;
+    std::vector<std::vector<float>> pixel_values_list;
+    static const int IMG_START = 151646;
 
 public:
-    explicit LlamaModel(const std::string &filename, const std::shared_ptr<ModelConfig> &config);
-    ~LlamaModel() override;
+    explicit InternVL(const std::string &filename, const std::shared_ptr<ModelConfig> &config);
+    ~InternVL() override;
 
 public:
+    // void generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) override;
     auto decode(Sampler &sampler, const std::vector<Token> tokens, const std::vector<int> pos, bool lm_head)
         -> std::vector<Token> override;
     auto generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) -> TokenRange override;
-
+    auto preprocess(std::vector<const Path> &img_paths, const std::string &prompt) -> std::string;
     auto forward(
         const std::vector<int> &tokens,
         const std::vector<int> &pos,

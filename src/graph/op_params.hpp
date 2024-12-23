@@ -33,7 +33,7 @@ struct RMSNormParams {
 
 struct RopeParams {
     std::vector<int> pos;
-    LLMConfig::RopeConfig rope_cfg;
+    ModelConfig::LLMConfig::RopeConfig rope_cfg;
 };
 
 struct AddCacheParams {
@@ -61,6 +61,27 @@ struct QNNForwardParams : OpParams {
     explicit QNNForwardParams(std::vector<int> pos, const CausalAttentionMask &mask) : mask(mask), pos(pos) {}
 
     ~QNNForwardParams() override = default;
+};
+
+struct QNNForwardVLParams : OpParams {
+    const CausalAttentionMask mask;
+    std::vector<int> pos;
+
+    std::vector<std::vector<float>> &pixel_values_list;
+    std::vector<std::pair<int, size_t>> &img_infos;
+
+    explicit QNNForwardVLParams(
+        std::vector<int> pos,
+        const CausalAttentionMask &mask,
+        std::vector<std::vector<float>> &pixel_values_list,
+        std::vector<std::pair<int, size_t>> &img_infos
+    ) :
+        mask(mask),
+        pos(pos),
+        pixel_values_list(pixel_values_list),
+        img_infos(img_infos) {}
+
+    ~QNNForwardVLParams() override = default;
 };
 #endif
 
