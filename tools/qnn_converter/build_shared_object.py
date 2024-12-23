@@ -3,11 +3,6 @@ import os
 import json
 import subprocess
 from pathlib import Path
-from typing import Optional
-
-
-def split_by_comma(string: str):
-    return string.split(",")
 
 
 parser = argparse.ArgumentParser()
@@ -17,8 +12,9 @@ parser.add_argument("--io-spec", type=Path, required=True)
 parser.add_argument("--input-list", type=Path, required=True)
 parser.add_argument("--output-folder", type=Path, required=True)
 parser.add_argument("--artifact-name", type=str, required=True)
-parser.add_argument("--log-file", type=str, default="build.log")
+parser.add_argument("--log-file", type=str, default="build_so.log")
 parser.add_argument("--graph-names", type=str, nargs="+", required=True)
+parser.add_argument("--generate-binary", type=bool)
 args = parser.parse_args()
 
 output_folder: Path = args.output_folder
@@ -37,15 +33,7 @@ cpp_path = model_path.with_suffix(".cpp")
 bin_path = model_path.with_suffix(".bin")
 graph_name = model_path.stem
 
-backend_path = qnn_sdk_folder / "lib" / "x86_64-linux-clang" / "libQnnHtp.so"  # ???
-htp_setting_path = output_folder / "htp_setting.json"
-htp_config_path = output_folder / "htp_config.json"
-graph_names = args.graph_names
-lib_path = ""
-for graph in graph_names:
-    if lib_path != "":
-        lib_path += ","
-    lib_path += f"{str(output_folder)}/x86_64-linux-clang/lib{graph}.so"
+
 log_file = open(log_path, "w")
 
 

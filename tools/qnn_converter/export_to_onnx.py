@@ -5,7 +5,7 @@ import re
 import itertools
 from enum import Enum, auto
 from pathlib import Path
-from typing import Literal, NamedTuple, Optional, Type, List, Dict, Tuple, Union
+from typing import Dict, List, Literal, NamedTuple, Optional, Tuple, Type, Union
 
 import onnx
 import safetensors
@@ -131,7 +131,7 @@ class Mistral_7B_Params(ModelParams):
     fp16_ffn_layers = []
 
 
-class Qwen2_7B_Params(ModelParams):  # trains by ourself
+class Qwen2_7B_Params(ModelParams):
     has_qkv_bias = True
     use_drelu = True
     # use_drelu = False
@@ -1281,6 +1281,8 @@ class LlamaOutputEmbedding(nn.Module):
             nn.Linear, in_features=embed_dim, out_features=vocab_size, bias=False, dtype=torch.float32, device=device
         )
 
+        self.saved_samples: List[Sample] = []
+
     def load_weights(self, loader: ModelLoader):
         loader.load(self.norm, "model.norm.weight")
 
@@ -1294,6 +1296,18 @@ class LlamaOutputEmbedding(nn.Module):
         x = self.norm(x)
         logits = self.output_proj(x)
         return logits
+
+    @property
+    def input_names(self) -> List[str]:
+        return ["x"]
+
+    @property
+    def output_names(self) -> List[str]:
+        return ["logits"]
+
+    @property
+    def dtype_preserved_io_names(self) -> List[str]:
+        return ["x", "logits"]
 
 
 class LlamaModel(nn.Module):
@@ -1416,9 +1430,14 @@ class LlamaModel(nn.Module):
 
             last_outputs = outputs
 
+        x = last_outputs[0]
+        logits = self.output_embedding(x)
+        if save_samples:
+            self.output_embedding.saved_samples.append(Sample((x,), (logits,)))
+
         if update_logits:
-            x = last_outputs[0]
-            logits = self.output_embedding(x)
+            # x = last_outputs[0]
+            # logits = self.output_embedding(x)
             self.update_logits(input_ids, logits)
 
     def eval_system_prompt(self, prompt: str):
@@ -1480,13 +1499,198 @@ class LlamaModel(nn.Module):
                     "context_size": self.graph_params.context_size,
                     # To be filled later
                     "graph_name": "",
-                    "model_path": f"model_chunk_{i}.bin",
-                    "kv_path_format": f"model_chunk_{i}_kv/layer_{{layer_id}}_{{kv_type}}_{{head_id}}.raw",
+                    "model_path": f"{args.model_name}_{i}.bin",
+                    "kv_path_format": f"kv/layer_{{layer_id}}_{{kv_type}}_{{head_id}}.raw",
                     "kv_size": self.system_prompt_length,
+                    "x_name": "x",
+                    "out_name": "out",
                 }
                 for i, model_chunk in enumerate(self.model_chunks)
             ],
+            "embeddings": [{
+                "graph_name": "",
+                "model_path": "lm_head.bin",
+                "batch_size": self.graph_params.batch_size,
+                "x_name": "x",
+                "out_name": "logits",
+            }],
         }
+
+
+class OutputEmbeddingExporter:
+    """Export a model chunk to ONNX model, quantization calibration data and configurations"""
+
+    def __init__(
+        self,
+        graph_name: str,
+        model_chunk: Union[LlamaOutputEmbedding, LlamaInputEmbedding],
+        fp16_overrides: Dict[str, List[int]],
+        output_folder: Path,
+    ):
+        self.graph_name = graph_name
+        self.model_chunk = model_chunk
+        self.fp16_overrides = fp16_overrides
+        self.output_folder = output_folder
+
+    @torch.no_grad()
+    def export_onnx_model(self):
+        onnx_model_folder = self.output_folder / "onnx_model"
+        onnx_model_folder.mkdir(parents=True, exist_ok=True)
+
+        onnx_model_path = onnx_model_folder / f"{self.graph_name}.onnx"
+        torch.onnx.export(
+            model=self.model_chunk,
+            args=self.model_chunk.saved_samples[0].inputs,
+            f=str(onnx_model_path),
+            input_names=self.model_chunk.input_names,
+            output_names=self.model_chunk.output_names,
+        )
+
+        onnx_model = onnx.load(onnx_model_path, load_external_data=False)
+        self.onnx_model = shape_inference.infer_shapes(onnx_model)
+
+    def export_io_spec(self):
+        def dump_info_list(io_type: Literal["in", "out"], names: List[str], tensors: List[torch.Tensor]) -> List[dict]:
+            return [
+                {
+                    "name": name,
+                    "type": io_type,
+                    "dtype": "int64" if name == "input_ids" else "float32",
+                    "preserve_dtype": name in self.model_chunk.dtype_preserved_io_names,
+                    "shape": list(tensor.shape),
+                }
+                for name, tensor in zip(names, tensors, strict=True)
+            ]
+
+        io_spec = [
+            *dump_info_list("in", self.model_chunk.input_names, self.model_chunk.saved_samples[0].inputs),
+            *dump_info_list("out", self.model_chunk.output_names, self.model_chunk.saved_samples[0].outputs),
+        ]
+
+        export_json(io_spec, self.output_folder / f"{self.graph_name}.io.json")
+
+    def export_quantization_config(self):
+        class Encoding(NamedTuple):
+            category: Literal["activation", "param"]
+            bitwidth: int
+            dtype: Literal["float", "int"]
+
+        encoding_map: Dict[str, Encoding] = {}
+
+        def update_encoding(name: str, encoding: Encoding):
+            """Set encoding for name. Only update if the bitwidth is larger than the previous setting."""
+
+            if name not in encoding_map or encoding.bitwidth > encoding_map[name].bitwidth:
+                encoding_map[name] = encoding
+
+        def encode_activation(node: str | onnx.ValueInfoProto, bitwidth: int):
+            if not isinstance(node, str):
+                node = node.name
+            update_encoding(node, Encoding("activation", bitwidth, "float"))
+
+        def encode_output(node: onnx.NodeProto, bitwidth: int):
+            for name in node.output:
+                update_encoding(name, Encoding("activation", bitwidth, "float"))
+
+        def encode_param(node: str | onnx.NodeProto, bitwidth: Encoding, dtype: Literal["float", "int"]):
+            if not isinstance(node, str):
+                node = node.name
+            update_encoding(node, Encoding("param", bitwidth, dtype))
+
+        def match(target: str | onnx.NodeProto | onnx.TensorProto | onnx.ValueInfoProto, pattern: str):
+            if not isinstance(target, str):
+                target = target.name
+            return re.fullmatch(pattern, target) is not None
+
+        graph = self.onnx_model.graph
+
+        # Inputs
+        encode_activation("x", 32)
+        encode_activation("attn_bias", 16)
+
+        # KV cache: FP16
+        for node in graph.input:
+            if match(node, "layer_[0-9]+_(key_t|value)_cache_[0-9]+"):
+                encode_activation(node, 16)
+        for node in graph.output:
+            if match(node, "layer_[0-9]+_(key|value)_[0-9]+"):
+                encode_activation(node, 16)
+
+        # Attention core: FP16
+        for node in graph.node:
+            if match(node, "/layers\.[0-9]+/attn/core.*"):
+                encode_output(node, 16)
+
+        # Residual connection: FP32
+        for node in graph.node:
+            if match(node, "/layers\.[0-9]+/(attn|ffn|ffn/down_proj)/Add(_[0-9]+|)"):
+                encode_output(node, 32)
+
+        # RMSNorm: FP32
+        for node in graph.initializer:
+            if match(node, "layers\.[0-9]+\.(attn|ffn)\.norm\.weight"):
+                encode_param(node, 32, "float")
+        for node in graph.node:
+            # print(node)
+            if match(node, "/layers\.[0-9]+/(attn|ffn)/norm.*"):
+                encode_output(node, 32)
+            elif match(node, "/norm.*"):
+                encode_output(node, 32)
+
+        # Generate config
+        config = {
+            "version": "0.6.1",
+            "quantizer_args": {
+                "activation_bitwidth": 16,
+                "param_bitwidth": 4,
+                "dtype": "int",
+                "per_channel_quantization": True,
+                "quant_scheme": "post_training_tf",
+            },
+            "activation_encodings": {},
+            "param_encodings": {},
+        }
+
+        for name, encoding in sorted(encoding_map.items(), key=lambda item: item[0]):
+            config[f"{encoding.category}_encodings"][name] = [{
+                "bitwidth": encoding.bitwidth,
+                "dtype": encoding.dtype,
+                "is_symmetric": str(encoding.category == "param"),
+            }]
+
+        export_json(config, self.output_folder / f"{self.graph_name}.encodings")
+
+    def export_sample_inputs(self):
+        input_list = []
+        for i, samples in enumerate(self.model_chunk.saved_samples):
+            data_folder = self.output_folder / "data" / str(i)
+            data_folder.mkdir(parents=True, exist_ok=True)
+
+            tensor_paths = []
+            for name, tensor in zip(self.model_chunk.input_names, samples.inputs, strict=True):
+                output_path = data_folder / f"{name}.raw"
+                tensor.cpu().numpy().tofile(output_path)
+                tensor_paths.append(f"{name}:={output_path}")
+
+            input_list.append(" ".join(tensor_paths))
+
+        with open(self.output_folder / "input_list.txt", "w") as f:
+            f.write("\n".join(input_list))
+
+    def export_saved_kv(self):
+        kv_folder = self.output_folder / "kv"
+        kv_folder.mkdir(parents=True, exist_ok=True)
+
+        for name, tensor in zip(self.model_chunk.kv_names, self.model_chunk.saved_kv, strict=True):
+            tensor.cpu().numpy().tofile(kv_folder / f"{name}.raw")
+
+    def export(self):
+        self.export_onnx_model()
+        self.export_io_spec()
+        self.export_quantization_config()
+        self.export_sample_inputs()
+        if isinstance(self.model_chunk, KVCache) and self.model_chunk.saved_kv is not None:
+            self.export_saved_kv()
 
 
 class ModelChunkExporter:
@@ -1705,35 +1909,6 @@ model_chunks = [
     for i in range(0, model_params.n_layers, n_layers_per_model_chunk)
 ]
 
-# def attention_linear_class(layer_id: int):
-#     return nn.Linear if layer_id in model_params.fp16_attention_layers else QLinear
-
-# def ffn_linear_class(layer_id: int):
-#     return nn.Linear if layer_id in model_params.fp16_ffn_layers else QLinear
-
-# model_chunks = list(itertools.chain.from_iterable(
-#     (
-#         LlamaAttentionWithGateProj(
-#             layer_id=layer_id,
-#             embed_dim=model_params.embed_dim,
-#             n_heads=model_params.n_heads,
-#             n_kv_heads=model_params.n_kv_heads,
-#             has_qkv_bias=model_params.has_qkv_bias,
-#             rms_norm_eps=model_params.rms_norm_eps,
-#             ffn_hidden_dim=model_params.ffn_hidden_dim,
-#             cache_size=graph_params.cache_size,
-#             attention_linear_class=attention_linear_class(layer_id),
-#             ffn_linear_class=ffn_linear_class(layer_id),
-#         ),
-#         LlamaUpDownProj(
-#             layer_id=layer_id,
-#             embed_dim=model_params.embed_dim,
-#             ffn_hidden_dim=model_params.ffn_hidden_dim,
-#             linear_class=ffn_linear_class(layer_id),
-#         )
-#     )
-#     for layer_id in range(model_params.n_layers)
-# ))
 
 model = LlamaModel(
     model_folder=args.model_folder, model_params=model_params, graph_params=graph_params, model_chunks=model_chunks
@@ -1789,49 +1964,6 @@ if profile_prune_ffn:
 
 model.disable_monitors()
 
-# for i, model_chunk in enumerate(model.model_chunks):
-#     print(f'Applying quantization for "model_chunk_{i}"...')
-#     model_chunk.enable_quantization()
-#     for sample in tqdm(model_chunk.saved_samples):
-#         model_chunk(*sample.inputs)
-#     model_chunk.compute_quantization()
-
-# model.reset()
-# eval_prompt()
-
-# print('Finalizing quantization...')
-# for model_chunk in model.model_chunks:
-#     model_chunk.finalize_quantization()
-
-# model.reset()
-# eval_prompt()
-
-# if args.quantize:
-#     print('Simulating quantization...')
-#     model.simulate_quantization()
-
-#     model.reset()
-#     model.eval_prompt(
-#         prompt=prompt,
-#         batch_size=model.graph_params.batch_size,
-#         save_sample=False,
-#         max_n_tokens=args.max_n_tokens,
-#     )
-#     print(f'Perplexity: {model.perplexity:.4f}')
-
-#     print('Applying quantization...')
-#     for module in model.modules():
-#         if isinstance(module, QLinear) and module.mode == QLinearMode.SIMULATION:
-#             module.finalize()
-
-#     model.reset()
-#     model.eval_prompt(
-#         prompt=prompt,
-#         batch_size=model.graph_params.batch_size,
-#         save_sample=False,
-#         max_n_tokens=args.max_n_tokens,
-#     )
-#     print(f'Perplexity: {model.perplexity:.4f}')
 
 if args.output_folder is None:
     exit(0)
@@ -1841,6 +1973,8 @@ args.output_folder.mkdir(parents=True, exist_ok=True)
 config_template = model.dump_config_template()
 for graph_info in config_template["graphs"]:
     graph_info["graph_name"] = args.graph_name
+for embedding_info in config_template["embeddings"]:
+    embedding_info["graph_name"] = args.graph_name
 export_json(config_template, args.output_folder / f"config_{args.graph_name}.json")
 
 for i, model_chunk in enumerate(model.model_chunks):
@@ -1856,3 +1990,15 @@ for i, model_chunk in enumerate(model.model_chunks):
         output_folder=output_folder,
     )
     exporter.export()
+
+print("Exporting output embedding...")
+output_folder = args.output_folder / "output_embedding" / args.graph_name
+output_folder.mkdir(parents=True, exist_ok=True)
+
+exporter = OutputEmbeddingExporter(
+    graph_name=args.graph_name,
+    model_chunk=model.output_embedding,
+    fp16_overrides={"attn": model_params.fp16_attention_layers, "ffn": model_params.fp16_ffn_layers},
+    output_folder=output_folder,
+)
+exporter.export()

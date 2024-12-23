@@ -3,44 +3,34 @@ import os
 import json
 import subprocess
 from pathlib import Path
-import multiprocessing
-
-
-def split_by_comma(string: str):
-    return string.split(",")
-
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--output-folder", type=Path, required=True)
-parser.add_argument("--model-folder", type=Path, required=True)
+parser.add_argument("--build-folder", type=Path, required=True)
 parser.add_argument("--artifact-name", type=str, required=True)
-parser.add_argument("--log-file", type=str, default="build.log")
 parser.add_argument("--graph-names", type=str, nargs="+", required=True)
+parser.add_argument("--log-file", type=str, default="build_bin.log")
 
 args = parser.parse_args()
 
-output_folder: Path = args.output_folder
-output_folder.mkdir(parents=True, exist_ok=True)
+build_folder: Path = args.build_folder
 
 qnn_sdk_folder = os.getenv("QNN_SDK_ROOT")
 assert qnn_sdk_folder is not None, "QNN_SDK_ROOT is not set"
 qnn_sdk_folder = Path(qnn_sdk_folder)
-
-log_path = output_folder / args.log_file
-
 
 graph_names = args.graph_names
 lib_path = ""
 for graph in graph_names:
     if lib_path != "":
         lib_path += ","
-    lib_path += f"{str(args.model_folder)}/x86_64-linux-clang/lib{graph}.so"
-# lib_path = output_folder/'aarch64-android'/f'lib{graph_name}.so'
-backend_path = qnn_sdk_folder / "lib" / "x86_64-linux-clang" / "libQnnHtp.so"
-htp_setting_path = output_folder / "htp_setting.json"
-htp_config_path = output_folder / "htp_config.json"
+    lib_path += f"{str(build_folder)}/x86_64-linux-clang/lib{graph}.so"
 
-log_file = open(log_path, "w")
+backend_path = qnn_sdk_folder / "lib" / "x86_64-linux-clang" / "libQnnHtp.so"
+htp_setting_path = build_folder / "htp_setting.json"
+htp_config_path = build_folder / "htp_config.json"
+
+
+log_file = open(args.log_file, "w")
 
 
 def run(cmd_args: list):
@@ -83,13 +73,12 @@ def generate_context_binary():
         "--model",
         lib_path,
         "--output_dir",
-        output_folder,
+        build_folder,
         "--binary_file",
         args.artifact_name,
         "--config_file",
         htp_config_path,
         "--input_output_tensor_mem_type memhandle",
-        "--log_level debug",
     ]
 
     run(cmd_args)
