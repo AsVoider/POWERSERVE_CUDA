@@ -49,9 +49,9 @@ public:
             size_t position      = 0;
 
             auto &m_platform = m_model.m_platform;
-
-            m_platform->reset_kv_position();
-            position = m_platform->get_kv_position();
+            auto &model_id   = m_model.m_config->model_id;
+            m_platform->reset_kv_position(model_id);
+            position = m_platform->get_kv_position(model_id);
 
             // prefill
             while (n_prefilled < n_prompt_tokens - 1) {
@@ -65,10 +65,10 @@ public:
                 std::vector<int> pos(bs);
                 std::iota(pos.begin(), pos.end(), position);
                 m_model.decode(m_sampler, tokens, pos, false);
-                position = m_platform->get_kv_position();
+                position = m_platform->get_kv_position(model_id);
                 n_prefilled += bs;
             }
-            position = m_platform->get_kv_position();
+            position = m_platform->get_kv_position(model_id);
             m_tokens.push_back(prompt_tokens.back());
         }
 
@@ -81,7 +81,7 @@ public:
         TokenIterator &operator++() {
             if (n_reset > 0 && m_tokens.size() >= 1) {
                 auto &platform   = m_model.m_platform;
-                auto current_pos = platform->get_kv_position();
+                auto current_pos = platform->get_kv_position(m_model.m_config->model_id);
                 std::vector<int> pos(1, current_pos);
                 std::vector<int> token(1, m_tokens.front());
                 auto ret = m_model.decode(m_sampler, token, pos, true);

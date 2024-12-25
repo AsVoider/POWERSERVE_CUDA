@@ -20,7 +20,7 @@ if [ "${STEPS}" == "" ]; then
     STEPS=500
 fi
 
-CONFIG_PATH="${DEVICE_ROOT}/${TARGET}"
+WORK_FOLDER="${DEVICE_ROOT}/${TARGET}"
 PROMPT_FILE="math.txt"
 
 function help() {
@@ -30,8 +30,8 @@ function help() {
 
 function clean() {
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving params load -c ${CONFIG_PATH} -f ./params.old;
-        ${DEVICE_ROOT}/smartserving params get -c ${CONFIG_PATH};
+        ${DEVICE_ROOT}/smartserving hparams load -d ${WORK_FOLDER} -f ./hparams.old;
+        ${DEVICE_ROOT}/smartserving hparams get -d ${WORK_FOLDER};
     "
 }
 
@@ -43,9 +43,9 @@ set -e
 trap clean EXIT
 
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving params store -c ${CONFIG_PATH} -f ./params.old;
-    ${DEVICE_ROOT}/smartserving params set -c ${CONFIG_PATH} -e n_predicts=${STEPS} prompt_file=${PROMPT_FILE};
-    ${DEVICE_ROOT}/smartserving params get -c ${CONFIG_PATH};
+    ${DEVICE_ROOT}/smartserving hparams store -d ${WORK_FOLDER} -f ./hparams.old;
+    ${DEVICE_ROOT}/smartserving hparams set -d ${WORK_FOLDER} -e n_predicts=${STEPS} prompt_file=${PROMPT_FILE};
+    ${DEVICE_ROOT}/smartserving hparams get -d ${WORK_FOLDER};
 "
 
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
@@ -55,7 +55,7 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
 set -x
 if [ "${USE_QNN}" == "1" ]; then
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving speculate -c ${CONFIG_PATH} --use-qnn;
+        ${DEVICE_ROOT}/smartserving speculate -d ${WORK_FOLDER};
     "
 else
     echo "No support"

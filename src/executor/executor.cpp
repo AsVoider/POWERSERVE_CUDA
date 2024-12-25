@@ -31,10 +31,11 @@ void Executor::allocate_buffers() {
 }
 
 void Executor::plan() {
-    m_platform.ggml_backend->plan(m_graph.ops);
+    m_platform.ggml_backends[m_graph.m_model_id]->plan(m_graph.ops);
 }
 
 void Executor::run() {
+    auto &model_id = m_graph.m_model_id;
     plan();
 
     for (auto op : m_graph.ops) {
@@ -43,21 +44,21 @@ void Executor::run() {
             auto weight   = op->prev[0]->tensor();
             auto out      = op->output();
             auto [tokens] = op->get_params<GetEmbeddingParams>();
-            m_platform.ggml_backend->get_embedding(out, weight, tokens);
+            m_platform.ggml_backends[model_id]->get_embedding(out, weight, tokens);
         } break;
 
         case OpType::ADD: {
             auto a   = op->prev[0]->tensor();
             auto b   = op->prev[1]->tensor();
             auto out = op->output();
-            m_platform.ggml_backend->add(out, a, b);
+            m_platform.ggml_backends[model_id]->add(out, a, b);
         } break;
 
         case OpType::MAT_MUL: {
             auto a   = op->prev[0]->tensor();
             auto b   = op->prev[1]->tensor();
             auto out = op->output();
-            m_platform.ggml_backend->matmul(out, a, b);
+            m_platform.ggml_backends[model_id]->matmul(out, a, b);
         } break;
 
         case OpType::RMS_NORM: {
@@ -65,33 +66,33 @@ void Executor::run() {
             auto weight = op->prev[1]->tensor();
             auto out    = op->output();
             auto [eps]  = op->get_params<RMSNormParams>();
-            m_platform.ggml_backend->rmsnorm(out, x, weight, eps);
+            m_platform.ggml_backends[model_id]->rmsnorm(out, x, weight, eps);
         } break;
 
         case OpType::SILU_HADAMARD: {
             auto gate = op->prev[0]->tensor();
             auto up   = op->prev[1]->tensor();
             auto out  = op->output();
-            m_platform.ggml_backend->silu_hadamard(out, gate, up);
+            m_platform.ggml_backends[model_id]->silu_hadamard(out, gate, up);
         } break;
 
         case OpType::ROPE: {
             auto src             = op->prev[0]->tensor();
             auto out             = op->next[0]->tensor();
             auto [pos, rope_cfg] = op->get_params<RopeParams>();
-            m_platform.ggml_backend->rope(out, src, pos, rope_cfg);
+            m_platform.ggml_backends[model_id]->rope(out, src, pos, rope_cfg);
         } break;
 
         case OpType::SOFTMAX: {
             auto x   = op->prev[0]->tensor();
             auto out = op->output();
-            m_platform.ggml_backend->softmax(out, x);
+            m_platform.ggml_backends[model_id]->softmax(out, x);
         } break;
 
         case OpType::COPY: {
             auto dst = op->prev[0]->tensor();
             auto src = op->prev[1]->tensor();
-            m_platform.ggml_backend->copy(dst, src);
+            m_platform.ggml_backends[model_id]->copy(dst, src);
         } break;
 
 #if defined(SMART_WITH_QNN)
@@ -118,7 +119,7 @@ void Executor::run() {
         case OpType::PRINT: {
             auto x    = op->prev[0]->tensor();
             auto size = op->get_params<PrintParams>().size;
-            m_platform.ggml_backend->print(x, size);
+            m_platform.ggml_backends[model_id]->print(x, size);
 
         } break;
 
@@ -126,20 +127,20 @@ void Executor::run() {
             auto k                 = op->prev[0]->tensor();
             auto v                 = op->prev[1]->tensor();
             auto [L, pos, head_id] = op->get_params<AddCacheParams>();
-            m_platform.ggml_backend->add_cache(k, v, L, pos, head_id);
+            m_platform.ggml_backends[model_id]->add_cache(k, v, L, pos, head_id);
         } break;
 
         case OpType::PERMUTE: {
             auto x      = op->prev[0]->tensor();
             auto out    = op->output();
             auto [axes] = op->get_params<PermuteParams>();
-            m_platform.ggml_backend->permute(out, x, axes);
+            m_platform.ggml_backends[model_id]->permute(out, x, axes);
         } break;
 
         case OpType::CONT: {
             auto x   = op->prev[0]->tensor();
             auto out = op->output();
-            m_platform.ggml_backend->cont(out, x);
+            m_platform.ggml_backends[model_id]->cont(out, x);
         } break;
 
         case OpType::VIEW: {
@@ -155,7 +156,7 @@ void Executor::run() {
             auto mask              = op->prev[1]->tensor();
             auto [scale, max_bias] = op->get_params<SoftmaxExtParams>();
 
-            m_platform.ggml_backend->softmax_ext(out, x, mask, scale, max_bias);
+            m_platform.ggml_backends[model_id]->softmax_ext(out, x, mask, scale, max_bias);
         } break;
 
         case OpType::GET_MASK: {
@@ -177,7 +178,7 @@ void Executor::run() {
         case OpType::TRANSPOSE: {
             auto x   = op->prev[0]->tensor();
             auto out = op->output();
-            m_platform.ggml_backend->transpose(out, x);
+            m_platform.ggml_backends[model_id]->transpose(out, x);
         } break;
         default:
             SMART_ABORT("Unknown OpType: {}", static_cast<int>(op->op));

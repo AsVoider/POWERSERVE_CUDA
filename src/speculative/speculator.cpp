@@ -33,9 +33,10 @@ void Speculative::TokenTree::build_tree(
     if (now_prob < 0.3)
         return;
     this_turn_depth = std::max(this_turn_depth, now_depth);
-    int id          = __idx++;
-    SMART_ASSERT(id <= MAX_SPEC_NODES, "too many nodes");
-
+    int id          = m_idx++;
+    if (id > MAX_SPEC_NODES) {
+        FMT_ASSERT(false, "too many nodes");
+    }
     if (father_id != -1) {
         son[father_id].push_back(id);
     }
@@ -89,12 +90,15 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
 
     SMART_ASSERT(num_prompt_tokens >= 1);
     // start the main loop
-    long start = 0; // used to time our code, only initialized after first iteration
-    int next;       // will store the next token in the sequence
-    int pos = 0;    // position in the sequence
+    long start = 0;            // used to time our code, only initialized after first iteration
+    int next;                  // will store the next token in the sequence
+    int pos               = 0; // position in the sequence
+    auto &platform        = m_target_model->m_platform;
+    auto &target_model_id = m_target_model->m_config->model_id;
+    auto &draft_model_id  = m_draft_model->m_config->model_id;
 #if defined(SMART_WITH_QNN)
-    if (m_target_model->m_platform->qnn_backend) {
-        pos = m_target_model->m_platform->qnn_backend->m_causal_vlm->kv_cache->position;
+    if (platform->qnn_backend) {
+        pos = platform->qnn_backend->m_models[target_model_id]->kv_cache->position;
     }
 #endif
     //prefill
@@ -122,8 +126,8 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
     auto token                 = prompt_tokens[num_prompt_tokens - 1]; // kick off with the first token in the prompt
     auto decode_attention_mask = CausalAttentionMask(1);
 #if defined(SMART_WITH_QNN)
-    if (m_target_model->m_platform->qnn_backend) {
-        pos = m_target_model->m_platform->qnn_backend->m_causal_vlm->kv_cache->position;
+    if (platform->qnn_backend) {
+        pos = platform->qnn_backend->m_models[target_model_id]->kv_cache->position;
     } else
 #endif
     {
@@ -184,8 +188,8 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
                     verified = true;
                     local_id = i;
                     cache_pos++;
-                    m_target_model->m_platform->qnn_backend->m_causal_vlm->kv_cache->move(cache_pos, pos + i);
-                    m_draft_model->m_platform->qnn_backend->m_causal_vlm->kv_cache->move(cache_pos, pos + i);
+                    platform->qnn_backend->m_models[target_model_id]->kv_cache->move(cache_pos, pos + i);
+                    platform->qnn_backend->m_models[draft_model_id]->kv_cache->move(cache_pos, pos + i);
                     break;
                 }
             }
@@ -213,8 +217,8 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
             } else
                 break;
         }
-        m_target_model->m_platform->qnn_backend->m_causal_vlm->kv_cache->rollback(bs - n_accepted - 1);
-        m_draft_model->m_platform->qnn_backend->m_causal_vlm->kv_cache->rollback(bs - n_accepted - 1);
+        platform->qnn_backend->m_models[target_model_id]->kv_cache->rollback(bs - n_accepted - 1);
+        platform->qnn_backend->m_models[draft_model_id]->kv_cache->rollback(bs - n_accepted - 1);
         pos += n_accepted + 1;
         stats.all_tk_num += draft_depth;
         stats.accept_tk_num += n_accepted;

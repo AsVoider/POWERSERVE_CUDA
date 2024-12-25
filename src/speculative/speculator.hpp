@@ -1,6 +1,4 @@
 // training-free, general speculative
-// training-free, general speculative
-// training-free, general speculative
 #pragma once
 
 #include "model/model.hpp"
@@ -35,6 +33,7 @@ struct Speculative {
 
         std::vector<Token> tk_list, verified_list, fa_list; // store the tokens in the tree as a list(like an array)
         std::vector<int> son[MAX_SPEC_NODES], depth_list;   // store the sons of every node
+        int m_idx = 0;
 
         TokenTree(
             const std::unique_ptr<smart::Model> &model,
@@ -51,16 +50,13 @@ struct Speculative {
 
         std::vector<int> spec_sample(std::vector<float> &logits, int topk = 3);
 
-        // the pos is the position of the latest token that was not forwarded(i.e. get from the last logits)
-        void build_tree(Token root, long &elaspsed_time) {
-            // __build_son(-1, 0, 0);
-            __idx = 0;
-            build_tree(root, -1, 0, elaspsed_time, 1);
-        }
-
         void build_tree(Token father, int father_id, int now_depth, long &temp_time, double now_prob);
 
-        int __idx = 0;
+        // the pos is the position of the latest token that was not forwarded(i.e. get from the last logits)
+        void build_tree(Token root, long &elaspsed_time) {
+            m_idx = 0;
+            build_tree(root, -1, 0, elaspsed_time, 1);
+        }
     };
 
     struct Stats {
@@ -82,12 +78,10 @@ struct Speculative {
         m_draft_model(std::move(draft_model)) {
         this->m_expansion = expansion;
         m_draft_depth     = expansion.size();
-        // generate
     }
 
     ~Speculative() = default;
 
-    // void generate(smart::Tokenizer *tk, smart::Sampler *sampler, std::string prompt, int steps);
     void generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps);
 };
 

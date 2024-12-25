@@ -25,8 +25,9 @@ variables:
   QNN_SDK_28_ROOT: "/opt/qcom/aistack/qairt/2.28"
   QNN_SDK_ROOT: ${QNN_SDK_28_ROOT}
   DEVICE_ROOT: "/data/data/com.termux/files/home/CI"
-  DEVICE_BIN: "${DEVICE_ROOT}/smart-llama3.1-8b_n/bin/aarch64"
-  DEVICE_MMMU_BIN: "${DEVICE_ROOT}/smart-internvl2-1b/bin/aarch64"
+  DEVICE_BIN: "${DEVICE_ROOT}/smart-llama3.1-8b_n/bin"
+  DEVICE_SPEC_BIN: "${DEVICE_ROOT}/smart-llama3.1-8b-spec/bin"
+  DEVICE_MMMU_BIN: "${DEVICE_ROOT}/smart-internvl2-1b/bin"
   TARGET_LLAMA3_1: "smart-llama3.1-8b_n"
   TARGET_INTERNVL2_1: "smart-internvl2-1b"
   TARGET_LLAMA3_1_SPEC: "smart-llama3.1-8b-spec"
@@ -100,6 +101,7 @@ deploy:
     - echo "Deploying binaries and models to your Android device. You must add gitlab-runner's and root's ssh public key to device's ~/.ssh/authorized_keys."
     - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/out/* ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_BIN}
     - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/out/* ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_MMMU_BIN}
+    - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/out/* ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_SPEC_BIN}
     - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/smartserving ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_ROOT}
     - ./.gitlab/ecmd.sh ssh -o StrictHostKeyChecking=no -p "${DEVICE_PORT}" "${DEVICE_USER}@${DEVICE_HOST}" "ls -ahl ${DEVICE_BIN}"
   retry:
@@ -157,8 +159,6 @@ test_speculative:
   script:
     - echo "PASS"
     - .gitlab/test-speculative.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT}
-  needs:
-    - test_ppl
 
 # =============== Daily Tests ===============
 test_long_out:

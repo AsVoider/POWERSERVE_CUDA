@@ -46,7 +46,7 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
     ${DEVICE_ROOT}/smartserving server \
     --host ${SERVER_HOST} \
     --port ${SERVER_PORT} \
-    -c ${WORK_FOLDER} \
+    -d ${WORK_FOLDER} \
     >/dev/null 2>&1
 " &
 echo '>>>>>>>>>>>> Start server over. <<<<<<<<<<<<';
@@ -54,7 +54,7 @@ echo '>>>>>>>>>>>> Start server over. <<<<<<<<<<<<';
 sleep 10
 
 echo '>>>>>>>>>>>> Test mmmu. <<<<<<<<<<<<';
-sudo podman exec -it ${CONTAINER_NAME} bash -c -i "
+sudo podman exec -it ${CONTAINER_NAME} bash -d -i "
     cd /code/tools/mmmu_test;
     python ./mmmu_test.py --host ${SERVER_HOST} --port ${SERVER_PORT} --device_url ${DEVICE_URL} --device_root ${DEVICE_ROOT} --data_cache_path /data/mmmu_data
 "

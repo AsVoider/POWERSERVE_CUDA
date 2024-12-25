@@ -49,14 +49,15 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
     ${DEVICE_ROOT}/smartserving server \
     --host ${SERVER_HOST} \
     --port ${SERVER_PORT} \
-    -c ${CONFIG_PATH} >/dev/null 2>&1
+    -d ${CONFIG_PATH} \
+    --use-qnn >/dev/null 2>&1
 " &
 echo '>>>>>>>>>>>> Start server over. <<<<<<<<<<<<';
 
 sleep 10
 
 echo '>>>>>>>>>>>> Test mmlu. <<<<<<<<<<<<';
-sudo podman exec -it ${CONTAINER_NAME} bash -c -i "
+sudo podman exec -it ${CONTAINER_NAME} bash -d -i "
     cd /code/tools/mmlu;
     python ./mmlu_test.py --host ${SERVER_HOST} --port ${SERVER_PORT} -s 1
 "

@@ -1559,7 +1559,7 @@ class OutputEmbeddingExporter:
                     "preserve_dtype": name in self.model_chunk.dtype_preserved_io_names,
                     "shape": list(tensor.shape),
                 }
-                for name, tensor in zip(names, tensors, strict=True)
+                for name, tensor in zip(names, tensors)
             ]
 
         io_spec = [

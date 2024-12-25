@@ -3,6 +3,8 @@
 
 #include "backend/ggml/ggml.hpp"
 
+#include <map>
+
 #if defined(SMART_WITH_QNN)
 #include "backend/qnn/qnn_backend.hpp"
 #endif
@@ -10,16 +12,14 @@
 namespace smart {
 
 struct Platform {
-    std::unique_ptr<ggml::GGMLBackend> ggml_backend = nullptr;
+    std::map<std::string, std::unique_ptr<ggml::GGMLBackend>> ggml_backends;
 
 #if defined(SMART_WITH_QNN)
     std::unique_ptr<qnn::QNNBackend> qnn_backend = nullptr;
 #endif
 
-    std::shared_ptr<ModelConfig> m_config = nullptr;
-
 public:
-    Platform(std::shared_ptr<ModelConfig> config) : m_config(config) {}
+    Platform() = default;
 
     ~Platform() = default;
 
@@ -31,8 +31,8 @@ public:
     void init_qnn_backend(const Path &qnn_path);
 #endif
 
-    size_t get_kv_position() const;
-    void reset_kv_position();
+    size_t get_kv_position(std::string &model_id) const;
+    void reset_kv_position(std::string &model_id);
 };
 
 } // namespace smart

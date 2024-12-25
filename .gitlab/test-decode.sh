@@ -39,8 +39,8 @@ function help() {
 
 function clean() {
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving params load -c ${CONFIG_PATH} -f ./params.old;
-        ${DEVICE_ROOT}/smartserving params get -c ${CONFIG_PATH};
+        ${DEVICE_ROOT}/smartserving hparams load -d ${CONFIG_PATH} -f ./hparams.old;
+        ${DEVICE_ROOT}/smartserving hparams get -d ${CONFIG_PATH};
     "
 }
 
@@ -52,9 +52,9 @@ set -e
 trap clean EXIT
 
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving params store -c ${CONFIG_PATH} -f ./params.old;
-    ${DEVICE_ROOT}/smartserving params set -c ${CONFIG_PATH} -e n_predicts=${STEPS} n_threads=${THREADS_NUM} prompt_file=${PROMPT_FILE};
-    ${DEVICE_ROOT}/smartserving params get -c ${CONFIG_PATH};
+    ${DEVICE_ROOT}/smartserving hparams store -d ${CONFIG_PATH} -f ./hparams.old;
+    ${DEVICE_ROOT}/smartserving hparams set -d ${CONFIG_PATH} -e n_predicts=${STEPS} n_threads=${THREADS_NUM} prompt_file=${PROMPT_FILE};
+    ${DEVICE_ROOT}/smartserving hparams get -d ${CONFIG_PATH};
 "
 
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
@@ -64,11 +64,11 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
 set -x
 if [ "${USE_QNN}" == "1" ]; then
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving run -c ${CONFIG_PATH};
+        ${DEVICE_ROOT}/smartserving run -d ${CONFIG_PATH};
     "
 else
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving run -c ${CONFIG_PATH} --no-qnn;
+        ${DEVICE_ROOT}/smartserving run -d ${CONFIG_PATH} --no-qnn;
     "
 fi
 set +x

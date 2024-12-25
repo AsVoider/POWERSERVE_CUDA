@@ -41,7 +41,7 @@ cmake --build build_android -j12
 ```
 
 ## Run
-- Edit in 2024.12.04
+- Edit in 2024.12.25
 
 ### Generate config file
 ```
@@ -50,7 +50,7 @@ cmake --build build_android -j12
 
 ### Run for cpu
 ```
-./build/bin/run --file-path ./llama3.1-q4_0.gguf  --vocab-path ./llama3.1-vocab.gguf --config-path ./llama3.1.json --steps 4 --prompt 'One day,'
+./build/bin/run --work-folder /path/to/work/folder --prompt 'One day,' --no-qnn
 ```
 
 ### Run for Andorid qnn
@@ -61,16 +61,16 @@ kv           llama3_1_8b_1.bin  llama3_1_8b_3.bin  llama3_1_8b_5.bin  llama3_1_8
 libQnnHtp.so  libQnnHtpV75.so  libQnnHtpV75Skel.so  libQnnHtpV75Stub.so  libQnnSystem.so
 ```
 ```
-./build/bin/run --file-path ./llama3.1-q4_0.gguf  --vocab-path ./llama3.1-vocab.gguf --config-path .llama3.1.json --steps 4 --prompt 'One day,' --qnn-path ./workspace
+./build/bin/run --work-folder /path/to/work/folder --prompt 'One day,'
 ```
 
 ### Run for mmlu test
 - Run server
 ```
 # cpu
-./build/bin/server --file-path ./llama3.1-q4_0.gguf  --vocab-path ./llama3.1-vocab.gguf  --config-path ./llama3.1.json --host 0.0.0.0 --port 18080
+./build/bin/server --work-folder /path/to/work/folder --host 0.0.0.0 --port 18080 --no-qnn
 # qnn
-export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ./build/bin/server --file-path ./llama3.1-q4_0.gguf  --vocab-path ./llama3.1-vocab.gguf  --config-path ./llama3.1.json --host 0.0.0.0 --port 18080 --qnn-path ./workspace
+export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ./build/bin/server --work-folder /path/to/work/folder --host 0.0.0.0 --port 18080
 ```
 - Run client
 ```
@@ -82,26 +82,23 @@ python ./mmlu_test.py --host 0.0.0.0 --port 18080 -s 1
 ### Run for ppl
 ```
 # cpu
-./build/tools/perpelxity/perpelxity_test --file-path ./llama3.1-q4_0.gguf --vocab-path ./llama3.1-vocab.gguf --config-path ./llama3.1.json --prompt-file ./prompt.txt --batch-size 32 --n-threads 12
+./build/tools/perpelxity/perpelxity_test --work-folder /path/to/work/folder --batch-size 32 --no-qnn
 # npu
-export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ./build/tools/perpelxity/perpelxity_test --file-path ./llama3.1-q4_0.gguf --vocab-path ./llama3.1-vocab.gguf --config-path ./llama3.1.json --prompt-file ./prompt.txt --batch-size 32 --qnn-path ./workspace
+export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ./build/tools/perpelxity/perpelxity_test --work-folder /path/to/work/folder --batch-size 32
 ```
 
 # cmdline-tools
 - generate config (support gguf, safetensors)
 ```
-smartserving create -m ./models/ -o ./proj.config
+smartserving create -m ./models/ -o ./proj --main-model-id llama_3_1_8b
 ```
-- generate qnn models
-```
-smartserving create -m ./models/ --qnn-out ./qnn_models/ -o ./proj.config
-```
+
 [optional] Modify Config by manual or cli
 - run with config
 ```
-smartserving run -c ./proj.config
+smartserving run -d ./proj
 ```
 - run server with config
 ```
-smartserving server -c ./proj.config
+smartserving server -d ./proj
 ```

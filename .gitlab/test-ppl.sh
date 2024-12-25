@@ -20,8 +20,8 @@ function help() {
 
 function clean() {
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving params load -c ${CONFIG_PATH} -f ./params.old;
-        ${DEVICE_ROOT}/smartserving params get -c ${CONFIG_PATH};
+        ${DEVICE_ROOT}/smartserving hparams load -d ${CONFIG_PATH} -f ./hparams.old;
+        ${DEVICE_ROOT}/smartserving hparams get -d ${CONFIG_PATH};
     "
 }
 
@@ -34,15 +34,15 @@ trap clean EXIT
 source .gitlab/common.sh
 
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving params store -c ${CONFIG_PATH} -f ./params.old;
-    ${DEVICE_ROOT}/smartserving params set -c ${CONFIG_PATH} -e prompt_file=${PROMPT_FILE};
-    ${DEVICE_ROOT}/smartserving params get -c ${CONFIG_PATH};
+    ${DEVICE_ROOT}/smartserving hparams store -d ${CONFIG_PATH} -f ./hparams.old;
+    ${DEVICE_ROOT}/smartserving hparams set -d ${CONFIG_PATH} -e prompt_file=${PROMPT_FILE};
+    ${DEVICE_ROOT}/smartserving hparams get -d ${CONFIG_PATH};
 "
 
 echo '>>>>>>>>>>>> Test ppl. <<<<<<<<<<<<';
 set -x
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving ppl -c ${CONFIG_PATH};
+    ${DEVICE_ROOT}/smartserving ppl -d ${CONFIG_PATH};
 "
 set +x
 echo '>>>>>>>>>>>> Test ppl over. <<<<<<<<<<<<';

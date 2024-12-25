@@ -69,9 +69,9 @@ auto LlamaModel::forward(
 #endif
     {
         if (!lazy_load) {
-            m_platform->ggml_backend->reset_kv_batch_size(batch_size);
+            m_platform->ggml_backends[m_config->model_id]->reset_kv_batch_size(batch_size);
             for (size_t L = 0; L < llm_config.n_layers; L++) {
-                auto [k_cache, v_cache] = m_platform->ggml_backend->m_kv->get_cache(L);
+                auto [k_cache, v_cache] = m_platform->ggml_backends[m_config->model_id]->m_kv->get_cache(L);
                 auto att_o = m_attn->build(g, x, L, g.add_tensor(k_cache), g.add_tensor(v_cache), pos, mask);
                 auto ffn_o = m_ffn->build(g, att_o, L);
                 x          = ffn_o;
@@ -94,7 +94,7 @@ auto LlamaModel::forward(
     if (!m_platform->qnn_backend)
 #endif
     {
-        m_platform->ggml_backend->m_kv->advance(batch_size);
+        m_platform->ggml_backends[m_config->model_id]->m_kv->advance(batch_size);
     }
 
     auto res = std::vector<std::vector<float>>();

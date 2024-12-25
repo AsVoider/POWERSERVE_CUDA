@@ -3,7 +3,6 @@
 #include "common/perf.hpp"
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
-#include "model/module/quest_attention.hpp"
 #include "sampler/sampler_chain.hpp"
 #include "speculative/speculator.hpp"
 #include "tokenizer/tokenizer.hpp"
@@ -14,44 +13,40 @@
 
 int main(int argc, char *argv[]) {
     // 0. load config
-    std::string attn_type   = "normal";
-    std::string config_path = "/home/zwb/SS/smartserving/";
+    std::string work_folder = "/home/zwb/SS/smartserving/";
 
     CLI::App app("Demo program for speculative");
 
-    app.add_option("--config-path", config_path)->required();
-    app.add_option("--attn-type", attn_type);
+    app.add_option("--work-folder", work_folder)->required();
 #if defined(SMART_WITH_QNN)
-    bool use_qnn = true;
-    app.add_flag("--use-qnn", use_qnn);
+    bool no_qnn = false;
+    app.add_flag("--no-qnn", no_qnn);
 #endif
 
     CLI11_PARSE(app, argc, argv);
 
-    auto config                               = std::make_shared<smart::Config>(config_path);
-    std::unique_ptr<smart::Model> main_model  = smart::load_model(config->main_llm_config, config->main_llm_dir);
-    std::unique_ptr<smart::Model> draft_model = smart::load_model(config->draft_llm_config, config->draft_llm_dir);
+    auto config                               = std::make_shared<smart::Config>(work_folder);
+    std::unique_ptr<smart::Model> main_model  = smart::load_model(config->main_model_config, config->main_model_dir);
+    std::unique_ptr<smart::Model> draft_model = smart::load_model(config->draft_model_config, config->draft_model_dir);
     auto [sampler_config, steps, n_threads, prompt, batch_size] = config->hyper_params;
 
     main_model->m_platform  = std::make_shared<smart::Platform>();
-    draft_model->m_platform = std::make_shared<smart::Platform>();
+    auto &platform          = main_model->m_platform;
+    draft_model->m_platform = platform;
 
-    main_model->m_platform->init_ggml_backend(main_model->m_config, config->hyper_params);
-    draft_model->m_platform->init_ggml_backend(draft_model->m_config, config->hyper_params);
+    platform->init_ggml_backend(main_model->m_config, config->hyper_params);
+    platform->init_ggml_backend(draft_model->m_config, config->hyper_params);
 #if defined(SMART_WITH_QNN)
-    if (use_qnn) {
-        main_model->m_platform->init_qnn_backend(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME);
-        draft_model->m_platform->init_qnn_backend(config->draft_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME);
+    if (!no_qnn) {
+        platform->init_qnn_backend(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME);
+        auto &qnn_backend = platform->qnn_backend;
+        qnn_backend->load_model(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, main_model->m_config);
+        qnn_backend->load_model(config->draft_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, draft_model->m_config);
     }
 #endif
 
-    if (attn_type == "normal") {
-        main_model->m_attn  = std::make_shared<smart::NormAttention>(main_model->m_config, main_model->m_weights);
-        draft_model->m_attn = std::make_shared<smart::NormAttention>(draft_model->m_config, draft_model->m_weights);
-    } else if (attn_type == "quest") {
-        main_model->m_attn  = std::make_shared<smart::QuestAttention>(main_model->m_config, main_model->m_weights);
-        draft_model->m_attn = std::make_shared<smart::QuestAttention>(draft_model->m_config, draft_model->m_weights);
-    }
+    main_model->m_attn  = std::make_shared<smart::NormAttention>(main_model->m_config->llm, main_model->m_weights);
+    draft_model->m_attn = std::make_shared<smart::NormAttention>(draft_model->m_config->llm, draft_model->m_weights);
 
     std::string tokenizer_path = config->main_model_dir / smart::MODEL_VOCAB_FILENAME;
     smart::Tokenizer tokenizer(tokenizer_path);
@@ -64,7 +59,6 @@ int main(int argc, char *argv[]) {
         SMART_LOG_INFO("prompt      : {}", smart::abbreviation(prompt, 50));
         SMART_LOG_INFO("vocab_path  : {}", tokenizer_path);
         SMART_LOG_INFO("steps       : {}", steps);
-        SMART_LOG_INFO("attn_type   : {}", attn_type);
         SMART_LOG_INFO("n_threads   : {}", n_threads);
     }
 

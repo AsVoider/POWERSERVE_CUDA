@@ -32,9 +32,9 @@ int main(int argc, char *argv[]) {
     CLI11_PARSE(app, argc, argv);
 
     auto config                         = std::make_shared<smart::Config>(work_folder);
-    std::unique_ptr<smart::Model> model = smart::load_model(config);
+    std::unique_ptr<smart::Model> model = smart::load_model(config->main_model_config, config->main_model_dir);
 
-    model->m_platform = std::make_shared<smart::Platform>(model->m_config);
+    model->m_platform = std::make_shared<smart::Platform>();
     model->m_platform->init_ggml_backend(model->m_config, config->hyper_params);
 #if defined(SMART_WITH_QNN)
     if (!no_qnn) {
