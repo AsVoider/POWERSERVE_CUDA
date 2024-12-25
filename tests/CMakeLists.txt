@@ -6,3 +6,8 @@ target_link_libraries(quant_mul_mat PRIVATE smart_serving ggml)
 
 # add_executable(tensor_view_test "tensor_view_test.cpp")
 # target_link_libraries(tensor_view_test PRIVATE smart_serving)
+
+if (SMART_WITH_QNN)
+    add_executable(qnn_test qnn_test.cpp)
+    target_link_libraries(qnn_test PRIVATE smart_serving CLI11::CLI11)
+endif()

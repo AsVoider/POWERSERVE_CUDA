@@ -1,6 +1,7 @@
 #pragma once
 
-#include "common.hpp"
+#include <cstddef>
+#include <vector>
 
 namespace smart {
 

@@ -2,7 +2,7 @@
 
 #include "backend/ggml/buffer.hpp"
 #include "backend/platform.hpp"
-#include "common.hpp"
+#include "common/logger.hpp"
 #include "executor/executor.hpp"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
@@ -27,8 +27,9 @@ LlamaModel::LlamaModel(const std::string &filename, const std::shared_ptr<ModelC
     m_config  = config;
     lazy_load = ggml_get_tensor(ggml_ctx, "output_norm.weight") == nullptr ? true : false;
     m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->llm.n_layers, lazy_load);
-    if (lazy_load)
-        fmt::println(stderr, "\033[33m<warning> You only load embedding table\033[0m");
+    if (lazy_load) {
+        SMART_LOG_WARN("only the embedding table was loaded");
+    }
     m_ffn = std::make_shared<FFN>(m_config->llm, m_weights);
 }
 

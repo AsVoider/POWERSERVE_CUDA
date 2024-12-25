@@ -1,3 +1,5 @@
+add_subdirectory(common)
+
 add_library(smart_serving STATIC)
 target_include_directories(smart_serving PUBLIC .)
 
@@ -7,22 +9,9 @@ target_link_libraries(smart_serving PUBLIC
     llama_tokenizer
     uv_a
     nlohmann_json::nlohmann_json
-)
 
-target_sources(smart_serving PRIVATE
-    "common.cpp"
+    smart_serving.common
 )
-
-add_subdirectory(backend)
-add_subdirectory(core)
-add_subdirectory(executor)
-add_subdirectory(graph)
-add_subdirectory(model)
-add_subdirectory(sampler)
-# if (SMART_WITH_QNN)
-#     add_subdirectory(speculative)
-# endif()
-add_subdirectory(tokenizer)
 
 if (NOT MSVC)
     target_compile_options(smart_serving PRIVATE
@@ -37,3 +26,15 @@ endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     target_compile_options(smart_serving PRIVATE -Wno-unknown-pragmas)
 endif()
+
+add_subdirectory(storage)
+add_subdirectory(backend)
+add_subdirectory(core)
+add_subdirectory(executor)
+add_subdirectory(graph)
+add_subdirectory(model)
+add_subdirectory(sampler)
+# if (SMART_WITH_QNN)
+#     add_subdirectory(speculative)
+# endif()
+add_subdirectory(tokenizer)

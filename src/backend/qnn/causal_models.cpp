@@ -1,5 +1,7 @@
 #include "causal_models.hpp"
 
+#include "common/logger.hpp"
+
 namespace smart::qnn {
 
 auto CausalLM::ChunkVector::get_chunk(size_t layer_id) -> ModelChunk & {
@@ -9,7 +11,7 @@ auto CausalLM::ChunkVector::get_chunk(size_t layer_id) -> ModelChunk & {
         }
     }
 
-    SMART_ASSERT(false);
+    SMART_ABORT("cannot found mode chunk containing layer: {}", layer_id);
 }
 
 CausalLM::CausalLM(const Path model_folder, const std::shared_ptr<ModelConfig> &model_config, Session &environment) :
@@ -58,7 +60,7 @@ auto CausalLM::load_context_binary(const Path &path) -> ContextBinary & {
         return iter->second;
     }
 
-    fmt::println("Loading \"{}\"...", path);
+    SMART_LOG_INFO("Loading \"{}\"...", path);
     auto result          = m_context_binaries.emplace(path, ContextBinary(*m_session.m_backend, m_model_folder / path));
     auto &context_binary = result.first->second;
 

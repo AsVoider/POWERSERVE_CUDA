@@ -1,13 +1,14 @@
 #include "qnn_backend.hpp"
 
 #include "backend/ggml/buffer.hpp"
+#include "common/logger.hpp"
 
 namespace smart::qnn {
 QNNBackend::QNNBackend(Path libs_path) : m_session(libs_path) {}
 
 void QNNBackend::load_model(const Path &path, const std::shared_ptr<smart::ModelConfig> &model_config) {
     auto &model_id = model_config->model_id;
-    fmt::println("{}", model_id);
+    SMART_LOG_INFO("Load model {} from {}", model_id, path);
     if (model_config->vision.num_tokens_per_patch) {
         m_models.insert({model_id, std::make_unique<CausalVLM>(path, model_config, m_session)});
     } else {
@@ -102,7 +103,7 @@ void QNNBackend::forward(
         }
     }
 
-    fmt::println("\nvit time:{} s", v_time / 1000.0);
+    SMART_LOG_INFO("\nvit time:{} s", v_time / 1000.0);
 
     auto main_batches = model.split_batch(token_embeddings, pos_size_t, mask);
     float *dst_data_ptr{};

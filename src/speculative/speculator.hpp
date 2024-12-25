@@ -3,12 +3,13 @@
 // training-free, general speculative
 #pragma once
 
-#include "common.hpp"
 #include "model/model.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cstdlib>
+#include <memory>
 #include <string>
+#include <vector>
 
 namespace smart {
 

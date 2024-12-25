@@ -1,6 +1,7 @@
 #include "CLI/CLI.hpp"
 #include "backend/platform.hpp"
-#include "common.hpp"
+#include "common/logger.hpp"
+#include "common/perf.hpp"
 #include "core/config.hpp"
 #include "crow.h"
 #include "model/model.hpp"
@@ -51,11 +52,11 @@ int main(int argc, char *argv[]) {
     } else if (attn_type == "quest") {
         model->m_attn = std::make_shared<smart::QuestAttention>(model->m_config->llm, model->m_weights);
     }
-    smart::get_memory_usage("after attn init");
+    SMART_LOG_INFO("after attn init: {}", smart::perf_get_mem_result());
 
     std::string tokenizer_path = config->main_model_dir / smart::MODEL_VOCAB_FILENAME;
     smart::Tokenizer tokenizer(tokenizer_path);
-    smart::get_memory_usage("after tokenizer init");
+    SMART_LOG_INFO("after tokenizer init: {}", smart::perf_get_mem_result());
 
     crow::SimpleApp server;
     server.bindaddr(host).port(port);
@@ -96,10 +97,10 @@ int main(int argc, char *argv[]) {
         }
         resp["content"] = ss.str();
 
-        smart::get_memory_usage("after chat");
+        SMART_LOG_INFO("after chat: {}", smart::perf_get_mem_result());
         return crow::response(resp);
     });
 
-    fmt::println("server is running at http://{}:{}", host, port);
+    SMART_LOG_INFO("server is running at http://{}:{}", host, port);
     server.run();
 }

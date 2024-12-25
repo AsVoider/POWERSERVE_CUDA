@@ -1,6 +1,5 @@
 #pragma once
 
-#include "common.hpp"
 #include "config.hpp"
 #include "core/kv_cache.hpp"
 #include "qnn.hpp"

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "common.hpp"
+#include "common/logger.hpp"
+#include "common/type_def.hpp"
 
 #include <cmath>
 #include <cstddef>

@@ -3,11 +3,20 @@
 #include "HTP/QnnHtpGraph.h"
 #include "HTP/QnnHtpMem.h"
 #include "HTP/QnnHtpSystemContext.h"
+#include "QnnContext.h"
+#include "common/logger.hpp"
+#include "common/type_def.hpp"
 #include "qnn_type_macros.hpp"
+#include "storage/file_loader.hpp"
 
 #include <cstring>
-#include <fstream>
+#include <fcntl.h>
+#include <filesystem>
+#include <linux/mman.h>
 #include <stdexcept>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace smart::qnn {
 
@@ -37,21 +46,28 @@ void Library::initialize(const Path &lib_backend_path, const Path &lib_system_pa
 
 void Library::open_qnn_backend_library(const Path &lib_backend_path) {
     int ret = uv_dlopen(lib_backend_path.c_str(), &m_lib_backend);
-    SMART_ASSERT(ret == 0);
+    SMART_ASSERT(ret == 0, "failed to open lib {}: {}", lib_backend_path, m_lib_backend.errmsg);
 
     typedef Qnn_ErrorHandle_t (*QnnInterfaceGetProvidersFn_t)(
         const QnnInterface_t ***providerList, uint32_t *numProviders
     );
 
     QnnInterfaceGetProvidersFn_t get_interface_providers;
-    ret = uv_dlsym(&m_lib_backend, "QnnInterface_getProviders", (void **)&get_interface_providers);
-    SMART_ASSERT(ret == 0);
+    const char *interface_providers_name = "QnnInterface_getProviders";
+    ret = uv_dlsym(&m_lib_backend, interface_providers_name, (void **)&get_interface_providers);
+    SMART_ASSERT(
+        ret == 0,
+        "failed to get symbol {} from lib {}: {}",
+        interface_providers_name,
+        lib_backend_path,
+        m_lib_backend.errmsg
+    );
 
     const QnnInterface_t **interface_providers;
     uint32_t n_providers = 0;
     ret                  = get_interface_providers(&interface_providers, &n_providers);
-    SMART_ASSERT(ret == QNN_SUCCESS);
-    SMART_ASSERT(n_providers > 0);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to get interface providers");
+    SMART_ASSERT(n_providers > 0, "no interface provider was found");
 
     bool found = false;
     for (size_t i = 0; i < n_providers; i++) {
@@ -66,54 +82,70 @@ void Library::open_qnn_backend_library(const Path &lib_backend_path) {
 
     Qnn_ApiVersion_t api_version;
     ret = m_qnn_backend.backendGetApiVersion(&api_version);
-    SMART_ASSERT(ret == QNN_SUCCESS);
-    fmt::println("QNN core API version: {}", format_qnn_version(api_version.coreApiVersion));
-    fmt::println("QNN backend API version: {}", format_qnn_version(api_version.backendApiVersion));
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to get the version of QNN API");
+    SMART_LOG_INFO("QNN core API version: {}", format_qnn_version(api_version.coreApiVersion));
+    SMART_LOG_INFO("QNN backend API version: {}", format_qnn_version(api_version.backendApiVersion));
 }
 
 void Library::open_qnn_system_library(const Path &lib_system_path) {
     int ret = uv_dlopen(lib_system_path.c_str(), &m_lib_system);
-    SMART_ASSERT(ret == 0);
+    SMART_ASSERT(ret == 0, "failed to open lib {}: {}", lib_system_path, m_lib_system.errmsg);
 
     typedef Qnn_ErrorHandle_t (*QnnSystemInterfaceGetProvidersFn_t)(
         const QnnSystemInterface_t ***providerList, uint32_t *numProviders
     );
 
     QnnSystemInterfaceGetProvidersFn_t get_system_inferface_providers;
-    ret = uv_dlsym(&m_lib_system, "QnnSystemInterface_getProviders", (void **)&get_system_inferface_providers);
-    SMART_ASSERT(ret == 0);
+    const char *sysmte_interface_providers = "QnnSystemInterface_getProviders";
+    ret = uv_dlsym(&m_lib_system, sysmte_interface_providers, (void **)&get_system_inferface_providers);
+    SMART_ASSERT(
+        ret == 0,
+        "failed to get symbol {} from lib {}: {}",
+        sysmte_interface_providers,
+        lib_system_path,
+        m_lib_system.errmsg
+    );
 
     const QnnSystemInterface_t **system_interface_providers;
     uint32_t n_providers = 0;
     ret                  = get_system_inferface_providers(&system_interface_providers, &n_providers);
-    SMART_ASSERT(ret == QNN_SUCCESS);
-    SMART_ASSERT(n_providers > 0);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to get system interface providers");
+    SMART_ASSERT(n_providers > 0, "no system interface provider was found");
 
     bool found = false;
     for (size_t i = 0; i < n_providers; i++) {
         auto api_version = system_interface_providers[i]->systemApiVersion;
         if (QNN_SYSTEM_API_VERSION_MAJOR == api_version.major && QNN_SYSTEM_API_VERSION_MINOR <= api_version.minor) {
             found = true;
-            fmt::println("QNN system API verion: {}", format_qnn_version(api_version));
+            SMART_LOG_INFO("QNN system API verion: {}", format_qnn_version(api_version));
             m_qnn_system = system_interface_providers[i]->QNN_SYSTEM_INTERFACE_VER_NAME;
             break;
         }
     }
-    SMART_ASSERT(found);
+    SMART_ASSERT(found, "no system API providers was found");
 }
 
 void Library::open_rpc_library(const Path &lib_rpc_path) {
     int ret = uv_dlopen(lib_rpc_path.c_str(), &m_lib_rpc);
-    SMART_ASSERT(ret == 0);
+    SMART_ASSERT(ret == 0, "failed to open lib {}: {}", lib_rpc_path, m_lib_rpc.errmsg);
 
-    ret = uv_dlsym(&m_lib_rpc, "rpcmem_alloc", (void **)&m_rpc.rpcmem_alloc);
-    SMART_ASSERT(ret == 0);
+    const char *rpc_mem_alloc_name = "rpcmem_alloc";
+    ret                            = uv_dlsym(&m_lib_rpc, rpc_mem_alloc_name, (void **)&m_rpc.rpcmem_alloc);
+    SMART_ASSERT(
+        ret == 0, "failed to get symbol {} from lib {}: {}", rpc_mem_alloc_name, lib_rpc_path, m_lib_rpc.errmsg
+    );
 
-    ret = uv_dlsym(&m_lib_rpc, "rpcmem_free", (void **)&m_rpc.rpcmem_free);
-    SMART_ASSERT(ret == 0);
+    const char *rpc_mem_free_name = "rpcmem_free";
+    ret                           = uv_dlsym(&m_lib_rpc, rpc_mem_free_name, (void **)&m_rpc.rpcmem_free);
+    SMART_ASSERT(
+        ret == 0, "failed to get symbol {} from lib {}: {}", rpc_mem_free_name, lib_rpc_path, m_lib_rpc.errmsg
+    );
 
-    ret = uv_dlsym(&m_lib_rpc, "rpcmem_to_fd", (void **)&m_rpc.rpcmem_to_fd);
-    SMART_ASSERT(ret == 0);
+    const char *rpc_mem_to_fd_name = "rpcmem_to_fd";
+    ret                            = uv_dlsym(&m_lib_rpc, rpc_mem_to_fd_name, (void **)&m_rpc.rpcmem_to_fd);
+    SMART_ASSERT(
+        ret == 0, "failed to get symbol {} from lib {}: {}", rpc_mem_to_fd_name, lib_rpc_path, m_lib_rpc.errmsg
+    );
 }
 
 void Library::print_info() {
@@ -127,10 +159,10 @@ void Library::print_info() {
             status = "No";
         }
 
-        fmt::println("- {}: {}", name, status);
+        SMART_LOG_INFO("- {}: {}", name, status);
     };
 
-    fmt::println("QNN backend properties:");
+    SMART_LOG_INFO("QNN backend properties:");
     print_property("Create context from binary list", QNN_PROPERTY_CONTEXT_SUPPORT_CREATE_FROM_BINARY_LIST_ASYNC);
     print_property("Dynamic batch", QNN_PROPERTY_GRAPH_SUPPORT_BATCH_MULTIPLE);
     print_property("Early termination", QNN_PROPERTY_GRAPH_SUPPORT_EARLY_TERMINATION);
@@ -148,13 +180,13 @@ void Library::print_info() {
 
 void Library::create_logger() {
     auto ret = m_qnn_backend.logCreate(log_callback, m_log_level, &m_logger);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to create QNN logger");
 }
 
 void Library::destroy_logger() {
     if (m_logger) {
         auto ret = m_qnn_backend.logFree(m_logger);
-        SMART_ASSERT(ret == QNN_SUCCESS);
+        SMART_ASSERT(ret == QNN_SUCCESS, "failed to free QNN logger");
         m_logger = nullptr;
     }
 }
@@ -163,35 +195,39 @@ Library lib;
 
 Backend::Backend() {
     auto ret = lib.m_qnn_backend.backendCreate(lib.m_logger, nullptr, &m_handle);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to create QNN backend");
 
     ret = lib.m_qnn_backend.deviceCreate(lib.m_logger, nullptr, &m_device);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to create QNN device");
 }
 
 Backend::~Backend() {
     auto ret = lib.m_qnn_backend.deviceFree(m_device);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to free QNN device");
 
     ret = lib.m_qnn_backend.backendFree(m_handle);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to free QNN backend");
 }
 
 void Backend::print_info() {
     const QnnDevice_PlatformInfo_t *platform_info_ptr;
     auto ret = lib.m_qnn_backend.deviceGetInfo(m_device, &platform_info_ptr);
-    SMART_ASSERT(ret == QNN_SUCCESS);
-    SMART_ASSERT(platform_info_ptr->version == QNN_DEVICE_PLATFORM_INFO_VERSION_1);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to get the QNN device info");
+    SMART_ASSERT(
+        platform_info_ptr->version == QNN_DEVICE_PLATFORM_INFO_VERSION_1,
+        "unknown platform info version: {}",
+        static_cast<int>(platform_info_ptr->version)
+    );
 
     auto &platform_info = platform_info_ptr->v1;
 
-    fmt::println("Hardware device infomation:");
+    SMART_LOG_INFO("Hardware device infomation:");
     for (size_t i = 0; i < platform_info.numHwDevices; i++) {
         auto &hw_info_struct = platform_info.hwDevices[i];
         SMART_ASSERT(hw_info_struct.version == QNN_DEVICE_HARDWARE_DEVICE_INFO_VERSION_1);
 
         auto &hw_info = hw_info_struct.v1;
-        fmt::println(
+        SMART_LOG_INFO(
             "[{}] id={}, type={}, num_cores={}, ext_type={}",
             i,
             hw_info.deviceId,
@@ -205,12 +241,12 @@ void Backend::print_info() {
             SMART_ASSERT(core_info_struct.version == QNN_DEVICE_CORE_INFO_VERSION_1);
 
             auto &core_info = core_info_struct.v1;
-            fmt::println("[{}] core[{}]: id={}, type={}", i, j, core_info.coreId, core_info.coreType);
+            SMART_LOG_INFO("[{}] core[{}]: id={}, type={}", i, j, core_info.coreId, core_info.coreType);
         }
 
         if (hw_info.deviceInfoExtension->devType == QNN_HTP_DEVICE_TYPE_ON_CHIP) {
             auto &on_chip_info = hw_info.deviceInfoExtension->onChipDevice;
-            fmt::println(
+            SMART_LOG_INFO(
                 "[{}] on_chip: soc={}, arch={}, dlbc={}, signed_pd={}, vtcm_size={}",
                 i,
                 on_chip_info.socModel,
@@ -223,22 +259,22 @@ void Backend::print_info() {
     }
 
     ret = lib.m_qnn_backend.deviceFreePlatformInfo(lib.m_logger, platform_info_ptr);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to free QNN platform info");
 }
 
 HTPDevice::HTPDevice(uint32_t device_id, uint32_t core_id) : m_device_id(device_id), m_core_id(core_id) {
     auto ret = lib.m_qnn_backend.deviceGetInfrastructure(&m_infra);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to get HTP device infrastructure");
 
     m_htp_infra  = (QnnHtpDevice_Infrastructure_t *)m_infra;
     m_perf_infra = m_htp_infra->perfInfra;
     ret          = m_perf_infra.createPowerConfigId(device_id, core_id, &m_power_config_id);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to get power config id of HTP");
 }
 
 HTPDevice::~HTPDevice() {
     auto ret = m_perf_infra.destroyPowerConfigId(m_power_config_id);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to destroy powerinfer config id");
 }
 
 void HTPDevice::set_memory_grow_size(size_t size) {
@@ -252,7 +288,7 @@ void HTPDevice::set_memory_grow_size(size_t size) {
         nullptr,
     };
     auto ret = m_perf_infra.setMemoryConfig(m_device_id, m_core_id, memory_config);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to set HTP memory config");
 }
 
 void HTPDevice::enter_performance_mode() {
@@ -315,7 +351,7 @@ void HTPDevice::enter_performance_mode() {
         nullptr,
     };
     auto ret = m_perf_infra.setPowerConfig(m_power_config_id, power_configs);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to set HTP power config");
 }
 
 ContextGroup::ContextGroup(size_t buffer_size) : m_buffer_size(buffer_size) {}
@@ -337,24 +373,32 @@ void ContextGroup::add_context_handle(Qnn_ContextHandle_t handle) {
     }
 }
 
-Context::Context(Backend &backend, const Path &binary_file_path, ContextGroup *group) {
-    SMART_ASSERT(std::filesystem::exists(binary_file_path));
+Context::Context(Backend &backend, const Path &binary_file_path, ContextGroup *group) :
+    m_binary_filename(binary_file_path) {
+    SMART_ASSERT(
+        std::filesystem::exists(binary_file_path) && std::filesystem::is_regular_file(binary_file_path),
+        "cound not found regular binary file: {}",
+        binary_file_path
+    );
 
-    std::ifstream file(binary_file_path, std::ios::binary | std::ios::ate);
-    SMART_ASSERT(file.is_open());
-
-    auto pos = file.tellg();
-    SMART_ASSERT(pos >= 0);
-    std::vector<char> binary_data(pos);
-    file.seekg(0, std::ios::beg);
-    file.read(binary_data.data(), pos);
-    SMART_ASSERT(file.tellg() == pos);
+    /* 
+     * mmap binary 
+     */
+    m_binary_loader    = storage::build_file_loader(binary_file_path, DEFAULT_FILE_LOAD_METHOD);
+    auto binary_buffer = m_binary_loader->get_buffer();
+    SMART_LOG_INFO(
+        "load binary file {} (size: {}) into address space [{}, {})",
+        binary_file_path,
+        binary_buffer.size(),
+        static_cast<void *>(binary_buffer.data()),
+        static_cast<void *>(binary_buffer.end().base())
+    );
 
     std::vector<const QnnContext_Config_t *> context_configs;
 
     QnnHtpContext_CustomConfig_t htp_group_config;
     QnnContext_Config_t group_config = {
-        .option       = QNN_CONTEXT_CONFIG_OPTION_CUSTOM,
+        .option       = QNN_CONTEXT_CONFIG_PERSISTENT_BINARY,
         .customConfig = &htp_group_config,
     };
 
@@ -379,31 +423,36 @@ Context::Context(Backend &backend, const Path &binary_file_path, ContextGroup *g
         backend.m_handle,
         backend.m_device,
         context_configs.data(),
-        binary_data.data(),
-        binary_data.size(),
+        binary_buffer.data(),
+        binary_buffer.size(),
         &m_handle,
         nullptr
     );
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to create QNN context from binary: {}", binary_file_path);
 
     if (group) {
         group->add_context_handle(m_handle);
     }
 
     ret = lib.m_qnn_system.systemContextCreate(&m_system_context);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to create QNN context");
 
     Qnn_ContextBinarySize_t binary_info_size = 0;
     ret                                      = lib.m_qnn_system.systemContextGetBinaryInfo(
-        m_system_context, binary_data.data(), binary_data.size(), &m_binary_info, &binary_info_size
+        m_system_context, binary_buffer.data(), binary_buffer.size(), &m_binary_info, &binary_info_size
     );
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to get info of QNN context binary");
+
+    /* Unload binary caches as possible */
+    m_binary_loader->unload();
 }
 
 Context::~Context() {
     free_system_context();
-    auto ret = lib.m_qnn_backend.contextFree(m_handle, nullptr);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    {
+        const auto ret = lib.m_qnn_backend.contextFree(m_handle, nullptr);
+        SMART_ASSERT(ret == QNN_SUCCESS, "failed to free QNN context");
+    }
 }
 
 void Context::print_info() {
@@ -416,11 +465,11 @@ void Context::print_info() {
         SMART_ASSERT(hw_blob_info_ptr->version == QNN_SYSTEM_CONTEXT_HTP_HW_INFO_BLOB_VERSION_V1);
         auto &hw_blob_info = hw_blob_info_ptr->contextBinaryHwInfoBlobV1_t;
 
-        fmt::println("Context core API version: {}", format_qnn_version(info.coreApiVersion));
-        fmt::println("Context backend API version: {}", format_qnn_version(info.backendApiVersion));
-        fmt::println("Context blob version: {}", format_qnn_version(info.contextBlobVersion));
-        fmt::println("Number of graphs: {}", info.numGraphs);
-        fmt::println("Spill-fill buffer size: {:.3f} MiB", hw_blob_info.spillFillBufferSize / 1024.0 / 1024);
+        SMART_LOG_INFO("Context core API version: {}", format_qnn_version(info.coreApiVersion));
+        SMART_LOG_INFO("Context backend API version: {}", format_qnn_version(info.backendApiVersion));
+        SMART_LOG_INFO("Context blob version: {}", format_qnn_version(info.contextBlobVersion));
+        SMART_LOG_INFO("Number of graphs: {}", info.numGraphs);
+        SMART_LOG_INFO("Spill-fill buffer size: {:.3f} MiB", hw_blob_info.spillFillBufferSize / 1024.0 / 1024);
 
     } break;
     case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_2: {
@@ -430,19 +479,19 @@ void Context::print_info() {
         SMART_ASSERT(hw_blob_info_ptr->version == QNN_SYSTEM_CONTEXT_HTP_HW_INFO_BLOB_VERSION_V1);
         auto &hw_blob_info = hw_blob_info_ptr->contextBinaryHwInfoBlobV1_t;
 
-        fmt::println("Context core API version: {}", format_qnn_version(info.coreApiVersion));
-        fmt::println("Context backend API version: {}", format_qnn_version(info.backendApiVersion));
-        fmt::println("Context blob version: {}", format_qnn_version(info.contextBlobVersion));
-        fmt::println("Number of graphs: {}", info.numGraphs);
-        fmt::println("Spill-fill buffer size: {:.3f} MiB", hw_blob_info.spillFillBufferSize / 1024.0 / 1024);
+        SMART_LOG_INFO("Context core API version: {}", format_qnn_version(info.coreApiVersion));
+        SMART_LOG_INFO("Context backend API version: {}", format_qnn_version(info.backendApiVersion));
+        SMART_LOG_INFO("Context blob version: {}", format_qnn_version(info.contextBlobVersion));
+        SMART_LOG_INFO("Number of graphs: {}", info.numGraphs);
+        SMART_LOG_INFO("Spill-fill buffer size: {:.3f} MiB", hw_blob_info.spillFillBufferSize / 1024.0 / 1024);
     } break;
 #if (QNN_API_VERSION_MINOR == 21)
     case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_3: {
         auto &info = m_binary_info->contextBinaryInfoV3;
-        fmt::println("Context core API version: {}", format_qnn_version(info.coreApiVersion));
-        fmt::println("Context backend API version: {}", format_qnn_version(info.backendApiVersion));
-        fmt::println("Context blob version: {}", format_qnn_version(info.contextBlobVersion));
-        fmt::println("Number of graphs: {}", info.numGraphs);
+        SMART_LOG_INFO("Context core API version: {}", format_qnn_version(info.coreApiVersion));
+        SMART_LOG_INFO("Context backend API version: {}", format_qnn_version(info.backendApiVersion));
+        SMART_LOG_INFO("Context blob version: {}", format_qnn_version(info.contextBlobVersion));
+        SMART_LOG_INFO("Number of graphs: {}", info.numGraphs);
     } break;
 #endif
     default:
@@ -453,7 +502,7 @@ void Context::print_info() {
 void Context::free_system_context() {
     if (m_system_context) {
         auto ret = lib.m_qnn_system.systemContextFree(m_system_context);
-        SMART_ASSERT(ret == QNN_SUCCESS);
+        SMART_ASSERT(ret == QNN_SUCCESS, "failed to free QNN system context");
     }
 
     m_binary_info    = nullptr;
@@ -462,10 +511,10 @@ void Context::free_system_context() {
 
 SharedBufferAllocator::SharedBufferAllocator(size_t _size) : m_size(_size) {
     m_data = lib.m_rpc.rpcmem_alloc(lib.m_rpc.RPCMEM_HEAP_ID_SYSTEM, lib.m_rpc.RPCMEM_DEFAULT_FLAGS, m_size);
-    SMART_ASSERT(m_data);
+    SMART_ASSERT(m_data, "failed to allocate RPC memory");
 
     m_fd = lib.m_rpc.rpcmem_to_fd(m_data);
-    SMART_ASSERT(m_fd != -1);
+    SMART_ASSERT(m_fd != -1, "failed to convert RPC memory into file descriptor");
 }
 
 SharedBufferAllocator::~SharedBufferAllocator() {
@@ -480,7 +529,13 @@ SharedBuffer::SharedBuffer(Context &context, SharedBufferAllocator &allocator, Q
     m_type(type) {
     m_size = type_size(type) * n_elements;
 
-    SMART_ASSERT(allocator.m_offset + m_size <= allocator.m_size);
+    SMART_ASSERT(
+        allocator.m_offset + m_size <= allocator.m_size,
+        "no free memory in QNN shared buffer allocator (required: {}, avail: {}, total: {})",
+        m_size,
+        allocator.m_size - allocator.m_offset,
+        allocator.m_size
+    );
     m_data = (char *)allocator.m_data + allocator.m_offset;
 
     QnnMemHtp_Descriptor_t htp_mem_desc = {
@@ -507,20 +562,18 @@ SharedBuffer::SharedBuffer(Context &context, SharedBufferAllocator &allocator, Q
     };
 
     auto ret = lib.m_qnn_backend.memRegister(context.m_handle, &mem_desc, 1, &m_handle);
-    if (ret != QNN_SUCCESS) {
-        throw std::runtime_error("Shared Buffer Error");
-    }
+    SMART_ASSERT(ret == QNN_SUCCESS, "faield to register QNN shared buffer");
 
     allocator.m_offset += m_size;
 }
 
 SharedBuffer::~SharedBuffer() {
     auto ret = lib.m_qnn_backend.memDeRegister(&m_handle, 1);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to unregister QNN shared buffer");
 }
 
 void SharedBuffer::memset(int byte) {
-    ::memset(m_data, byte, m_size);
+    std::memset(m_data, byte, m_size);
 }
 
 static void deep_copy_tensor(Qnn_Tensor_t &dst, const Qnn_Tensor_t &src) {
@@ -602,7 +655,8 @@ Tensor::Tensor(const Qnn_Tensor_t &source) {
 }
 
 Tensor::~Tensor() {
-    switch (QNN_TENSOR_GET_MEM_TYPE(m_tensor)) {
+    const auto tensor_mem_type = QNN_TENSOR_GET_MEM_TYPE(m_tensor);
+    switch (tensor_mem_type) {
     case QNN_TENSORMEMTYPE_RAW: {
         free(QNN_TENSOR_GET_CLIENT_BUF(m_tensor).data);
     } break;
@@ -612,7 +666,7 @@ Tensor::~Tensor() {
         break;
 
     default:
-        SMART_ASSERT(false);
+        SMART_ABORT("unknown memory type of tensor: {}", static_cast<int>(tensor_mem_type));
     }
     QNN_TENSOR_SET_MEM_TYPE(m_tensor, QNN_TENSORMEMTYPE_UNDEFINED);
 
@@ -663,13 +717,17 @@ void Tensor::setup_shared_buffer(SharedBuffer &buffer) {
 }
 
 auto Tensor::data() -> void * {
-    switch (QNN_TENSOR_GET_MEM_TYPE(m_tensor)) {
+    const auto tensor_mem_type = QNN_TENSOR_GET_MEM_TYPE(m_tensor);
+    switch (tensor_mem_type) {
     case QNN_TENSORMEMTYPE_RAW:
         return QNN_TENSOR_GET_CLIENT_BUF(m_tensor).data;
 
     case QNN_TENSORMEMTYPE_MEMHANDLE: // User should fill the shared buffer directly
+        SMART_ABORT("user should fill the shared buffer directly when using QNN memhandle under tensor");
+        break;
+
     default:
-        SMART_ASSERT(false);
+        SMART_ABORT("unknown memory type of tensor: {}", static_cast<int>(tensor_mem_type));
     }
 }
 
@@ -701,7 +759,7 @@ void Tensor::print() {
     }
 }
 
-Graph::Graph(Context &context, const std::string &name) {
+Graph::Graph(Context &context, const std::string &name) : m_name(name) {
     auto processGraphInfo = [&](auto &graph_info) {
         size_t n_inputs = graph_info.numGraphInputs;
         m_inputs.reserve(n_inputs);
@@ -720,8 +778,7 @@ Graph::Graph(Context &context, const std::string &name) {
     };
     switch (context.m_binary_info->version) {
     case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_1: {
-        auto &info                                       = context.m_binary_info->contextBinaryInfoV1;
-        const QnnSystemContext_GraphInfoV1_t *graph_info = nullptr;
+        auto &info = context.m_binary_info->contextBinaryInfoV1;
         for (size_t i = 0; i < info.numGraphs; i++) {
             const auto *current_graph = &info.graphs[i];
             SMART_ASSERT(current_graph->version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_1);
@@ -732,8 +789,7 @@ Graph::Graph(Context &context, const std::string &name) {
         }
     } break;
     case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_2: {
-        auto &info                                       = context.m_binary_info->contextBinaryInfoV2;
-        const QnnSystemContext_GraphInfoV2_t *graph_info = nullptr;
+        auto &info = context.m_binary_info->contextBinaryInfoV2;
         for (size_t i = 0; i < info.numGraphs; i++) {
             const auto *current_graph = &info.graphs[i];
             SMART_ASSERT(current_graph->version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_2);
@@ -743,10 +799,9 @@ Graph::Graph(Context &context, const std::string &name) {
             }
         }
     } break;
-#if (QNN_API_VERSION_MINOR == 21)
+#if (QNN_API_VERSION_MINOR >= 21)
     case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_3: {
-        auto &info                                       = context.m_binary_info->contextBinaryInfoV3;
-        const QnnSystemContext_GraphInfoV3_t *graph_info = nullptr;
+        auto &info = context.m_binary_info->contextBinaryInfoV3;
         for (size_t i = 0; i < info.numGraphs; i++) {
             const auto *current_graph = &info.graphs[i];
             SMART_ASSERT(current_graph->version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_3);
@@ -758,7 +813,7 @@ Graph::Graph(Context &context, const std::string &name) {
     } break;
 #endif
     default:
-        SMART_ASSERT(false);
+        SMART_ABORT("Unknown QNN binary version: {}", static_cast<int>(context.m_binary_info->version));
         break;
     }
 }
@@ -777,8 +832,7 @@ auto Graph::get_tensor(const std::string &name, bool required) -> Tensor * {
     }
 
     if (required) {
-        fmt::println(stderr, "Cannot find tensor with name \"{}\"", name);
-        SMART_ASSERT(false);
+        SMART_ABORT("Cannot find tensor with name \"{}\"", name);
     } else {
         return nullptr;
     }
@@ -801,7 +855,7 @@ void Graph::set_n_hvx_threads(size_t n_threads) {
 
     const QnnGraph_Config_t *graph_configs[] = {&hvx_thread_config, nullptr};
     auto ret                                 = lib.m_qnn_backend.graphSetConfig(m_handle, graph_configs);
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to sett QNN graph config");
 }
 
 void Graph::execute() {
@@ -814,7 +868,7 @@ void Graph::execute() {
         nullptr,
         nullptr
     );
-    SMART_ASSERT(ret == QNN_SUCCESS);
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to execute QNN graph");
 }
 
 Session::Session(const Path &libs_folder) {

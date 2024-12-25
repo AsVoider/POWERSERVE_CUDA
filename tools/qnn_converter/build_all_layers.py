@@ -20,7 +20,7 @@ def run(cmd_args: list):
     assert ret == 0
 
 
-root_folder = Path(".").absolute()
+root_folder = Path(__file__).parent.absolute()
 
 
 def build_shared_object(chunk_id: int):

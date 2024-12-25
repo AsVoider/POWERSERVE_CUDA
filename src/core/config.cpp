@@ -1,6 +1,14 @@
 #include "core/config.hpp"
 
+#include "common/logger.hpp"
+#include "common/type_def.hpp"
 #include "nlohmann/json.hpp"
+#include "uv.h"
+
+#include <cstddef>
+#include <filesystem>
+#include <fstream>
+#include <string>
 
 namespace smart {
 
@@ -51,6 +59,7 @@ HyperParams::HyperParams(const Path &params_file) {
 ModelConfig::ModelConfig(const Path &model_config_file) {
     nlohmann::json j;
     std::ifstream file(model_config_file);
+    SMART_ASSERT(file.good(), "failed to open model config file: {}", model_config_file);
     file >> j;
 
     j["version"].get_to(version);

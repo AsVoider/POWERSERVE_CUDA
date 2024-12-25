@@ -1,6 +1,8 @@
 #include "executor/executor.hpp"
 
-#include "common.hpp"
+#include "common/logger.hpp"
+
+#include <cstdint>
 
 namespace smart {
 
@@ -23,7 +25,7 @@ void Executor::allocate_buffers() {
         } break;
 
         default:
-            SMART_ASSERT(false);
+            SMART_ABORT("could not allocate buffer for data type: {}", static_cast<int>(tensor->m_dtype));
         }
     }
 }
@@ -141,7 +143,7 @@ void Executor::run() {
             m_platform.ggml_backend->add_cache(src, L, pos, head_id, is_k);
         } break;
         default:
-            SMART_ASSERT(false);
+            SMART_ABORT("Unknown OpType: {}", static_cast<int>(op->op));
         }
     }
 }

@@ -1,3 +1,4 @@
+#include "common/logger.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
@@ -8,8 +9,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <fmt/core.h>
-#include <fmt/ostream.h>
 #include <iostream>
 #include <vector>
 

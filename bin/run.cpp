@@ -1,5 +1,6 @@
 #include "CLI/CLI.hpp"
-#include "common.hpp"
+#include "common/logger.hpp"
+#include "common/perf.hpp"
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
 #include "model/module/quest_attention.hpp"
@@ -50,21 +51,21 @@ int main(int argc, char *argv[]) {
     } else if (attn_type == "quest") {
         model->m_attn = std::make_shared<smart::QuestAttention>(model->m_config->llm, model->m_weights);
     }
-    smart::get_memory_usage("after attn init");
+    SMART_LOG_INFO("after attn init: {}", smart::perf_get_mem_result());
 
     std::string tokenizer_path = config->main_model_dir / smart::MODEL_VOCAB_FILENAME;
     smart::Tokenizer tokenizer(tokenizer_path);
-    smart::get_memory_usage("after tokenizer init");
+    SMART_LOG_INFO("after tokenizer init: {}", smart::perf_get_mem_result());
 
     smart::SamplerChain sampler{sampler_config, tokenizer};
-    smart::get_memory_usage("after sampler init");
+    SMART_LOG_INFO("after sampler init: {}", smart::perf_get_mem_result());
 
     {
-        fmt::println("prompt      : {}", smart::abbreviation(prompt, 50));
-        fmt::println("steps       : {}", steps);
-        fmt::println("attn_type   : {}", attn_type);
-        fmt::println("model arch  : {}", config->main_model_config->arch);
-        fmt::println("n_threads   : {}", n_threads);
+        SMART_LOG_INFO("prompt      : {}", smart::abbreviation(prompt, 50));
+        SMART_LOG_INFO("steps       : {}", steps);
+        SMART_LOG_INFO("attn_type   : {}", attn_type);
+        SMART_LOG_INFO("model arch  : {}", config->main_model_config->arch);
+        SMART_LOG_INFO("n_threads   : {}", n_threads);
     }
 
     // generate
@@ -97,10 +98,10 @@ int main(int argc, char *argv[]) {
     if (start) {
         decode_end     = smart::time_in_ms();
         auto n_prefill = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
-        fmt::println(stderr, "prefill time: {} s", (double)(prefill_end - prefill_start) / 1000);
-        fmt::println("prefill speed: {} tokens/s", n_prefill / (double)(prefill_end - prefill_start) * 1000);
-        fmt::println("decode speed: {} tokens/s", actual_predict / (double)(decode_end - prefill_end) * 1000);
-        fmt::println(
+        SMART_LOG_INFO("prefill time: {} s", (double)(prefill_end - prefill_start) / 1000);
+        SMART_LOG_INFO("prefill speed: {} tokens/s", n_prefill / (double)(prefill_end - prefill_start) * 1000);
+        SMART_LOG_INFO("decode speed: {} tokens/s", actual_predict / (double)(decode_end - prefill_end) * 1000);
+        SMART_LOG_INFO(
             "total speed: {} tokens/s", (n_prefill + actual_predict) / (double)(decode_end - prefill_start) * 1000
         );
     }

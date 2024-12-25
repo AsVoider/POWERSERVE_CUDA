@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common.hpp"
+#include "common/logger.hpp"
 
 namespace smart {
 
@@ -50,7 +50,7 @@ struct KVView {
                 dst += stride;
             }
         } else {
-            SMART_ASSERT(false);
+            SMART_ABORT("unsupported layout of KV");
         }
     }
 };

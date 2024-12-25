@@ -1,8 +1,9 @@
 #pragma once
 
-#include "common.hpp"
+#include "common/type_def.hpp"
 
 #include <cstdint>
+#include <string>
 
 namespace smart {
 

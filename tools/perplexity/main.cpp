@@ -1,5 +1,7 @@
 #include "CLI/CLI.hpp"
 #include "backend/platform.hpp"
+#include "common/logger.hpp"
+#include "common/perf.hpp"
 #include "core/config.hpp"
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
@@ -75,23 +77,23 @@ int main(int argc, char *argv[]) {
 #endif
 
     model->m_attn = std::make_shared<smart::NormAttention>(model->m_config->llm, model->m_weights);
-    smart::get_memory_usage("after attn init");
+    SMART_LOG_INFO("after attention module init: {}", smart::perf_get_mem_result());
 
     // load tokenizer
     std::string tokenizer_path = config->main_model_dir / smart::MODEL_VOCAB_FILENAME;
     smart::Tokenizer tokenizer(tokenizer_path);
-    smart::get_memory_usage("after tokenizer init");
+    SMART_LOG_INFO("after tokenizer init: {}", smart::perf_get_mem_result());
 
     // ppl
     PerplexityCalculator ppl_calculator(model->m_config->llm.vocab_size);
 
-    { fmt::println(stderr, "batch_size  : {}", batch_size); }
+    { SMART_LOG_INFO("batch_size  : {}", batch_size); }
 
     // generate
 
     auto prompt_tokens = tokenizer.tokenize(config->hyper_params.prompt, tokenizer.m_vocab.tokenizer_add_bos);
     auto n_tokens      = prompt_tokens.size();
-    fmt::println("dataset: {} tokens", n_tokens);
+    SMART_LOG_INFO("dataset: {} tokens", n_tokens);
 
     size_t pos      = 0;
     size_t batch_id = 1;
@@ -118,8 +120,9 @@ int main(int argc, char *argv[]) {
                 pos += 1;
             }
         }
-        if (batch_id >= PPL_START_ID)
-            fmt::println("ppl {}: {}", ppl_calculator.n_tokens, ppl_calculator.current_ppl);
+        if (batch_id >= PPL_START_ID) {
+            SMART_LOG_INFO("ppl {}: {}", ppl_calculator.n_tokens, ppl_calculator.current_ppl);
+        }
         batch_id += 1;
     }
 }

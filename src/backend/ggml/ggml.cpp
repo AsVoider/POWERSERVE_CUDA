@@ -1,6 +1,7 @@
 #include "ggml.hpp"
 
 #include "backend/ggml/buffer.hpp"
+#include "core/data_type.hpp"
 #include "ggml-quants.h"
 #include "ggml.h"
 #include "model/module/region.hpp"
@@ -41,7 +42,7 @@ void GGMLBackend::get_embedding(const Tensor *dst, const Tensor *weight, const s
         } break;
 
         default:
-            SMART_ASSERT(false);
+            SMART_ABORT("unsupported data type: {}", static_cast<int>(weight->m_dtype));
         }
     }
 }

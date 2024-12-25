@@ -14,10 +14,9 @@ static std::unique_ptr<Model> load_model(std::shared_ptr<Config> config) {
     } else if (arch == "internvl") {
         model = std::make_unique<smart::InternVL>(weight_path, config->main_model_config);
     } else {
-        fmt::print("Unknown model type\n");
+        SMART_ABORT("unknown model type: {}", arch);
     }
-
-    return std::move(model);
+    return model;
 }
 
 } // namespace smart

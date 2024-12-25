@@ -1,5 +1,7 @@
 #include "speculator.hpp"
 
+#include "common/perf.hpp"
+
 #include <algorithm>
 
 namespace smart {
@@ -32,22 +34,20 @@ void Speculative::TokenTree::build_tree(
         return;
     this_turn_depth = std::max(this_turn_depth, now_depth);
     int id          = __idx++;
-    if (id > MAX_SPEC_NODES) {
-        FMT_ASSERT(false, "too many nodes");
-    }
+    SMART_ASSERT(id <= MAX_SPEC_NODES, "too many nodes");
+
     if (father_id != -1) {
         son[father_id].push_back(id);
     }
-    FMT_ASSERT(id == int(tk_list.size()), "wrong index");
+    SMART_ASSERT(id == int(tk_list.size()), "wrong index");
 
     tk_list.push_back(father);
     depth_list.push_back(now_depth);
     fa_list.push_back(father_id);
 
-    long temp_start = time_in_ms();
-    auto logits     = m_model->forward({father}, {m_previous_position + now_depth}, CausalAttentionMask(1));
-    long temp_end   = time_in_ms();
-    elapsed_time += temp_end - temp_start;
+    const TimeCounter model_forward_timer;
+    auto logits = m_model->forward({father}, {m_previous_position + now_depth}, CausalAttentionMask(1));
+    elapsed_time += model_forward_timer.get_time_in_ms();
 
     auto x = logits[0];
     std::nth_element(x.begin(), x.begin() + MAX_EXPANSION, x.end(), std::greater<float>());
@@ -243,20 +243,20 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
     if (pos > 1) {
         int system_prompt_num = 11;
         long end              = time_in_ms();
-        fmt::println(
+        SMART_LOG_INFO(
             "\n\nprefill speed: {} tokens/s", (num_prompt_tokens - 1) / (double)(prefill_end - prefill_start) * 1000
         );
-        fmt::println(
+        SMART_LOG_INFO(
             "decode speed: {} tokens/s", (pos - num_prompt_tokens - system_prompt_num) / (double)(end - start) * 1000
         );
-        fmt::println(
+        SMART_LOG_INFO(
             "accept rate: {}%",
             100.0 * std::accumulate(stats.accept_tk_num_every_turn.begin(), stats.accept_tk_num_every_turn.end(), 0) /
                 (double)stats.accept_tk_num_every_turn.size() /
                 (std::accumulate(stats.draft_depth_every_turn.begin(), stats.draft_depth_every_turn.end(), 0) /
                  (double)stats.draft_depth_every_turn.size())
         );
-        fmt::println(
+        SMART_LOG_INFO(
             "average generate toks every turn: {} / {}",
             std::accumulate(stats.accept_tk_num_every_turn.begin(), stats.accept_tk_num_every_turn.end(), 0) /
                     (double)stats.accept_tk_num_every_turn.size() +
@@ -265,17 +265,17 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
                     (double)stats.draft_depth_every_turn.size() +
                 1
         );
-        fmt::println(
+        SMART_LOG_INFO(
             "draft time: {} s, {}% of all model time",
             stats.draft_time / 1000.0,
             stats.draft_time * 100.0 / (stats.draft_time + stats.target_time)
         );
-        fmt::println(
+        SMART_LOG_INFO(
             "target time: {} s, {}% of all model time",
             stats.target_time / 1000.0,
             100.0 - stats.draft_time * 100.0 / (stats.draft_time + stats.target_time)
         );
-        fmt::println(
+        SMART_LOG_INFO(
             "npu free time: {} s, {}% of all decoding time",
             (end - prefill_end - stats.draft_time - stats.target_time) / 1000.0,
             (end - prefill_end - stats.draft_time - stats.target_time) * 100.0 / (end - prefill_end)
@@ -285,18 +285,18 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
         for (auto i : stats.accept_tk_num_every_turn) {
             accept_tk_num_every_turn[i]++;
         }
-        fmt::println("Accept_tk_num_every_turn:");
+        SMART_LOG_INFO("Accept_tk_num_every_turn:");
         for (auto [k, v] : accept_tk_num_every_turn) {
-            fmt::println("-- Accept_tk_num_every_turn[{}]: {}", k, v);
+            SMART_LOG_INFO("-- Accept_tk_num_every_turn[{}]: {}", k, v);
         }
-        fmt::println("All accept_tk_num_every_turn: {}", stats.accept_tk_num_every_turn);
-        fmt::print("Accept rate every turn: [");
+        SMART_LOG_INFO("All accept_tk_num_every_turn: {}", stats.accept_tk_num_every_turn);
+        SMART_LOG_INFO("Accept rate every turn: [");
         for (auto i : stats.accept_rate_every_turn) {
-            fmt::print("{:.2f}, ", i);
+            SMART_LOG_INFO("{:.2f}, ", i);
         }
-        fmt::println("]");
-        fmt::println("Draft depth every turn: {}", stats.draft_depth_every_turn);
-        fmt::println(
+        SMART_LOG_INFO("]");
+        SMART_LOG_INFO("Draft depth every turn: {}", stats.draft_depth_every_turn);
+        SMART_LOG_INFO(
             "Prefilled tokens: {}, Decoded tokens: {}",
             num_prompt_tokens - 1,
             pos - num_prompt_tokens - system_prompt_num

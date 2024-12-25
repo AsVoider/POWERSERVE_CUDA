@@ -1,5 +1,5 @@
 #include "CLI/CLI.hpp"
-#include "common.hpp"
+#include "common/logger.hpp"
 #include "ggml.h"
 #include "nlohmann/json.hpp"
 

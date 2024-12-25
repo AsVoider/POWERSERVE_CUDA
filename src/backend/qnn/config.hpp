@@ -1,9 +1,10 @@
 #pragma once
 
-#include "common.hpp"
+#include "common/logger.hpp"
 #include "core/config.hpp"
+#include "nlohmann/json.hpp"
 
-#include <nlohmann/json.hpp>
+#include <fstream>
 
 namespace smart::qnn {
 

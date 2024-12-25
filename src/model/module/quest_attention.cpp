@@ -1,6 +1,5 @@
 #include "quest_attention.hpp"
 
-#include "common.hpp"
 #include "core/tensor.hpp"
 
 namespace smart {

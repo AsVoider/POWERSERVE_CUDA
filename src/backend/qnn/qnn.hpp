@@ -4,10 +4,12 @@
 #include "HTP/QnnHtpDevice.h"
 #include "QnnInterface.h"
 #include "System/QnnSystemInterface.h"
-#include "common.hpp"
+#include "common/logger.hpp"
+#include "common/type_def.hpp"
+#include "storage/file_loader.hpp"
 #include "uv.h"
 
-#include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -28,7 +30,7 @@ static constexpr size_t type_size(QNNDataType type) {
         return 1;
 
     default:
-        SMART_ASSERT(false);
+        SMART_ABORT("unknown QNN data type: {}", static_cast<int>(type));
     }
 }
 
@@ -134,6 +136,11 @@ struct ContextGroup {
 };
 
 struct Context {
+    static constexpr auto DEFAULT_FILE_LOAD_METHOD = storage::FileLoaderMethod::MMap;
+
+    std::string m_binary_filename;
+    std::unique_ptr<storage::FileLoader> m_binary_loader;
+
     Qnn_ContextHandle_t m_handle                       = nullptr;
     QnnSystemContext_Handle_t m_system_context         = nullptr;
     const QnnSystemContext_BinaryInfo_t *m_binary_info = nullptr;

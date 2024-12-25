@@ -1,5 +1,6 @@
 #include "CLI/CLI.hpp"
-#include "common.hpp"
+#include "common/logger.hpp"
+#include "common/perf.hpp"
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
 #include "model/module/quest_attention.hpp"
@@ -28,8 +29,8 @@ int main(int argc, char *argv[]) {
     CLI11_PARSE(app, argc, argv);
 
     auto config                               = std::make_shared<smart::Config>(config_path);
-    std::unique_ptr<smart::Model> main_model  = smart::load_model(config->main_llm_config, config->main_llm_dir);
-    std::unique_ptr<smart::Model> draft_model = smart::load_model(config->draft_llm_config, config->draft_llm_dir);
+    std::unique_ptr<smart::Model> main_model  = smart::load_model(config->main_model_config, config->main_model_dir);
+    std::unique_ptr<smart::Model> draft_model = smart::load_model(config->draft_model_config, config->draft_llm_dir);
     auto [sampler_config, steps, n_threads, prompt] = config->hyper_params;
 
     main_model->m_platform  = std::make_shared<smart::Platform>();
@@ -39,12 +40,8 @@ int main(int argc, char *argv[]) {
     draft_model->m_platform->init_ggml_backend(draft_model->m_config, n_threads);
 #if defined(SMART_WITH_QNN)
     if (use_qnn) {
-        main_model->m_platform->init_qnn_backend(
-            config->main_llm_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, main_model->m_config
-        );
-        draft_model->m_platform->init_qnn_backend(
-            config->draft_llm_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, draft_model->m_config
-        );
+        main_model->m_platform->init_qnn_backend(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME);
+        draft_model->m_platform->init_qnn_backend(config->draft_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME);
     }
 #endif
 
@@ -56,19 +53,19 @@ int main(int argc, char *argv[]) {
         draft_model->m_attn = std::make_shared<smart::QuestAttention>(draft_model->m_config, draft_model->m_weights);
     }
 
-    std::string tokenizer_path = config->main_llm_dir / smart::LLM_VOCAB_FILENAME;
+    std::string tokenizer_path = config->main_model_dir / smart::MODEL_VOCAB_FILENAME;
     smart::Tokenizer tokenizer(tokenizer_path);
-    smart::get_memory_usage("after tokenizer init");
+    SMART_LOG_INFO("after tokenizer init: {}", smart::perf_get_mem_result());
 
     smart::SamplerChain sampler{sampler_config, tokenizer};
-    smart::get_memory_usage("after sampler init");
+    SMART_LOG_INFO("after sampler init: {}", smart::perf_get_mem_result());
 
     {
-        fmt::println("prompt      : {}", smart::abbreviation(prompt, 50));
-        fmt::println(stderr, "vocab_path  : {}", tokenizer_path);
-        fmt::println(stderr, "steps       : {}", steps);
-        fmt::println(stderr, "attn_type   : {}", attn_type);
-        fmt::println(stderr, "n_threads   : {}", n_threads);
+        SMART_LOG_INFO("prompt      : {}", smart::abbreviation(prompt, 50));
+        SMART_LOG_INFO("vocab_path  : {}", tokenizer_path);
+        SMART_LOG_INFO("steps       : {}", steps);
+        SMART_LOG_INFO("attn_type   : {}", attn_type);
+        SMART_LOG_INFO("n_threads   : {}", n_threads);
     }
 
     // generate

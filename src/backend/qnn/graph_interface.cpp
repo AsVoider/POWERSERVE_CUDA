@@ -1,14 +1,20 @@
 #include "graph_interface.hpp"
 
 #include "causal_models.hpp"
+#include "fmt/base.h"
+#include "storage/file_loader.hpp"
+
+#include <cstddef>
+#include <memory>
+#include <vector>
 
 namespace smart::qnn {
 
 GraphInterface::GraphInterface(CausalLM &parent, const QNNGraphConfig &config) :
     m_parent(parent),
-    m_context_binary(m_parent.load_context_binary(config.model_path)),
+    m_graph_config(config),
     m_model_config(*parent.m_model_config),
-    m_graph_config(config) {}
+    m_context_binary(m_parent.load_context_binary(config.model_path)) {}
 
 void GraphInterface::setup_tensor(
     const std::string &tensor_name, const std::vector<size_t> &tensor_shape, const Qnn_DataType_t tensor_datatype
@@ -209,11 +215,14 @@ void ModelChunk::load_kv(KVCacheInterface &kv_cache) {
             fmt::vformat(m_config.kv_path_format, fmt::make_format_args(layer_id_arg, kv_type_arg, head_id_arg));
 
         size_t n_elements = m_config.kv_size * head_dim;
-        auto data         = read_binary_file<float>(path, n_elements);
+
+        auto binary_loader         = storage::build_file_loader(path, storage::FileLoaderMethod::DIO);
+        const auto binary_buffer   = binary_loader->get_buffer<float>();
+        const float *kv_cache_data = binary_buffer.data();
 
         std::vector<__fp16> fp16_data(n_elements);
         for (size_t i = 0; i < n_elements; i++) {
-            fp16_data[i] = data[i];
+            fp16_data[i] = kv_cache_data[i];
         }
 
         for (size_t i = 0; i < m_config.kv_size; i++) {

@@ -3,7 +3,7 @@
 #include "backend/backend.hpp"
 #include "backend/ggml/buffer.hpp"
 #include "backend/ggml/ggml_kv_cache.hpp"
-#include "common.hpp"
+#include "common/logger.hpp"
 #include "core/config.hpp"
 #include "core/data_type.hpp"
 #include "core/tensor.hpp"
@@ -32,7 +32,7 @@ static ggml_type convert_datatype_to_ggml(DataType dtp) {
     case DataType::INT32:
         return GGML_TYPE_I32;
     default:
-        SMART_ASSERT(false);
+        SMART_ABORT("unsupported data type: {}", static_cast<int>(dtp));
     }
 }
 
@@ -47,7 +47,7 @@ static DataType convert_datatype_from_ggml(ggml_type tp) {
     case GGML_TYPE_Q8_0:
         return DataType::GGML_Q8_0;
     default:
-        SMART_ASSERT(false);
+        SMART_ABORT("unsupported ggml data type: {}", static_cast<int>(tp));
     }
 }
 
@@ -78,12 +78,12 @@ static std::unique_ptr<ggml_tensor> convert_to_ggml(const Tensor *tensor) {
 // debug functions
 static void debug_meta_info(gguf_context *gguf_ctx, ggml_context *ggml_ctx) {
     {
-        fmt::println("version     : {:10}", gguf_get_version(gguf_ctx));
-        fmt::println("n_kv        : {:10}", gguf_get_n_kv(gguf_ctx));
-        fmt::println("n_tensors   : {:10}", gguf_get_n_tensors(gguf_ctx));
-        fmt::println("alignment   : {:10}", gguf_get_alignment(gguf_ctx));
-        fmt::println("meta size   : {:10}", gguf_get_meta_size(gguf_ctx));
-        fmt::println("data offset : {:10}", gguf_get_data_offset(gguf_ctx));
+        SMART_LOG_INFO("version     : {:10}", gguf_get_version(gguf_ctx));
+        SMART_LOG_INFO("n_kv        : {:10}", gguf_get_n_kv(gguf_ctx));
+        SMART_LOG_INFO("n_tensors   : {:10}", gguf_get_n_tensors(gguf_ctx));
+        SMART_LOG_INFO("alignment   : {:10}", gguf_get_alignment(gguf_ctx));
+        SMART_LOG_INFO("meta size   : {:10}", gguf_get_meta_size(gguf_ctx));
+        SMART_LOG_INFO("data offset : {:10}", gguf_get_data_offset(gguf_ctx));
     }
 
     {
@@ -91,7 +91,7 @@ static void debug_meta_info(gguf_context *gguf_ctx, ggml_context *ggml_ctx) {
             auto key      = gguf_get_key(gguf_ctx, i);
             auto v_type   = gguf_get_kv_type(gguf_ctx, i);
             auto type_str = gguf_type_name(v_type);
-            fmt::println("{:40}: {:4}", key, type_str);
+            SMART_LOG_INFO("{:40}: {:4}", key, type_str);
         }
     }
 
@@ -99,16 +99,16 @@ static void debug_meta_info(gguf_context *gguf_ctx, ggml_context *ggml_ctx) {
         for (auto i = 0; i < gguf_get_n_tensors(gguf_ctx); i++) {
             auto name   = gguf_get_tensor_name(gguf_ctx, i);
             auto t_type = gguf_get_tensor_type(gguf_ctx, i);
-            fmt::println("{:40}: {:6}: {:10}", name, ggml_type_name(t_type), gguf_get_tensor_offset(gguf_ctx, i));
+            SMART_LOG_INFO("{:40}: {:6}: {:10}", name, ggml_type_name(t_type), gguf_get_tensor_offset(gguf_ctx, i));
         }
     }
 
     {
-        fmt::println("GGML used mem        : {:10}", ggml_used_mem(ggml_ctx));
-        fmt::println("GGML no alloc        : {:10}", ggml_get_no_alloc(ggml_ctx));
-        fmt::println("GGML mem buffer      : {:10}", ggml_get_mem_buffer(ggml_ctx));
-        fmt::println("GGML mem size        : {:10}", ggml_get_mem_size(ggml_ctx));
-        fmt::println("GGML max tensor size : {:10}", ggml_get_max_tensor_size(ggml_ctx));
+        SMART_LOG_INFO("GGML used mem        : {:10}", ggml_used_mem(ggml_ctx));
+        SMART_LOG_INFO("GGML no alloc        : {:10}", ggml_get_no_alloc(ggml_ctx));
+        SMART_LOG_INFO("GGML mem buffer      : {:10}", ggml_get_mem_buffer(ggml_ctx));
+        SMART_LOG_INFO("GGML mem size        : {:10}", ggml_get_mem_size(ggml_ctx));
+        SMART_LOG_INFO("GGML max tensor size : {:10}", ggml_get_max_tensor_size(ggml_ctx));
     }
 }
 
@@ -116,7 +116,7 @@ static void debug_tensors_info(gguf_context *gguf_ctx, ggml_context *ggml_ctx) {
     for (auto i = 0; i < gguf_get_n_tensors(gguf_ctx); i++) {
         auto t = ggml_get_tensor(ggml_ctx, gguf_get_tensor_name(gguf_ctx, i));
 
-        fmt::println(
+        SMART_LOG_DEBUG(
             "{:40}|{:>5}|({:6},{:6},{:1},{:1})|{:10}|{:4}|{:4}|{:10}",
             ggml_get_name(t),
             ggml_type_name(t->type),
@@ -157,7 +157,7 @@ static void debug_system_info(void) {
     s += "MATMUL_INT8 = " + std::to_string(ggml_cpu_has_matmul_int8()) + " | ";
     s += "LLAMAFILE = " + std::to_string(ggml_cpu_has_llamafile()) + " | ";
 
-    fmt::println("system info: {}", s);
+    SMART_LOG_INFO("system info: {}", s);
 }
 
 // **Note**: Backend receives Tensor not TensorNode

@@ -1,11 +1,12 @@
 #pragma once
 
-#include "common.hpp"
 #include "core/config.hpp"
 #include "model/module/attention_mask.hpp"
 #include "model/module/region.hpp"
 
 #include <cstddef>
+#include <cstdint>
+#include <vector>
 
 namespace smart {
 
