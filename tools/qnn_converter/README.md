@@ -10,6 +10,12 @@
         #[INFO] QNN_SDK_ROOT: /path/to/aforementioned/QNN/installation/directory
         #[INFO] SNPE_ROOT: /path/to/aforementioned/QNN/installation/directory
         ```
+    - You should use the Python virtual environment that was configured when setting up the QNN environment.
+        ```sh
+        export PYTHON_VENV_PATH=/path/to/python/virtual/environment
+        source $PYTHON_VENV_PATH/bin/activate
+        # Note:remember install model frameworks(e.g. torch==1.13.1 onnx==1.16.1 onnxruntime==1.18.0)
+        ```
 2. Run the one-click conversion script to complete the conversion
     ```sh
     python converter.py \
@@ -17,8 +23,11 @@
     --model-name llama3_2_1b \
     --system-prompt-file system_prompt_llama.txt \ 
     --prompt-file lab_intro_llama.md \
-    --batch-size 1 128 \
-    --artifact-name llama3_2_1b
-    # Note:system-prompt-file and lab_intro_llama.md should be adjusted based on whether it is an Instruct model and the model template
+    --batch-sizes 1 128 \
+    --artifact-name llama3_2_1b \
+    --soc 8gen3
+    # Note:
+    # 1. System-prompt-file and lab_intro_llama.md should be adjusted based on whether it is an Instruct model and the model template
+    # 2. The number of batch sizes supports up to two.
     ```
     After the conversion is completed, copy the resulting output folder to the correct location  for the QNN model on the phone to run

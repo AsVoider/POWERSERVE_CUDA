@@ -8,6 +8,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--build-folder", type=Path, required=True)
 parser.add_argument("--artifact-name", type=str, required=True)
 parser.add_argument("--graph-names", type=str, nargs="+", required=True)
+parser.add_argument("--soc-model", type=int, default=57)
 parser.add_argument("--log-file", type=str, default="build_bin.log")
 
 args = parser.parse_args()
@@ -29,6 +30,7 @@ backend_path = qnn_sdk_folder / "lib" / "x86_64-linux-clang" / "libQnnHtp.so"
 htp_setting_path = build_folder / "htp_setting.json"
 htp_config_path = build_folder / "htp_config.json"
 
+SOC_MODEL_TO_DSP_ARCH = {43: "v73", 57: "v75", 69: "v79"}
 
 log_file = open(args.log_file, "w")
 
@@ -46,7 +48,7 @@ def generate_context_binary():
 
     htp_setting = {
         "graphs": [{"graph_names": graph_names, "fp16_relaxed_precision": 1, "vtcm_mb": 8, "O": 3, "hvx_threads": 4}],
-        "devices": [{"dsp_arch": "v75", "soc_model": 57}],
+        "devices": [{"dsp_arch": SOC_MODEL_TO_DSP_ARCH[args.soc_model], "soc_model": args.soc_model}],
         "context": {"weight_sharing_enabled": True},
     }
 
