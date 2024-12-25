@@ -38,7 +38,7 @@ InternVL::~InternVL() {
     gguf_free(gguf_ctx);
 }
 
-auto InternVL::preprocess(std::vector<const Path> &img_paths, const std::string &prompt) -> std::string {
+auto InternVL::preprocess(const std::vector<Path> &img_paths, const std::string &prompt) -> std::string {
     InternVL2ImageProcessor img_processor;
     for (auto &img_path : img_paths) {
         fmt::println("\nload image: {}", img_path);
@@ -99,19 +99,11 @@ auto InternVL::forward(
 
     {
         SMART_UNUSED(lm_head);
-        // attention and ffn
-        for (size_t L = 0; L < m_config->llm.n_layers; L++) {
-            auto att_o = m_attn->build(g, x, L, pos, mask);
-            auto ffn_o = m_ffn->build(g, att_o, L);
-            x          = ffn_o;
-        }
-
-        // final output
-        auto rms_final_w    = g.add_tensor(m_weights->rms_final_weight);
-        auto final_rms_norm = g.rms_norm(x, rms_final_w, m_config->llm.norm_eps);
-
-        auto output_w = g.add_tensor(m_weights->output_weight);
-        logits        = g.mat_mul(final_rms_norm, output_w);
+        SMART_UNUSED(pos);
+        SMART_UNUSED(x);
+        SMART_UNUSED(mask);
+        fmt::println("Internvl Model not support in cpu");
+        SMART_ASSERT(false);
     }
 
     Executor executor(*m_platform, g);
@@ -147,9 +139,9 @@ auto InternVL::decode(Sampler &sampler, const std::vector<Token> tokens, const s
     return toks;
 }
 
-auto InternVL::generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps)
+auto InternVL::generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size)
     -> Model::TokenRange {
-    std::vector<const Path> imgs;
+    std::vector<Path> imgs;
     size_t start_pos = 0, end_pos = 0;
     std::string start_tag   = "<img>";
     std::string end_tag     = "</img>";
@@ -174,7 +166,7 @@ auto InternVL::generate(Tokenizer &tokenizer, Sampler &sampler, const std::strin
     if (!imgs.empty()) {
         processed_prompt = preprocess(imgs, instruction);
     }
-    return Model::TokenRange(*this, tokenizer, sampler, processed_prompt, steps);
+    return Model::TokenRange(*this, tokenizer, sampler, processed_prompt, steps, batch_size);
 }
 
 } // namespace smart

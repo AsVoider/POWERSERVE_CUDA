@@ -1,4 +1,6 @@
-#include "ggml_kv_cache.hpp"
+#include "backend/ggml/ggml_kv_cache.hpp"
+
+#include "backend/ggml/buffer.hpp"
 
 namespace smart::ggml {
 
@@ -28,6 +30,17 @@ void GGMLKV::prepare_model_chunk() {
     for (size_t L = 0; L < m_n_layers; L++) {
         key_buffer[L].reserve(layer_size);
         value_buffer[L].reserve(layer_size);
+
+        chunk.key_tensors.emplace_back(Tensor(DataType::FP32, {m_n_ctx, m_kv_dim, 1, 1}));
+        chunk.value_tensors.emplace_back(Tensor(DataType::FP32, {m_n_ctx, m_kv_dim, 1, 1}));
+        Buffer::Stride stride = {
+            sizeof(float),
+            sizeof(float) * m_n_ctx,
+            sizeof(float) * m_kv_dim * m_n_ctx,
+            sizeof(float) * m_kv_dim * m_n_ctx
+        };
+        chunk.key_tensors[L].m_data   = std::make_shared<Buffer>(stride, key_buffer[L].data());
+        chunk.value_tensors[L].m_data = std::make_shared<Buffer>(stride, value_buffer[L].data());
     }
 
     k.resize(m_n_layers);

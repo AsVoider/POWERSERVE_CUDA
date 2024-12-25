@@ -62,27 +62,27 @@ auto LlamaModel::forward(
                 auto rms_final_w    = g.add_tensor(m_weights->rms_final_weight);
                 auto final_rms_norm = g.rms_norm(x, rms_final_w, llm_config.norm_eps);
                 auto output_w       = g.add_tensor(m_weights->output_weight);
-                logits              = g.mat_mul(final_rms_norm, output_w);
+                logits              = g.mat_mul(output_w, final_rms_norm);
             }
         }
     } else
 #endif
     {
         if (!lazy_load) {
-            SMART_UNUSED(lm_head);
-            // attention and ffn
+            m_platform->ggml_backend->reset_kv_batch_size(batch_size);
             for (size_t L = 0; L < llm_config.n_layers; L++) {
-                auto att_o = m_attn->build(g, x, L, pos, mask);
+                auto [k_cache, v_cache] = m_platform->ggml_backend->m_kv->get_cache(L);
+                auto att_o = m_attn->build(g, x, L, g.add_tensor(k_cache), g.add_tensor(v_cache), pos, mask);
                 auto ffn_o = m_ffn->build(g, att_o, L);
                 x          = ffn_o;
             }
-
-            // final output
-            auto rms_final_w    = g.add_tensor(m_weights->rms_final_weight);
-            auto final_rms_norm = g.rms_norm(x, rms_final_w, llm_config.norm_eps);
-
-            auto output_w = g.add_tensor(m_weights->output_weight);
-            logits        = g.mat_mul(final_rms_norm, output_w);
+            // TODO: cpu and qnn reuse
+            if (lm_head) {
+                auto rms_final_w    = g.add_tensor(m_weights->rms_final_weight);
+                auto final_rms_norm = g.rms_norm(x, rms_final_w, llm_config.norm_eps);
+                auto output_w       = g.add_tensor(m_weights->output_weight);
+                logits              = g.mat_mul(output_w, final_rms_norm);
+            }
         }
     }
 
@@ -90,6 +90,13 @@ auto LlamaModel::forward(
     executor.allocate_buffers();
 
     executor.run();
+#if defined(SMART_WITH_QNN)
+    if (!m_platform->qnn_backend)
+#endif
+    {
+        m_platform->ggml_backend->m_kv->advance(batch_size);
+    }
+
     auto res = std::vector<std::vector<float>>();
     if (lm_head) {
         SMART_ASSERT(logits != nullptr);
@@ -120,9 +127,10 @@ auto LlamaModel::decode(Sampler &sampler, const std::vector<Token> tokens, const
     return toks;
 }
 
-auto LlamaModel::generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps)
-    -> Model::TokenRange {
-    return Model::TokenRange(*this, tokenizer, sampler, prompt, steps);
+auto LlamaModel::generate(
+    Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
+) -> Model::TokenRange {
+    return Model::TokenRange(*this, tokenizer, sampler, prompt, steps, batch_size);
 }
 
 } // namespace smart

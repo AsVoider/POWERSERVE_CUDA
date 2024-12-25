@@ -24,7 +24,13 @@ enum class OpType {
     COS_SIM,
     GET_EMBEDDING,
     ADD_CACHE,
-    INSERT_IMG_EMBEDDIGN
+    PERMUTE,
+    CONT,
+    VIEW,
+    SOFTMAX_EXT,
+    GET_MASK,
+    TRANSPOSE,
+    INSERT_IMG_EMBEDDIGN,
 };
 
 } // namespace smart

@@ -85,6 +85,7 @@ private:
         parent = const_cast<Tensor *>(&tensor);
         SMART_ASSERT(parent->n_elements() == n_elements());
         m_shape = shape;
+        m_data  = nullptr;
     }
 
 public:

@@ -29,15 +29,15 @@ int main(int argc, char *argv[]) {
     CLI11_PARSE(app, argc, argv);
 
     auto config                               = std::make_shared<smart::Config>(config_path);
-    std::unique_ptr<smart::Model> main_model  = smart::load_model(config->main_model_config, config->main_model_dir);
-    std::unique_ptr<smart::Model> draft_model = smart::load_model(config->draft_model_config, config->draft_llm_dir);
-    auto [sampler_config, steps, n_threads, prompt] = config->hyper_params;
+    std::unique_ptr<smart::Model> main_model  = smart::load_model(config->main_llm_config, config->main_llm_dir);
+    std::unique_ptr<smart::Model> draft_model = smart::load_model(config->draft_llm_config, config->draft_llm_dir);
+    auto [sampler_config, steps, n_threads, prompt, batch_size] = config->hyper_params;
 
     main_model->m_platform  = std::make_shared<smart::Platform>();
     draft_model->m_platform = std::make_shared<smart::Platform>();
 
-    main_model->m_platform->init_ggml_backend(main_model->m_config, n_threads);
-    draft_model->m_platform->init_ggml_backend(draft_model->m_config, n_threads);
+    main_model->m_platform->init_ggml_backend(main_model->m_config, config->hyper_params);
+    draft_model->m_platform->init_ggml_backend(draft_model->m_config, config->hyper_params);
 #if defined(SMART_WITH_QNN)
     if (use_qnn) {
         main_model->m_platform->init_qnn_backend(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME);

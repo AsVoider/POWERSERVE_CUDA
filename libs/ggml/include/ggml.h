@@ -747,6 +747,9 @@ extern "C" {
     GGML_API GGML_CALL size_t  ggml_nbytes      (const struct ggml_tensor * tensor);
     GGML_API           size_t  ggml_nbytes_pad  (const struct ggml_tensor * tensor); // same as ggml_nbytes() but padded to GGML_MEM_ALIGN
 
+    GGML_API GGML_CALL int get_cache_line_size(void);
+    GGML_API GGML_CALL enum ggml_type smart_get_vec_dot_type(struct ggml_tensor * tensor);
+
     GGML_API GGML_CALL void smart_compute_forward_mul_mat(
         struct op_compute_params * params,
         struct ggml_tensor * dst,
@@ -782,6 +785,21 @@ extern "C" {
         struct ggml_tensor * src1,
         struct ggml_tensor * src2,
         struct rope_compute_params *rope_params
+    );
+
+    GGML_API GGML_CALL void smart_compute_forward_dup(
+        struct op_compute_params * params,
+        struct ggml_tensor * dst,
+        struct ggml_tensor * src0
+    );
+
+    GGML_API GGML_CALL void smart_compute_forward_softmax_ext(
+        struct op_compute_params * params,
+        struct ggml_tensor * dst,
+        struct ggml_tensor * src0,
+        struct ggml_tensor * src1,
+        float scale,
+        float max_bias
     );
 
     GGML_API GGML_CALL int64_t ggml_blck_size(enum ggml_type type);

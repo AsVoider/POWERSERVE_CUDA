@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/config.hpp"
+#include "core/tensor.hpp"
 #include "model/module/attention_mask.hpp"
 #include "model/module/region.hpp"
 
@@ -41,7 +42,6 @@ struct AddCacheParams {
     size_t L;
     std::vector<int> pos;
     size_t head_id;
-    bool is_k;
 };
 
 struct MHAParams {
@@ -50,9 +50,7 @@ struct MHAParams {
     uint32_t n_heads = 0;
 };
 
-struct CopyParams {
-    size_t off = 0;
-};
+struct CopyParams {};
 
 #if defined(SMART_WITH_QNN)
 struct QNNForwardParams : OpParams {
@@ -95,6 +93,27 @@ struct QuestAttnParams {
     size_t layer_id = 0;
     std::vector<Region> &regions;
     uint32_t n_heads = 0;
+};
+
+struct PermuteParams {
+    Tensor::Shape axes;
+};
+
+struct ContParams {};
+
+struct ViewParams {
+    Tensor::Shape stride;
+    size_t offset;
+};
+
+struct SoftmaxExtParams {
+    float scale;
+    float max_bias;
+};
+
+struct GetMaskParams {
+    const CausalAttentionMask &mask;
+    const std::vector<int> &pos;
 };
 
 } // namespace smart

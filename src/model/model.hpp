@@ -16,8 +16,8 @@ public:
     public:
         size_t n_reset             = 0;
         std::string m_prompt       = "";
+        size_t m_batch_size        = 1;
         std::deque<Token> m_tokens = {};
-        size_t m_current_pos       = 0;
 
         Model &m_model;
         Tokenizer &m_tokenizer;
@@ -30,46 +30,46 @@ public:
             Sampler &sampler,
             const std::string &prompt,
             int steps,
-            size_t cur_pos = 0
+            size_t batch_size
         ) :
             n_reset(steps),
             m_prompt(prompt),
+            m_batch_size(batch_size),
             m_tokens(),
-            m_current_pos(cur_pos),
             m_model(model),
             m_tokenizer(tokenizer),
             m_sampler(sampler) {
-            if (cur_pos >= (size_t)steps) {
+            if (steps <= 0) {
                 return;
             }
 
             auto prompt_tokens   = m_tokenizer.tokenize(m_prompt, m_tokenizer.m_vocab.tokenizer_add_bos);
             auto n_prompt_tokens = prompt_tokens.size();
-            std::vector<Token> tokens;
-            std::copy(prompt_tokens.begin(), std::prev(prompt_tokens.end()), std::back_inserter(tokens));
-            int position = 0;
-#if defined(SMART_WITH_QNN)
+            size_t n_prefilled   = 0;
+            size_t position      = 0;
+
             auto &m_platform = m_model.m_platform;
-            auto &m_config   = m_model.m_config;
-            if (m_platform->qnn_backend) {
-                m_platform->qnn_backend->m_models[m_config->model_id]->kv_cache->truncate(
-                    m_platform->qnn_backend->m_models[m_config->model_id]->largest_chunks()[0]->m_config.kv_size
-                );
-                position = m_platform->qnn_backend->m_models[m_config->model_id]->kv_cache->position;
-            }
-#endif
-            std::vector<int> pos(n_prompt_tokens - 1); // FIXME: cpu need split small batch-size, else be oom
-            std::iota(pos.begin(), pos.end(), position);
+
+            m_platform->reset_kv_position();
+            position = m_platform->get_kv_position();
+
             // prefill
-            m_model.decode(m_sampler, tokens, pos, false); // UNUSED ret
-            m_current_pos = n_prompt_tokens - 1;           // TODO: get pos from kv interface
-            m_tokens.push_back(prompt_tokens.back());
-            // m_current_pos = m_model.m_platform->ggml_backend->m_kv->kv_cache->position;
-#if defined(SMART_WITH_QNN)
-            if (m_platform->qnn_backend) {
-                m_current_pos = m_platform->qnn_backend->m_models[m_config->model_id]->kv_cache->position;
+            while (n_prefilled < n_prompt_tokens - 1) {
+                size_t bs = std::min(m_batch_size, n_prompt_tokens - n_prefilled - 1);
+                std::vector<Token> tokens;
+                std::copy(
+                    prompt_tokens.begin() + n_prefilled,
+                    prompt_tokens.begin() + n_prefilled + bs,
+                    std::back_inserter(tokens)
+                );
+                std::vector<int> pos(bs);
+                std::iota(pos.begin(), pos.end(), position);
+                m_model.decode(m_sampler, tokens, pos, false);
+                position = m_platform->get_kv_position();
+                n_prefilled += bs;
             }
-#endif
+            position = m_platform->get_kv_position();
+            m_tokens.push_back(prompt_tokens.back());
         }
 
         ~TokenIterator() = default;
@@ -80,13 +80,14 @@ public:
 
         TokenIterator &operator++() {
             if (n_reset > 0 && m_tokens.size() >= 1) {
-                std::vector<int> pos(1, m_current_pos);
+                auto &platform   = m_model.m_platform;
+                auto current_pos = platform->get_kv_position();
+                std::vector<int> pos(1, current_pos);
                 std::vector<int> token(1, m_tokens.front());
                 auto ret = m_model.decode(m_sampler, token, pos, true);
                 std::copy(ret.begin(), ret.end(), std::back_inserter(m_tokens));
                 --n_reset;
                 m_tokens.pop_front();
-                ++m_current_pos;
             }
             return *this;
         }
@@ -105,15 +106,24 @@ public:
     public:
         size_t m_steps;
         std::string m_prompt;
+        size_t m_batch_size;
 
         Model &m_model;
         Tokenizer &m_tokenizer;
         Sampler &m_sampler;
 
     public:
-        TokenRange(Model &model, Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) :
+        TokenRange(
+            Model &model,
+            Tokenizer &tokenizer,
+            Sampler &sampler,
+            const std::string &prompt,
+            int steps,
+            size_t batch_size
+        ) :
             m_steps(steps),
             m_prompt(prompt),
+            m_batch_size(batch_size),
             m_model(model),
             m_tokenizer(tokenizer),
             m_sampler(sampler) {}
@@ -122,11 +132,11 @@ public:
 
     public:
         TokenIterator begin() const {
-            return TokenIterator(m_model, m_tokenizer, m_sampler, m_prompt, m_steps, 0);
+            return TokenIterator(m_model, m_tokenizer, m_sampler, m_prompt, m_steps, m_batch_size);
         }
 
         TokenIterator end() const {
-            return TokenIterator(m_model, m_tokenizer, m_sampler, m_prompt, 0, 0);
+            return TokenIterator(m_model, m_tokenizer, m_sampler, m_prompt, 0, m_batch_size);
         }
     };
 
@@ -159,8 +169,9 @@ public:
 public:
     virtual auto decode(Sampler &sampler, const std::vector<Token> tokens, const std::vector<int> pos, bool lm_head)
         -> std::vector<Token> = 0;
-    virtual auto generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps)
-        -> TokenRange = 0;
+    virtual auto generate(
+        Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
+    ) -> TokenRange = 0;
 };
 
 } // namespace smart

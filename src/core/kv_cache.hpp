@@ -24,6 +24,9 @@ struct KVView {
         SMART_ASSERT(n_elements == other.n_elements);
         SMART_ASSERT(element_size == other.element_size);
 
+        if (data == other.data)
+            return;
+
         if (is_contiguous() && other.is_contiguous()) {
             memcpy(data, other.data, n_elements * element_size);
         } else if (other.is_contiguous() && element_size == 2) {

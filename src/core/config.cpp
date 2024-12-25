@@ -17,21 +17,20 @@ HyperParams::HyperParams(const Path &params_file) {
     std::ifstream file(params_file);
     file >> j;
 
-    j["n_predicts"].get_to(n_predicts);
+    n_predicts = j.value("n_predicts", n_predicts);
+    n_threads  = j.value("n_threads", n_threads);
+    batch_size = j.value("batch_size", batch_size);
 
-    j["n_threads"].get_to(n_threads);
     auto n_cpus = uv_available_parallelism();
     n_threads   = std::min((unsigned int)n_threads, n_cpus);
 
-    std::string prompt_file = j["prompt_file"].get<std::string>();
+    std::string prompt_file = j.value("prompt_file", "");
     if (prompt_file != "") {
-        prompt = "";
         std::ifstream f(params_file.parent_path() / prompt_file);
         if (f.is_open()) {
-            std::string line;
-            while (std::getline(f, line)) {
-                prompt += line + '\n';
-            }
+            std::ostringstream oss;
+            oss << f.rdbuf();
+            prompt = oss.str();
             f.close();
         } else {
             fmt::print(stderr, "Error: could not open file {}\n", prompt_file);
@@ -39,20 +38,20 @@ HyperParams::HyperParams(const Path &params_file) {
         }
     }
 
-    auto sampler_j = j["sampler"];
-    {
-        sampler_j["seed"].get_to(sampler_config.seed);
-        sampler_j["temperature"].get_to(sampler_config.temperature);
-        sampler_j["top_p"].get_to(sampler_config.top_p);
-        sampler_j["top_k"].get_to(sampler_config.top_k);
-        sampler_j["min_keep"].get_to(sampler_config.min_keep);
+    auto sampler_j = j.value("sampler", nlohmann::json::object());
+    if (sampler_j.empty()) {
+        sampler_config.seed        = sampler_j.value("seed", sampler_config.seed);
+        sampler_config.temperature = sampler_j.value("temperature", sampler_config.temperature);
+        sampler_config.top_p       = sampler_j.value("top_p", sampler_config.top_p);
+        sampler_config.top_k       = sampler_j.value("top_k", sampler_config.top_k);
+        sampler_config.min_keep    = sampler_j.value("min_keep", sampler_config.min_keep);
 
-        sampler_j["penalty_last_n"].get_to(sampler_config.penalty_last_n);
-        sampler_j["penalty_repeat"].get_to(sampler_config.penalty_repeat);
-        sampler_j["penalty_freq"].get_to(sampler_config.penalty_freq);
-        sampler_j["penalty_present"].get_to(sampler_config.penalty_present);
-        sampler_j["penalize_nl"].get_to(sampler_config.penalize_nl);
-        sampler_j["ignore_eos"].get_to(sampler_config.ignore_eos);
+        sampler_config.penalty_last_n  = sampler_j.value("penalty_last_n", sampler_config.penalty_last_n);
+        sampler_config.penalty_repeat  = sampler_j.value("penalty_repeat", sampler_config.penalty_repeat);
+        sampler_config.penalty_freq    = sampler_j.value("penalty_freq", sampler_config.penalty_freq);
+        sampler_config.penalty_present = sampler_j.value("penalty_present", sampler_config.penalty_present);
+        sampler_config.penalize_nl     = sampler_j.value("penalize_nl", sampler_config.penalize_nl);
+        sampler_config.ignore_eos      = sampler_j.value("ignore_eos", sampler_config.ignore_eos);
     }
 }
 

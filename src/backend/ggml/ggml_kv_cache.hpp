@@ -2,6 +2,7 @@
 
 #include "core/config.hpp"
 #include "core/kv_cache.hpp"
+#include "core/tensor.hpp"
 
 namespace smart::ggml {
 
@@ -15,15 +16,18 @@ public:
     size_t m_n_layers   = 0;
     size_t m_head_size  = 0;
     size_t m_batch_size = 0;
+    size_t kv_size      = 0; // system_prompt size
     const ModelConfig::LLMConfig &m_config;
 
     struct GGMLChunk {
-        KVBuffer key_buffer;   // [n_layers][seq_len * kv_dim]) kv_dim == n_kv_heads * head_size
-        KVBuffer value_buffer; // [n_layers][seq_len * kv_dim])
-        // TODO: No use
+        KVBuffer key_buffer;          // [n_layers][seq_len * kv_dim]) kv_dim == n_kv_heads * head_size
+        KVBuffer value_buffer;        // [n_layers][seq_len * kv_dim])
         KVBuffer current_k;           // [n_layers][batch_size * kv_dim])
         KVBuffer current_v;           // [n_layers][batch_size * kv_dim])
         std::vector<float> attn_bias; // [batch_size * n_ctx]
+
+        std::vector<Tensor> key_tensors;   // n_layers
+        std::vector<Tensor> value_tensors; // n_layers
     };
 
     GGMLChunk chunk;
@@ -112,18 +116,32 @@ public:
     void reset_batch_size(const size_t &batch_size) {
         if (m_batch_size == batch_size)
             return;
+        // fmt::println("Resize batch size: {} -> {}", m_batch_size, batch_size);
         m_batch_size = batch_size;
 
         auto &k = chunk.current_k;
         auto &v = chunk.current_v;
         for (size_t L = 0; L < m_n_layers; L++) {
-            k[L].resize(0);
-            v[L].resize(0);
-            k[L].reserve(m_batch_size * m_kv_dim);
-            v[L].reserve(m_batch_size * m_kv_dim);
+            k[L].resize(m_batch_size * m_kv_dim);
+            v[L].resize(m_batch_size * m_kv_dim);
         }
-        chunk.attn_bias.resize(0);
-        chunk.attn_bias.reserve(m_batch_size * m_n_ctx);
+        chunk.attn_bias.resize(m_batch_size * m_n_ctx);
+    }
+
+    void reset_kv_cache() {
+        kv_cache->truncate(kv_size);
+    }
+
+    void save_kv(int size) {
+        kv_cache->save(size);
+    }
+
+    void advance(int size) {
+        kv_cache->advance(size);
+    }
+
+    auto get_cache(size_t L) -> std::pair<Tensor &, Tensor &> {
+        return {chunk.key_tensors[L], chunk.value_tensors[L]};
     }
 
 private:

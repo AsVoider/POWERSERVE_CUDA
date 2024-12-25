@@ -21,7 +21,13 @@ public:
 
 public:
     virtual TensorNode *build(
-        Graph &g, TensorNode *x, int64_t L, const std::vector<int> &pos, const CausalAttentionMask &mask
+        Graph &g,
+        TensorNode *x,
+        int64_t L,
+        const TensorNode *k_cache,
+        const TensorNode *v_cache,
+        const std::vector<int> &pos,
+        const CausalAttentionMask &mask
     ) = 0;
 };
 

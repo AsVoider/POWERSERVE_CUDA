@@ -21,7 +21,7 @@ public:
     size_t n_vocabs() const;
     auto bos_token() const -> Token;
     auto tokenize(const std::string &text, bool add_special) const -> std::vector<Token>;
-    auto to_string(Token token) const -> std::string;
+    auto to_string(Token token, bool special = true) const -> std::string;
 
 public:
     void debug_tokenizer() {

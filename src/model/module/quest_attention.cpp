@@ -5,9 +5,17 @@
 namespace smart {
 
 TensorNode *QuestAttention::build(
-    Graph &g, TensorNode *x, int64_t L, const std::vector<int> &pos, const CausalAttentionMask &mask
+    Graph &g,
+    TensorNode *x,
+    int64_t L,
+    const TensorNode *k_cache,
+    const TensorNode *v_cache,
+    const std::vector<int> &pos,
+    const CausalAttentionMask &mask
 ) {
     SMART_UNUSED(mask);
+    SMART_UNUSED(k_cache);
+    SMART_UNUSED(v_cache);
     auto &llm_config = m_config;
 
     auto att_norm_w = g.add_tensor(m_weights->lw[L].attn_norm);
@@ -16,13 +24,13 @@ TensorNode *QuestAttention::build(
     // Quest QKV
 
     auto q_w = g.add_tensor(m_weights->lw[L].attn_q);
-    auto q   = g.mat_mul(att_norm_o, q_w);
+    auto q   = g.mat_mul(q_w, att_norm_o);
 
     auto k_w = g.add_tensor(m_weights->lw[L].attn_k);
-    auto k   = g.mat_mul(att_norm_o, k_w);
+    auto k   = g.mat_mul(k_w, att_norm_o);
 
     auto v_w = g.add_tensor(m_weights->lw[L].attn_v);
-    auto v   = g.mat_mul(att_norm_o, v_w);
+    auto v   = g.mat_mul(v_w, att_norm_o);
 
     const size_t head_size = llm_config.head_size;
     SMART_ASSERT(head_size == (size_t)llm_config.rope_config.n_dims);
@@ -35,8 +43,7 @@ TensorNode *QuestAttention::build(
     // multihead attention
     rope_q = g.view_tensor(rope_q, q->m_shape);
     rope_k = g.view_tensor(rope_k, k->m_shape);
-    g.add_cache(rope_k, L, pos, 0, true);
-    g.add_cache(v, L, pos, 0, false);
+    g.add_cache(rope_k, v, L, pos, 0);
 
     TensorNode *att_scores;
     if (L < dense_layers) {
@@ -50,7 +57,7 @@ TensorNode *QuestAttention::build(
     // }
 
     auto attn_output_w = g.add_tensor(m_weights->lw[L].attn_output);
-    auto attn_o        = g.mat_mul(att_scores, attn_output_w);
+    auto attn_o        = g.mat_mul(attn_output_w, att_scores);
 
     // residual connection
     auto res_conn = g.add(x, attn_o);

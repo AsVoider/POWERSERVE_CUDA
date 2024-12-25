@@ -31,8 +31,9 @@ public:
     // void generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) override;
     auto decode(Sampler &sampler, const std::vector<Token> tokens, const std::vector<int> pos, bool lm_head)
         -> std::vector<Token> override;
-    auto generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) -> TokenRange override;
-    auto preprocess(std::vector<const Path> &img_paths, const std::string &prompt) -> std::string;
+    auto generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size)
+        -> TokenRange override;
+    auto preprocess(const std::vector<Path> &img_paths, const std::string &prompt) -> std::string;
     auto forward(
         const std::vector<int> &tokens,
         const std::vector<int> &pos,

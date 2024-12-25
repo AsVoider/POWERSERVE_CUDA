@@ -9,6 +9,7 @@
 #include "core/tensor.hpp"
 #include "core/thread_pool.hpp"
 #include "ggml.h"
+#include "graph/node.hpp"
 #include "model/module/region.hpp"
 
 #include <atomic>
@@ -164,23 +165,25 @@ static void debug_system_info(void) {
 struct GGMLBackend : Backend {
 public:
     op_compute_params m_params;
-    std::vector<char> m_wdata; // TODO: m_wdata create after
+    std::vector<char> m_wdata;
     std::unique_ptr<GGMLKV> m_kv;
+    int num_threads;
 
 public:
-    explicit GGMLBackend(const ModelConfig::LLMConfig &config, int n_threads = 1) : m_wdata(config.dim * config.dim) {
+    explicit GGMLBackend(const ModelConfig::LLMConfig &config, const HyperParams &hparams) :
+        num_threads(hparams.n_threads) {
         m_params = {
             .ith           = 0,
             .nth           = 1,
-            .wsize         = (size_t)config.dim * config.dim, // TODO: Replace wdata with max data size
-            .wdata         = m_wdata.data(),
+            .wsize         = 0,
+            .wdata         = nullptr,
             .thread_pool   = nullptr,
             .barrier_fn    = nullptr,
             .current_chunk = nullptr,
         };
 
         std::vector<ThreadConfig> thread_configs;
-        for (int i = 0; i < n_threads; i++) {
+        for (int i = 0; i < num_threads; i++) {
             thread_configs.emplace_back(ThreadConfig{.cpu_ids = {(size_t)i}});
         }
         m_thread_pool = std::make_unique<ThreadPool>(thread_configs);
@@ -190,19 +193,29 @@ public:
     ~GGMLBackend() override = default;
 
 public:
+    // ggml wrapper ops
+    void add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void get_embedding(const Tensor *dst, const Tensor *weight, const std::vector<int> &tokens) const;
     void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight, float eps) const;
-    void softmax(const Tensor *out, const Tensor *x) const;
     void rope(
         Tensor *out, const Tensor *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &rope_cfg
     ) const;
+    void softmax(const Tensor *out, const Tensor *x) const;
+    void permute(const Tensor *out, const Tensor *x, Tensor::Shape axes) const;
+    void cont(const Tensor *out, const Tensor *x) const;
+    void softmax_ext(const Tensor *out, const Tensor *x, const Tensor *mask, float scale, float max_bias) const;
+
+    bool is_contiguous(const Tensor *tensor, int n) const;
+    int get_n_tasks(std::shared_ptr<OpNode> op);
+    enum ggml_type get_vec_dot_type(const Tensor *tensor);
+
+public:
     void multihead_attention(
         const Tensor *out, const Tensor *q, const std::vector<int> &pos, const int64_t L, const uint32_t n_heads
     ) const;
     void silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const;
-    void add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
-    void copy(const Tensor *dst, const Tensor *src, const int64_t off) const;
+    void copy(const Tensor *dst, const Tensor *src) const;
     void quest_attention(
         const Tensor *out,
         const Tensor *q,
@@ -214,7 +227,8 @@ public:
     void cos_sim(const Tensor *src0, const Tensor *src1) const;
     void print(const Tensor *x, size_t size) const;
     void reset_kv_batch_size(const size_t batch_size) const;
-    void add_cache(const Tensor *src, size_t L, const std::vector<int> &pos, size_t head_id, bool is_k);
+    void add_cache(const Tensor *k, const Tensor *v, size_t L, const std::vector<int> &pos, size_t head_id);
+    void transpose(const Tensor *out, const Tensor *x) const;
 
 public:
     template <typename T>
@@ -243,7 +257,8 @@ public:
     }
 
 public:
-    bool is_contiguous(const Tensor *tensor, int n) const;
+    void plan(std::vector<std::shared_ptr<OpNode>> &ops);
+    void setup_work_data(size_t work_size);
 
 private:
     std::unique_ptr<ThreadPool> m_thread_pool;

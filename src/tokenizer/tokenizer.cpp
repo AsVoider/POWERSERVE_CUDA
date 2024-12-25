@@ -33,8 +33,8 @@ auto Tokenizer::tokenize(const std::string &text, bool add_special) const -> std
     return llama_tokenize_internal(m_vocab, text, add_special, true);
 }
 
-auto Tokenizer::to_string(Token token) const -> std::string {
-    return llama_token_to_piece(m_vocab, token);
+auto Tokenizer::to_string(Token token, bool special) const -> std::string {
+    return llama_token_to_piece(m_vocab, token, special);
 }
 
 } // namespace smart

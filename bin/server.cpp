@@ -37,8 +37,8 @@ int main(int argc, char *argv[]) {
     auto config                         = std::make_shared<smart::Config>(work_folder);
     std::unique_ptr<smart::Model> model = smart::load_model(config);
 
-    model->m_platform = std::make_shared<smart::Platform>();
-    model->m_platform->init_ggml_backend(model->m_config, config->hyper_params.n_threads);
+    model->m_platform = std::make_shared<smart::Platform>(model->m_config);
+    model->m_platform->init_ggml_backend(model->m_config, config->hyper_params);
 #if defined(SMART_WITH_QNN)
     if (!no_qnn) {
         auto &qnn_backend = model->m_platform->qnn_backend;
@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
 
         std::stringstream ss;
         auto start = 0;
-        for (auto next : model->generate(tokenizer, sampler, prompt, n_predict)) {
+        for (auto next : model->generate(tokenizer, sampler, prompt, n_predict, config->hyper_params.batch_size)) {
             if (start == 0) {
                 start = 1; // filter the last prompt token
                 continue;

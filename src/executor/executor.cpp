@@ -30,7 +30,13 @@ void Executor::allocate_buffers() {
     }
 }
 
+void Executor::plan() {
+    m_platform.ggml_backend->plan(m_graph.ops);
+}
+
 void Executor::run() {
+    plan();
+
     for (auto op : m_graph.ops) {
         switch (op->op) {
         case OpType::GET_EMBEDDING: {
@@ -48,10 +54,10 @@ void Executor::run() {
         } break;
 
         case OpType::MAT_MUL: {
-            auto x      = op->prev[0]->tensor();
-            auto weight = op->prev[1]->tensor();
-            auto out    = op->output();
-            m_platform.ggml_backend->matmul(out, weight, x);
+            auto a   = op->prev[0]->tensor();
+            auto b   = op->prev[1]->tensor();
+            auto out = op->output();
+            m_platform.ggml_backend->matmul(out, a, b);
         } break;
 
         case OpType::RMS_NORM: {
@@ -92,8 +98,7 @@ void Executor::run() {
         case OpType::COPY: {
             auto dst = op->prev[0]->tensor();
             auto src = op->prev[1]->tensor();
-            auto off = op->get_params<CopyParams>().off;
-            m_platform.ggml_backend->copy(dst, src, off);
+            m_platform.ggml_backend->copy(dst, src);
         } break;
 
 #if defined(SMART_WITH_QNN)
@@ -138,9 +143,62 @@ void Executor::run() {
         } break;
 
         case OpType::ADD_CACHE: {
-            auto src                     = op->prev[0]->tensor();
-            auto [L, pos, head_id, is_k] = op->get_params<AddCacheParams>();
-            m_platform.ggml_backend->add_cache(src, L, pos, head_id, is_k);
+            auto k                 = op->prev[0]->tensor();
+            auto v                 = op->prev[1]->tensor();
+            auto [L, pos, head_id] = op->get_params<AddCacheParams>();
+            m_platform.ggml_backend->add_cache(k, v, L, pos, head_id);
+        } break;
+
+        case OpType::PERMUTE: {
+            auto x      = op->prev[0]->tensor();
+            auto out    = op->output();
+            auto [axes] = op->get_params<PermuteParams>();
+            m_platform.ggml_backend->permute(out, x, axes);
+        } break;
+
+        case OpType::CONT: {
+            auto x   = op->prev[0]->tensor();
+            auto out = op->output();
+            m_platform.ggml_backend->cont(out, x);
+        } break;
+
+        case OpType::VIEW: {
+            auto out                          = op->output();
+            auto [stride, offset]             = op->get_params<ViewParams>();
+            out->get<ggml::Buffer>().m_stride = stride;
+            out->get<ggml::Buffer>().m_data   = (char *)out->get<ggml::Buffer>().m_data + offset;
+        } break;
+
+        case OpType::SOFTMAX_EXT: {
+            auto out               = op->output();
+            auto x                 = op->prev[0]->tensor();
+            auto mask              = op->prev[1]->tensor();
+            auto [scale, max_bias] = op->get_params<SoftmaxExtParams>();
+
+            m_platform.ggml_backend->softmax_ext(out, x, mask, scale, max_bias);
+        } break;
+
+        case OpType::GET_MASK: {
+            auto out         = op->output();
+            auto [mask, pos] = op->get_params<GetMaskParams>();
+            auto n_kv        = out->m_shape[0];
+            auto batch_size  = out->m_shape[1];
+
+            SMART_ASSERT(out->m_dtype == DataType::FP32);
+            auto mask_buf = (float *)out->get<ggml::Buffer>().m_data;
+            // fmt::println("mask shape: {}", out->m_shape);
+            for (size_t i = 0; i < batch_size; i++) {
+                size_t cur_pos = pos[i];
+                for (size_t j = 0; j < n_kv; j++) {
+                    mask_buf[j + i * n_kv] = (j <= cur_pos) ? 0.f : -INFINITY;
+                }
+            }
+        } break;
+
+        case OpType::TRANSPOSE: {
+            auto x   = op->prev[0]->tensor();
+            auto out = op->output();
+            m_platform.ggml_backend->transpose(out, x);
         } break;
         default:
             SMART_ABORT("Unknown OpType: {}", static_cast<int>(op->op));

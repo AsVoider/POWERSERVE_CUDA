@@ -34,6 +34,7 @@ struct HyperParams {
     size_t n_predicts  = 32;
     size_t n_threads   = 4;
     std::string prompt = "One day,";
+    size_t batch_size  = 128;
 
     HyperParams() = default;
     HyperParams(const Path &params_file);

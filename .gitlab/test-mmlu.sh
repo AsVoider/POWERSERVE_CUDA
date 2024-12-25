@@ -49,8 +49,7 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
     ${DEVICE_ROOT}/smartserving server \
     --host ${SERVER_HOST} \
     --port ${SERVER_PORT} \
-    -c ${CONFIG_PATH} \
-    --use-qnn >/dev/null 2>&1
+    -c ${CONFIG_PATH} >/dev/null 2>&1
 " &
 echo '>>>>>>>>>>>> Start server over. <<<<<<<<<<<<';
 

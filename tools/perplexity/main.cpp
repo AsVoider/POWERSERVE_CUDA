@@ -62,12 +62,13 @@ int main(int argc, char *argv[]) {
 
     CLI11_PARSE(app, argc, argv);
 
-    auto config                                     = std::make_shared<smart::Config>(work_folder);
-    std::unique_ptr<smart::Model> model             = smart::load_model(config);
-    auto [sampler_config, steps, n_threads, prompt] = config->hyper_params;
+    auto config                                                         = std::make_shared<smart::Config>(work_folder);
+    std::unique_ptr<smart::Model> model                                 = smart::load_model(config);
+    auto [sampler_config, steps, n_threads, prompt, prefill_batch_size] = config->hyper_params;
+    SMART_UNUSED(prefill_batch_size);
 
-    model->m_platform = std::make_shared<smart::Platform>();
-    model->m_platform->init_ggml_backend(model->m_config, n_threads);
+    model->m_platform = std::make_shared<smart::Platform>(model->m_config);
+    model->m_platform->init_ggml_backend(model->m_config, config->hyper_params);
 #if defined(SMART_WITH_QNN)
     if (!no_qnn) {
         auto &qnn_backend = model->m_platform->qnn_backend;

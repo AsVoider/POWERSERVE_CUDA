@@ -12,7 +12,7 @@ namespace smart {
 inline namespace common {
 CPUPerfResult perf_get_cpu_result() {
     constexpr std::string_view stat_file = "/proc/stat";
-    std::ifstream file(stat_file);
+    std::ifstream file(stat_file.data());
     if (!file.good()) [[unlikely]] {
         SMART_LOG_ERROR("failed reading file: {}", stat_file);
         return {};
@@ -40,7 +40,7 @@ CPUPerfResult perf_get_cpu_result() {
 
 IOPerfResult perf_get_io_result() {
     constexpr std::string_view stat_file = "/proc/self/io";
-    std::ifstream file(stat_file);
+    std::ifstream file(stat_file.data());
     if (!file.good()) [[unlikely]] {
         SMART_LOG_ERROR("failed reading file: {}", stat_file);
         return {};
@@ -77,7 +77,7 @@ MemPerfResult perf_get_mem_result() {
     std::ifstream file("/proc/self/status");
     std::string line;
 
-    IOPerfResult ret;
+    MemPerfResult ret;
     while (std::getline(file, line)) {
         if (line.find("rWmRSS") != std::string::npos) {
             sscanf(line.c_str(), "read_bytes: %zu", &ret.resident_set_size);

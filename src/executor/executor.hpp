@@ -16,6 +16,7 @@ public:
 public:
     void allocate_buffers();
     void run();
+    void plan();
 
 private:
     template <typename T>

@@ -30,14 +30,14 @@ int main(int argc, char *argv[]) {
 
     CLI11_PARSE(app, argc, argv);
 
-    auto config                                          = std::make_shared<smart::Config>(work_folder);
-    std::unique_ptr<smart::Model> model                  = smart::load_model(config);
-    auto [sampler_config, steps, n_threads, file_prompt] = config->hyper_params;
+    auto config                                                      = std::make_shared<smart::Config>(work_folder);
+    std::unique_ptr<smart::Model> model                              = smart::load_model(config);
+    auto [sampler_config, steps, n_threads, file_prompt, batch_size] = config->hyper_params;
     if (prompt == "") {
         prompt = file_prompt;
     }
-    model->m_platform = std::make_shared<smart::Platform>();
-    model->m_platform->init_ggml_backend(model->m_config, n_threads);
+    model->m_platform = std::make_shared<smart::Platform>(model->m_config);
+    model->m_platform->init_ggml_backend(model->m_config, config->hyper_params);
 #if defined(SMART_WITH_QNN)
     if (!no_qnn) {
         auto &qnn_backend = model->m_platform->qnn_backend;
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     SMART_LOG_INFO("after sampler init: {}", smart::perf_get_mem_result());
 
     {
-        SMART_LOG_INFO("prompt      : {}", smart::abbreviation(prompt, 50));
+        SMART_LOG_INFO("prompt      : {:?}", smart::abbreviation(prompt, 50));
         SMART_LOG_INFO("steps       : {}", steps);
         SMART_LOG_INFO("attn_type   : {}", attn_type);
         SMART_LOG_INFO("model arch  : {}", config->main_model_config->arch);
@@ -74,9 +74,11 @@ int main(int argc, char *argv[]) {
     long decode_end    = 0;
     bool start         = false;
     int actual_predict = 0;
-
+    for (auto prompt_token : tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos)) {
+        fmt::print("{}", tokenizer.to_string(prompt_token, false));
+    }
     prefill_start = smart::time_in_ms();
-    for (auto next : model->generate(tokenizer, sampler, prompt, steps)) {
+    for (auto next : model->generate(tokenizer, sampler, prompt, steps, batch_size)) {
         if (!start) {
             prefill_end = smart::time_in_ms();
             start       = true;
@@ -91,10 +93,11 @@ int main(int argc, char *argv[]) {
             fmt::print("[end of text]");
             break;
         }
-        fmt::print("{}", tokenizer.to_string(next));
+        fmt::print("{}", tokenizer.to_string(next, false));
         fflush(stdout);
     }
     fmt::println("");
+
     if (start) {
         decode_end     = smart::time_in_ms();
         auto n_prefill = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;

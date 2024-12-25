@@ -16,12 +16,23 @@ struct Platform {
     std::unique_ptr<qnn::QNNBackend> qnn_backend = nullptr;
 #endif
 
+    std::shared_ptr<ModelConfig> m_config = nullptr;
+
 public:
-    void init_ggml_backend(const std::shared_ptr<ModelConfig> &config, int n_threads);
+    Platform(std::shared_ptr<ModelConfig> config) : m_config(config) {}
+
+    ~Platform() = default;
+
+public:
+    // TODO: No need trans config
+    void init_ggml_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams);
 
 #if defined(SMART_WITH_QNN)
     void init_qnn_backend(const Path &qnn_path);
 #endif
+
+    size_t get_kv_position() const;
+    void reset_kv_position();
 };
 
 } // namespace smart

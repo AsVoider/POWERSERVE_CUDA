@@ -9502,6 +9502,46 @@ static void ggml_compute_forward_dup(
     }
 }
 
+void smart_compute_forward_dup(
+    struct op_compute_params * params,
+    struct ggml_tensor * dst,
+    struct ggml_tensor * src0
+) {
+
+    struct ggml_compute_params ggml_params = {
+        .ith = params->ith,
+        .nth = params->nth,
+        .wdata = params->wdata,
+        .wsize = params->wsize
+    };
+
+    dst->src[0] = src0;
+
+    if (src0->type == dst->type) {
+        ggml_compute_forward_dup_bytes(&ggml_params, dst);
+        return;
+    }
+    
+    switch (src0->type) {
+        case GGML_TYPE_F16:
+            {
+                ggml_compute_forward_dup_f16(&ggml_params, dst);
+            } break;
+        case GGML_TYPE_BF16:
+            {
+                ggml_compute_forward_dup_bf16(&ggml_params, dst);
+            } break;
+        case GGML_TYPE_F32:
+            {
+                ggml_compute_forward_dup_f32(&ggml_params, dst);
+            } break;
+        default:
+            {
+                GGML_ABORT("fatal error");
+            }
+    }
+}
+
 // ggml_compute_forward_add
 
 static void ggml_compute_forward_add_f32(
@@ -10058,6 +10098,14 @@ static void smart_compute_forward_add_f32(
             }
         }
     }
+}
+
+int get_cache_line_size(void) {
+    return CACHE_LINE_SIZE;
+}
+
+enum ggml_type smart_get_vec_dot_type(struct ggml_tensor * tensor) {
+    return type_traits[tensor->type].vec_dot_type;
 }
 
 void smart_compute_forward_add(
@@ -15018,6 +15066,37 @@ void smart_compute_forward_soft_max(
             {
                 ggml_compute_forward_soft_max_f32(&ggml_params, dst);
                 // smart_compute_forward_soft_max_f32(params, dst, src0, NULL);
+            } break;
+        default:
+            {
+                GGML_ABORT("fatal error");
+            }
+    }
+}
+
+void smart_compute_forward_softmax_ext(
+    struct op_compute_params * params,
+    struct ggml_tensor * dst,
+    struct ggml_tensor * src0,
+    struct ggml_tensor * src1,
+    float scale,
+    float max_bias
+) {
+    struct ggml_compute_params ggml_params = {
+        .ith = params->ith,
+        .nth = params->nth,
+        .wdata = params->wdata,
+        .wsize = params->wsize,
+    };
+    dst->src[0] = src0;
+    dst->src[1] = src1;
+    memcpy((float *) dst->op_params, &scale, sizeof(float));
+    memcpy((float *) dst->op_params + 1, &max_bias, sizeof(float));
+
+    switch (src0->type) {
+        case GGML_TYPE_F32:
+            {
+                ggml_compute_forward_soft_max_f32(&ggml_params, dst);
             } break;
         default:
             {

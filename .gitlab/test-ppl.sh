@@ -42,7 +42,7 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
 echo '>>>>>>>>>>>> Test ppl. <<<<<<<<<<<<';
 set -x
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving ppl -c ${CONFIG_PATH} --use-qnn;
+    ${DEVICE_ROOT}/smartserving ppl -c ${CONFIG_PATH};
 "
 set +x
 echo '>>>>>>>>>>>> Test ppl over. <<<<<<<<<<<<';

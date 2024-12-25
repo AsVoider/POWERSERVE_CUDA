@@ -15,61 +15,86 @@
 
 namespace smart::ggml {
 
-void GGMLBackend::get_embedding(const Tensor *dst, const Tensor *weight, const std::vector<int> &tokens) const {
-    auto embd_tb = static_cast<char *>(weight->get<Buffer>().m_data);
-    auto dst_tb  = static_cast<float *>(dst->get<Buffer>().m_data);
+void GGMLBackend::plan(std::vector<std::shared_ptr<OpNode>> &ops) {
+    size_t max_work_size = 0;
+    for (auto op : ops) {
+        size_t cur = 0;
 
-    auto dim        = dst->m_shape[0];
-    auto batch_size = tokens.size();
-    SMART_ASSERT(batch_size == dst->m_shape[1]);
-    auto weight_strip = weight->get<Buffer>().m_stride;
+        const int n_tasks = get_n_tasks(op);
 
-    for (size_t i = 0; i < batch_size; i++) {
-        auto token = tokens[i];
-        auto src   = embd_tb + weight_strip[1] * token;
-        SMART_ASSERT(src < embd_tb + weight_strip[2]);
-        switch (weight->m_dtype) {
-        case DataType::FP32: {
-            memcpy(dst_tb + i * dim, src, dim * sizeof(float));
+        switch (op->op) {
+        // custom ops
+        case OpType::COS_SIM:
+        case OpType::MHA:
+        case OpType::QUEST_ATTN:
+        case OpType::SILU_HADAMARD:
+        case OpType::ADD_CACHE:
+        case OpType::TRANSPOSE:
+        case OpType::PRINT:
+        case OpType::VIEW:
+        case OpType::COPY: {
         } break;
 
-        case DataType::GGML_Q4_0: {
-            dequantize_row_q4_0((block_q4_0 *)src, dst_tb + i * dim, dim);
+        case OpType::PERMUTE:
+        case OpType::CONT:
+        case OpType::GET_MASK:
+        case OpType::GET_EMBEDDING: {
+            max_work_size = 0;
         } break;
 
-        case DataType::GGML_Q8_0: {
-            dequantize_row_q8_0((block_q8_0 *)src, dst_tb + i * dim, dim);
+        case OpType::ADD: {
+            auto a = op->prev[0]->tensor();
+            if (a->is_quantized()) {
+                cur = ggml_type_size(GGML_TYPE_F32) * a->m_shape[0] * n_tasks;
+            }
         } break;
+
+        case OpType::MAT_MUL: {
+            auto x      = op->prev[0]->tensor();
+            auto weight = op->prev[1]->tensor();
+
+            const enum ggml_type vec_dot_type = get_vec_dot_type(x);
+            if (ggml::convert_datatype_to_ggml(weight->m_dtype) != vec_dot_type) {
+                cur = ggml_row_size(vec_dot_type, weight->n_elements());
+            }
+        } break;
+
+        case OpType::SOFTMAX_EXT:
+        case OpType::SOFTMAX:
+        case OpType::ROPE: {
+            auto dst = op->next[0]->tensor();
+            cur      = ggml_type_size(GGML_TYPE_F32) * dst->m_shape[0] * n_tasks;
+        } break;
+
+        case OpType::RMS_NORM: {
+        } break;
+
+#if defined(SMART_WITH_QNN)
+        case OpType::QNN_FORWARD: {
+        } break;
+#endif
 
         default:
-            SMART_ABORT("unsupported data type: {}", static_cast<int>(weight->m_dtype));
+            SMART_ABORT("unsupported op type: {}", static_cast<int>(op->op));
         }
+
+        max_work_size = std::max(max_work_size, cur);
     }
+
+    setup_work_data(max_work_size);
 }
 
-void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
-    // W (d,n) @ x (n,) -> xout (d,)
-    // by far the most amount of time is spent inside this little function
-    auto dst_tensor  = convert_to_ggml(dst);
-    auto src0_tensor = convert_to_ggml(src0);
-    auto src1_tensor = convert_to_ggml(src1);
+void GGMLBackend::setup_work_data(size_t work_size) {
+    if (work_size <= m_wdata.size()) {
+        return;
+    }
+    if (work_size > 0) {
+        work_size += get_cache_line_size() * num_threads;
+    }
 
-    m_thread_pool->run([&](size_t thread_id) {
-        op_compute_params params = m_params;
-
-        params.ith = thread_id;
-        params.nth = m_thread_pool->size();
-
-        params.thread_pool = (void *)m_thread_pool.get();
-        params.barrier_fn  = [](void *opaque) {
-            auto thread_pool = (ThreadPool *)opaque;
-            // fmt::print("thread waiting for barrier\n");
-            thread_pool->barrier();
-        };
-        params.current_chunk = (atomic_int *)&m_current_chunk;
-
-        smart_compute_forward_mul_mat(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get());
-    });
+    m_wdata.resize(work_size);
+    m_params.wdata = m_wdata.data();
+    m_params.wsize = m_wdata.size();
 }
 
 void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t size) const {
@@ -85,21 +110,6 @@ void GGMLBackend::rmsnorm_internal(float *o, float *x, float *weight, int64_t si
     for (int j = 0; j < size; j++) {
         o[j] = weight[j] * (ss * x[j]);
     }
-}
-
-void GGMLBackend::rmsnorm(const Tensor *out, const Tensor *x, const Tensor *weight, float eps) const {
-    auto dst_tensor  = convert_to_ggml(out);
-    auto src0_tensor = convert_to_ggml(x);
-    auto src1_tensor = convert_to_ggml(weight);
-
-    m_thread_pool->run([&](size_t thread_id) {
-        op_compute_params params = m_params;
-
-        params.ith = thread_id;
-        params.nth = m_thread_pool->size();
-
-        smart_compute_forward_rms_norm(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get(), eps);
-    });
 }
 
 void GGMLBackend::softmax_internal(float *out, float *x, size_t size) const {
@@ -122,60 +132,6 @@ void GGMLBackend::softmax_internal(float *out, float *x, size_t size) const {
     }
 }
 
-void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
-    auto dst_tensor  = convert_to_ggml(out);
-    auto src0_tensor = convert_to_ggml(x);
-
-    // fmt::print("Running matmul with {} threads\n", m_thread_pool->size());
-    m_thread_pool->run([&](size_t thread_id) {
-        op_compute_params params = m_params;
-
-        params.ith = thread_id;
-        params.nth = m_thread_pool->size();
-
-        smart_compute_forward_soft_max(&params, dst_tensor.get(), src0_tensor.get());
-    });
-}
-
-void GGMLBackend::rope(
-    Tensor *out, const Tensor *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &rope_cfg
-) const {
-    auto dst_tensor  = convert_to_ggml(out);
-    auto src0_tensor = convert_to_ggml(src);
-    auto src1_tensor = std::make_unique<ggml_tensor>();
-    {
-        src1_tensor->data  = (void *)pos.data();
-        src1_tensor->type  = GGML_TYPE_I32;
-        src1_tensor->ne[0] = pos.size();
-        src1_tensor->ne[1] = src1_tensor->ne[2] = src1_tensor->ne[3] = 1;
-        src1_tensor->nb[0]                                           = sizeof(int32_t);
-        src1_tensor->nb[1] = src1_tensor->nb[2] = src1_tensor->nb[3] = pos.size() * sizeof(int32_t);
-    }
-
-    rope_compute_params rope_params = {
-        .n_dims      = rope_cfg.n_dims,
-        .n_ctx_orig  = rope_cfg.n_ctx_orig,
-        .freq_base   = rope_cfg.freq_base,
-        .freq_scale  = rope_cfg.freq_scale,
-        .ext_factor  = rope_cfg.ext_factor,
-        .attn_factor = rope_cfg.attn_factor,
-        .beta_fast   = rope_cfg.beta_fast,
-        .beta_slow   = rope_cfg.beta_slow,
-        .mode        = rope_cfg.rope_type,
-    };
-
-    m_thread_pool->run([&](size_t thread_id) {
-        op_compute_params params = m_params;
-
-        params.ith = thread_id;
-        params.nth = m_thread_pool->size();
-
-        smart_compute_forward_rope(
-            &params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get(), nullptr, &rope_params
-        );
-    });
-}
-
 void GGMLBackend::reset_kv_batch_size(const size_t batch_size) const {
     m_kv->reset_batch_size(batch_size);
 }
@@ -183,6 +139,8 @@ void GGMLBackend::reset_kv_batch_size(const size_t batch_size) const {
 void GGMLBackend::multihead_attention(
     const Tensor *out, const Tensor *q, const std::vector<int> &pos, const int64_t L, const uint32_t n_heads
 ) const {
+    fmt::println("This function is deprecated!");
+
     auto dim        = q->m_shape[0];
     auto kv_dim     = m_kv->m_kv_dim;
     auto seq_len    = m_kv->m_n_ctx;
@@ -231,21 +189,6 @@ void GGMLBackend::multihead_attention(
     }
 }
 
-void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
-    auto dst_tensor  = convert_to_ggml(dst);
-    auto src0_tensor = convert_to_ggml(src0);
-    auto src1_tensor = convert_to_ggml(src1);
-
-    m_thread_pool->run([&](size_t thread_id) {
-        op_compute_params params = m_params;
-
-        params.ith = thread_id;
-        params.nth = m_thread_pool->size();
-
-        smart_compute_forward_add(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get());
-    });
-}
-
 void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const {
     SMART_ASSERT(is_contiguous(out, 0));
     SMART_ASSERT(is_contiguous(hb, 0));
@@ -260,12 +203,6 @@ void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tenso
         val *= hb2_data[j];
         out_data[j] = val;
     }
-}
-
-void GGMLBackend::copy(const Tensor *dst, const Tensor *src, const int64_t off) const {
-    auto dst_ptr = static_cast<float *>(dst->get<Buffer>().m_data) + off;
-    auto src_ptr = static_cast<float *>(src->get<Buffer>().m_data);
-    memcpy((void *)dst_ptr, src_ptr, src->n_elements() * sizeof(float));
 }
 
 void GGMLBackend::quest_attention(
@@ -388,9 +325,10 @@ void GGMLBackend::cos_sim_internal(float *x_, float *y_, size_t size) const {
 void GGMLBackend::print(const Tensor *x, size_t size) const {
     SMART_UNUSED(size);
     SMART_ASSERT(x->m_dtype == DataType::FP32);
-    printf("\n{%ld, %ld, %ld, %ld}\n", x->m_shape[3], x->m_shape[2], x->m_shape[1], x->m_shape[0]);
     auto shape  = x->m_shape;
     auto stride = x->get<Buffer>().m_stride;
+    printf("\n{%ld, %ld, %ld, %ld}\n", shape[3], shape[2], shape[1], shape[0]);
+    printf("\n{%ld, %ld, %ld, %ld}\n", stride[3], stride[2], stride[1], stride[0]);
     for (size_t i3 = 0; i3 < shape[3]; i3++) {
         for (size_t i2 = 0; i2 < shape[2]; i2++) {
             for (size_t i1 = 0; i1 < shape[1]; i1++) {
@@ -406,34 +344,30 @@ void GGMLBackend::print(const Tensor *x, size_t size) const {
     exit(0);
 }
 
-bool GGMLBackend::is_contiguous(const Tensor *tensor, int n) const {
-    SMART_ASSERT(n >= 0 && n <= 2);
-    if (n == 0) {
-        return ggml_is_contiguous_0(convert_to_ggml(tensor).get());
-    } else if (n == 1) {
-        return ggml_is_contiguous_1(convert_to_ggml(tensor).get());
-    } else if (n == 2) {
-        return ggml_is_contiguous_2(convert_to_ggml(tensor).get());
-    }
-    return false;
+void GGMLBackend::add_cache(const Tensor *k, const Tensor *v, size_t L, const std::vector<int> &pos, size_t head_id) {
+    fmt::println("This function is deprecated!");
+    SMART_UNUSED(head_id);
+
+    auto kv_dim       = m_kv->m_kv_dim;
+    auto batch_size   = pos.size();
+    auto cur_position = m_kv->kv_cache->position;
+    SMART_ASSERT(batch_size == m_kv->m_batch_size);
+
+    float *src_k  = static_cast<float *>(k->get<ggml::Buffer>().m_data); // (kv_dim, batch_size, 1, 1)
+    float *src_v  = static_cast<float *>(v->get<ggml::Buffer>().m_data); // (kv_dim, batch_size, 1, 1)
+    float *dst_kb = m_kv->chunk.key_buffer[L].data() + kv_dim * cur_position;
+    float *dst_vb = m_kv->chunk.value_buffer[L].data() + kv_dim * cur_position;
+    memcpy(dst_kb, src_k, kv_dim * batch_size * sizeof(float));
+    memcpy(dst_vb, src_v, kv_dim * batch_size * sizeof(float));
 }
 
-void GGMLBackend::add_cache(const Tensor *src, size_t L, const std::vector<int> &pos, size_t head_id, bool is_k) {
-    SMART_UNUSED(head_id);
-    auto kv_dim       = m_kv->m_kv_dim;
-    float *dst_base   = nullptr;
-    float *src_buffer = static_cast<float *>(src->get<ggml::Buffer>().m_data); // (kv_dim, batch_size, 1, 1)
-    if (is_k) {
-        dst_base = m_kv->chunk.key_buffer[L].data(); // [seq_len * kv_dim]
-    } else {
-        dst_base = m_kv->chunk.value_buffer[L].data();
-    }
+void GGMLBackend::transpose(const Tensor *out, const Tensor *x) const {
+    Buffer::Stride stride{x->get<Buffer>().m_stride};
+    stride[0] = x->get<Buffer>().m_stride[1];
+    stride[1] = x->get<Buffer>().m_stride[0];
 
-    for (auto i = 0; auto p : pos) {
-        // dst[L][p] <- src[i]
-        memcpy(dst_base + p * kv_dim, src_buffer + i * kv_dim, kv_dim * sizeof(float));
-        i += 1;
-    }
+    out->get<Buffer>().m_data   = x->get<Buffer>().m_data;
+    out->get<Buffer>().m_stride = stride;
 }
 
 } // namespace smart::ggml

@@ -54,6 +54,43 @@ public:
     auto get() const -> Buffer & {
         return dynamic_cast<Buffer &>(*m_data);
     }
+
+    bool is_quantized() const {
+        return m_dtype != DataType::FP32;
+    }
+
+    bool is_empty() const {
+        for (auto dim : m_shape) {
+            if (dim == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    int64_t nrows() const {
+        return m_shape[1] * m_shape[2] * m_shape[3];
+    }
+
+    size_t element_size() const {
+        return get_type_size(m_dtype);
+    }
+
+    size_t row_size(int64_t ne) const {
+        SMART_ASSERT(ne % get_block_size(m_dtype) == 0);
+        return element_size() * ne / get_block_size(m_dtype);
+    }
 };
+
+static inline bool tensor_can_mul_mat(const Tensor *t0, const Tensor *t1) {
+    return (t0->m_shape[0] == t1->m_shape[0]) && (t1->m_shape[2] % t0->m_shape[2] == 0) && // verify t0 is broadcastable
+           (t1->m_shape[3] % t0->m_shape[3] == 0);
+}
+
+static bool tensor_can_repeat(const Tensor *t0, const Tensor *t1) {
+    return t0->is_empty() ? t1->is_empty()
+                          : (t1->m_shape[0] % t0->m_shape[0] == 0) && (t1->m_shape[1] % t0->m_shape[1] == 0) &&
+                                (t1->m_shape[2] % t0->m_shape[2] == 0) && (t1->m_shape[3] % t0->m_shape[3] == 0);
+}
 
 } // namespace smart
