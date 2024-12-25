@@ -19,7 +19,7 @@ struct GraphInterface {
     const ModelConfig &m_model_config;
     ContextBinary &m_context_binary;
     std::unique_ptr<qnn::Graph> m_graph;
-    std::map<const std::string, qnn::Tensor *> m_tensors;
+    std::map<const std::string, qnn::QNNTensor *> m_tensors;
     std::map<std::string, std::shared_ptr<SharedBuffer>> m_buffers;
 #if defined(QNN_TIMER)
     using clock = std::chrono::high_resolution_clock;
@@ -34,7 +34,7 @@ struct GraphInterface {
     void setup_tensor(
         const std::string &tensor_name, const std::vector<size_t> &tensor_shape, const Qnn_DataType_t tensor_type
     );
-    void setup_buffer(std::shared_ptr<SharedBuffer> &buffer, qnn::Tensor *tensor);
+    void setup_buffer(std::shared_ptr<SharedBuffer> &buffer, qnn::QNNTensor *tensor);
     virtual void setup_tensors() = 0;
     virtual void setup_buffers() = 0;
 #if defined(QNN_TIMER)

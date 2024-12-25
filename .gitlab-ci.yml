@@ -57,23 +57,19 @@ check_formatting:
     - format_exit_status=$?
     - echo "$format_exit_status"
     - if [[ "$format_exit_status" -eq "0" ]]; then echo "Formatting is correct"; exit 0; else echo "Detected formatting issues; please fix"; exit 1; fi
-  retry:
-    max: 2  
-    when:
-      - always
 
 setup:
   stage: setup
   script:
     - pwd
-    - sudo podman stop $CONTAINER_NAME || true
-    - sudo podman rm $CONTAINER_NAME || true
+    - podman stop $CONTAINER_NAME || true
+    - podman rm $CONTAINER_NAME || true
     - git submodule update --init --recursive
     - sudo -E podman run -v $(realpath .):/code -v $(realpath ${BUILD_ROOT}):/data -v $(realpath ${QNN_SDK_ROOT}):/qnn -dit --name ndk ubuntu:22.04
-    - sudo podman exec -it $CONTAINER_NAME bash -c "echo -e 'deb http://mirrors.aliyun.com/ubuntu/ jammy main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-updates main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-backports main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-security main restricted universe multiverse' | tee /etc/apt/sources.list"
-    - sudo podman exec -it $CONTAINER_NAME bash -c "apt update && apt upgrade -y && apt install -y sudo vim cmake unzip git python-is-python3 python3-pip build-essential sshpass"
-    - sudo podman exec -it $CONTAINER_NAME bash -c "git config --global --add safe.directory /code"
-    - sudo podman exec -it $CONTAINER_NAME bash -c "pip install pandas requests pillow numpy tqdm datasets"
+    - podman exec -it $CONTAINER_NAME bash -c "echo -e 'deb http://mirrors.aliyun.com/ubuntu/ jammy main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-updates main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-backports main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-security main restricted universe multiverse' | tee /etc/apt/sources.list"
+    - podman exec -it $CONTAINER_NAME bash -c "apt update && apt upgrade -y && apt install -y sudo vim cmake unzip git python-is-python3 python3-pip build-essential sshpass"
+    - podman exec -it $CONTAINER_NAME bash -c "git config --global --add safe.directory /code"
+    - podman exec -it $CONTAINER_NAME bash -c "pip install pandas requests pillow numpy tqdm datasets"
   retry:
     max: 2  
     when:
@@ -83,15 +79,15 @@ build:
   stage: build
   script:
     - sleep 3
-    - sudo podman exec -it $CONTAINER_NAME bash -c "export QNN_SDK_ROOT=/qnn"
-    - sudo podman exec -it $CONTAINER_NAME bash -c "echo 'export QNN_SDK_ROOT=/qnn' >> ~/.bashrc"
-    - sudo podman exec -it $CONTAINER_NAME bash -c "echo 'export NDK=/data/android-ndk-r27b' >> ~/.bashrc"
-    - sudo podman exec -it $CONTAINER_NAME bash -c "source ~/.bashrc"
+    - podman exec -it $CONTAINER_NAME bash -c "export QNN_SDK_ROOT=/qnn"
+    - podman exec -it $CONTAINER_NAME bash -c "echo 'export QNN_SDK_ROOT=/qnn' >> ~/.bashrc"
+    - podman exec -it $CONTAINER_NAME bash -c "echo 'export NDK=/data/android-ndk-r27b' >> ~/.bashrc"
+    - podman exec -it $CONTAINER_NAME bash -c "source ~/.bashrc"
     - sleep 1
-    - sudo podman exec -it $CONTAINER_NAME bash -c -i "cd /code && cmake -DCMAKE_TOOLCHAIN_FILE=/data/android-ndk-r27b/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF -DGGML_OPENMP=OFF -DSMART_ENABLE_ASAN=OFF -DSMART_WITH_QNN=ON -S . -B build_android"
-    - sudo podman exec -it $CONTAINER_NAME bash -c -i "cd /code && cmake --build build_android --config RelWithDebInfo --parallel 12 && sudo chmod -R 777 build_android"
-    - sudo podman exec -it $CONTAINER_NAME bash -c -i "cp -r /code/build_android /data"
-    - sudo podman exec -it $CONTAINER_NAME bash -c -i "cp /code/smartserving /data"
+    - podman exec -it $CONTAINER_NAME bash -c -i "cd /code && cmake -DCMAKE_TOOLCHAIN_FILE=/data/android-ndk-r27b/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF -DGGML_OPENMP=OFF -DSMART_ENABLE_ASAN=OFF -DSMART_WITH_QNN=ON -S . -B build_android"
+    - podman exec -it $CONTAINER_NAME bash -c -i "cd /code && cmake --build build_android --config RelWithDebInfo --parallel 12 && sudo chmod -R 777 build_android"
+    - podman exec -it $CONTAINER_NAME bash -c -i "cp -r /code/build_android /data"
+    - podman exec -it $CONTAINER_NAME bash -c -i "cp /code/smartserving /data"
   retry:
     max: 2  
     when:

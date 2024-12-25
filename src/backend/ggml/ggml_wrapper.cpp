@@ -108,14 +108,14 @@ void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1)
     });
 }
 
-void GGMLBackend::permute(const Tensor *out, const Tensor *x, Tensor::Shape axes) const {
-    Buffer::Stride stride{};
-    stride[axes[0]] = x->get<Buffer>().m_stride[0];
-    stride[axes[1]] = x->get<Buffer>().m_stride[1];
-    stride[axes[2]] = x->get<Buffer>().m_stride[2];
-    stride[axes[3]] = x->get<Buffer>().m_stride[3];
+void GGMLBackend::permute(const Tensor *out, const Tensor *x, Shape axes) const {
+    Stride stride{};
+    stride[axes[0]] = x->get<CPUBuffer>().m_stride[0];
+    stride[axes[1]] = x->get<CPUBuffer>().m_stride[1];
+    stride[axes[2]] = x->get<CPUBuffer>().m_stride[2];
+    stride[axes[3]] = x->get<CPUBuffer>().m_stride[3];
 
-    out->get<Buffer>().m_stride = stride;
+    out->get<CPUBuffer>().m_stride = stride;
 }
 
 void GGMLBackend::cont(const Tensor *out, const Tensor *x) const {
@@ -165,13 +165,13 @@ void GGMLBackend::softmax_ext(const Tensor *out, const Tensor *x, const Tensor *
 }
 
 void GGMLBackend::get_embedding(const Tensor *dst, const Tensor *weight, const std::vector<int> &tokens) const {
-    auto embd_tb = static_cast<char *>(weight->get<Buffer>().m_data);
-    auto dst_tb  = static_cast<float *>(dst->get<Buffer>().m_data);
+    auto embd_tb = static_cast<char *>(weight->get<CPUBuffer>().m_data);
+    auto dst_tb  = static_cast<float *>(dst->get<CPUBuffer>().m_data);
 
     auto dim        = dst->m_shape[0];
     auto batch_size = tokens.size();
     SMART_ASSERT(batch_size == dst->m_shape[1]);
-    auto weight_strip = weight->get<Buffer>().m_stride;
+    auto weight_strip = weight->get<CPUBuffer>().m_stride;
 
     for (size_t i = 0; i < batch_size; i++) {
         auto token = tokens[i];
@@ -213,9 +213,6 @@ int GGMLBackend::get_n_tasks(std::shared_ptr<OpNode> op) {
 
     switch (op->op) {
     // custom ops
-    case OpType::COS_SIM:
-    case OpType::MHA:
-    case OpType::QUEST_ATTN:
     case OpType::SILU_HADAMARD:
     case OpType::ADD_CACHE:
     case OpType::PRINT:

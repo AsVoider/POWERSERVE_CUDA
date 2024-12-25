@@ -22,15 +22,15 @@ struct QNNBackend : smart::Backend {
     void load_model(const Path &path, const std::shared_ptr<smart::ModelConfig> &model_config);
     void forward(
         const std::string &model_id,
-        const smart::Tensor *dst,
-        const smart::Tensor *src,
+        const Tensor *dst,
+        const Tensor *src,
         const std::vector<int> &pos,
         const CausalAttentionMask &mask
     );
     void forward(
         const std::string &model_id,
-        const smart::Tensor *dst,
-        const smart::Tensor *src,
+        const Tensor *dst,
+        const Tensor *src,
         const std::vector<std::vector<float>> &pixel_values_list,
         const std::vector<std::pair<int, size_t>> &img_infos,
         std::vector<int> &pos,

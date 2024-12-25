@@ -7,7 +7,6 @@
 #include "model/model.hpp"
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
-#include "model/module/quest_attention.hpp"
 #include "sampler/sampler_chain.hpp"
 
 #include <cstdlib>
@@ -17,14 +16,12 @@ int main(int argc, char *argv[]) {
 
     // 0. load config
     std::string work_folder = "/home/zwb/SS/smartserving/llama3.2.json";
-    std::string attn_type   = "normal";
     std::string host        = "127.0.0.1";
     int port                = 8080;
 
     CLI::App app("Server program");
 
     app.add_option("--work-folder", work_folder)->required();
-    app.add_option("--attn-type", attn_type);
     app.add_option("--host", host);
     app.add_option("--port", port);
 #if defined(SMART_WITH_QNN)
@@ -47,11 +44,7 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    if (attn_type == "normal") {
-        model->m_attn = std::make_shared<smart::NormAttention>(model->m_config->llm, model->m_weights);
-    } else if (attn_type == "quest") {
-        model->m_attn = std::make_shared<smart::QuestAttention>(model->m_config->llm, model->m_weights);
-    }
+    model->m_attn = std::make_shared<smart::NormAttention>(model->m_config->llm, model->m_weights);
     SMART_LOG_INFO("after attn init: {}", smart::perf_get_mem_result());
 
     std::string tokenizer_path = config->main_model_dir / smart::MODEL_VOCAB_FILENAME;

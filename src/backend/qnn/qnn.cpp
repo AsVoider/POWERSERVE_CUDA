@@ -13,7 +13,6 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <linux/mman.h>
-#include <stdexcept>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -647,14 +646,14 @@ static void deep_copy_tensor(Qnn_Tensor_t &dst, const Qnn_Tensor_t &src) {
     QNN_TENSOR_SET_SPARSE_PARAMS(dst, QNN_TENSOR_GET_SPARSE_PARAMS(src));
 }
 
-std::unordered_map<Tensor *, void *> buffer_map{};
+std::unordered_map<QNNTensor *, void *> buffer_map{};
 
-Tensor::Tensor(const Qnn_Tensor_t &source) {
+QNNTensor::QNNTensor(const Qnn_Tensor_t &source) {
     deep_copy_tensor(m_tensor, source);
     SMART_ASSERT(QNN_TENSOR_GET_MEM_TYPE(m_tensor) == QNN_TENSORMEMTYPE_UNDEFINED);
 }
 
-Tensor::~Tensor() {
+QNNTensor::~QNNTensor() {
     const auto tensor_mem_type = QNN_TENSOR_GET_MEM_TYPE(m_tensor);
     switch (tensor_mem_type) {
     case QNN_TENSORMEMTYPE_RAW: {
@@ -674,11 +673,11 @@ Tensor::~Tensor() {
     free((void *)QNN_TENSOR_GET_NAME(m_tensor));
 }
 
-auto Tensor::name() const -> std::string {
+auto QNNTensor::name() const -> std::string {
     return QNN_TENSOR_GET_NAME(m_tensor);
 }
 
-size_t Tensor::n_elements() const {
+size_t QNNTensor::n_elements() const {
     size_t n_elements = 1;
     for (size_t i = 0; i < QNN_TENSOR_GET_RANK(m_tensor); i++) {
         n_elements *= QNN_TENSOR_GET_DIMENSIONS(m_tensor)[i];
@@ -686,15 +685,15 @@ size_t Tensor::n_elements() const {
     return n_elements;
 }
 
-auto Tensor::type() const -> QNNDataType {
+auto QNNTensor::type() const -> QNNDataType {
     return QNN_TENSOR_GET_DATA_TYPE(m_tensor);
 }
 
-size_t Tensor::size() const {
+size_t QNNTensor::size() const {
     return n_elements() * type_size(type());
 }
 
-auto Tensor::shape() const -> std::vector<size_t> {
+auto QNNTensor::shape() const -> std::vector<size_t> {
     std::vector<size_t> shape(QNN_TENSOR_GET_RANK(m_tensor));
     for (size_t i = 0; i < shape.size(); i++) {
         shape[i] = QNN_TENSOR_GET_DIMENSIONS(m_tensor)[i];
@@ -702,7 +701,7 @@ auto Tensor::shape() const -> std::vector<size_t> {
     return shape;
 }
 
-void Tensor::setup_normal_buffer() {
+void QNNTensor::setup_normal_buffer() {
     Qnn_ClientBuffer_t buffer = QNN_CLIENT_BUFFER_INIT;
     buffer.dataSize           = size();
     buffer.data               = malloc(buffer.dataSize);
@@ -710,13 +709,13 @@ void Tensor::setup_normal_buffer() {
     QNN_TENSOR_SET_CLIENT_BUF(m_tensor, buffer);
 }
 
-void Tensor::setup_shared_buffer(SharedBuffer &buffer) {
+void QNNTensor::setup_shared_buffer(SharedBuffer &buffer) {
     QNN_TENSOR_SET_MEM_TYPE(m_tensor, QNN_TENSORMEMTYPE_MEMHANDLE);
     QNN_TENSOR_SET_MEM_HANDLE(m_tensor, buffer.m_handle);
     buffer_map.emplace(this, buffer.m_data);
 }
 
-auto Tensor::data() -> void * {
+auto QNNTensor::data() -> void * {
     const auto tensor_mem_type = QNN_TENSOR_GET_MEM_TYPE(m_tensor);
     switch (tensor_mem_type) {
     case QNN_TENSORMEMTYPE_RAW:
@@ -731,21 +730,21 @@ auto Tensor::data() -> void * {
     }
 }
 
-int Tensor::quantization_offset() const {
+int QNNTensor::quantization_offset() const {
     return QNN_TENSOR_GET_QUANT_PARAMS(m_tensor).scaleOffsetEncoding.offset;
 }
 
-float Tensor::quantization_scale() const {
+float QNNTensor::quantization_scale() const {
     return QNN_TENSOR_GET_QUANT_PARAMS(m_tensor).scaleOffsetEncoding.scale;
 }
 
-auto Tensor::check(const std::vector<size_t> &shape, Qnn_DataType_t datatype) -> Tensor * {
+auto QNNTensor::check(const std::vector<size_t> &shape, Qnn_DataType_t datatype) -> QNNTensor * {
     SMART_ASSERT(this->shape() == shape);
     SMART_ASSERT(this->type() == datatype);
     return this;
 }
 
-void Tensor::print() {
+void QNNTensor::print() {
     if (type() == QNN_DATATYPE_FLOAT_32) {
         auto buf = (const float *)buffer_map.at(this);
         for (size_t i = 0; i < n_elements(); i++) {
@@ -818,7 +817,7 @@ Graph::Graph(Context &context, const std::string &name) : m_name(name) {
     }
 }
 
-auto Graph::get_tensor(const std::string &name, bool required) -> Tensor * {
+auto Graph::get_tensor(const std::string &name, bool required) -> QNNTensor * {
     for (auto &t : m_inputs) {
         if (t.name() == name) {
             return &t;

@@ -14,14 +14,14 @@ void Executor::allocate_buffers() {
 
         switch (tensor->m_dtype) {
         case DataType::FP32: {
-            create_ggml_buffer<float>(tensor);
+            create_cpu_buffer<float>(tensor);
         } break;
 
         case DataType::INT32: {
-            create_ggml_buffer<int32_t>(tensor);
+            create_cpu_buffer<int32_t>(tensor);
         } break;
         case DataType::INT64: {
-            tensor->m_data = m_platform.ggml_backend->create_buffer<int64_t>(tensor->m_shape);
+            create_cpu_buffer<int64_t>(tensor);
         } break;
 
         default:
@@ -88,13 +88,6 @@ void Executor::run() {
             m_platform.ggml_backend->softmax(out, x);
         } break;
 
-        case OpType::MHA: {
-            auto q                        = op->prev[0]->tensor();
-            auto out                      = op->output();
-            auto [pos, layer_id, n_heads] = op->get_params<MHAParams>();
-            m_platform.ggml_backend->multihead_attention(out, q, pos, layer_id, n_heads);
-        } break;
-
         case OpType::COPY: {
             auto dst = op->prev[0]->tensor();
             auto src = op->prev[1]->tensor();
@@ -121,19 +114,6 @@ void Executor::run() {
             img_infos.clear();
         } break;
 #endif
-
-        case OpType::QUEST_ATTN: {
-            auto q                                 = op->prev[0]->tensor();
-            auto out                               = op->output();
-            auto [pos, layer_id, regions, n_heads] = op->get_params<QuestAttnParams>();
-            m_platform.ggml_backend->quest_attention(out, q, pos, layer_id, regions, n_heads);
-        } break;
-
-        case OpType::COS_SIM: {
-            auto src0 = op->prev[0]->tensor();
-            auto src1 = op->prev[1]->tensor();
-            m_platform.ggml_backend->cos_sim(src0, src1);
-        } break;
 
         case OpType::PRINT: {
             auto x    = op->prev[0]->tensor();
@@ -163,10 +143,10 @@ void Executor::run() {
         } break;
 
         case OpType::VIEW: {
-            auto out                          = op->output();
-            auto [stride, offset]             = op->get_params<ViewParams>();
-            out->get<ggml::Buffer>().m_stride = stride;
-            out->get<ggml::Buffer>().m_data   = (char *)out->get<ggml::Buffer>().m_data + offset;
+            auto out                       = op->output();
+            auto [stride, offset]          = op->get_params<ViewParams>();
+            out->get<CPUBuffer>().m_stride = stride;
+            out->get<CPUBuffer>().m_data   = (char *)out->get<CPUBuffer>().m_data + offset;
         } break;
 
         case OpType::SOFTMAX_EXT: {
@@ -185,8 +165,7 @@ void Executor::run() {
             auto batch_size  = out->m_shape[1];
 
             SMART_ASSERT(out->m_dtype == DataType::FP32);
-            auto mask_buf = (float *)out->get<ggml::Buffer>().m_data;
-            // fmt::println("mask shape: {}", out->m_shape);
+            auto mask_buf = (float *)out->get<CPUBuffer>().m_data;
             for (size_t i = 0; i < batch_size; i++) {
                 size_t cur_pos = pos[i];
                 for (size_t j = 0; j < n_kv; j++) {

@@ -18,10 +18,7 @@ enum class OpType {
     QNN_FORWARD_VL,
 #endif
 
-    MHA,
     PRINT,
-    QUEST_ATTN,
-    COS_SIM,
     GET_EMBEDDING,
     ADD_CACHE,
     PERMUTE,

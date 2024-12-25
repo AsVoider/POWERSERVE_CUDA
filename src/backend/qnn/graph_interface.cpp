@@ -30,7 +30,7 @@ auto GraphInterface ::io_tensor_size() const -> size_t {
     return size;
 }
 
-void GraphInterface::setup_buffer(std::shared_ptr<SharedBuffer> &buffer, qnn::Tensor *tensor) {
+void GraphInterface::setup_buffer(std::shared_ptr<SharedBuffer> &buffer, qnn::QNNTensor *tensor) {
     if (!buffer) {
         buffer = std::make_shared<SharedBuffer>(
             *m_context_binary.m_context, *m_context_binary.m_alloc, tensor->type(), tensor->n_elements()

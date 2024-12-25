@@ -8,7 +8,7 @@ auto Graph::add_tensor(const Tensor &tensor) -> TensorNode * {
 }
 
 // Create a new tensorNode and allocate memory when call Executor::allocate_buffers
-auto Graph::new_tensor(DataType dtype, const Tensor::Shape &shape) -> TensorNode * {
+auto Graph::new_tensor(DataType dtype, const Shape &shape) -> TensorNode * {
     return tensors.emplace_back(new TensorNode(dtype, shape)).get();
 }
 
@@ -21,7 +21,7 @@ auto Graph::dup_tensor(TensorNode *tensor) -> TensorNode * {
     return new_tensor(tensor->m_dtype, tensor->m_shape);
 }
 
-auto Graph::view_tensor(const TensorNode *tensor, Tensor::Shape shape) -> TensorViewNode * {
+auto Graph::view_tensor(const TensorNode *tensor, Shape shape) -> TensorViewNode * {
     return static_cast<TensorViewNode *>(tensors.emplace_back(new TensorViewNode(*tensor, shape)).get());
 }
 
@@ -52,9 +52,9 @@ auto Graph::mat_mul(TensorNode *a, TensorNode *b) -> TensorNode * {
     SMART_ASSERT(a->m_shape[0] == b->m_shape[0]);
     SMART_ASSERT(tensor_can_mul_mat(a, b));
 
-    Tensor::Shape shape = {a->m_shape[1], b->m_shape[1], b->m_shape[2], b->m_shape[3]};
-    auto out            = new_tensor(DataType::FP32, shape);
-    auto op             = new_op(OpType::MAT_MUL);
+    Shape shape = {a->m_shape[1], b->m_shape[1], b->m_shape[2], b->m_shape[3]};
+    auto out    = new_tensor(DataType::FP32, shape);
+    auto op     = new_op(OpType::MAT_MUL);
     op->set_inputs({a, b});
     op->set_outputs({out});
 
@@ -103,18 +103,6 @@ auto Graph::softmax(TensorNode *x) -> TensorNode * {
     auto op  = new_op(OpType::SOFTMAX);
     op->set_inputs({x});
     op->set_outputs({out});
-
-    return out;
-}
-
-auto Graph::mha(TensorNode *q, const std::vector<int> &pos, size_t layer_id, uint32_t n_heads) -> TensorNode * {
-    // TODO: Add checks
-
-    auto out = dup_tensor(q);
-    auto op  = new_op(OpType::MHA);
-    op->set_inputs({q});
-    op->set_outputs({out});
-    op->set_params(MHAParams{.pos = pos, .layer_id = layer_id, .n_heads = n_heads});
 
     return out;
 }
@@ -170,35 +158,17 @@ void Graph::print(TensorNode *x, size_t size) {
     op->set_params(PrintParams{.size = size});
 }
 
-auto Graph::quest_attention(
-    TensorNode *q, const std::vector<int> &pos, size_t layer_id, std::vector<Region> &regions, uint32_t n_heads
-) -> TensorNode * {
-    auto out = dup_tensor(q);
-    auto op  = new_op(OpType::QUEST_ATTN);
-    op->set_inputs({q});
-    op->set_outputs({out});
-    op->set_params(QuestAttnParams{.pos = pos, .layer_id = layer_id, .regions = regions, .n_heads = n_heads});
-
-    return out;
-}
-
-void Graph::cos_sim(TensorNode *src0, TensorNode *src1) {
-    auto op = new_op(OpType::COS_SIM);
-    op->set_inputs({src0, src1});
-    op->set_outputs({});
-}
-
 void Graph::add_cache(TensorNode *k, TensorNode *v, size_t L, const std::vector<int> &pos, size_t head_id) {
     auto op = new_op(OpType::ADD_CACHE);
     op->set_inputs({k, v});
     op->set_params(AddCacheParams{L, pos, head_id});
 }
 
-auto Graph::permute(TensorNode *x, Tensor::Shape axes) -> TensorViewNode * {
-    SMART_ASSERT(axes[0] < Tensor::max_n_dims);
-    SMART_ASSERT(axes[1] < Tensor::max_n_dims);
-    SMART_ASSERT(axes[2] < Tensor::max_n_dims);
-    SMART_ASSERT(axes[3] < Tensor::max_n_dims);
+auto Graph::permute(TensorNode *x, Shape axes) -> TensorViewNode * {
+    SMART_ASSERT(axes[0] < max_n_dims);
+    SMART_ASSERT(axes[1] < max_n_dims);
+    SMART_ASSERT(axes[2] < max_n_dims);
+    SMART_ASSERT(axes[3] < max_n_dims);
 
     SMART_ASSERT(axes[0] != axes[1]);
     SMART_ASSERT(axes[0] != axes[2]);
@@ -207,7 +177,7 @@ auto Graph::permute(TensorNode *x, Tensor::Shape axes) -> TensorViewNode * {
     SMART_ASSERT(axes[1] != axes[3]);
     SMART_ASSERT(axes[2] != axes[3]);
 
-    Tensor::Shape shape{};
+    Shape shape{};
     shape[axes[0]] = x->m_shape[0];
     shape[axes[1]] = x->m_shape[1];
     shape[axes[2]] = x->m_shape[2];
@@ -222,7 +192,7 @@ auto Graph::permute(TensorNode *x, Tensor::Shape axes) -> TensorViewNode * {
     return out;
 }
 
-auto Graph::cont(TensorNode *x, Tensor::Shape shape) -> TensorNode * {
+auto Graph::cont(TensorNode *x, Shape shape) -> TensorNode * {
     auto out = new_tensor(x->m_dtype, shape);
     auto op  = new_op(OpType::CONT);
     op->set_inputs({x});
@@ -232,7 +202,7 @@ auto Graph::cont(TensorNode *x, Tensor::Shape shape) -> TensorNode * {
     return out;
 }
 
-auto Graph::view(const TensorNode *x, Tensor::Shape shape, Tensor::Shape stride, size_t offset) -> TensorViewNode * {
+auto Graph::view(const TensorNode *x, Shape shape, Shape stride, size_t offset) -> TensorViewNode * {
     auto out = view_tensor(x, shape);
     auto op  = new_op(OpType::VIEW);
     op->set_inputs({});
@@ -252,8 +222,7 @@ auto Graph::softmax_ext(TensorNode *x, TensorNode *mask, float scale, float max_
     return out;
 }
 
-auto Graph::get_mask(const CausalAttentionMask &mask, Tensor::Shape shape, const std::vector<int> &pos)
-    -> TensorNode * {
+auto Graph::get_mask(const CausalAttentionMask &mask, Shape shape, const std::vector<int> &pos) -> TensorNode * {
     auto out = new_tensor(DataType::FP32, shape);
     auto op  = new_op(OpType::GET_MASK);
     op->set_outputs({out});

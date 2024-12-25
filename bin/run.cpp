@@ -3,7 +3,6 @@
 #include "common/perf.hpp"
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
-#include "model/module/quest_attention.hpp"
 #include "sampler/sampler_chain.hpp"
 #include "tokenizer/tokenizer.hpp"
 
@@ -15,13 +14,11 @@ int main(int argc, char *argv[]) {
     smart::print_timestamp();
 
     std::string work_folder = "/home/zwb/SS/smartserving/";
-    std::string attn_type   = "normal";
     std::string prompt      = "";
 
     CLI::App app("Demo program for llama3");
 
     app.add_option("--work-folder", work_folder)->required();
-    app.add_option("--attn-type", attn_type);
     app.add_option("--prompt", prompt);
 #if defined(SMART_WITH_QNN)
     bool no_qnn = false;
@@ -46,11 +43,7 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    if (attn_type == "normal") {
-        model->m_attn = std::make_shared<smart::NormAttention>(model->m_config->llm, model->m_weights);
-    } else if (attn_type == "quest") {
-        model->m_attn = std::make_shared<smart::QuestAttention>(model->m_config->llm, model->m_weights);
-    }
+    model->m_attn = std::make_shared<smart::NormAttention>(model->m_config->llm, model->m_weights);
     SMART_LOG_INFO("after attn init: {}", smart::perf_get_mem_result());
 
     std::string tokenizer_path = config->main_model_dir / smart::MODEL_VOCAB_FILENAME;
@@ -63,7 +56,6 @@ int main(int argc, char *argv[]) {
     {
         SMART_LOG_INFO("prompt      : {:?}", smart::abbreviation(prompt, 50));
         SMART_LOG_INFO("steps       : {}", steps);
-        SMART_LOG_INFO("attn_type   : {}", attn_type);
         SMART_LOG_INFO("model arch  : {}", config->main_model_config->arch);
         SMART_LOG_INFO("n_threads   : {}", n_threads);
     }

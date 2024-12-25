@@ -1,7 +1,7 @@
 #pragma once
 
 #include "backend/backend.hpp"
-#include "backend/ggml/buffer.hpp"
+#include "backend/cpu_buffer.hpp"
 #include "backend/ggml/ggml_kv_cache.hpp"
 #include "common/logger.hpp"
 #include "core/config.hpp"
@@ -10,7 +10,6 @@
 #include "core/thread_pool.hpp"
 #include "ggml.h"
 #include "graph/node.hpp"
-#include "model/module/region.hpp"
 
 #include <atomic>
 #include <cstddef>
@@ -32,6 +31,8 @@ static ggml_type convert_datatype_to_ggml(DataType dtp) {
         return GGML_TYPE_Q8_0;
     case DataType::INT32:
         return GGML_TYPE_I32;
+    case DataType::INT64:
+        return GGML_TYPE_I64;
     default:
         SMART_ABORT("unsupported data type: {}", static_cast<int>(dtp));
     }
@@ -47,6 +48,10 @@ static DataType convert_datatype_from_ggml(ggml_type tp) {
         return DataType::GGML_Q4_0;
     case GGML_TYPE_Q8_0:
         return DataType::GGML_Q8_0;
+    case GGML_TYPE_I32:
+        return DataType::INT32;
+    case GGML_TYPE_I64:
+        return DataType::INT64;
     default:
         SMART_ABORT("unsupported ggml data type: {}", static_cast<int>(tp));
     }
@@ -54,24 +59,24 @@ static DataType convert_datatype_from_ggml(ggml_type tp) {
 
 static Tensor convert_from_ggml(ggml_tensor *t) {
     SMART_ASSERT(t != nullptr);
-    Tensor::Shape shape;
-    Buffer::Stride stride;
-    for (size_t i = 0; i < Tensor::max_n_dims; i++) {
+    Shape shape;
+    Stride stride;
+    for (size_t i = 0; i < max_n_dims; i++) {
         shape[i]  = t->ne[i];
         stride[i] = t->nb[i];
     }
     Tensor tensor(convert_datatype_from_ggml(t->type), shape);
-    tensor.m_data = std::make_shared<Buffer>(stride, t->data);
+    tensor.m_data = std::make_shared<CPUBuffer>(stride, t->data);
     return tensor;
 }
 
 static std::unique_ptr<ggml_tensor> convert_to_ggml(const Tensor *tensor) {
     auto gt  = std::make_unique<ggml_tensor>();
-    gt->data = tensor->get<ggml::Buffer>().m_data;
+    gt->data = tensor->get<CPUBuffer>().m_data;
     gt->type = convert_datatype_to_ggml(tensor->m_dtype);
-    for (size_t i = 0; i < Tensor::max_n_dims; i++) {
+    for (size_t i = 0; i < max_n_dims; i++) {
         gt->ne[i] = tensor->m_shape[i];
-        gt->nb[i] = tensor->get<ggml::Buffer>().m_stride[i];
+        gt->nb[i] = tensor->get<CPUBuffer>().m_stride[i];
     }
     return gt;
 }
@@ -202,7 +207,7 @@ public:
         Tensor *out, const Tensor *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &rope_cfg
     ) const;
     void softmax(const Tensor *out, const Tensor *x) const;
-    void permute(const Tensor *out, const Tensor *x, Tensor::Shape axes) const;
+    void permute(const Tensor *out, const Tensor *x, Shape axes) const;
     void cont(const Tensor *out, const Tensor *x) const;
     void softmax_ext(const Tensor *out, const Tensor *x, const Tensor *mask, float scale, float max_bias) const;
 
@@ -211,50 +216,12 @@ public:
     enum ggml_type get_vec_dot_type(const Tensor *tensor);
 
 public:
-    void multihead_attention(
-        const Tensor *out, const Tensor *q, const std::vector<int> &pos, const int64_t L, const uint32_t n_heads
-    ) const;
     void silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const;
     void copy(const Tensor *dst, const Tensor *src) const;
-    void quest_attention(
-        const Tensor *out,
-        const Tensor *q,
-        const std::vector<int> &pos,
-        const int64_t L,
-        std::vector<Region> &regions,
-        const uint32_t n_heads
-    ) const;
-    void cos_sim(const Tensor *src0, const Tensor *src1) const;
     void print(const Tensor *x, size_t size) const;
     void reset_kv_batch_size(const size_t batch_size) const;
     void add_cache(const Tensor *k, const Tensor *v, size_t L, const std::vector<int> &pos, size_t head_id);
     void transpose(const Tensor *out, const Tensor *x) const;
-
-public:
-    template <typename T>
-    auto create_buffer(Tensor::Shape shape) -> BufferPtr {
-        Buffer::Stride stride;
-        stride[0] = sizeof(T);
-        for (size_t i = 1; i < shape.size(); i++) {
-            stride[i] = stride[i - 1] * shape[i - 1];
-        }
-        size_t size = stride.back() * shape.back();
-
-        return std::make_shared<Buffer>(stride, malloc(size), true);
-    }
-
-    template <typename T>
-    auto create_buffer_view(Buffer &parent, Tensor::Shape shape) -> BufferPtr {
-        Buffer::Stride stride;
-        stride[0] = sizeof(T);
-        for (size_t i = 1; i < shape.size(); i++) {
-            stride[i] = stride[i - 1] * shape[i - 1];
-        }
-        SMART_ASSERT(parent.m_data != nullptr);
-        auto b    = std::make_shared<Buffer>(stride, nullptr, false);
-        b->m_data = parent.m_data;
-        return b;
-    }
 
 public:
     void plan(std::vector<std::shared_ptr<OpNode>> &ops);
@@ -263,11 +230,6 @@ public:
 private:
     std::unique_ptr<ThreadPool> m_thread_pool;
     std::atomic<int> m_current_chunk = 0;
-
-private:
-    void rmsnorm_internal(float *o, float *x, float *weight, int64_t size) const;
-    void softmax_internal(float *out, float *x, size_t size) const;
-    void cos_sim_internal(float *out_, float *x_, size_t size) const;
 };
 
 } // namespace smart::ggml

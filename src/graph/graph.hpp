@@ -14,10 +14,10 @@ public:
 
 public:
     auto add_tensor(const Tensor &tensor) -> TensorNode *;
-    auto new_tensor(DataType dtype, const Tensor::Shape &shape) -> TensorNode *;
+    auto new_tensor(DataType dtype, const Shape &shape) -> TensorNode *;
     auto new_op(OpType type) -> OpNode *;
     auto dup_tensor(TensorNode *tensor) -> TensorNode *;
-    auto view_tensor(const TensorNode *tensor, Tensor::Shape shape) -> TensorViewNode *;
+    auto view_tensor(const TensorNode *tensor, Shape shape) -> TensorViewNode *;
 
 public:
     auto get_embedding(TensorNode *weight, const std::vector<int> &tokens) -> TensorNode *;
@@ -48,19 +48,13 @@ public:
 
     auto softmax(TensorNode *x) -> TensorNode *;
     auto softmax_ext(TensorNode *x, TensorNode *mask, float scale, float max_bias) -> TensorNode *;
-    auto mha(TensorNode *q, const std::vector<int> &pos, size_t layer_id, uint32_t n_heads) -> TensorNode *;
     void print(TensorNode *x, size_t size);
 
-    auto quest_attention(
-        TensorNode *q, const std::vector<int> &pos, size_t layer_id, std::vector<Region> &regions, uint32_t n_heads
-    ) -> TensorNode *;
-    void cos_sim(TensorNode *src0, TensorNode *src1);
-
     void add_cache(TensorNode *k, TensorNode *v, size_t L, const std::vector<int> &pos, size_t head_id);
-    auto permute(TensorNode *x, Tensor::Shape axes) -> TensorViewNode *;
-    auto cont(TensorNode *x, Tensor::Shape shape) -> TensorNode *;
-    auto view(const TensorNode *x, Tensor::Shape shape, Tensor::Shape stride, size_t offset = 0) -> TensorViewNode *;
-    auto get_mask(const CausalAttentionMask &mask, Tensor::Shape shape, const std::vector<int> &pos) -> TensorNode *;
+    auto permute(TensorNode *x, Shape axes) -> TensorViewNode *;
+    auto cont(TensorNode *x, Shape shape) -> TensorNode *;
+    auto view(const TensorNode *x, Shape shape, Shape stride, size_t offset = 0) -> TensorViewNode *;
+    auto get_mask(const CausalAttentionMask &mask, Shape shape, const std::vector<int> &pos) -> TensorNode *;
     auto transpose(TensorNode *x) -> TensorViewNode *;
 };
 

@@ -1,22 +1,16 @@
 #pragma once
 
 #include "common/logger.hpp"
+#include "common/type_def.hpp"
 #include "core/buffer.hpp"
 #include "core/data_type.hpp"
 
-#include <algorithm>
-#include <array>
 #include <cstddef>
 #include <numeric>
 
 namespace smart {
 
 struct Tensor {
-public:
-    static constexpr size_t max_n_dims = 4;
-
-    using Shape = std::array<size_t, max_n_dims>;
-
 public:
     DataType m_dtype = DataType::UNKNOWN;
     Shape m_shape    = {0};

@@ -1,12 +1,12 @@
 #include "qnn_backend.hpp"
 
-#include "backend/ggml/buffer.hpp"
+#include "backend/cpu_buffer.hpp"
 #include "common/logger.hpp"
 
 namespace smart::qnn {
 QNNBackend::QNNBackend(Path libs_path) : m_session(libs_path) {}
 
-void QNNBackend::load_model(const Path &path, const std::shared_ptr<smart::ModelConfig> &model_config) {
+void QNNBackend::load_model(const Path &path, const std::shared_ptr<ModelConfig> &model_config) {
     auto &model_id = model_config->model_id;
     SMART_LOG_INFO("Load model {} from {}", model_id, path);
     if (model_config->vision.num_tokens_per_patch) {
@@ -18,19 +18,20 @@ void QNNBackend::load_model(const Path &path, const std::shared_ptr<smart::Model
 
 void QNNBackend::forward(
     const std::string &model_id,
-    const smart::Tensor *dst,
-    const smart::Tensor *src,
+    const Tensor *dst,
+    const Tensor *src,
     const std::vector<int> &pos,
     const CausalAttentionMask &mask
 ) {
     auto &model           = m_models.at(model_id);
-    auto token_embeddings = std::span<const float>((float *)src->get<smart::ggml::Buffer>().m_data, src->n_elements());
+    auto token_embeddings = std::span<const float>((float *)src->get<CPUBuffer>().m_data, src->n_elements());
     auto pos_size_t       = std::vector<size_t>(pos.size());
     std::transform(pos.begin(), pos.end(), pos_size_t.begin(), [](int v) { return size_t(v); });
     auto main_batches = model->split_batch(token_embeddings, pos_size_t, mask);
     float *dst_data_ptr{};
+    // TODO: Norm Datatype convert to QNN Datatype
     if (dst->n_elements() > 1) {
-        dst_data_ptr = (float *)dst->get<ggml::Buffer>().m_data;
+        dst_data_ptr = (float *)dst->get<CPUBuffer>().m_data;
     }
     for (size_t i = 0; i < main_batches.size(); i++) {
         auto &batch = main_batches[i];
@@ -60,8 +61,8 @@ void QNNBackend::forward(
 
 void QNNBackend::forward(
     const std::string &model_id,
-    const smart::Tensor *dst,
-    const smart::Tensor *src,
+    const Tensor *dst,
+    const Tensor *src,
     const std::vector<std::vector<float>> &pixel_values_list,
     const std::vector<std::pair<int, size_t>> &img_infos,
     std::vector<int> &pos,
@@ -69,7 +70,7 @@ void QNNBackend::forward(
 ) {
     auto &model           = static_cast<CausalVLM &>(*(m_models.at(model_id)));
     auto &vision          = model.m_vision;
-    auto token_embeddings = std::span<float>((float *)src->get<smart::ggml::Buffer>().m_data, src->n_elements());
+    auto token_embeddings = std::span<float>((float *)src->get<CPUBuffer>().m_data, src->n_elements());
     auto pos_size_t       = std::vector<size_t>(pos.size());
     if (pos.size() > 2750) //for mmmu test
         return;
@@ -94,7 +95,7 @@ void QNNBackend::forward(
             auto t1 = std::chrono::high_resolution_clock::now();
             v_time += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
             memcpy(
-                (float *)src->get<smart::ggml::Buffer>().m_data + img_offset +
+                (float *)src->get<CPUBuffer>().m_data + img_offset +
                     (pidx * vision->m_tensors.at("image_embeddings")->size() >> 2),
                 vision->output_buffer(),
                 vision->m_tensors.at("image_embeddings")->size()
@@ -108,7 +109,7 @@ void QNNBackend::forward(
     auto main_batches = model.split_batch(token_embeddings, pos_size_t, mask);
     float *dst_data_ptr{};
     if (dst->n_elements() > 1) {
-        dst_data_ptr = (float *)dst->get<ggml::Buffer>().m_data;
+        dst_data_ptr = (float *)dst->get<CPUBuffer>().m_data;
     }
     for (size_t i = 0; i < main_batches.size(); i++) {
         auto &batch = main_batches[i];

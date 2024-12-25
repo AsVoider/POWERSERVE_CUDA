@@ -3,7 +3,6 @@
 #include "core/config.hpp"
 #include "core/tensor.hpp"
 #include "model/module/attention_mask.hpp"
-#include "model/module/region.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -44,12 +43,6 @@ struct AddCacheParams {
     size_t head_id;
 };
 
-struct MHAParams {
-    std::vector<int> pos;
-    size_t layer_id  = 0;
-    uint32_t n_heads = 0;
-};
-
 struct CopyParams {};
 
 #if defined(SMART_WITH_QNN)
@@ -88,21 +81,14 @@ struct PrintParams {
     size_t size = 0;
 };
 
-struct QuestAttnParams {
-    std::vector<int> pos;
-    size_t layer_id = 0;
-    std::vector<Region> &regions;
-    uint32_t n_heads = 0;
-};
-
 struct PermuteParams {
-    Tensor::Shape axes;
+    Shape axes;
 };
 
 struct ContParams {};
 
 struct ViewParams {
-    Tensor::Shape stride;
+    Shape stride;
     size_t offset;
 };
 

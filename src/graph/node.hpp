@@ -60,7 +60,7 @@ private:
 protected:
     TensorNode(const Tensor &tensor) : Tensor(tensor), Node(NodeType::TENSOR) {}
 
-    TensorNode(DataType dtype, const Tensor::Shape &shape) : Tensor(dtype, shape), Node(NodeType::TENSOR) {}
+    TensorNode(DataType dtype, const Shape &shape) : Tensor(dtype, shape), Node(NodeType::TENSOR) {}
 
 public:
     virtual ~TensorNode() override = default;
@@ -80,7 +80,7 @@ public:
     Tensor *parent;
 
 private:
-    TensorViewNode(const Tensor &tensor, Tensor::Shape shape) : TensorNode(tensor) {
+    TensorViewNode(const Tensor &tensor, Shape shape) : TensorNode(tensor) {
         type   = NodeType::TENSOR_VIEW;
         parent = const_cast<Tensor *>(&tensor);
         SMART_ASSERT(parent->n_elements() == n_elements());

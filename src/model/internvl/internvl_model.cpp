@@ -1,12 +1,12 @@
 #include "internvl_model.hpp"
 
-#include "backend/ggml/buffer.hpp"
+#include "backend/cpu_buffer.hpp"
 #include "common/logger.hpp"
 #include "common/type_def.hpp"
 #include "executor/executor.hpp"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
-#include "model/llama/llama_weight.hpp"
+#include "model/internvl/internvl_weight.hpp"
 #include "process_image_internvl2.hpp"
 #include "sampler/sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
@@ -27,7 +27,7 @@ InternVL::InternVL(const std::string &filename, const std::shared_ptr<ModelConfi
     }
     m_config  = config;
     lazy_load = ggml_get_tensor(ggml_ctx, "output.weight") == nullptr ? true : false;
-    m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->llm.n_layers, lazy_load);
+    m_weights = std::make_shared<InternVLWeight>(ggml_ctx, m_config->llm.n_layers, lazy_load);
     if (lazy_load) {
         SMART_LOG_WARN("only the embedding table was loaded");
     }
@@ -102,15 +102,14 @@ auto InternVL::forward(
         SMART_UNUSED(pos);
         SMART_UNUSED(x);
         SMART_UNUSED(mask);
-        fmt::println("Internvl Model not support in cpu");
-        SMART_ASSERT(false);
+        SMART_ASSERT(false, "Internvl Model not support in cpu");
     }
 
     Executor executor(*m_platform, g);
     executor.allocate_buffers();
 
     executor.run();
-    float *logits_data = static_cast<float *>(logits->get<ggml::Buffer>().m_data);
+    float *logits_data = static_cast<float *>(logits->get<CPUBuffer>().m_data);
     auto res           = std::vector<std::vector<float>>();
     if (lm_head) {
         for (size_t i = 0; i < batch_size; i++) {

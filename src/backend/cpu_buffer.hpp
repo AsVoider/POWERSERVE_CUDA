@@ -1,0 +1,53 @@
+#pragma once
+
+#include "common/logger.hpp"
+#include "common/type_def.hpp"
+#include "core/buffer.hpp"
+
+namespace smart {
+
+struct CPUBuffer : BaseBuffer {
+public:
+    Stride m_stride; // In bytes
+    void *m_data;
+    bool m_allocated_by_malloc = false;
+
+public:
+    CPUBuffer(Stride stride, void *data, bool allocated_by_malloc = false) :
+        m_stride(stride),
+        m_data(data),
+        m_allocated_by_malloc(allocated_by_malloc) {}
+
+    virtual ~CPUBuffer() override {
+        if (m_allocated_by_malloc) {
+            free(m_data);
+        }
+    }
+
+    template <typename T>
+    static auto create_buffer(Shape shape) -> BufferPtr {
+        Stride stride;
+        stride[0] = sizeof(T);
+        for (size_t i = 1; i < shape.size(); i++) {
+            stride[i] = stride[i - 1] * shape[i - 1];
+        }
+        size_t size = stride.back() * shape.back();
+
+        return std::make_shared<CPUBuffer>(stride, malloc(size), true);
+    }
+
+    template <typename T>
+    static auto create_buffer_view(CPUBuffer &parent, Shape shape) -> BufferPtr {
+        Stride stride;
+        stride[0] = sizeof(T);
+        for (size_t i = 1; i < shape.size(); i++) {
+            stride[i] = stride[i - 1] * shape[i - 1];
+        }
+        SMART_ASSERT(parent.m_data != nullptr, "paraent buffer is nullptr");
+        auto b    = std::make_shared<CPUBuffer>(stride, nullptr, false);
+        b->m_data = parent.m_data;
+        return b;
+    }
+};
+
+} // namespace smart

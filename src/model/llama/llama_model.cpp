@@ -1,6 +1,6 @@
 #include "llama_model.hpp"
 
-#include "backend/ggml/buffer.hpp"
+#include "backend/cpu_buffer.hpp"
 #include "backend/platform.hpp"
 #include "common/logger.hpp"
 #include "executor/executor.hpp"
@@ -100,7 +100,7 @@ auto LlamaModel::forward(
     auto res = std::vector<std::vector<float>>();
     if (lm_head) {
         SMART_ASSERT(logits != nullptr);
-        float *logits_data = static_cast<float *>(logits->get<ggml::Buffer>().m_data);
+        float *logits_data = static_cast<float *>(logits->get<CPUBuffer>().m_data);
         for (size_t i = 0; i < batch_size; i++) {
             res.emplace_back(std::vector<float>(
                 logits_data + i * llm_config.vocab_size, logits_data + (i + 1) * llm_config.vocab_size

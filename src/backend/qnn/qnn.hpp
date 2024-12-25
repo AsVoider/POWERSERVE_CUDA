@@ -176,11 +176,11 @@ struct SharedBuffer {
     void memset(int byte);
 };
 
-struct Tensor {
+struct QNNTensor {
     Qnn_Tensor_t m_tensor;
 
-    Tensor(const Qnn_Tensor_t &source);
-    ~Tensor();
+    QNNTensor(const Qnn_Tensor_t &source);
+    ~QNNTensor();
 
     auto name() const -> std::string;
     size_t n_elements() const;
@@ -192,7 +192,7 @@ struct Tensor {
     auto data() -> void *;
     int quantization_offset() const;
     float quantization_scale() const;
-    auto check(const std::vector<size_t> &shape, Qnn_DataType_t datatype) -> Tensor *;
+    auto check(const std::vector<size_t> &shape, Qnn_DataType_t datatype) -> QNNTensor *;
     void print();
 };
 
@@ -200,12 +200,12 @@ struct Graph {
     Qnn_GraphHandle_t m_handle = nullptr;
 
     std::string m_name;
-    std::vector<Tensor> m_inputs;
-    std::vector<Tensor> m_outputs;
+    std::vector<QNNTensor> m_inputs;
+    std::vector<QNNTensor> m_outputs;
 
     Graph(Context &context, const std::string &name);
 
-    auto get_tensor(const std::string &name, bool required = true) -> Tensor *;
+    auto get_tensor(const std::string &name, bool required = true) -> QNNTensor *;
     bool has_tensor(const std::string &name);
     void set_n_hvx_threads(size_t n_threads);
     void execute();

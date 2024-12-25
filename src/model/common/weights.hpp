@@ -1,7 +1,6 @@
 #pragma once
 
 #include "backend/ggml/ggml.hpp"
-#include "ggml-quants.h"
 
 #include <cstdio>
 

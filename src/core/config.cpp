@@ -33,8 +33,7 @@ HyperParams::HyperParams(const Path &params_file) {
             prompt = oss.str();
             f.close();
         } else {
-            fmt::print(stderr, "Error: could not open file {}\n", prompt_file);
-            SMART_ASSERT(f.is_open());
+            SMART_ASSERT(false, "failed to open prompt file: {}", prompt_file);
         }
     }
 
