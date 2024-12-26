@@ -188,8 +188,10 @@ class SmallThinker_3B_Params(ModelParams):
     rms_norm_eps = 1e-6
     attention_mask_value = -5e4
 
-    fp16_attention_layers = [0, 27]
-    fp16_ffn_layers = [35]
+    # fp16_attention_layers = list(range(36))
+    # fp16_ffn_layers = list(range(36))
+    fp16_attention_layers = [0, 27, 33]
+    fp16_ffn_layers = [2, 3, 4, 29, 30, 31, 32, 33, 34, 35]
 
 
 model_map: Dict[str, ModelParams] = {
@@ -271,6 +273,7 @@ parser.add_argument("--n-model-chunks", type=int, default=4)
 parser.add_argument("--quantize", action="store_true")
 parser.add_argument("--max-n-tokens", type=int, required=True)
 parser.add_argument("--output-folder", type=Path)
+parser.add_argument("--fp16-lm-head", action="store_true")
 args = parser.parse_args()
 
 torch.manual_seed(42)
@@ -1545,12 +1548,12 @@ class OutputEmbeddingExporter:
         self,
         graph_name: str,
         model_chunk: Union[LlamaOutputEmbedding, LlamaInputEmbedding],
-        fp16_overrides: Dict[str, List[int]],
+        use_fp16: bool,
         output_folder: Path,
     ):
         self.graph_name = graph_name
         self.model_chunk = model_chunk
-        self.fp16_overrides = fp16_overrides
+        self.use_fp16 = use_fp16
         self.output_folder = output_folder
 
     @torch.no_grad()
@@ -1657,6 +1660,13 @@ class OutputEmbeddingExporter:
                 encode_output(node, 32)
             elif match(node, "/norm.*"):
                 encode_output(node, 32)
+
+        if self.use_fp16:
+            print('NOTE: Use FP16 for output embedding.')
+            for node in graph.initializer:
+                encode_param(node, 16, 'float')
+            for node in graph.node:
+                encode_output(node, 16)
 
         # Generate config
         config = {
@@ -1821,9 +1831,8 @@ class ModelChunkExporter:
                     continue
 
                 # NOTE: Layer ids in an ONNX model are always started from 0
-                index = layer_id - self.model_chunk.start_layer_id
-
                 count = 0
+                index = layer_id - self.model_chunk.start_layer_id
                 for node in graph.initializer:
                     if match(node, f"layers\.{index}\.{layer_type}.*"):
                         count += 1
@@ -2019,7 +2028,7 @@ output_folder.mkdir(parents=True, exist_ok=True)
 exporter = OutputEmbeddingExporter(
     graph_name=args.graph_name,
     model_chunk=model.output_embedding,
-    fp16_overrides={"attn": model_params.fp16_attention_layers, "ffn": model_params.fp16_ffn_layers},
+    use_fp16=args.fp16_lm_head,
     output_folder=output_folder,
 )
 exporter.export()

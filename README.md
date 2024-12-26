@@ -7,12 +7,9 @@
 | LLaMA 3.2 🦙🦙🦙  | ✔️    | ✔️    |   |
 | Qwen2  | ✔️    | ✔️    |    |
 | Phi3  | ✔️    |     |    |
-| InternVL2(1B,2B,8B) |     |✔️    |    |
+| InternVL2 (1B, 2B, 8B) |     |✔️    |    |
 
-
-[项目日志](https://ipads.se.sjtu.edu.cn:1312/smartserving/smartserving/-/wikis/%E9%A1%B9%E7%9B%AE%E6%97%A5%E5%BF%97)
-
-
+## Prerequisites
 
 ```bash
 pip install -r requirements.txt
@@ -20,9 +17,31 @@ git submodule update --init --recursive
 ```
 
 ## Build
+
+###  x86
+
+```bash
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -B build -S .
+cmake --build build
+```
+
+### Android aarch64 with QNN
+
+```bash
+cmake \
+    -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+    -DANDROID_ABI=arm64-v8a \
+    -DANDROID_PLATFORM=android-34 \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DSMART_WITH_QNN=ON \
+    -S . -B build_android
+cmake --build build_android
+```
+
+## Build
 - Edit in 2024.12.04
 
-### Build for Linux cpu 
+### Build for Linux cpu
 ```
 cmake -B build -S ./ -D CMAKE_EXPORT_COMPILE_COMMANDS=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build -j12
