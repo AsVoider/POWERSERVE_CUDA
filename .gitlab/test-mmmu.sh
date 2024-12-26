@@ -54,7 +54,7 @@ echo '>>>>>>>>>>>> Start server over. <<<<<<<<<<<<';
 sleep 10
 
 echo '>>>>>>>>>>>> Test mmmu. <<<<<<<<<<<<';
-sudo podman exec -it ${CONTAINER_NAME} bash -d -i "
+sudo podman exec -it ${CONTAINER_NAME} bash -c -i "
     cd /code/tools/mmmu_test;
     python ./mmmu_test.py --host ${SERVER_HOST} --port ${SERVER_PORT} --device_url ${DEVICE_URL} --device_root ${DEVICE_ROOT} --data_cache_path /data/mmmu_data
 "

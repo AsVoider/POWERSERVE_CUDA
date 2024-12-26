@@ -9,7 +9,7 @@ if [ "${TARGET}" == "" ]; then
     TARGET="smart-llama3.1-8b"
 fi
 
-CONFIG_PATH="${DEVICE_ROOT}/${TARGET}"
+WORK_FOLDER="${DEVICE_ROOT}/${TARGET}"
 PROMPT_FILE="wikitext-2-small.csv"
 
 
@@ -20,8 +20,8 @@ function help() {
 
 function clean() {
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving hparams load -d ${CONFIG_PATH} -f ./hparams.old;
-        ${DEVICE_ROOT}/smartserving hparams get -d ${CONFIG_PATH};
+        ${DEVICE_ROOT}/smartserving hparams load -d ${WORK_FOLDER} -f ./hparams.old;
+        ${DEVICE_ROOT}/smartserving hparams get -d ${WORK_FOLDER};
     "
 }
 
@@ -34,15 +34,15 @@ trap clean EXIT
 source .gitlab/common.sh
 
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving hparams store -d ${CONFIG_PATH} -f ./hparams.old;
-    ${DEVICE_ROOT}/smartserving hparams set -d ${CONFIG_PATH} -e prompt_file=${PROMPT_FILE};
-    ${DEVICE_ROOT}/smartserving hparams get -d ${CONFIG_PATH};
+    ${DEVICE_ROOT}/smartserving hparams store -d ${WORK_FOLDER} -f ./hparams.old;
+    ${DEVICE_ROOT}/smartserving hparams set -d ${WORK_FOLDER} -e prompt_file=${PROMPT_FILE};
+    ${DEVICE_ROOT}/smartserving hparams get -d ${WORK_FOLDER};
 "
 
 echo '>>>>>>>>>>>> Test ppl. <<<<<<<<<<<<';
 set -x
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving ppl -d ${CONFIG_PATH};
+    ${DEVICE_ROOT}/smartserving ppl -d ${WORK_FOLDER};
 "
 set +x
 echo '>>>>>>>>>>>> Test ppl over. <<<<<<<<<<<<';

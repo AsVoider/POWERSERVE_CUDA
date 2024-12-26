@@ -30,7 +30,7 @@ if [ "${PROMPT_FILE}" == "" ]; then
     PROMPT_FILE="hello.txt"
 fi
 
-CONFIG_PATH="${DEVICE_ROOT}/${TARGET}"
+WORK_FOLDER="${DEVICE_ROOT}/${TARGET}"
 
 function help() {
     echo "Usage: $0 <device_root> <device_url> <device_port> [-] [target] [use_qnn] [steps] [threads_num] [prompt_file]"
@@ -39,8 +39,8 @@ function help() {
 
 function clean() {
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving hparams load -d ${CONFIG_PATH} -f ./hparams.old;
-        ${DEVICE_ROOT}/smartserving hparams get -d ${CONFIG_PATH};
+        ${DEVICE_ROOT}/smartserving hparams load -d ${WORK_FOLDER} -f ./hparams.old;
+        ${DEVICE_ROOT}/smartserving hparams get -d ${WORK_FOLDER};
     "
 }
 
@@ -52,9 +52,9 @@ set -e
 trap clean EXIT
 
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving hparams store -d ${CONFIG_PATH} -f ./hparams.old;
-    ${DEVICE_ROOT}/smartserving hparams set -d ${CONFIG_PATH} -e n_predicts=${STEPS} n_threads=${THREADS_NUM} prompt_file=${PROMPT_FILE};
-    ${DEVICE_ROOT}/smartserving hparams get -d ${CONFIG_PATH};
+    ${DEVICE_ROOT}/smartserving hparams store -d ${WORK_FOLDER} -f ./hparams.old;
+    ${DEVICE_ROOT}/smartserving hparams set -d ${WORK_FOLDER} -e n_predicts=${STEPS} n_threads=${THREADS_NUM} prompt_file=${PROMPT_FILE};
+    ${DEVICE_ROOT}/smartserving hparams get -d ${WORK_FOLDER};
 "
 
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
@@ -64,11 +64,11 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
 set -x
 if [ "${USE_QNN}" == "1" ]; then
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving run -d ${CONFIG_PATH};
+        ${DEVICE_ROOT}/smartserving run -d ${WORK_FOLDER};
     "
 else
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving run -d ${CONFIG_PATH} --no-qnn;
+        ${DEVICE_ROOT}/smartserving run -d ${WORK_FOLDER} --no-qnn;
     "
 fi
 set +x

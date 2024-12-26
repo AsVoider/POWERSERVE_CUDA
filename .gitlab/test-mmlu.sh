@@ -16,7 +16,7 @@ SERVER_HOST=${DEVICE_HOST}
 SERVER_PORT="18080"
 DEVICE_URL="${DEVICE_USER}@${DEVICE_HOST}"
 
-CONFIG_PATH="${DEVICE_ROOT}/${TARGET}"
+WORK_FOLDER="${DEVICE_ROOT}/${TARGET}"
 
 function help() {
     echo "Usage: $0 <device_root> <device_host> <device_user> <device_port> <mmlu_client_container_name> - [target]"
@@ -49,15 +49,15 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
     ${DEVICE_ROOT}/smartserving server \
     --host ${SERVER_HOST} \
     --port ${SERVER_PORT} \
-    -d ${CONFIG_PATH} \
-    --use-qnn >/dev/null 2>&1
+    -d ${WORK_FOLDER} \
+    >/dev/null 2>&1
 " &
 echo '>>>>>>>>>>>> Start server over. <<<<<<<<<<<<';
 
 sleep 10
 
 echo '>>>>>>>>>>>> Test mmlu. <<<<<<<<<<<<';
-sudo podman exec -it ${CONTAINER_NAME} bash -d -i "
+sudo podman exec -it ${CONTAINER_NAME} bash -c -i "
     cd /code/tools/mmlu;
     python ./mmlu_test.py --host ${SERVER_HOST} --port ${SERVER_PORT} -s 1
 "
