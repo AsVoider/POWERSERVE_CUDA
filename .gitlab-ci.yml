@@ -66,15 +66,11 @@ setup:
     - podman stop $CONTAINER_NAME || true
     - podman rm $CONTAINER_NAME || true
     - git submodule update --init --recursive
-    - sudo -E podman run -v $(realpath .):/code -v $(realpath ${BUILD_ROOT}):/data -v $(realpath ${QNN_SDK_ROOT}):/qnn -dit --name ndk ubuntu:22.04
+    - podman run -v $(realpath .):/code -v $(realpath ${BUILD_ROOT}):/data -v $(realpath ${QNN_SDK_ROOT}):/qnn -dit --name ndk ubuntu:22.04
     - podman exec -it $CONTAINER_NAME bash -c "echo -e 'deb http://mirrors.aliyun.com/ubuntu/ jammy main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-updates main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-backports main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-security main restricted universe multiverse' | tee /etc/apt/sources.list"
     - podman exec -it $CONTAINER_NAME bash -c "apt update && apt upgrade -y && apt install -y sudo vim cmake unzip git python-is-python3 python3-pip build-essential sshpass"
     - podman exec -it $CONTAINER_NAME bash -c "git config --global --add safe.directory /code"
     - podman exec -it $CONTAINER_NAME bash -c "pip install pandas requests pillow numpy tqdm datasets"
-  retry:
-    max: 2  
-    when:
-      - always
 
 build:
   stage: build
@@ -89,10 +85,6 @@ build:
     - podman exec -it $CONTAINER_NAME bash -c -i "cd /code && cmake --build build_android --config RelWithDebInfo --parallel 12 && sudo chmod -R 777 build_android"
     - podman exec -it $CONTAINER_NAME bash -c -i "cp -r /code/build_android /data"
     - podman exec -it $CONTAINER_NAME bash -c -i "cp /code/smartserving /data"
-  retry:
-    max: 2  
-    when:
-      - always
 
 deploy:
   stage: deploy
@@ -104,10 +96,7 @@ deploy:
     - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/out/* ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_SPEC_BIN}
     - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/smartserving ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_ROOT}
     - ./.gitlab/ecmd.sh ssh -o StrictHostKeyChecking=no -p "${DEVICE_PORT}" "${DEVICE_USER}@${DEVICE_HOST}" "ls -ahl ${DEVICE_BIN}"
-  retry:
-    max: 2  
-    when:
-      - always
+
 # =============== Required Tests ===============
 test_llama3.1:
   stage: test

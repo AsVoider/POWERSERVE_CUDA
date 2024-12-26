@@ -45,20 +45,12 @@ class Loader:
         if transposed:
             tensor = tensor.T
 
-        assert (
-            target.shape == tensor.shape
-        ), f"Expect {tuple(target.shape)}, got {tuple(tensor.shape)}"
+        assert target.shape == tensor.shape, f"Expect {tuple(target.shape)}, got {tuple(tensor.shape)}"
         target.copy_(tensor.to(torch.float32))
 
 
 class Exporter:
-    def __init__(
-        self,
-        embd: Tensor,
-        src_path: Path,
-        out_path: Path,
-        out_type=gguf.GGMLQuantizationType.F32,
-    ) -> None:
+    def __init__(self, embd: Tensor, src_path: Path, out_path: Path, out_type=gguf.GGMLQuantizationType.F32) -> None:
         self.embd = embd
         self.src_path = src_path
         self.out_path = out_path
@@ -86,12 +78,8 @@ class Exporter:
         self.gguf_writer.add_tensor(self.new_name, data, raw_dtype=self.out_type)
 
     def prepare_metadata(self):
-        total_params, shared_params, expert_params, expert_count = (
-            self.gguf_writer.get_total_parameter_count()
-        )
+        total_params, shared_params, expert_params, expert_count = self.gguf_writer.get_total_parameter_count()
         self.metadata = gguf.Metadata.load(None, self.src_path, None, total_params)
-
-        print(self.metadata)
 
 
 def main():
@@ -102,16 +90,10 @@ def main():
     args = parser.parse_args()
 
     loader = Loader(args.model_path)
-    embd_name = (
-        "model.embed_tokens.weight"
-        if "model.embed_tokens.weight" in loader
-        else "tok_embeddings.weight"
-    )
+    embd_name = "model.embed_tokens.weight" if "model.embed_tokens.weight" in loader else "tok_embeddings.weight"
     embd_tensor = loader.tensor_map[embd_name]
 
-    exporter = Exporter(
-        embd_tensor, args.model_path, args.out_path, qtype_map[args.out_type]
-    )
+    exporter = Exporter(embd_tensor, args.model_path, args.out_path, qtype_map[args.out_type])
     exporter.write_embd()
 
 

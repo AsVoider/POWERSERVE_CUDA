@@ -14,21 +14,39 @@
 int main(int argc, char *argv[]) {
     // 0. load config
     std::string work_folder = "/home/zwb/SS/smartserving/";
+    std::string prompt      = "";
+    std::string prompt_file = "";
 
     CLI::App app("Demo program for speculative");
 
     app.add_option("--work-folder", work_folder)->required();
-#if defined(SMART_WITH_QNN)
+    app.add_option("--prompt", prompt);
+    app.add_option("--prompt-file", prompt_file);
     bool no_qnn = false;
     app.add_flag("--no-qnn", no_qnn);
-#endif
 
     CLI11_PARSE(app, argc, argv);
+
+    if (prompt_file != "") {
+        std::ifstream f(prompt_file);
+        if (f.is_open()) {
+            std::ostringstream oss;
+            oss << f.rdbuf();
+            prompt = oss.str();
+            f.close();
+        } else {
+            SMART_ASSERT(false, "failed to open prompt file: {}", prompt_file);
+        }
+    }
 
     auto config                               = std::make_shared<smart::Config>(work_folder);
     std::unique_ptr<smart::Model> main_model  = smart::load_model(config->main_model_config, config->main_model_dir);
     std::unique_ptr<smart::Model> draft_model = smart::load_model(config->draft_model_config, config->draft_model_dir);
-    auto [sampler_config, steps, n_threads, prompt, batch_size] = config->hyper_params;
+    auto [sampler_config, steps, n_threads, file_prompt, batch_size] = config->hyper_params;
+
+    if (prompt == "") {
+        prompt = file_prompt;
+    }
 
     main_model->m_platform  = std::make_shared<smart::Platform>();
     auto &platform          = main_model->m_platform;

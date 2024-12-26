@@ -88,9 +88,14 @@ export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ./build/tools/perpelxity/perpelx
 ```
 
 # cmdline-tools
-- generate config (support gguf, safetensors)
+- export gguf models
 ```
-smartserving create -m ./models/ -o ./proj --main-model-id llama_3_1_8b
+python ./tools/gguf_export.py -m /path/to/hf_model -o ./gguf-out [--qnn-path <qnn_path>]
+```
+
+- generate work-space
+```
+smartserving create -m ./models/ -o ./proj --exe-path ./gguf-out/bin/<target-arch[x86_64, aarch64]>
 ```
 
 [optional] Modify Config by manual or cli

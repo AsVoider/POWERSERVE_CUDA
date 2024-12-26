@@ -55,10 +55,8 @@ int main(int argc, char *argv[]) {
 
     app.add_option("--work-folder", work_folder)->required();
     app.add_option("--batch-size", batch_size);
-#if defined(SMART_WITH_QNN)
     bool no_qnn = false;
     app.add_flag("--no-qnn", no_qnn);
-#endif
 
     CLI11_PARSE(app, argc, argv);
 

@@ -15,17 +15,29 @@ int main(int argc, char *argv[]) {
 
     std::string work_folder = "/home/zwb/SS/smartserving/";
     std::string prompt      = "";
+    std::string prompt_file = "";
 
     CLI::App app("Demo program for llama3");
 
     app.add_option("--work-folder", work_folder)->required();
     app.add_option("--prompt", prompt);
-#if defined(SMART_WITH_QNN)
+    app.add_option("--prompt-file", prompt_file);
     bool no_qnn = false;
     app.add_flag("--no-qnn", no_qnn);
-#endif
 
     CLI11_PARSE(app, argc, argv);
+
+    if (prompt_file != "") {
+        std::ifstream f(prompt_file);
+        if (f.is_open()) {
+            std::ostringstream oss;
+            oss << f.rdbuf();
+            prompt = oss.str();
+            f.close();
+        } else {
+            SMART_ASSERT(false, "failed to open prompt file: {}", prompt_file);
+        }
+    }
 
     auto config                         = std::make_shared<smart::Config>(work_folder);
     std::unique_ptr<smart::Model> model = smart::load_model(config->main_model_config, config->main_model_dir);
