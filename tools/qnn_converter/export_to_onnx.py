@@ -172,6 +172,26 @@ class Qwen2_0_5B_Params(ModelParams):
     fp16_ffn_layers = [23]
 
 
+class SmallThinker_3B_Params(ModelParams):
+    has_qkv_bias = True
+    use_drelu = False
+    tie_embedding = True
+
+    n_layers = 36
+    vocab_size = 151936
+    ffn_hidden_dim = 11008
+    head_dim = 128
+    n_heads = 16
+    n_kv_heads = 2
+
+    rope_theta = 1e6
+    rms_norm_eps = 1e-6
+    attention_mask_value = -5e4
+
+    fp16_attention_layers = [0, 27]
+    fp16_ffn_layers = [35]
+
+
 model_map: Dict[str, ModelParams] = {
     "mistral_7b": Mistral_7B_Params,
     "qwen2_7b": Qwen2_7B_Params,
@@ -179,6 +199,7 @@ model_map: Dict[str, ModelParams] = {
     "llama3_1_8b": Llama3_1_8B_Params,
     "llama3_2_1b": Llama3_2_1B_Params,
     "llama2_7b": Llama2_7B_Params,
+    "smallthinker_3b": SmallThinker_3B_Params,
 }
 
 

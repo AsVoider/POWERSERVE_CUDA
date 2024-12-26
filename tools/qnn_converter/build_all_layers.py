@@ -1,8 +1,10 @@
 import argparse
 import multiprocessing
-import os
 import subprocess
 from pathlib import Path
+
+from soc_config import soc_map
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--build-folder", type=Path, required=True)
@@ -10,6 +12,7 @@ parser.add_argument("--batch-size", default=-1, type=int)
 parser.add_argument("--n-model-chunks", type=int, required=True)
 parser.add_argument("--artifact-name", type=str, required=True)
 parser.add_argument("--graph-names", type=str, nargs="+", required=True)
+parser.add_argument("--soc", choices=soc_map.keys(), default="8gen3")
 args = parser.parse_args()
 
 
@@ -71,6 +74,8 @@ def build_binary(chunk_id: int):
         f"{args.artifact_name}_{chunk_id}" if chunk_id != -1 else "lm_head",
         "--graph-names",
         " ".join(args.graph_names),
+        "--soc",
+        args.soc,
     ])
 
 
