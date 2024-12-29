@@ -1,10 +1,6 @@
 # CLI11
 add_subdirectory(cli11)
 
-# crow
-set(ASIO_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/libs/asio/asio/include)
-add_subdirectory(crow)
-
 # fmt
 add_subdirectory(fmt)
 
@@ -41,3 +37,9 @@ add_subdirectory(xtl)
 add_subdirectory(xtensor)
 
 add_subdirectory(stb_headers)
+
+# http lib
+add_subdirectory(cpp-httplib)
+
+# concurrent queue
+add_subdirectory(concurrentqueue)

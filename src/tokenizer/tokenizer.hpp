@@ -9,9 +9,16 @@
 
 namespace smart {
 
+struct ChatEntry {
+    std::string role;
+    std::string content;
+};
+
 struct Tokenizer {
 public:
     struct llama_vocab m_vocab;
+
+    std::string m_template_type;
 
 public:
     explicit Tokenizer(const Path &vocab_path);
@@ -22,6 +29,8 @@ public:
     auto bos_token() const -> Token;
     auto tokenize(const std::string &text, bool add_special) const -> std::vector<Token>;
     auto to_string(Token token, bool special = true) const -> std::string;
+
+    auto apply_chat_template(const std::vector<ChatEntry> &chat_history, const bool add_ass) const -> std::string;
 
 public:
     void debug_tokenizer() {

@@ -10,12 +10,6 @@
 [submodule "libs/libuv"]
 	path = libs/libuv
 	url = https://github.com/libuv/libuv.git
-[submodule "libs/crow"]
-	path = libs/crow
-	url = https://github.com/CrowCpp/Crow.git
-[submodule "libs/asio"]
-	path = libs/asio
-	url = https://github.com/chriskohlhoff/asio.git
 [submodule "tools/mmlu"]
 	path = tools/mmlu
 	url = https://github.com/bobozi-cmd/mmlu.git
@@ -31,3 +25,9 @@
 [submodule "libs/stb_headers/stb"]
 	path = libs/stb_headers/stb
 	url = https://github.com/nothings/stb.git
+[submodule "libs/cpp-httplib"]
+	path = libs/cpp-httplib
+	url = https://github.com/yhirose/cpp-httplib.git
+[submodule "libs/concurrentqueue"]
+	path = libs/concurrentqueue
+	url = https://github.com/cameron314/concurrentqueue

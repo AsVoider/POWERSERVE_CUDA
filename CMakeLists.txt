@@ -56,7 +56,7 @@ add_custom_target(
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/out
 )
 
-function(add_artifact target_name)
+function(smart_add_artifact target_name)
     add_custom_command(
         TARGET ${target_name} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
@@ -67,5 +67,5 @@ endfunction()
 
 add_subdirectory(libs)
 add_subdirectory(src)
-add_subdirectory(bin)
+add_subdirectory(app)
 add_subdirectory(tools)

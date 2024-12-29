@@ -93,5 +93,18 @@ inline std::string abbreviation(std::string text, size_t limit) {
     return text;
 }
 
+// trim whitespace from the beginning and end of a string
+inline std::string trim(const std::string &str) {
+    size_t start = 0;
+    size_t end   = str.size();
+    while (start < end && isspace(str[start])) {
+        start += 1;
+    }
+    while (end > start && isspace(str[end - 1])) {
+        end -= 1;
+    }
+    return str.substr(start, end - start);
+}
+
 } // namespace common
 } // namespace smart
