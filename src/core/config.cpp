@@ -19,28 +19,14 @@ HyperParams::HyperParams(const Path &params_file) {
     try {
         file >> j;
 
-        n_predicts = j.value("n_predicts", n_predicts);
         n_threads  = j.value("n_threads", n_threads);
         batch_size = j.value("batch_size", batch_size);
 
         auto n_cpus = uv_available_parallelism();
         n_threads   = std::min((unsigned int)n_threads, n_cpus);
 
-        std::string prompt_file = j.value("prompt_file", "");
-        if (prompt_file != "") {
-            std::ifstream f(params_file.parent_path() / prompt_file);
-            if (f.is_open()) {
-                std::ostringstream oss;
-                oss << f.rdbuf();
-                prompt = oss.str();
-                f.close();
-            } else {
-                SMART_ASSERT(false, "failed to open prompt file: {}", prompt_file);
-            }
-        }
-
         auto sampler_j = j.value("sampler", nlohmann::json::object());
-        if (sampler_j.empty()) {
+        if (!sampler_j.empty()) {
             sampler_config.seed        = sampler_j.value("seed", sampler_config.seed);
             sampler_config.temperature = sampler_j.value("temperature", sampler_config.temperature);
             sampler_config.top_p       = sampler_j.value("top_p", sampler_config.top_p);
@@ -113,7 +99,7 @@ ModelConfig::ModelConfig(const Path &model_config_file) {
 Config::Config(const Path &work_folder) {
     SMART_ASSERT(std::filesystem::is_directory(work_folder));
     nlohmann::json j;
-    const Path artifact_config_path = work_folder / ARTIFACT_CONFIG_FILENAME;
+    const Path artifact_config_path = work_folder / WORKSPACE_CONFIG_FILENAME;
     std::ifstream file(artifact_config_path);
     SMART_ASSERT(file.good(), "failed to open artifact config file {}", artifact_config_path);
 

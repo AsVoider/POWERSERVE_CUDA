@@ -2,6 +2,7 @@
 
 #include "common/logger.hpp"
 #include "common/type_def.hpp"
+#include "core/config.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -73,6 +74,13 @@ static uint64_t get_rng_seed(uint64_t seed) {
 
 struct Sampler {
 public:
+    HyperParams::SamplerConfig m_config;
+
+public:
+    Sampler() = default;
+
+    Sampler(HyperParams::SamplerConfig config) : m_config(config) {}
+
     virtual ~Sampler() = default;
 
 public:

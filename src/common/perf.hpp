@@ -76,9 +76,9 @@ struct IOPerfResult {
 
 struct MemPerfResult {
     // In bytes
-    size_t virtual_memory_size;
+    size_t virtual_memory_size = 0;
     // In bytes
-    size_t resident_set_size;
+    size_t resident_set_size = 0;
 
     std::string to_string() const {
         return fmt::format(

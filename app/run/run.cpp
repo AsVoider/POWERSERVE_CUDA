@@ -14,16 +14,22 @@ int main(int argc, char *argv[]) {
     smart::print_timestamp();
 
     std::string work_folder = "/home/zwb/SS/smartserving/";
-    std::string prompt      = "";
+    std::string prompt      = "One day,";
     std::string prompt_file = "";
+    int n_predicts          = 128;
+    bool no_qnn             = false;
 
-    CLI::App app("Demo program for llama3");
+    CLI::App app("Demo program for LLM");
 
-    app.add_option("--work-folder", work_folder)->required();
-    app.add_option("--prompt", prompt);
-    app.add_option("--prompt-file", prompt_file);
-    bool no_qnn = false;
-    app.add_flag("--no-qnn", no_qnn);
+    app.add_option("-d,--work-folder", work_folder, "Set the working folder (required).")->required();
+    app.add_option("-n,--n_predicts", n_predicts, "Specify the number of predictions to make.");
+    app.add_flag("--no-qnn", no_qnn, "Disable QNN processing.");
+
+    CLI::Option_group *prompt_group =
+        app.add_option_group("Prompt Options", "Choose either prompt or prompt-file, not both.");
+    auto prompt_opt      = prompt_group->add_option("-p,--prompt", prompt);
+    auto prompt_file_opt = prompt_group->add_option("-f,--prompt-file", prompt_file);
+    prompt_group->require_option(0, 1);
 
     CLI11_PARSE(app, argc, argv);
 
@@ -41,19 +47,19 @@ int main(int argc, char *argv[]) {
 
     auto config                         = std::make_shared<smart::Config>(work_folder);
     std::unique_ptr<smart::Model> model = smart::load_model(config->main_model_config, config->main_model_dir);
-    auto [sampler_config, steps, n_threads, file_prompt, batch_size] = config->hyper_params;
-    if (prompt == "") {
-        prompt = file_prompt;
-    }
-    model->m_platform = std::make_shared<smart::Platform>();
+    SMART_LOG_INFO("after model init: {}", smart::perf_get_mem_result());
+
+    auto [sampler_config, n_threads, batch_size] = config->hyper_params;
+    model->m_platform                            = std::make_shared<smart::Platform>();
     model->m_platform->init_ggml_backend(model->m_config, config->hyper_params);
 #if defined(SMART_WITH_QNN)
     if (!no_qnn) {
         auto &qnn_backend = model->m_platform->qnn_backend;
-        model->m_platform->init_qnn_backend(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME);
+        model->m_platform->init_qnn_backend(smart::Path(work_folder) / smart::qnn::QNN_LIB_DIR_NAME);
         qnn_backend->load_model(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, model->m_config);
     }
 #endif
+    SMART_LOG_INFO("after platform init: {}", smart::perf_get_mem_result());
 
     model->m_attn = std::make_shared<smart::NormAttention>(model->m_config->llm, model->m_weights);
     SMART_LOG_INFO("after attn init: {}", smart::perf_get_mem_result());
@@ -67,7 +73,7 @@ int main(int argc, char *argv[]) {
 
     {
         SMART_LOG_INFO("prompt      : {:?}", smart::abbreviation(prompt, 50));
-        SMART_LOG_INFO("steps       : {}", steps);
+        SMART_LOG_INFO("n_predicts       : {}", n_predicts);
         SMART_LOG_INFO("model arch  : {}", config->main_model_config->arch);
         SMART_LOG_INFO("n_threads   : {}", n_threads);
     }
@@ -82,7 +88,7 @@ int main(int argc, char *argv[]) {
         fmt::print("{}", tokenizer.to_string(prompt_token, false));
     }
     prefill_start = smart::time_in_ms();
-    for (auto next : model->generate(tokenizer, sampler, prompt, steps, batch_size)) {
+    for (auto next : model->generate(tokenizer, sampler, prompt, n_predicts, batch_size)) {
         if (!start) {
             prefill_end = smart::time_in_ms();
             start       = true;

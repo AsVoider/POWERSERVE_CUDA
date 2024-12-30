@@ -8,7 +8,8 @@
 
 namespace smart::qnn {
 
-const std::string QNN_WORKSPACE_DIR_NAME = "qnn-workspace";
+const std::string QNN_WORKSPACE_DIR_NAME = "qnn";
+const std::string QNN_LIB_DIR_NAME       = "qnn_libs";
 
 struct QNNGraphConfig {
     std::string type;

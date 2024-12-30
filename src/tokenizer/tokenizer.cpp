@@ -16,7 +16,9 @@ Tokenizer::Tokenizer(const Path &vocab_path) {
     SMART_ASSERT(meta);
 
     const int template_key_id = gguf_find_key(meta, "tokenizer.chat_template");
-    m_template_type           = gguf_get_val_str(meta, template_key_id);
+    if (template_key_id != -1)
+        m_template_type = gguf_get_val_str(meta, template_key_id);
+    m_template_type = "";
 
     llm_load_vocab(m_vocab, meta);
 

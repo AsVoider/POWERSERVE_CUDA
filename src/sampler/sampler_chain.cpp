@@ -2,7 +2,7 @@
 
 namespace smart {
 
-SamplerChain::SamplerChain(HyperParams::SamplerConfig config, const Tokenizer &tokenizer) : m_config(config) {
+SamplerChain::SamplerChain(HyperParams::SamplerConfig config, const Tokenizer &tokenizer) : Sampler(config) {
     m_samplers.emplace_back(std::make_shared<PenaltyChecker>(
         tokenizer.n_vocabs(),
         tokenizer.m_vocab.special_eos_id,
@@ -20,6 +20,7 @@ SamplerChain::SamplerChain(HyperParams::SamplerConfig config, const Tokenizer &t
     m_samplers.emplace_back(std::make_shared<TopPSampler>(config.top_p));
     m_samplers.emplace_back(std::make_shared<NormalizeSampler>());
     // m_samplers.emplace_back(std::make_shared<GreedySampler>());
+    SMART_LOG_INFO("seed: {}", m_config.seed);
 }
 
 SamplerChain::SamplerChain() {}

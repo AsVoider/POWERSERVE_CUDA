@@ -246,6 +246,9 @@ int GGMLBackend::get_n_tasks(std::shared_ptr<OpNode> op) {
     case OpType::QNN_FORWARD: {
         n_tasks = 1;
     } break;
+    case OpType::QNN_FORWARD_VL: {
+        n_tasks = 1;
+    } break;
 #endif
 
     default: {

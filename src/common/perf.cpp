@@ -79,12 +79,12 @@ MemPerfResult perf_get_mem_result() {
 
     MemPerfResult ret;
     while (std::getline(file, line)) {
-        if (line.find("rWmRSS") != std::string::npos) {
-            sscanf(line.c_str(), "read_bytes: %zu", &ret.resident_set_size);
+        if (line.find("VmRSS") != std::string::npos) {
+            sscanf(line.c_str(), "VmRSS: %zu", &ret.resident_set_size);
             ret.resident_set_size *= 1024;
         }
-        if (line.find("WmSize") != std::string::npos) {
-            sscanf(line.c_str(), "write_bytes: %zu", &ret.virtual_memory_size);
+        if (line.find("VmSize") != std::string::npos) {
+            sscanf(line.c_str(), "VmSize: %zu", &ret.virtual_memory_size);
             ret.virtual_memory_size *= 1024;
         }
     }

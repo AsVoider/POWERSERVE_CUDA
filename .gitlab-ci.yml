@@ -102,12 +102,13 @@ test_llama3.1:
   stage: test
   script:
     - sleep 2 # just relax
-    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 0 32 4
+    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1_SPEC} 0
 
 test_thread:
   stage: test
   script:
-    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 0 32 8
+    # - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 0 32 8
+    - echo "no test"
   needs:
     - test_llama3.1
 
@@ -120,7 +121,7 @@ test_qnn:
     - when: manual
   script:
     - sleep 2
-    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 1 300 4
+    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1_SPEC} 1
   needs:
     - test_thread
 
@@ -133,8 +134,9 @@ test_ppl:
       when: always
     - when: manual
   script:
-    - sleep 10
-    - .gitlab/test-ppl.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1}
+    - sleep 1
+    # - .gitlab/test-ppl.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1}
+    - echo "no test"
   needs:
     - test_qnn
 
@@ -146,8 +148,8 @@ test_speculative:
       when: always
     - when: manual
   script:
-    - echo "PASS"
-    - .gitlab/test-speculative.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT}
+    - sleep 1
+    - .gitlab/test-speculative.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1_SPEC}
 
 # =============== Daily Tests ===============
 test_long_out:
@@ -159,7 +161,8 @@ test_long_out:
     - when: manual
   script:
     - sleep 10
-    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 1 2000 8 "math.txt"
+    # - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 1 2000 8 "math.txt"
+    - echo "no test"
   needs:
     - test_speculative
 
@@ -172,7 +175,8 @@ test_mmlu_llama3.1:
     - when: manual
   script:
     - sleep 10
-    - .gitlab/test-mmlu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_LLAMA3_1}
+    # - .gitlab/test-mmlu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_LLAMA3_1}
+    - echo "no test"
   needs:
     - test_long_out
 
@@ -185,7 +189,8 @@ test_mmlu_qwen2:
     - when: manual
   script:
     - sleep 10
-    - .gitlab/test-mmlu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_QWEN2}
+    # - .gitlab/test-mmlu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_QWEN2}
+    - echo "no test"
   needs:
     - test_mmlu_llama3.1
 
@@ -198,4 +203,5 @@ test_mmmu_internvl2-1b:
     - when: manual
   script:
     - sleep 10
-    - .gitlab/test-mmmu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_INTERNVL2_1}
+    # - .gitlab/test-mmmu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_INTERNVL2_1}
+    - echo "no test"

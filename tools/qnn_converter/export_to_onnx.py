@@ -463,6 +463,7 @@ class QLinear(nn.Linear):
         return super().forward(x)
 
 
+# TODO: Only support linear RoPE now
 class LlamaRoPE(nn.Module):
     def __init__(self) -> None:
         super().__init__()
@@ -1662,9 +1663,9 @@ class OutputEmbeddingExporter:
                 encode_output(node, 32)
 
         if self.use_fp16:
-            print('NOTE: Use FP16 for output embedding.')
+            print("NOTE: Use FP16 for output embedding.")
             for node in graph.initializer:
-                encode_param(node, 16, 'float')
+                encode_param(node, 16, "float")
             for node in graph.node:
                 encode_output(node, 16)
 

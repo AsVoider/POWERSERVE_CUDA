@@ -52,6 +52,8 @@ void QNNBackend::forward(
             memcpy(dst_data_ptr, out_buf, size);
             if (batch.lm_head != nullptr) {
                 dst_data_ptr += batch_size * vocab_size;
+            } else {
+                dst_data_ptr += batch_size * dim;
             }
         }
         batch.save_kv();
@@ -73,7 +75,13 @@ void QNNBackend::forward(
     auto token_embeddings = std::span<float>((float *)src->get<CPUBuffer>().m_data, src->n_elements());
     auto pos_size_t       = std::vector<size_t>(pos.size());
     if (pos.size() > 2750) //for mmmu test
+    {
+        if (dst->n_elements() > 1) {
+            memset(dst->get<CPUBuffer>().m_data, 0, dst->n_elements() * get_type_size(dst->m_dtype));
+        }
         return;
+    }
+
     std::transform(pos.begin(), pos.end(), pos_size_t.begin(), [](int v) { return size_t(v); });
     int64_t v_time = 0;
 

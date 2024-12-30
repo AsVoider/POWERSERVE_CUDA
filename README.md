@@ -64,7 +64,7 @@ cmake --build build_android -j12
 
 ### Generate config file
 ```
-./build/tools/gguf_config_to_json/config_generator --file-path ./qwen2-q4_0.gguf  --target-path ./qwen2.config
+./build/tools/gguf_config_to_json/config-generator --file-path ./qwen2-q4_0.gguf  --target-path ./qwen2.config
 ```
 
 ### Run for cpu
@@ -106,23 +106,36 @@ python ./mmlu_test.py --host 0.0.0.0 --port 18080 -s 1
 export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ./build/tools/perpelxity/perpelxity_test --work-folder /path/to/work/folder --batch-size 32
 ```
 
-# cmdline-tools
-- export gguf models
-```
-python ./tools/gguf_export.py -m /path/to/hf_model -o ./gguf-out [--qnn-path <qnn_path>]
-```
 
-- generate work-space
+# 准备环境和运行【CPU】
+- 准备qnn models（batch-sizes最多指定两个值）：
 ```
-smartserving create -m ./models/ -o ./proj --exe-path ./gguf-out/bin/<target-arch[x86_64, aarch64]>
-```
+cd smartserving/tools/qnn_converter
 
-[optional] Modify Config by manual or cli
-- run with config
+python converter.py \
+    --model-folder Llama-3.2-1B-Instruct \
+    --model-name llama3_2_1b \
+    --system-prompt-file system_prompt_llama.txt \ 
+    --prompt-file lab_intro_llama.md \
+    --batch-sizes 1 128 \
+    --artifact-name llama3_2_1b \
+    --soc 8gen3
 ```
-smartserving run -d ./proj
+- 准备gguf models
 ```
-- run server with config
+cd smartserving
+python ./tools/gguf_export.py -m hf_model --qnn-path tools/qnn_converter/output -o ./model_dir
 ```
-smartserving server -d ./proj
+- 准备workspace + 运行程序【cpu】
+```
+cd smartserving
+./smartserving create -m ./model_dir/  --exe-path /home/zwb/SS/smartserving/build_x86_64/out -o proj
+./proj/bin/smart-run -d ./proj --no-qnn
+```
+- 准备workspace + 运行程序【qnn】
+```
+cd smartserving
+./smartserving create -m ./model_dir/  --exe-path /home/zwb/SS/smartserving/build_aarch64/out -o proj
+# 将proj传输到qnn运行设备上
+export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ./proj/bin/smart-run -d ./proj
 ```

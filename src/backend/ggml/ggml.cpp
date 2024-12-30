@@ -67,6 +67,8 @@ void GGMLBackend::plan(std::vector<std::shared_ptr<OpNode>> &ops) {
 #if defined(SMART_WITH_QNN)
         case OpType::QNN_FORWARD: {
         } break;
+        case OpType::QNN_FORWARD_VL: {
+        } break;
 #endif
 
         default:

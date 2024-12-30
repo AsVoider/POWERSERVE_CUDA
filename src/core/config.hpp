@@ -11,9 +11,10 @@ const std::string HYPER_PARAMS_FILENAME_KEY = "hparams_config";
 const std::string MAIN_MODEL_KEY            = "model_main";
 const std::string DRAFT_MODEL_KEY           = "model_draft";
 const std::string MODEL_CONFIG_FILENAME     = "model.json";
+const std::string MODEL_WEIGHTS_DIR         = "ggml";
 const std::string MODEL_WEIGHTS_FILENAME    = "weights.gguf";
 const std::string MODEL_VOCAB_FILENAME      = "vocab.gguf";
-const std::string ARTIFACT_CONFIG_FILENAME  = "artifact.json";
+const std::string WORKSPACE_CONFIG_FILENAME = "workspace.json";
 
 struct HyperParams {
     struct SamplerConfig {
@@ -31,10 +32,8 @@ struct HyperParams {
         bool ignore_eos       = false;
     } sampler_config;
 
-    size_t n_predicts  = 32;
-    size_t n_threads   = 4;
-    std::string prompt = "One day,";
-    size_t batch_size  = 128;
+    size_t n_threads  = 4;
+    size_t batch_size = 128;
 
     HyperParams() = default;
     HyperParams(const Path &params_file);

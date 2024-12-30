@@ -226,7 +226,7 @@ public:
 
 #if defined(SMART_WITH_QNN)
         auto &qnn_backend = model_ptr->m_platform->qnn_backend;
-        model_ptr->m_platform->init_qnn_backend(config_ptr->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME);
+        model_ptr->m_platform->init_qnn_backend(smart::Path(work_folder) / smart::qnn::QNN_LIB_DIR_NAME);
         qnn_backend->load_model(config_ptr->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, model_ptr->m_config);
 #endif
 

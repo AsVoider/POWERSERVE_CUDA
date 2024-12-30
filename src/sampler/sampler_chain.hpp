@@ -11,7 +11,6 @@ namespace smart {
 
 struct SamplerChain : Sampler {
 public:
-    HyperParams::SamplerConfig m_config;
     std::vector<std::shared_ptr<Sampler>> m_samplers;
 
 public:

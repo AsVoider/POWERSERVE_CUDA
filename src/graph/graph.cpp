@@ -89,6 +89,7 @@ auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
 
 auto Graph::rope(TensorNode *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &params)
     -> TensorNode * {
+    // TODO: Only support linear ROPE now
     auto out = dup_tensor(src);
     auto op  = new_op(OpType::ROPE);
     op->set_inputs({src});

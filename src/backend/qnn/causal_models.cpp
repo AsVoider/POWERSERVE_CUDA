@@ -143,6 +143,7 @@ void CausalLM::load_model_chunks() {
 }
 
 void CausalLM::compute_rope_embeds() {
+    // TODO: Only support linear ROPE now
     auto head_dim = m_model_config->llm.head_size;
     std::vector<float> inv_freqs(head_dim / 2);
     for (size_t i = 0; i < head_dim / 2; i++) {
@@ -163,6 +164,7 @@ void CausalLM::compute_rope_embeds() {
 }
 
 void CausalLM::fill_rope_embeds(std::span<const size_t> pos) {
+    // TODO: Only support linear ROPE now
     auto head_dim = m_model_config->llm.head_size;
     for (auto &chunk_ptr : largest_chunks()) {
         auto &chunk = *chunk_ptr;

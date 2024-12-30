@@ -10,7 +10,7 @@ if [ "${TARGET}" == "" ]; then
 fi
 
 WORK_FOLDER="${DEVICE_ROOT}/${TARGET}"
-PROMPT_FILE="wikitext-2-small.csv"
+PROMPT_FILE="${DEVICE_ROOT}/prompts/wikitext-2-small.csv"
 
 
 function help() {
@@ -19,10 +19,7 @@ function help() {
 }
 
 function clean() {
-    ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving hparams load -d ${WORK_FOLDER} -f ./hparams.old;
-        ${DEVICE_ROOT}/smartserving hparams get -d ${WORK_FOLDER};
-    "
+    echo "pass"
 }
 
 if [ $# -lt 3 ]; then
@@ -33,16 +30,11 @@ set -e
 trap clean EXIT
 source .gitlab/common.sh
 
-ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving hparams store -d ${WORK_FOLDER} -f ./hparams.old;
-    ${DEVICE_ROOT}/smartserving hparams set -d ${WORK_FOLDER} -e prompt_file=${PROMPT_FILE};
-    ${DEVICE_ROOT}/smartserving hparams get -d ${WORK_FOLDER};
-"
 
 echo '>>>>>>>>>>>> Test ppl. <<<<<<<<<<<<';
 set -x
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving ppl -d ${WORK_FOLDER};
+    export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ${WORK_FOLDER}/bin/smart-perplexity-test -d ${WORK_FOLDER} -p ${PROMPT_FILE};
 "
 set +x
 echo '>>>>>>>>>>>> Test ppl over. <<<<<<<<<<<<';

@@ -119,7 +119,7 @@ auto LlamaModel::decode(Sampler &sampler, const std::vector<Token> tokens, const
     for (auto logits : ret) {
         auto probs = ProbArray(logits);
         sampler.apply(probs);
-        std::mt19937 gen(std::random_device{}());
+        std::mt19937 gen(sampler.m_config.seed);
         auto next = probs.sample(gen).index;
         sampler.accept(next);
         toks.push_back(next);

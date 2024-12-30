@@ -48,21 +48,40 @@ void PerplexityCalculator::accept(smart::Token token) {
 
 int main(int argc, char *argv[]) {
     // 0. load config
-    std::string work_folder = "/home/zwb/SS/smartserving/llama3.2.json";
+    std::string work_folder = "/home/zwb/SS/smartserving/";
+    std::string prompt      = "One day,";
+    std::string prompt_file = "";
     int batch_size          = 32;
+    bool no_qnn             = false;
 
-    CLI::App app("Demo program for llama3");
+    CLI::App app("Perplexity");
 
-    app.add_option("--work-folder", work_folder)->required();
-    app.add_option("--batch-size", batch_size);
-    bool no_qnn = false;
-    app.add_flag("--no-qnn", no_qnn);
+    app.add_option("-d,--work-folder", work_folder, "Set the working folder (required).")->required();
+    app.add_option("-b,--batch_size", batch_size);
+    app.add_flag("--no-qnn", no_qnn, "Disable QNN processing.");
+
+    CLI::Option_group *prompt_group =
+        app.add_option_group("Prompt Options", "Choose either prompt or prompt-file, not both.");
+    prompt_group->add_option("-p,--prompt", prompt);
+    prompt_group->add_option("-f,--prompt-file", prompt_file);
+    prompt_group->require_option(0, 1);
 
     CLI11_PARSE(app, argc, argv);
 
+    if (prompt_file != "") {
+        std::ifstream f(prompt_file);
+        if (f.is_open()) {
+            std::ostringstream oss;
+            oss << f.rdbuf();
+            prompt = oss.str();
+            f.close();
+        } else {
+            SMART_ASSERT(false, "failed to open prompt file: {}", prompt_file);
+        }
+    }
     auto config                         = std::make_shared<smart::Config>(work_folder);
     std::unique_ptr<smart::Model> model = smart::load_model(config->main_model_config, config->main_model_dir);
-    auto [sampler_config, steps, n_threads, prompt, prefill_batch_size] = config->hyper_params;
+    auto [sampler_config, n_threads, prefill_batch_size] = config->hyper_params;
     SMART_UNUSED(prefill_batch_size);
 
     model->m_platform = std::make_shared<smart::Platform>();
@@ -70,7 +89,7 @@ int main(int argc, char *argv[]) {
 #if defined(SMART_WITH_QNN)
     if (!no_qnn) {
         auto &qnn_backend = model->m_platform->qnn_backend;
-        model->m_platform->init_qnn_backend(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME);
+        model->m_platform->init_qnn_backend(smart::Path(work_folder) / smart::qnn::QNN_WORKSPACE_DIR_NAME);
         qnn_backend->load_model(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, model->m_config);
     }
 #endif
@@ -90,7 +109,7 @@ int main(int argc, char *argv[]) {
 
     // generate
 
-    auto prompt_tokens = tokenizer.tokenize(config->hyper_params.prompt, tokenizer.m_vocab.tokenizer_add_bos);
+    auto prompt_tokens = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos);
     auto n_tokens      = prompt_tokens.size();
     SMART_LOG_INFO("dataset: {} tokens", n_tokens);
 

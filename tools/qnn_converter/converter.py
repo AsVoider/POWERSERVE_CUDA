@@ -13,23 +13,23 @@ def run_shell_command(command):
     assert ret == 0
 
 
-def get_config_file(folder):
+def get_config_file(folder, batch_sizes):
     merged_config = {"model_parameters": {}, "qnn_parameters": {}, "graphs": [], "embeddings": []}
-    for filename in os.listdir(folder):
-        if filename.endswith(".json"):
-            file_path = os.path.join(folder, filename)
-            with open(file_path, "r") as json_file:
-                data = json.load(json_file)
 
-                if not merged_config["model_parameters"]:
-                    merged_config["model_parameters"] = data.get("model_parameters", {})
-                if not merged_config["qnn_parameters"]:
-                    merged_config["qnn_parameters"] = data.get("qnn_parameters", {})
+    for batch_size in batch_sizes:
+        file_path = os.path.join(folder, f"config_batch_{batch_size}.json")
+        with open(file_path, "r") as json_file:
+            data = json.load(json_file)
 
-                if "graphs" in data:
-                    merged_config["graphs"].extend(data["graphs"])
-                if "embeddings" in data:
-                    merged_config["embeddings"].extend(data["embeddings"])
+            if not merged_config["model_parameters"]:
+                merged_config["model_parameters"] = data.get("model_parameters", {})
+            if not merged_config["qnn_parameters"]:
+                merged_config["qnn_parameters"] = data.get("qnn_parameters", {})
+
+            if "graphs" in data:
+                merged_config["graphs"].extend(data["graphs"])
+            if "embeddings" in data:
+                merged_config["embeddings"].extend(data["embeddings"])
     with open(os.path.join(folder, "config.json"), "w") as f:
         json.dump(merged_config, f, indent=2)
 
@@ -86,7 +86,7 @@ def main(args):
         # rm_command = f"rm -rf {args.build_folder}/m*/batch_{i}/data&&rm -rf {args.build_folder}/m*/batch_{i}/onnx_model"
         # run_shell_command(rm_command)
 
-    get_config_file(args.build_folder)
+    get_config_file(args.build_folder, args.batch_sizes)
     generate_binary_command = f"""
         python build_all_layers.py \
             --build-folder {args.build_folder} \
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     parser.add_argument("--artifact-name", type=str, required=True)
     parser.add_argument("--batch-sizes", type=int, nargs="+", required=True)
     parser.add_argument("--soc", type=str, choices=soc_map.keys(), default="8gen3")
-    parser.add_argument("--fp16-lm-head", action='store_true')
+    parser.add_argument("--fp16-lm-head", action="store_true")
 
     args = parser.parse_args()
     main(args)
