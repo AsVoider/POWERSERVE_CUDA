@@ -302,352 +302,292 @@ public:
 };
 
 /*!
+ * @param output_string[in] The output string after tokenization of model
+ * @note For some reasons(e.g. truncation), the output token may be incomplete. In case of json parser exception, 
+ * we need to hold the incomplete word until next time or the end. 
+ */
+inline bool is_utf8_string_incomplete(const std::string &output_string) {
+    bool incomplete = false;
+    for (unsigned i = 1; i < 5 && i <= output_string.size(); ++i) {
+        unsigned char c = output_string[output_string.size() - i];
+        if ((c & 0xC0) == 0x80) {
+            // continuation byte: 10xxxxxx
+            continue;
+        }
+        if ((c & 0xE0) == 0xC0) {
+            // 2-byte character: 110xxxxx ...
+            incomplete = i < 2;
+        } else if ((c & 0xF0) == 0xE0) {
+            // 3-byte character: 1110xxxx ...
+            incomplete = i < 3;
+        } else if ((c & 0xF8) == 0xF0) {
+            // 4-byte character: 11110xxx ...
+            incomplete = i < 4;
+        }
+        // else 1-byte character or invalid byte
+        break;
+    }
+    return incomplete;
+}
+
+#pragma optimize("", off)
+inline std::string &remove_incomplete_utf8_char(std::string &output_string) {
+    for (unsigned i = 1; i < 5 && i <= output_string.size(); ++i) {
+        unsigned char c = output_string[output_string.size() - i];
+        if ((c & 0xC0) == 0x80) {
+            // continuation byte: 10xxxxxx
+            continue;
+        }
+        if ((c & 0xE0) == 0xC0) {
+            // 2-byte character: 110xxxxx ...
+            if (i < 2) {
+                output_string.erase(output_string.size() - i, i);
+                return output_string;
+            };
+        } else if ((c & 0xF0) == 0xE0) {
+            // 3-byte character: 1110xxxx ...
+            if (i < 3) {
+                output_string.erase(output_string.size() - i, i);
+                return output_string;
+            };
+        } else if ((c & 0xF8) == 0xF0) {
+            // 4-byte character: 11110xxx ...
+            if (i < 4) {
+                output_string.erase(output_string.size() - i, i);
+                return output_string;
+            };
+        }
+        // else 1-byte character or invalid byte
+        break;
+    }
+    SMART_LOG_INFO("The output string is completed");
+    return output_string;
+}
+
+#pragma optimize("", on)
+
+inline void stream_inference(const ModelContext &context, ServerSession &session, const std::string &input_prompt) {
+    using namespace smart;
+
+    const ModelInput &input = session.m_input;
+
+    auto &config    = *context.m_config_ptr;
+    auto &model     = *context.m_model_ptr;
+    auto &tokenizer = *context.m_tokenizer_ptr;
+
+    // TODO: This sampler config is too argly
+    auto &sampler_config           = config.hyper_params.sampler_config;
+    sampler_config.temperature     = input.m_temperature;
+    sampler_config.penalty_freq    = input.m_frequency_penalty;
+    sampler_config.penalty_present = input.m_presence_penalty;
+    sampler_config.top_p           = input.m_top_p;
+    sampler_config.temperature     = input.m_temperature;
+    smart::SamplerChain sampler{sampler_config, tokenizer};
+
+    /* Inference */
+    ModelOutput output;
+
+    const Token eos_token = tokenizer.m_vocab.special_eos_id;
+    const Token eom_token = tokenizer.m_vocab.special_eom_id;
+    const Token eot_token = tokenizer.m_vocab.special_eot_id;
+
+    const size_t max_num_token = input.m_max_num_token;
+    const size_t batch_size    = config.hyper_params.batch_size;
+
+    std::string stop_reason = "length";
+    size_t step             = 0;
+
+    SMART_LOG_DEBUG("Model input     : {}", smart::abbreviation(input_prompt, 50));
+    SMART_LOG_DEBUG("Model max token : {}", max_num_token);
+    SMART_LOG_DEBUG("Model batch size: {}", batch_size);
+
+    /*
+     * Prefill
+     */
+    TimeCounter time_counter;
+    const size_t num_prefill_token = tokenizer.tokenize(input_prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
+
+    bool end_of_text = false;
+    std::string output_buffer;
+    for (const Token token : model.generate(tokenizer, sampler, input_prompt, max_num_token, batch_size)) {
+        step++;
+        if (step == 1) {
+            const size_t prefill_time_ms = time_counter.get_time_in_ms();
+            SMART_LOG_INFO(
+                "prefill step: {}, prefill time: {}ms ({} token/s)",
+                num_prefill_token,
+                prefill_time_ms,
+                num_prefill_token * 1000.f / prefill_time_ms
+            );
+            time_counter.reset();
+            continue;
+        } // Avoid outputing the last token
+
+        if (token == tokenizer.bos_token()) {
+            continue;
+        }
+
+        if (token == eos_token || token == eom_token || token == eot_token) {
+            end_of_text = true;
+            break;
+        } else {
+            output_buffer += tokenizer.to_string(token);
+            if (!is_utf8_string_incomplete(output_buffer)) {
+                session.m_result_queue.enqueue(
+                    {.m_text             = output_buffer,
+                     .m_input_num_token  = num_prefill_token,
+                     .m_output_num_token = step,
+                     .m_stop_reason      = std::nullopt}
+                );
+                output_buffer.clear();
+            }
+        }
+    }
+
+    const std::string_view end_text = end_of_text ? "[end of text]" : "";
+
+    session.m_result_queue.enqueue(
+        {.m_text             = remove_incomplete_utf8_char(output_buffer).append(end_text),
+         .m_input_num_token  = num_prefill_token,
+         .m_output_num_token = step,
+         .m_stop_reason      = end_of_text ? "stop" : "length"}
+    );
+
+    const size_t decode_time_ms = time_counter.get_time_in_ms();
+    SMART_LOG_INFO(
+        "decode  step: {}, decode  time: {}ms ({} token/s)", step, decode_time_ms, step * 1000.f / decode_time_ms
+    );
+}
+
+inline ModelOutput blocking_inference(
+    const ModelContext &context, const ModelInput &input, const std::string &input_prompt
+) {
+    using namespace smart;
+
+    auto &config    = *context.m_config_ptr;
+    auto &model     = *context.m_model_ptr;
+    auto &tokenizer = *context.m_tokenizer_ptr;
+
+    // TODO: This sampler config is too argly
+    auto &sampler_config           = config.hyper_params.sampler_config;
+    sampler_config.temperature     = input.m_temperature;
+    sampler_config.penalty_freq    = input.m_frequency_penalty;
+    sampler_config.penalty_present = input.m_presence_penalty;
+    sampler_config.top_p           = input.m_top_p;
+    sampler_config.temperature     = input.m_temperature;
+    smart::SamplerChain sampler{sampler_config, tokenizer};
+
+    /* Inference */
+    ModelOutput output;
+
+    const Token eos_token = tokenizer.m_vocab.special_eos_id;
+    const Token eom_token = tokenizer.m_vocab.special_eom_id;
+    const Token eot_token = tokenizer.m_vocab.special_eot_id;
+
+    const size_t max_num_token = input.m_max_num_token;
+    const size_t batch_size    = config.hyper_params.batch_size;
+
+    std::string output_text;
+    std::string stop_reason = "length";
+    size_t step             = 0;
+
+    SMART_LOG_DEBUG("Model input     : {}", smart::abbreviation(input_prompt, 20));
+    SMART_LOG_DEBUG("Model max token : {}", max_num_token);
+    SMART_LOG_DEBUG("Model batch size: {}", batch_size);
+
+    /*
+     * Prefill
+     */
+    TimeCounter time_counter;
+    const size_t num_prefill_token = tokenizer.tokenize(input_prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
+    bool end_of_text               = false;
+    for (const Token token : model.generate(tokenizer, sampler, input_prompt, max_num_token, batch_size)) {
+        step++;
+        if (step == 1) {
+            const size_t prefill_time_ms = time_counter.get_time_in_ms();
+            SMART_LOG_INFO(
+                "prefill step: {}, prefill time: {}ms ({} token/s)",
+                num_prefill_token,
+                prefill_time_ms,
+                num_prefill_token * 1000.f / prefill_time_ms
+            );
+            time_counter.reset();
+            continue;
+        } // Avoid outputing the last token
+
+        if (token == tokenizer.bos_token()) {
+            continue;
+        }
+
+        if (token == eos_token || token == eom_token || token == eot_token) {
+            end_of_text = true;
+            stop_reason = "stop";
+            break;
+        } else {
+            output_text += tokenizer.to_string(token);
+        }
+    }
+
+    remove_incomplete_utf8_char(output_text);
+    output_text += end_of_text ? "[end of text]" : "";
+
+    const size_t decode_time_ms = time_counter.get_time_in_ms();
+    SMART_LOG_INFO(
+        "decode  step: {}, decode  time: {}ms ({} token/s)", step, decode_time_ms, step * 1000.f / decode_time_ms
+    );
+    SMART_LOG_DEBUG("Model output token: {}", output_text);
+
+    return {
+        .m_text             = output_text,
+        .m_input_num_token  = num_prefill_token,
+        .m_output_num_token = step,
+        .m_stop_reason      = stop_reason
+    };
+}
+
+/*!
  * @brief Generate 
  * @param[inout] context
  * @todo Streamly generation
  */
 inline ModelOutput completion(ServerContext &server_context, const ModelInput &input) {
     using namespace smart;
+    /* Parse and concat user inputs */
+    const ModelContext &context = server_context.setup_model(input.m_model);
+    const Tokenizer &tokenizer  = *context.m_tokenizer_ptr;
 
-    ModelContext &context = server_context.setup_model(input.m_model);
-
-    auto &config    = *context.m_config_ptr;
-    auto &model     = *context.m_model_ptr;
-    auto &tokenizer = *context.m_tokenizer_ptr;
-
-    // TODO: This sampler config is too argly
-    auto &sampler_config           = config.hyper_params.sampler_config;
-    sampler_config.temperature     = input.m_temperature;
-    sampler_config.penalty_freq    = input.m_frequency_penalty;
-    sampler_config.penalty_present = input.m_presence_penalty;
-    sampler_config.top_p           = input.m_top_p;
-    sampler_config.temperature     = input.m_temperature;
-    smart::SamplerChain sampler{sampler_config, tokenizer};
-
-    /* Inference */
-    ModelOutput output;
-
-    const Token eos_token = tokenizer.m_vocab.special_eos_id;
-    const Token eom_token = tokenizer.m_vocab.special_eom_id;
-    const Token eot_token = tokenizer.m_vocab.special_eot_id;
-
-    const size_t max_num_token = input.m_max_num_token;
-    const size_t batch_size    = config.hyper_params.batch_size;
-
-    std::string output_text;
-    std::string stop_reason = "length";
-    size_t step             = 0;
-
-    SMART_LOG_DEBUG("Model input     : {}", smart::abbreviation(input.m_prompt, 20));
-    SMART_LOG_DEBUG("Model max token : {}", max_num_token);
-    SMART_LOG_DEBUG("Model batch size: {}", batch_size);
-
-    /*
-     * Prefill
-     */
-    TimeCounter time_counter;
-    const size_t num_prefill_token = tokenizer.tokenize(input.m_prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
-
-    for (const Token token : model.generate(tokenizer, sampler, input.m_prompt, max_num_token, batch_size)) {
-        step++;
-        if (step == 1) {
-            const size_t prefill_time_ms = time_counter.get_time_in_ms();
-            SMART_LOG_INFO(
-                "prefill step: {}, prefill time: {}ms ({} token/s)",
-                num_prefill_token,
-                prefill_time_ms,
-                num_prefill_token * 1000.f / prefill_time_ms
-            );
-            time_counter.reset();
-            continue;
-        } // Avoid outputing the last token
-
-        if (token == tokenizer.bos_token()) {
-            continue;
-        }
-
-        if (token == eos_token || token == eom_token || token == eot_token) {
-            output_text += "[end of text]";
-            stop_reason = "stop";
-            break;
-        } else {
-            output_text += tokenizer.to_string(token);
-        }
-    }
-    const size_t decode_time_ms = time_counter.get_time_in_ms();
-    SMART_LOG_INFO(
-        "decode  step: {}, decode  time: {}ms ({} token/s)", step, decode_time_ms, step * 1000.f / decode_time_ms
-    );
-    SMART_LOG_DEBUG("Model output token: {}", smart::abbreviation(output_text, 20));
-    return {
-        .m_text             = output_text,
-        .m_input_num_token  = num_prefill_token,
-        .m_output_num_token = step,
-        .m_stop_reason      = stop_reason
-    };
+    return blocking_inference(context, input, input.m_prompt);
 }
 
 inline void completion(ServerContext &server_context, ServerSession &session) {
     using namespace smart;
+    /* Parse and concat user inputs */
+    const ModelInput &input     = session.m_input;
+    const ModelContext &context = server_context.setup_model(input.m_model);
+    const Tokenizer &tokenizer  = *context.m_tokenizer_ptr;
 
-    const ModelInput &input = session.m_input;
-    ModelContext &context   = server_context.setup_model(input.m_model);
-
-    auto &config    = *context.m_config_ptr;
-    auto &model     = *context.m_model_ptr;
-    auto &tokenizer = *context.m_tokenizer_ptr;
-
-    // TODO: This sampler config is too argly
-    auto &sampler_config           = config.hyper_params.sampler_config;
-    sampler_config.temperature     = input.m_temperature;
-    sampler_config.penalty_freq    = input.m_frequency_penalty;
-    sampler_config.penalty_present = input.m_presence_penalty;
-    sampler_config.top_p           = input.m_top_p;
-    sampler_config.temperature     = input.m_temperature;
-    smart::SamplerChain sampler{sampler_config, tokenizer};
-
-    /* Inference */
-    ModelOutput output;
-
-    const Token eos_token = tokenizer.m_vocab.special_eos_id;
-    const Token eom_token = tokenizer.m_vocab.special_eom_id;
-    const Token eot_token = tokenizer.m_vocab.special_eot_id;
-
-    const size_t max_num_token = input.m_max_num_token;
-    const size_t batch_size    = config.hyper_params.batch_size;
-
-    std::string output_text;
-    std::string stop_reason = "length";
-    size_t step             = 0;
-
-    SMART_LOG_DEBUG("Model input     : {}", smart::abbreviation(input.m_prompt, 50));
-    SMART_LOG_DEBUG("Model max token : {}", max_num_token);
-    SMART_LOG_DEBUG("Model batch size: {}", batch_size);
-
-    /*
-     * Prefill
-     */
-    TimeCounter time_counter;
-    const size_t num_prefill_token = tokenizer.tokenize(input.m_prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
-
-    bool end_of_text = false;
-    for (const Token token : model.generate(tokenizer, sampler, input.m_prompt, max_num_token, batch_size)) {
-        step++;
-        if (step == 1) {
-            const size_t prefill_time_ms = time_counter.get_time_in_ms();
-            SMART_LOG_INFO(
-                "prefill step: {}, prefill time: {}ms ({} token/s)",
-                num_prefill_token,
-                prefill_time_ms,
-                num_prefill_token * 1000.f / prefill_time_ms
-            );
-            time_counter.reset();
-            continue;
-        } // Avoid outputing the last token
-
-        if (token == tokenizer.bos_token()) {
-            continue;
-        }
-
-        if (token == eos_token || token == eom_token || token == eot_token) {
-            end_of_text = true;
-            break;
-        } else {
-            session.m_result_queue.enqueue(
-                {.m_text             = tokenizer.to_string(token),
-                 .m_input_num_token  = num_prefill_token,
-                 .m_output_num_token = step,
-                 .m_stop_reason      = std::nullopt}
-            );
-        }
-    }
-
-    session.m_result_queue.enqueue(
-        {.m_text             = end_of_text ? "[end of text]" : "",
-         .m_input_num_token  = num_prefill_token,
-         .m_output_num_token = step,
-         .m_stop_reason      = end_of_text ? "stop" : "length"}
-    );
-
-    const size_t decode_time_ms = time_counter.get_time_in_ms();
-    SMART_LOG_INFO(
-        "decode  step: {}, decode  time: {}ms ({} token/s)", step, decode_time_ms, step * 1000.f / decode_time_ms
-    );
+    stream_inference(context, session, input.m_prompt);
 }
 
 inline ModelOutput chat(ServerContext &server_context, const ModelInput &input) {
     using namespace smart;
-
-    ModelContext &context = server_context.setup_model(input.m_model);
-
-    auto &config    = *context.m_config_ptr;
-    auto &model     = *context.m_model_ptr;
-    auto &tokenizer = *context.m_tokenizer_ptr;
-
-    // TODO: This sampler config is too argly
-    auto &sampler_config           = config.hyper_params.sampler_config;
-    sampler_config.temperature     = input.m_temperature;
-    sampler_config.penalty_freq    = input.m_frequency_penalty;
-    sampler_config.penalty_present = input.m_presence_penalty;
-    sampler_config.top_p           = input.m_top_p;
-    sampler_config.temperature     = input.m_temperature;
-    smart::SamplerChain sampler{sampler_config, tokenizer};
-
     /* Parse and concat user inputs */
-    const std::string concat_prompt = tokenizer.apply_chat_template(input.m_history, true);
+    const ModelContext &context    = server_context.setup_model(input.m_model);
+    const Tokenizer &tokenizer     = *context.m_tokenizer_ptr;
+    const std::string input_prompt = tokenizer.apply_chat_template(input.m_history, true);
 
-    /* Inference */
-    ModelOutput output;
-
-    const Token eos_token = tokenizer.m_vocab.special_eos_id;
-    const Token eom_token = tokenizer.m_vocab.special_eom_id;
-    const Token eot_token = tokenizer.m_vocab.special_eot_id;
-
-    const size_t max_num_token = input.m_max_num_token;
-    const size_t batch_size    = config.hyper_params.batch_size;
-
-    std::string output_text;
-    std::string stop_reason = "length";
-    size_t step             = 0;
-
-    SMART_LOG_DEBUG("Model input     : {}", smart::abbreviation(concat_prompt, 50));
-    SMART_LOG_DEBUG("Model max token : {}", max_num_token);
-    SMART_LOG_DEBUG("Model batch size: {}", batch_size);
-
-    /*
-     * Prefill
-     */
-    TimeCounter time_counter;
-    const size_t num_prefill_token = tokenizer.tokenize(concat_prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
-
-    for (const Token token : model.generate(tokenizer, sampler, concat_prompt, max_num_token, batch_size)) {
-        step++;
-        if (step == 1) {
-            const size_t prefill_time_ms = time_counter.get_time_in_ms();
-            SMART_LOG_INFO(
-                "prefill step: {}, prefill time: {}ms ({} token/s)",
-                num_prefill_token,
-                prefill_time_ms,
-                num_prefill_token * 1000.f / prefill_time_ms
-            );
-            time_counter.reset();
-            continue;
-        } // Avoid outputing the last token
-
-        if (token == tokenizer.bos_token()) {
-            continue;
-        }
-
-        if (token == eos_token || token == eom_token || token == eot_token) {
-            output_text += "[end of text]";
-            stop_reason = "stop";
-            break;
-        } else {
-            output_text += tokenizer.to_string(token);
-        }
-    }
-    const size_t decode_time_ms = time_counter.get_time_in_ms();
-    SMART_LOG_INFO(
-        "decode  step: {}, decode  time: {}ms ({} token/s)", step, decode_time_ms, step * 1000.f / decode_time_ms
-    );
-    SMART_LOG_DEBUG("Model output token: {}", smart::abbreviation(output_text, 50));
-    return {
-        .m_text             = output_text,
-        .m_input_num_token  = num_prefill_token,
-        .m_output_num_token = step,
-        .m_stop_reason      = stop_reason
-    };
+    return blocking_inference(context, input, input_prompt);
 }
 
 inline void chat(ServerContext &server_context, ServerSession &session) {
     using namespace smart;
-
-    const ModelInput &input = session.m_input;
-    ModelContext &context   = server_context.setup_model(input.m_model);
-
-    auto &config    = *context.m_config_ptr;
-    auto &model     = *context.m_model_ptr;
-    auto &tokenizer = *context.m_tokenizer_ptr;
-
-    // TODO: This sampler config is too argly
-    auto &sampler_config           = config.hyper_params.sampler_config;
-    sampler_config.temperature     = input.m_temperature;
-    sampler_config.penalty_freq    = input.m_frequency_penalty;
-    sampler_config.penalty_present = input.m_presence_penalty;
-    sampler_config.top_p           = input.m_top_p;
-    sampler_config.temperature     = input.m_temperature;
-    smart::SamplerChain sampler{sampler_config, tokenizer};
-
     /* Parse and concat user inputs */
-    const std::string concat_prompt = tokenizer.apply_chat_template(input.m_history, true);
+    const ModelInput &input        = session.m_input;
+    const ModelContext &context    = server_context.setup_model(input.m_model);
+    const Tokenizer &tokenizer     = *context.m_tokenizer_ptr;
+    const std::string input_prompt = tokenizer.apply_chat_template(input.m_history, true);
 
-    /* Inference */
-
-    ModelOutput output;
-
-    const Token eos_token = tokenizer.m_vocab.special_eos_id;
-    const Token eom_token = tokenizer.m_vocab.special_eom_id;
-    const Token eot_token = tokenizer.m_vocab.special_eot_id;
-
-    const size_t max_num_token = input.m_max_num_token;
-    const size_t batch_size    = config.hyper_params.batch_size;
-
-    std::string stop_reason = "length";
-    size_t step             = 0;
-
-    SMART_LOG_DEBUG("Model input     : {}", smart::abbreviation(concat_prompt, 50));
-    SMART_LOG_DEBUG("Model max token : {}", max_num_token);
-    SMART_LOG_DEBUG("Model batch size: {}", batch_size);
-
-    /*
-     * Prefill
-     */
-    TimeCounter time_counter;
-    const size_t num_prefill_token = tokenizer.tokenize(concat_prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
-
-    bool end_of_text = false;
-    for (const Token token : model.generate(tokenizer, sampler, concat_prompt, max_num_token, batch_size)) {
-        step++;
-        if (step == 1) {
-            const size_t prefill_time_ms = time_counter.get_time_in_ms();
-            SMART_LOG_INFO(
-                "prefill step: {}, prefill time: {}ms ({} token/s)",
-                num_prefill_token,
-                prefill_time_ms,
-                num_prefill_token * 1000.f / prefill_time_ms
-            );
-            time_counter.reset();
-            continue;
-        } // Avoid outputing the last token
-
-        if (token == tokenizer.bos_token()) {
-            continue;
-        }
-
-        if (token == eos_token || token == eom_token || token == eot_token) {
-            end_of_text = true;
-            break;
-        } else {
-            session.m_result_queue.enqueue(
-                {.m_text             = tokenizer.to_string(token),
-                 .m_input_num_token  = num_prefill_token,
-                 .m_output_num_token = step,
-                 .m_stop_reason      = std::nullopt}
-            );
-        }
-    }
-
-    session.m_result_queue.enqueue(
-        {.m_text             = end_of_text ? "[end of text]" : "",
-         .m_input_num_token  = num_prefill_token,
-         .m_output_num_token = step,
-         .m_stop_reason      = end_of_text ? "stop" : "length"}
-    );
-
-    const size_t decode_time_ms = time_counter.get_time_in_ms();
-    SMART_LOG_INFO(
-        "decode  step: {}, decode  time: {}ms ({} token/s)", step, decode_time_ms, step * 1000.f / decode_time_ms
-    );
+    stream_inference(context, session, input_prompt);
 }
 
 inline std::vector<std::string> list_models(ServerContext &server_context) {

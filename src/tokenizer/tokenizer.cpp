@@ -16,9 +16,14 @@ Tokenizer::Tokenizer(const Path &vocab_path) {
     SMART_ASSERT(meta);
 
     const int template_key_id = gguf_find_key(meta, "tokenizer.chat_template");
-    if (template_key_id != -1)
+    if (template_key_id != -1) {
         m_template_type = gguf_get_val_str(meta, template_key_id);
-    m_template_type = "";
+    } else {
+        m_template_type = "chatml";
+        SMART_LOG_ERROR(
+            "failed to find kv entry <tokenizer.chat_template>, use chat template `{}` as default.", m_template_type
+        );
+    }
 
     llm_load_vocab(m_vocab, meta);
 
