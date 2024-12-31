@@ -34,8 +34,8 @@ cmake \
     -DANDROID_PLATFORM=android-34 \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DSMART_WITH_QNN=ON \
-    -S . -B build_android
-cmake --build build_android
+    -S . -B build
+cmake --build build
 ```
 
 ## Build

@@ -3,7 +3,7 @@
     - Complete the configuration of the QNN environment following the instructions at https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/linux_setup.html?product=1601111740009302.
     - After completing the configuration, navigate to the current directory and set the environment variables as follows:
         ```sh
-        export QNN_SDK=/path/to/aforementioned/QNN/installation/directory 
+        export QNN_SDK=/path/to/aforementioned/QNN/installation/directory
         source $QNN_SDK/bin/envsetup.sh
         #If successful, it will display:
         #[INFO] AISW SDK environment set
@@ -33,3 +33,30 @@
     # 3. The value of n-model-chunk should ensure that the size of each chunk does not exceed 2G and can evenly divide the number of model layers. For an 8B model, it is recommended to set it to 4.
     ```
     After the conversion is completed, copy the resulting output folder to the correct location  for the QNN model on the phone to run
+
+# Model Statistics
+
+You need to profile first, and save statistics as JSON files into a folder named `stat`, under the model folder.
+
+- For attention: A list with attention head ids.
+- For feed forward: A list with neuron ids.
+
+These head/neuron ids should be sorted by importance (e.g. by quantization error) in descending order.
+
+Example:
+
+```bash
+> ls -v1 /ssd/smallthinker_3b_20241220/stat
+attn_0_stat.json
+attn_1_stat.json
+attn_2_stat.json
+...
+attn_35_stat.json
+ffn_0_stat.json
+ffn_1_stat.json
+ffn_2_stat.json
+...
+ffn_35_stat.json
+> cat /ssd/smallthinker_3b_20241220/stat/attn_0_stat.json
+[13, 12, 10, 11, 9, 8, 14, 15, 2, 5, 1, 7, 4, 0, 3, 6]
+```
