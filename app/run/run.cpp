@@ -112,8 +112,16 @@ int main(int argc, char *argv[]) {
         decode_end     = smart::time_in_ms();
         auto n_prefill = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
         SMART_LOG_INFO("prefill time: {} s", (double)(prefill_end - prefill_start) / 1000);
-        SMART_LOG_INFO("prefill speed: {} tokens/s", n_prefill / (double)(prefill_end - prefill_start) * 1000);
-        SMART_LOG_INFO("decode speed: {} tokens/s", actual_predict / (double)(decode_end - prefill_end) * 1000);
+        SMART_LOG_INFO(
+            "prefill speed ({} tokens): {} tokens/s",
+            n_prefill,
+            n_prefill / (double)(prefill_end - prefill_start) * 1000
+        );
+        SMART_LOG_INFO(
+            "decode speed ({} tokens): {} tokens/s",
+            actual_predict,
+            actual_predict / (double)(decode_end - prefill_end) * 1000
+        );
         SMART_LOG_INFO(
             "total speed: {} tokens/s", (n_prefill + actual_predict) / (double)(decode_end - prefill_start) * 1000
         );

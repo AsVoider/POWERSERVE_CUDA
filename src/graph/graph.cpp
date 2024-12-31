@@ -37,7 +37,7 @@ auto Graph::get_embedding(TensorNode *weight, const std::vector<int> &tokens) ->
 }
 
 auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
-    SMART_ASSERT(tensor_can_repeat(a, b));
+    SMART_ASSERT(tensor_can_repeat(b, a));
 
     auto out = dup_tensor(a);
     auto op  = new_op(OpType::ADD);

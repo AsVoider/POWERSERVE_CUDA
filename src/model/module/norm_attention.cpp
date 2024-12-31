@@ -16,7 +16,8 @@ TensorNode *NormAttention::build(
     const TensorNode *k_cache, // {seq_len * kv_dim, 1, 1, 1}
     const TensorNode *v_cache,
     const std::vector<int> &pos,
-    const CausalAttentionMask &mask
+    const CausalAttentionMask &mask,
+    bool is_need_bias
 ) {
     auto batch_size = pos.size();
     auto head_size  = m_config.head_size;
@@ -33,13 +34,25 @@ TensorNode *NormAttention::build(
     // QKV
     auto q_w = g.add_tensor(m_weights->lw[L].attn_q); // (embd_dim, embd_dim, 1, 1)
     auto q   = g.mat_mul(q_w, att_norm_o);            // (embd_dim, bs, 1, 1)
+    if (is_need_bias) {
+        auto q_b = g.add_tensor(m_weights->lw[L].attn_q_bias); // (embd_dim, 1, 1, 1)
+        q        = g.add(q, q_b);
+    }
     // embd_dim == n_heads * head_size
     // kv_dim == n_kv_heads * head_size
     auto k_w = g.add_tensor(m_weights->lw[L].attn_k); // (embd_dim, kv_dim, 1, 1)
     auto k   = g.mat_mul(k_w, att_norm_o);            // (kv_dim, batch_size, 1, 1)
+    if (is_need_bias) {
+        auto k_b = g.add_tensor(m_weights->lw[L].attn_k_bias); // (kv_dim, 1, 1, 1)
+        k        = g.add(k, k_b);
+    }
 
     auto v_w = g.add_tensor(m_weights->lw[L].attn_v); // (embd_dim, kv_dim, 1, 1)
     auto v   = g.mat_mul(v_w, att_norm_o);            // (kv_dim, batch_size, 1, 1)
+    if (is_need_bias) {
+        auto v_b = g.add_tensor(m_weights->lw[L].attn_v_bias); // (kv_dim, 1, 1, 1)
+        v        = g.add(v, v_b);
+    }
 
     // (head_size, n_heads, bs, 1)
     auto q_view = g.view_tensor(q, {head_size, n_head, q->m_shape[1], q->m_shape[2]});

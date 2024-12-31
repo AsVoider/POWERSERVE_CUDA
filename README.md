@@ -5,8 +5,8 @@
 |----------|----------|----------|----------|
 | LLaMA 3.1 🦙🦙🦙  | ✔️    | ✔️    |    |
 | LLaMA 3.2 🦙🦙🦙  | ✔️    | ✔️    |   |
-| Qwen2  | ✔️    | ✔️    |    |
-| Phi3  | ✔️    |     |    |
+| Qwen2  | ✔️[Need test]    | ✔️    |    |
+| Phi3  | ✔️[Need test]    |     |    |
 | InternVL2 (1B, 2B, 8B) |     |✔️    |    |
 
 ## Prerequisites
@@ -139,3 +139,13 @@ cd smartserving
 # 将proj传输到qnn运行设备上
 export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ./proj/bin/smart-run -d ./proj
 ```
+
+# Performance
+- QNN: 8gen3 phone + n_predicts = 256 + n_prompts = 1652
+- CPU: n_threads = 8 + n_predicts = 128 + n_prompts = 95
+
+| model    | CPU(Prefill / Decode)     | NPU(Prefill / Decode)      |Note      |
+|----------|----------|----------|----------|
+| LLaMA 3.1-8b-q4_0  | 19.88 / 6.75 tokens/s    | 559.81 / 11.21 tokens/s    |  |
+| LLaMA 3.2-1b-q4_0  | 127.86 / 38.04 tokens/s   | 1764.96 / 57.53 tokens/s    |  |
+| Qwen2  | TODO   | TODO    |  |

@@ -25,7 +25,8 @@ public:
         const TensorNode *k_cache,
         const TensorNode *v_cache,
         const std::vector<int> &pos,
-        const CausalAttentionMask &mask
+        const CausalAttentionMask &mask,
+        bool is_need_bias = false
     ) override;
 };
 

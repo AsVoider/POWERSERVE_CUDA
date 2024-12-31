@@ -21,6 +21,10 @@ public:
     Tensor ffn_up;   // "blk.$.ffn_up.weight" (layer, dim, hidden_dim)
     Tensor ffn_down; // "blk.$.ffn_down.weight" (layer, hidden_dim, dim)
 
+    Tensor attn_q_bias;
+    Tensor attn_k_bias;
+    Tensor attn_v_bias;
+
     virtual ~LayerWeights() = default;
 
 protected:

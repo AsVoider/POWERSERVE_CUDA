@@ -27,6 +27,13 @@
 
 #define SMART_LOG_ERROR(...) fmt::println(stderr, "[ERROR] " __VA_ARGS__)
 
+#define SMART_LOG_EMPTY_LINE()                                                                                         \
+    {                                                                                                                  \
+        fflush(stdout);                                                                                                \
+        fflush(stderr);                                                                                                \
+        fmt::println(stdout, "");                                                                                      \
+    }
+
 #define SMART_ABORT(...)                                                                                               \
     do {                                                                                                               \
         fflush(stdout);                                                                                                \

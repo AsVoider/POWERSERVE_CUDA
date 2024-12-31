@@ -150,14 +150,14 @@ def smart_create(args):
     main_config = read_json(out_path / artifact_config[MAIN_MODEL_KEY] / MODEL_CONFIG_FILENAME)
 
     if draft_model_path:
-        draft_cofnig = read_json(out_path / artifact_config[MAIN_MODEL_KEY] / MODEL_CONFIG_FILENAME)
-        assert main_config["model_id"] != draft_cofnig["model_id"]
-
-        artifact_config[DRAFT_MODEL_KEY] = str(main_model_path.name)
+        artifact_config[DRAFT_MODEL_KEY] = str(draft_model_path.name)
         draft_model_abspath = out_path / artifact_config[DRAFT_MODEL_KEY]
         if not draft_model_abspath.exists():
             draft_model_abspath.mkdir(parents=True, exist_ok=True)
         execute_command(["cp", "-r", draft_model_path / "*", draft_model_abspath])
+
+        draft_config = read_json(out_path / artifact_config[DRAFT_MODEL_KEY] / MODEL_CONFIG_FILENAME)
+        assert main_config["model_id"] != draft_config["model_id"]
     else:
         artifact_config[DRAFT_MODEL_KEY] = ""
 

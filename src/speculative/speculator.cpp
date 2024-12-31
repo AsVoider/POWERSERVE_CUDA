@@ -96,11 +96,9 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
     auto &platform        = m_target_model->m_platform;
     auto &target_model_id = m_target_model->m_config->model_id;
     auto &draft_model_id  = m_draft_model->m_config->model_id;
-#if defined(SMART_WITH_QNN)
-    if (platform->qnn_backend) {
-        pos = platform->qnn_backend->m_models[target_model_id]->kv_cache->position;
-    }
-#endif
+
+    pos = platform->get_kv_position(target_model_id);
+
     //prefill
     auto prefill_start = time_in_ms();
     auto prefill_pos   = std::vector<int>(num_prompt_tokens - 1);
@@ -125,21 +123,15 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
 
     auto token                 = prompt_tokens[num_prompt_tokens - 1]; // kick off with the first token in the prompt
     auto decode_attention_mask = CausalAttentionMask(1);
-#if defined(SMART_WITH_QNN)
-    if (platform->qnn_backend) {
-        pos = platform->qnn_backend->m_models[target_model_id]->kv_cache->position;
-    } else
-#endif
-    {
-        pos = num_prompt_tokens - 1;
-    }
+    pos                        = platform->get_kv_position(target_model_id);
+    auto n_prefill             = pos;
 
     next = token;
     std::vector<std::string> output;
     output.push_back(prompt);
     int draft_depth = m_draft_depth;
 
-    while (pos < steps) {
+    while (pos < steps + n_prefill) {
 
         TokenTree tk_tree(m_draft_model, m_tokenizer, draft_depth, pos, m_expansion);
 
@@ -243,12 +235,13 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
             start = time_in_ms();
         }
     }
+    SMART_LOG_EMPTY_LINE();
 
     if (pos > 1) {
         int system_prompt_num = 11;
         long end              = time_in_ms();
         SMART_LOG_INFO(
-            "\n\nprefill speed: {} tokens/s", (num_prompt_tokens - 1) / (double)(prefill_end - prefill_start) * 1000
+            "prefill speed: {} tokens/s", (num_prompt_tokens - 1) / (double)(prefill_end - prefill_start) * 1000
         );
         SMART_LOG_INFO(
             "decode speed: {} tokens/s", (pos - num_prompt_tokens - system_prompt_num) / (double)(end - start) * 1000
