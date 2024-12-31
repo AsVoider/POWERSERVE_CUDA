@@ -14,20 +14,22 @@
         ```sh
         export PYTHON_VENV_PATH=/path/to/python/virtual/environment
         source $PYTHON_VENV_PATH/bin/activate
-        # Note:remember install model frameworks(e.g. torch==1.13.1 onnx==1.16.1 onnxruntime==1.18.0)
+        pip install -r requirements.txt
         ```
 2. Run the one-click conversion script to complete the conversion
     ```sh
     python converter.py \
     --model-folder Llama-3.2-1B-Instruct \
     --model-name llama3_2_1b \
-    --system-prompt-file system_prompt_llama.txt \ 
+    --system-prompt-file system_prompt_llama.txt \
     --prompt-file lab_intro_llama.md \
     --batch-sizes 1 128 \
     --artifact-name llama3_2_1b \
+    --n-model-chunk 1 \
     --soc 8gen3
     # Note:
     # 1. System-prompt-file and lab_intro_llama.md should be adjusted based on whether it is an Instruct model and the model template
     # 2. The number of batch sizes supports up to two.
+    # 3. The value of n-model-chunk should ensure that the size of each chunk does not exceed 2G and can evenly divide the number of model layers. For an 8B model, it is recommended to set it to 4.
     ```
     After the conversion is completed, copy the resulting output folder to the correct location  for the QNN model on the phone to run
