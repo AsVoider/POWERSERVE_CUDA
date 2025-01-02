@@ -4,22 +4,18 @@
 #include "sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
 
-#include <cmath>
 #include <vector>
 
 namespace smart {
 
 struct SamplerChain : Sampler {
-public:
-    std::vector<std::shared_ptr<Sampler>> m_samplers;
+    HyperParams::SamplerConfig m_config;
+    std::vector<std::unique_ptr<Sampler>> m_samplers;
 
-public:
-    SamplerChain(HyperParams::SamplerConfig config, const Tokenizer &tokenizer);
-    SamplerChain();
+    SamplerChain(const HyperParams::SamplerConfig &config, const Tokenizer &tokenizer);
 
     virtual ~SamplerChain() override = default;
 
-public:
     void apply(ProbArray &probs) override;
     void accept(Token token) override;
 };

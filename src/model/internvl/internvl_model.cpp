@@ -130,8 +130,7 @@ auto InternVL::decode(Sampler &sampler, const std::vector<Token> tokens, const s
     for (auto logits : ret) {
         auto probs = ProbArray(logits);
         sampler.apply(probs);
-        std::mt19937 gen(std::random_device{}());
-        auto next = probs.sample(gen).index;
+        auto next = probs.greedy_sample().index;
         sampler.accept(next);
         toks.push_back(next);
     }

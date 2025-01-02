@@ -18,7 +18,7 @@ const std::string WORKSPACE_CONFIG_FILENAME = "workspace.json";
 
 struct HyperParams {
     struct SamplerConfig {
-        uint64_t seed     = 0;
+        uint64_t seed     = 0; // 0 = randomly choose a new seed
         float temperature = 0.80f;
         float top_p       = 0.95f; // 1.0 = disabled
         size_t top_k      = 40;

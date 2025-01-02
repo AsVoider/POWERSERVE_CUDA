@@ -171,8 +171,7 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
             auto logit = logits[local_id];
             auto probs = ProbArray(logit);
             sampler.apply(probs);
-            std::mt19937 gen(std::random_device{}());
-            next = probs.sample(gen).index;
+            next = probs.greedy_sample().index;
 
             bool verified = false;
             for (auto i : tk_tree.son[local_id]) {

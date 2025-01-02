@@ -34,14 +34,16 @@ logging.info(f"current root: {root_folder}")
 default_hparams = {
     "n_threads": 4,
     "batch_size": 1024,
+
+    # Default to greedy sampling (top_k = 1) without repeat penalty (penalty_repeat = 1).
     "sampler": {
-        "seed": 233,
-        "temperature": 0.2,
-        "top_p": 0.9,
-        "top_k": 40,
+        "seed": 0,
+        "temperature": 1.0,
+        "top_p": 1.0,
+        "top_k": 1,
         "min_keep": 0,
-        "penalty_last_n": 1024,
-        "penalty_repeat": 1.1,
+        "penalty_last_n": 64,
+        "penalty_repeat": 1,
         "penalty_freq": 0,
         "penalty_present": 0,
         "penalize_nl": False,

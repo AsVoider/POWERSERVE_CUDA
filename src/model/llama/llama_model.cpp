@@ -1,13 +1,11 @@
 #include "llama_model.hpp"
 
 #include "backend/cpu_buffer.hpp"
-#include "backend/platform.hpp"
 #include "common/logger.hpp"
 #include "executor/executor.hpp"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
 #include "model/llama/llama_weight.hpp"
-#include "sampler/sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cstring>
@@ -119,8 +117,7 @@ auto LlamaModel::decode(Sampler &sampler, const std::vector<Token> tokens, const
     for (auto logits : ret) {
         auto probs = ProbArray(logits);
         sampler.apply(probs);
-        std::mt19937 gen(sampler.m_config.seed);
-        auto next = probs.sample(gen).index;
+        auto next = probs.greedy_sample().index;
         sampler.accept(next);
         toks.push_back(next);
     }

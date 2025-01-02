@@ -1,12 +1,10 @@
 #pragma once
 
-#include "backend/platform.hpp"
 #include "ggml.h"
 #include "model/model.hpp"
 #include "sampler/sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
 
-#include <cmath>
 #include <cstring>
 #include <string>
 #include <vector>
