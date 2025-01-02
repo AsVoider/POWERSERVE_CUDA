@@ -15,7 +15,9 @@ private:
     std::unique_ptr<std::thread> m_server_thread;
 
 public:
-    SimpleServer(const std::string model_folder, const std::string &host, const int port);
+    SimpleServer(
+        const std::string &model_folder, const std::string &qnn_lib_folder, const std::string &host, const int port
+    );
 
     ~SimpleServer() noexcept = default;
 
@@ -36,4 +38,6 @@ public:
     }
 };
 
-void simple_server_handler(const std::string &model_folder, const std::string &host, const int port);
+void simple_server_handler(
+    const std::string &model_folder, const std::string &qnn_lib_folder, const std::string &host, const int port
+);

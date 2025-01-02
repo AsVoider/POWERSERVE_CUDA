@@ -14,7 +14,7 @@ auto CausalLM::ChunkVector::get_chunk(size_t layer_id) -> ModelChunk & {
     SMART_ABORT("cannot found mode chunk containing layer: {}", layer_id);
 }
 
-CausalLM::CausalLM(const Path model_folder, const std::shared_ptr<ModelConfig> &model_config, Session &environment) :
+CausalLM::CausalLM(const Path &model_folder, const std::shared_ptr<ModelConfig> &model_config, Session &environment) :
     m_model_folder(model_folder),
     m_config(model_folder / m_config_file_name, model_config),
     m_model_config(model_config),
@@ -29,7 +29,7 @@ CausalLM::CausalLM(const Path model_folder, const std::shared_ptr<ModelConfig> &
         m_gparams.max_batch_size = std::max(m_gparams.max_batch_size, info.batch_size);
     }
     load_model_chunks();
-    if (m_config.lm_heads.size() > 0) {
+    if (!m_config.lm_heads.empty()) {
         for (auto &config : m_config.lm_heads) {
             m_lm_heads.emplace(config.batch_size, std::make_unique<Embedding>(*this, config));
         }

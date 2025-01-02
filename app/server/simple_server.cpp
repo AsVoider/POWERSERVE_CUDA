@@ -6,8 +6,10 @@
 #include <memory>
 #include <string>
 
-SimpleServer::SimpleServer(const std::string model_folder, const std::string &host, const int port) :
-    m_server_context(model_folder) {
+SimpleServer::SimpleServer(
+    const std::string &model_folder, const std::string &qnn_lib_folder, const std::string &host, const int port
+) :
+    m_server_context(model_folder, qnn_lib_folder) {
     // set up server
     m_server = std::make_unique<httplib::Server>();
     m_server->bind_to_port(host, port);
@@ -34,8 +36,10 @@ SimpleServer::SimpleServer(const std::string model_folder, const std::string &ho
     SMART_LOG_INFO("server is listening http://{}:{}", host, port);
 }
 
-void simple_server_handler(const std::string &model_folder, const std::string &host, const int port) {
-    SimpleServer server(model_folder, host, port);
+void simple_server_handler(
+    const std::string &model_folder, const std::string &qnn_lib_folder, const std::string &host, const int port
+) {
+    SimpleServer server(model_folder, qnn_lib_folder, host, port);
     server.execute();
     server.join();
 }

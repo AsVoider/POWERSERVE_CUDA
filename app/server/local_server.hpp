@@ -32,7 +32,9 @@ public:
 
 public:
     LocalServer(
-        const std::filesystem::path &model_folder, std::chrono::milliseconds task_interval = DEFAULT_TASK_INTERVAL
+        const std::filesystem::path &model_folder,
+        const std::filesystem::path &lib_folder,
+        std::chrono::milliseconds task_interval = DEFAULT_TASK_INTERVAL
     );
 
     ~LocalServer() noexcept;

@@ -179,6 +179,8 @@ struct ServerContext {
 private:
     std::filesystem::path m_model_folder;
 
+    std::filesystem::path m_lib_folder;
+
     std::mutex m_lock;
 
     std::unordered_map<std::string, ModelContext> m_context_slot_map;
@@ -186,7 +188,9 @@ private:
     std::map<ServerSessionId, ServerSession> m_session_map;
 
 public:
-    ServerContext(const std::filesystem::path &model_folder) : m_model_folder(model_folder) {
+    ServerContext(const std::filesystem::path &model_folder, const std::filesystem::path &lib_folder) :
+        m_model_folder(model_folder),
+        m_lib_folder(lib_folder) {
         if (!std::filesystem::exists(model_folder)) {
             SMART_LOG_WARN("model base folder does not exist: {}", m_model_folder);
         }
@@ -226,7 +230,7 @@ public:
 
 #if defined(SMART_WITH_QNN)
         auto &qnn_backend = model_ptr->m_platform->qnn_backend;
-        model_ptr->m_platform->init_qnn_backend(smart::Path(work_folder) / smart::qnn::QNN_LIB_DIR_NAME);
+        model_ptr->m_platform->init_qnn_backend(m_lib_folder);
         qnn_backend->load_model(config_ptr->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, model_ptr->m_config);
 #endif
 

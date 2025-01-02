@@ -11,6 +11,7 @@ Start a server:
     }
     ```
     it will search the directory **./model/llama3.1-8b-instruct** at first and then **llama3.1-8b-instruct** if the former one does not exist.
+- `--lib-folder`(optional): The folder containing QNN libraries. If not specified, it will be assigned with `model-folder/qnn_libs` by default.
 - `--host`(optional): The IP address the server listen
 - `--port`(optional): The IP port the server listen
 ```shell

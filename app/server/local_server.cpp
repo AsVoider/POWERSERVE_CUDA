@@ -88,8 +88,12 @@ public:
     }
 };
 
-LocalServer::LocalServer(const std::filesystem::path &model_folder, std::chrono::milliseconds task_interval) :
-    m_context(model_folder),
+LocalServer::LocalServer(
+    const std::filesystem::path &model_folder,
+    const std::filesystem::path &qnn_lib_folder,
+    std::chrono::milliseconds task_interval
+) :
+    m_context(model_folder, qnn_lib_folder),
     m_server_thread([this, task_interval] {
         SMART_LOG_INFO("Local Server pool thread start");
         while (!m_stop.test()) {

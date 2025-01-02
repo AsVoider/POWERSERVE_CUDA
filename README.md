@@ -168,4 +168,4 @@ export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ./proj/bin/smart-run -d ./proj
 
     > Use `export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64` before executing the program.
     >
-    > Because `libcdsprpc.so` depends on `/system/lib64/libbinder.so` instead of `/vendor/lib64/libbinder.so`. If the linker searches and links the `/vendor/lib64` at first, it may find `/vendor/lib64/libbinder.so` which does not contain corresponding function definitions.
+    > Because `libcdsprpc.so` depends on `/system/lib64/libbinder.so` instead of `/vendor/lib64/libbinder.so`. If the linker searches the `/vendor/lib64` at first, it may find and links `/vendor/lib64/libbinder.so` which does not contain corresponding function definitions.

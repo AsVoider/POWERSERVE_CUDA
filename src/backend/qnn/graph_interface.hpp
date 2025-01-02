@@ -14,7 +14,7 @@ struct CausalLM;
 
 struct GraphInterface {
     CausalLM &m_parent;
-    GraphInterface *m_sibling;
+    GraphInterface *m_sibling = nullptr;
     const QNNGraphConfig m_graph_config;
     const ModelConfig &m_model_config;
     ContextBinary &m_context_binary;

@@ -122,7 +122,7 @@ struct CausalLM {
 
     std::unique_ptr<KVCache<CausalLMKV>> kv_cache;
 
-    CausalLM(const Path model_folder, const std::shared_ptr<ModelConfig> &model_config, Session &environment);
+    CausalLM(const Path &model_folder, const std::shared_ptr<ModelConfig> &model_config, Session &environment);
     virtual ~CausalLM() = default;
     auto load_context_binary(const Path &path) -> ContextBinary &;
     void load_model_chunks();
