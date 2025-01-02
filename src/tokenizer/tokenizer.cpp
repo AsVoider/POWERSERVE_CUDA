@@ -49,7 +49,7 @@ auto Tokenizer::to_string(Token token, bool special) const -> std::string {
 }
 
 /*!
- * @brief automatically search and apply chat template 
+ * @brief automatically search and apply chat template
  * @ref llama.cpp
  */
 static std::string apply_chat_template_internal(

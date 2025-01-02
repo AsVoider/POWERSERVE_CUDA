@@ -13,12 +13,12 @@ The output will locate in the directory `output`
 Push the model to the phone
 
 ```shell
-adb push output/simple_model.bin 
+adb push output/simple_model.bin
 ```
 
 ```shell
 <path-to-build-dir>/tests/qnn_tests --qnn-path /data/local/tmp/simple_model \
-                --model-name <model-name>                                   \          
+                --model-name <model-name>                                   \
                 --graph-num <graph-num>                                     \
                 --repeat <repeat-num>
 ```

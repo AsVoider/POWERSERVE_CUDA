@@ -380,8 +380,8 @@ Context::Context(Backend &backend, const Path &binary_file_path, ContextGroup *g
         binary_file_path
     );
 
-    /* 
-     * mmap binary 
+    /*
+     * mmap binary
      */
     m_binary_loader    = storage::build_file_loader(binary_file_path, DEFAULT_FILE_LOAD_METHOD);
     auto binary_buffer = m_binary_loader->get_buffer();

@@ -115,7 +115,7 @@ cd smartserving/tools/qnn_converter
 python converter.py \
     --model-folder Llama-3.2-1B-Instruct \
     --model-name llama3_2_1b \
-    --system-prompt-file system_prompt_llama.txt \ 
+    --system-prompt-file system_prompt_llama.txt \
     --prompt-file lab_intro_llama.md \
     --batch-sizes 1 128 \
     --artifact-name llama3_2_1b \
@@ -161,7 +161,7 @@ export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ./proj/bin/smart-run -d ./proj
     > ```shell
     > pip install pytorch==2.4.1
     > ```
-    
+
 ## Execution
 
 1. **When inferencing with QNN**: Failed to open lib /vendor/lib64/libcdsprpc.so: dlopen failed: library "/vendor/lib64/libcdsprpc.so" needed or dlopened by "/data/data/com.termux/files/home/workspace/qnn/llama-3.2-1b-instruct/bin/smart-run" is not accessible for the namespace "(default)

@@ -160,7 +160,7 @@ int main(int argc, char **argv) {
     }
 
     /*
-     * Execute graph 
+     * Execute graph
      */
     {
         AutoTimeCounter time_counter("Graph Warm Up");

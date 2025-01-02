@@ -9521,7 +9521,7 @@ void smart_compute_forward_dup(
         ggml_compute_forward_dup_bytes(&ggml_params, dst);
         return;
     }
-    
+
     switch (src0->type) {
         case GGML_TYPE_F16:
             {
@@ -15630,15 +15630,15 @@ static void smart_compute_forward_rope_f32(
     struct ggml_tensor * src1, // pos
     struct ggml_tensor * src2, // freq_factors
     struct rope_compute_params *rope_params,
-    const bool forward) 
+    const bool forward)
 {
     int n_dims = rope_params->n_dims; // rope_dim_count
     int n_ctx_orig = rope_params->n_ctx_orig;
     float freq_base = rope_params->freq_base;
-    float freq_scale = rope_params->freq_scale; 
-    float ext_factor = rope_params->ext_factor; 
-    float attn_factor = rope_params->attn_factor; 
-    float beta_fast = rope_params->beta_fast; 
+    float freq_scale = rope_params->freq_scale;
+    float ext_factor = rope_params->ext_factor;
+    float attn_factor = rope_params->attn_factor;
+    float beta_fast = rope_params->beta_fast;
     float beta_slow = rope_params->beta_slow;
 
     GGML_TENSOR_UNARY_OP_LOCALS
@@ -15708,7 +15708,7 @@ static void smart_compute_forward_rope_f32(
             const int64_t p = pos[i2];
 
             float * cache = (float *) params->wdata + (ne0 + CACHE_LINE_SIZE_F32)*ith;
-            
+
             ggml_rope_cache_init(p, freq_scale, freq_factors, corr_dims, ne0, ext_factor, attn_factor, cache, sin_sign, theta_scale);
             if (ith == 0 && pos[0] == 3) {
                 // for (int64_t i0 = 0; i0 < n_dims; i0 += 2) {

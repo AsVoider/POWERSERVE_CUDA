@@ -9,16 +9,16 @@ import os
 HTP_SETTING_TEMPLATE = {
     "graphs": [
         {
-            "graph_names": ["simple_model"], 
-            "fp16_relaxed_precision": 1, 
-            "vtcm_mb": 8, 
-            "O": 3, 
+            "graph_names": ["simple_model"],
+            "fp16_relaxed_precision": 1,
+            "vtcm_mb": 8,
+            "O": 3,
             "hvx_threads": 4
         }
     ],
     "devices": [
         {
-            "dsp_arch": "v79", 
+            "dsp_arch": "v79",
             "soc_model": 63
         }
     ],
@@ -53,7 +53,7 @@ class MLP(nn.Module):
         hidden_state = self.fc1(input)
         output = self.fc2(hidden_state)
         return output
-    
+
 
 def random_init_module(module):
     if isinstance(module, nn.Linear):
@@ -66,19 +66,19 @@ def run(cmd_args: list):
     assert ret == 0
 
 def convert_model(qnn_sdk_root:str, model_name:str, model_id:int):
-    ''' 
+    '''
     Convert the model to cpp
     '''
     cmd_args = [
         f"{qnn_sdk_root}/bin/x86_64-linux-clang/qnn-onnx-converter "
-        "--input_network", 
+        "--input_network",
         f"{model_name}.onnx",
 
-        "--input_dim", 
-        f"input_{model_id}", 
+        "--input_dim",
+        f"input_{model_id}",
         "32,4096",
 
-        "--output_path", 
+        "--output_path",
         f"{model_name}.cpp"
     ]
     run(cmd_args)
@@ -156,8 +156,8 @@ if __name__ == '__main__':
             torch_input     = torch.randn(32, 4096)
             torch.onnx.export(torch_model, torch_input,
                             onnx_model_name,
-                            export_params=True, 
-                            input_names=[f"input_{model_id}"], 
+                            export_params=True,
+                            input_names=[f"input_{model_id}"],
                             output_names=[f"output_{model_id}"])
 
             convert_model(qnn_sdk_root, cur_model_name, model_id)

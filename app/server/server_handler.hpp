@@ -1,6 +1,6 @@
 #pragma once
 
-/* 
+/*
  * @ref: https://platform.openai.com/docs/api-reference
  */
 
@@ -303,8 +303,8 @@ public:
 
 /*!
  * @param output_string[in] The output string after tokenization of model
- * @note For some reasons(e.g. truncation), the output token may be incomplete. In case of json parser exception, 
- * we need to hold the incomplete word until next time or the end. 
+ * @note For some reasons(e.g. truncation), the output token may be incomplete. In case of json parser exception,
+ * we need to hold the incomplete word until next time or the end.
  */
 inline bool is_utf8_string_incomplete(const std::string &output_string) {
     bool incomplete = false;
@@ -546,7 +546,7 @@ inline ModelOutput blocking_inference(
 }
 
 /*!
- * @brief Generate 
+ * @brief Generate
  * @param[inout] context
  * @todo Streamly generation
  */

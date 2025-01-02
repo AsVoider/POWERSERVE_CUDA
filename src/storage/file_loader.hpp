@@ -60,7 +60,7 @@ public: /* Buffer Operation */
 
 public: /* Getter */
     /*!
-         * @brief Get the file buffer 
+         * @brief Get the file buffer
          * @param[in] implicit_load Read the file into the buffer if it hasn't been loaded.
          * @note Getting a buffer without pre-load operation or implcit load flag leads to undefined behaviour.
          */

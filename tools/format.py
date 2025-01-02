@@ -1,5 +1,7 @@
+# Format all files:
+# git ls-files | xargs python tools/format.py
+
 import os
-import sys
 from pathlib import Path
 import argparse
 
@@ -86,6 +88,7 @@ def handle_normal_text_files(path: Path):
     text = remove_head_empty_lines(text)
     text = compact_consecutive_empty_lines(text)
     text = ensure_tail_empty_line(text)
+    text = remove_trailing_spaces(text)
     write(path, text)
 
 
@@ -94,6 +97,7 @@ def handle_cpp_sources(path: Path):
     text = remove_head_empty_lines(text)
     text = remove_head_empty_lines(text)
     text = ensure_tail_empty_line(text)
+    text = remove_trailing_spaces(text)
     text = protect_pragma(text)
     write(path, text)
     clang_format(path)
@@ -101,14 +105,27 @@ def handle_cpp_sources(path: Path):
     text = unprotect_pragma(text)
     write(path, text)
 
+
 for path in args.files:
     path = Path(path)
     if not path.exists():
         print(f'{path} does not exist')
         continue
 
-    if (path.suffix in ['.py', 'md', '.sh', '.yml'] or
-        path.name in ['CMakeLists.txt', '.gitignore', '.gitmodules', 'requirements.txt']):
+    if (path.suffix in [
+            '.md',
+            '.py',
+            '.sh',
+            '.yml',
+            '.toml',
+        ] or
+        path.name in [
+            '.clang-format',
+            '.gitignore',
+            '.gitmodules',
+            'CMakeLists.txt',
+            'requirements.txt',
+        ]):
         handle_normal_text_files(path)
     elif path.suffix in ['.c', '.h', '.cpp', '.hpp']:
         handle_cpp_sources(path)

@@ -639,10 +639,10 @@ extern "C" {
         int n_dims;
         int n_ctx_orig;
         float freq_base;
-        float freq_scale; 
-        float ext_factor; 
-        float attn_factor; 
-        float beta_fast; 
+        float freq_scale;
+        float ext_factor;
+        float attn_factor;
+        float beta_fast;
         float beta_slow;
         int mode; // rope_type
     };
