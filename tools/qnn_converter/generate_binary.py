@@ -49,10 +49,12 @@ def generate_context_binary():
 
     htp_setting = {
         "graphs": [{"graph_names": graph_names, "fp16_relaxed_precision": 1, "vtcm_mb": 8, "O": 3, "hvx_threads": 4}],
-        "devices": [{
-            "dsp_arch": f"v{soc_map[args.soc].htp_version}",
-            "soc_model": soc_map[args.soc].soc_id,
-        }],
+        "devices": [
+            {
+                "dsp_arch": f"v{soc_map[args.soc].htp_version}",
+                "soc_model": soc_map[args.soc].soc_id,
+            },
+        ],
         "context": {"weight_sharing_enabled": True},
     }
 

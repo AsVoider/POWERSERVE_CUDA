@@ -198,14 +198,8 @@ class SmallThinker_3B_Params(ModelParams):
     fp16_qkv_heads = True
     n_fp16_heads = 0
     n_fp16_neurons = {
-        **{
-            i: 1024
-            for i in range(36)
-        },
-        **{
-            i: 11008
-            for i in [1]
-        },
+        **{i: 1024 for i in range(36)},
+        **{i: 11008 for i in [1]},
     }
 
 

@@ -1,14 +1,15 @@
 #!/usr/bin/python3
 
 import argparse
-from pathlib import Path
+import json
+import logging
 import platform
 import shutil
-from typing import List, Dict, Literal, Set
 import subprocess
-import json
 from datetime import datetime
-import logging
+from pathlib import Path
+from typing import Dict, List, Literal, Set
+
 
 today = datetime.today().strftime("%Y_%m_%d")
 

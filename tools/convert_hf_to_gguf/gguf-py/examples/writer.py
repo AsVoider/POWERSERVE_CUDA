@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
+
 # Necessary to load the local gguf package
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -35,5 +36,5 @@ def writer_example() -> None:
     gguf_writer.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     writer_example()

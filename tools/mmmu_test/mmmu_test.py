@@ -1,17 +1,17 @@
-import os
-import random
-import numpy as np
-from tqdm import tqdm
-from argparse import ArgumentParser
-from datasets import load_dataset, concatenate_datasets
-import requests
-from PIL import PngImagePlugin
-import re
 import json
 import os
+import random
+import re
 import time
+from argparse import ArgumentParser
 
-from mmmu.mmmu.utils.data_utils import load_yaml, construct_prompt, save_json, CAT_SHORT2LONG
+import numpy as np
+import requests
+from datasets import concatenate_datasets, load_dataset
+from mmmu.mmmu.utils.data_utils import (CAT_SHORT2LONG, construct_prompt,
+                                        load_yaml, save_json)
+from PIL import PngImagePlugin
+from tqdm import tqdm
 
 
 def parse_multi_choice_response(response, all_choices, index2ans):

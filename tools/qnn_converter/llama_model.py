@@ -97,11 +97,7 @@ class LlamaRoPE(nn.Module):
 
     @staticmethod
     def compute_embeds(
-        dim: int,
-        start_position: int,
-        end_position: int,
-        theta: float,
-        device: torch.device,
+        dim: int, start_position: int, end_position: int, theta: float, device: torch.device
     ) -> tuple[torch.Tensor, torch.Tensor]:
         assert dim % 2 == 0
         inv_freq = 1 / (theta ** (torch.arange(0, dim, 2, dtype=torch.float32) / dim))
@@ -234,10 +230,7 @@ class LlamaAttention(nn.Module):
         self.norm = LlamaRMSNorm(embed_dim=embed_dim, eps=rms_norm_eps, device=device)
         self.rope = LlamaRoPE()
         self.core = LlamaAttentionCore(
-            n_kv_heads=n_kv_heads,
-            group_size=self.group_size,
-            context_size=context_size,
-            device=device,
+            n_kv_heads=n_kv_heads, group_size=self.group_size, context_size=context_size, device=device
         )
 
         self.fp16_q_heads = nn.ModuleList()
@@ -285,17 +278,11 @@ class LlamaAttention(nn.Module):
 
         if len(self.fp16_head_ids) > 0:
             self.fp16_o_proj = LlamaAttentionOutputProj(
-                embed_dim=embed_dim,
-                head_dim=self.head_dim,
-                n_heads=len(self.fp16_head_ids),
-                device=device,
+                embed_dim=embed_dim, head_dim=self.head_dim, n_heads=len(self.fp16_head_ids), device=device
             )
         if len(self.int4_head_ids) > 0:
             self.int4_o_proj = LlamaAttentionOutputProj(
-                embed_dim=embed_dim,
-                head_dim=self.head_dim,
-                n_heads=len(self.int4_head_ids),
-                device=device,
+                embed_dim=embed_dim, head_dim=self.head_dim, n_heads=len(self.int4_head_ids), device=device
             )
 
     def load_weights(self, loader: ModelLoader):
@@ -374,13 +361,7 @@ class LlamaAttention(nn.Module):
 
 
 class LlamaFeedForwardChunk(nn.Module):
-    def __init__(
-            self,
-            embed_dim: int,
-            ffn_hidden_dim: int,
-            use_drelu: bool,
-            device: torch.device,
-        ):
+    def __init__(self, embed_dim: int, ffn_hidden_dim: int, use_drelu: bool, device: torch.device):
         super().__init__()
         self.use_drelu = use_drelu
 
@@ -454,18 +435,12 @@ class LlamaFeedForward(nn.Module):
 
         if len(self.fp16_neuron_ids) > 0:
             self.fp16_chunk = LlamaFeedForwardChunk(
-                embed_dim=embed_dim,
-                ffn_hidden_dim=len(self.fp16_neuron_ids),
-                use_drelu=use_drelu,
-                device=device,
+                embed_dim=embed_dim, ffn_hidden_dim=len(self.fp16_neuron_ids), use_drelu=use_drelu, device=device
             )
 
         if len(self.int4_neuron_ids) > 0:
             self.int4_chunk = LlamaFeedForwardChunk(
-                embed_dim=embed_dim,
-                ffn_hidden_dim=len(self.int4_neuron_ids),
-                use_drelu=use_drelu,
-                device=device,
+                embed_dim=embed_dim, ffn_hidden_dim=len(self.int4_neuron_ids), use_drelu=use_drelu, device=device
             )
 
     def load_weights(self, loader: ModelLoader):

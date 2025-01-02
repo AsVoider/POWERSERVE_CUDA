@@ -65,7 +65,7 @@ class Quantizer:
             else:
                 y = x.reshape(-1, self.block_size)
 
-            assert y.shape[: -1] == min_val.shape[: -1]
+            assert y.shape[:-1] == min_val.shape[:-1]
         else:
             y = x.view(-1)
 
@@ -75,8 +75,8 @@ class Quantizer:
 
         if self.symmetric:
             alpha = torch.maximum(torch.abs(min_val), torch.abs(max_val))
-            q_min = -2**(self.bitwidth - 1)
-            q_max = 2**(self.bitwidth - 1) - 1
+            q_min = -(2 ** (self.bitwidth - 1))
+            q_max = 2 ** (self.bitwidth - 1) - 1
 
             scales = (alpha / q_max).abs().clip(min=self.CLIP_MIN, max=self.CLIP_MAX)
             inverted_scales = 1 / scales

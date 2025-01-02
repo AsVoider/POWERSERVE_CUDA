@@ -192,12 +192,12 @@ class LlamaModelChunk(ExportableModule, KVCache):
 
             if stat_folder.exists():
                 assert stat_folder.is_dir()
-                with open(stat_folder/f'attn_{layer_id}_stat.json', 'r') as f:
+                with open(stat_folder / f"attn_{layer_id}_stat.json", "r") as f:
                     attn_head_ids = json.load(f)
-                    attn_head_ids = attn_head_ids[: cur_n_fp16_heads]
-                with open(stat_folder/f'ffn_{layer_id}_stat.json', 'r') as f:
+                    attn_head_ids = attn_head_ids[:cur_n_fp16_heads]
+                with open(stat_folder / f"ffn_{layer_id}_stat.json", "r") as f:
                     ffn_neuron_ids = json.load(f)
-                    ffn_neuron_ids = ffn_neuron_ids[: cur_n_fp16_neurons]
+                    ffn_neuron_ids = ffn_neuron_ids[:cur_n_fp16_neurons]
             else:
                 attn_head_ids = list(range(cur_n_fp16_heads))
                 ffn_neuron_ids = list(range(cur_n_fp16_neurons))
@@ -724,12 +724,8 @@ class ModelChunkExporter:
     """Export a model chunk to ONNX model, quantization calibration data and configurations"""
 
     def __init__(
-            self,
-            graph_name: str,
-            model_chunk: LlamaModelChunk,
-            fp16_overrides: Dict[str, List[int]],
-            output_folder: Path,
-        ):
+        self, graph_name: str, model_chunk: LlamaModelChunk, fp16_overrides: Dict[str, List[int]], output_folder: Path
+    ):
         self.graph_name = graph_name
         self.model_chunk = model_chunk
         self.fp16_overrides = fp16_overrides
@@ -962,7 +958,7 @@ model_chunks = [
         cache_size=graph_params.cache_size,
         n_fp16_heads=model_params.n_fp16_heads,
         n_fp16_neurons=model_params.n_fp16_neurons,
-        stat_folder=args.model_folder/"stat",
+        stat_folder=args.model_folder / "stat",
     )
     for i in range(0, model_params.n_layers, n_layers_per_model_chunk)
 ]
@@ -1010,12 +1006,12 @@ def dump_quant_debug_info(attr_name: str):
     debug_folder = Path("./debug")
     debug_folder.mkdir(exist_ok=True, parents=True)
 
-    debug_file = debug_folder/f"{attr_name}.txt"
+    debug_file = debug_folder / f"{attr_name}.txt"
     with open(debug_file, "w") as f:
         for attr, name in attr_list:
-            f.write(f'{name} {attr}\n')
+            f.write(f"{name} {attr}\n")
 
-    print(f"NOTE: Dumped \"{debug_file}\".")
+    print(f'NOTE: Dumped "{debug_file}".')
 
 
 dump_quant_debug_info("top_input_norms")

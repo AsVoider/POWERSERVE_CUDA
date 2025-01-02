@@ -45,6 +45,9 @@ check_formatting:
     - if: $CHECK_FORMAT == "true"
       when: always
   script:
+    - python -m venv .venv
+    - source .venv/bin/activate
+    - pip install tqdm black isort
     - export CLANG_FORMAT=${BUILD_ROOT}/clang-format-18
     - $CLANG_FORMAT --version
     - cd "$CI_PROJECT_DIR"
