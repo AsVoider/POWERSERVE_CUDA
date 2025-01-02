@@ -157,12 +157,15 @@ export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ./proj/bin/smart-run -d ./proj
 
 1. **When exporting model to onnx**: RuntimeError: The serialized model is larger than the 2GiB limit imposed by the protobuf library. Therefore the output file must be a file path, so that the ONNX external data can be written to the same directory. Please specify the output file name.
 
-    > The version of pytorch should be less than **2.5.1**
+    > The version of pytorch should be less than **2.5.1**. Please reinstall pytorch like:
+    > ```shell
+    > pip install pytorch==2.4.1
+    > ```
     
 ## Execution
 
 1. **When inferencing with QNN**: Failed to open lib /vendor/lib64/libcdsprpc.so: dlopen failed: library "/vendor/lib64/libcdsprpc.so" needed or dlopened by "/data/data/com.termux/files/home/workspace/qnn/llama-3.2-1b-instruct/bin/smart-run" is not accessible for the namespace "(default)
 
-    > Use `export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64` before execute the program.
+    > Use `export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64` before executing the program.
     >
-    > Because `libcdsprpc.so` depends on `/system/lib64/libbinder.so` instead of `/vendor/lib64/libbinder.so`. If the linker search the `/vendor/lib64` at first, it may find `/vendor/lib64/libbinder.so` which does not contain corresponding function definition.
+    > Because `libcdsprpc.so` depends on `/system/lib64/libbinder.so` instead of `/vendor/lib64/libbinder.so`. If the linker searches and links the `/vendor/lib64` at first, it may find `/vendor/lib64/libbinder.so` which does not contain corresponding function definitions.
