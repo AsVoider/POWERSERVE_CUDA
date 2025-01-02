@@ -126,8 +126,8 @@ auto LlamaModel::decode(Sampler &sampler, const std::vector<Token> tokens, const
 
 auto LlamaModel::generate(
     Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
-) -> Model::TokenRange {
-    return Model::TokenRange(*this, tokenizer, sampler, prompt, steps, batch_size);
+) -> Model::TokenGenerator {
+    return Model::TokenGenerator(*this, tokenizer, sampler, prompt, steps, batch_size);
 }
 
 } // namespace smart

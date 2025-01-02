@@ -11,22 +11,27 @@
 
 namespace smart {
 
-struct Speculative {
-
-    static const int MAX_EXPANSION_LAYER = 80, MAX_SPEC_NODES = 80;
+struct TreeSpeculative {
+    static constexpr int MAX_SPEC_NODES = 80;
 
     using Token = llama_vocab::id;
 
-    std::unique_ptr<smart::Model> m_target_model, m_draft_model;
+    std::shared_ptr<Model> m_target_model;
+    std::shared_ptr<Model> m_draft_model;
     std::vector<int> m_expansion;
     std::string m_model_arch;
     int m_draft_depth;
 
     Tokenizer *m_tokenizer;
 
+    // Speculative decoding generates multiple tokens in one iteration.
+    // We buffer these tokens in this queue, and pop tokens one by one, to adapt for TokenGenerator API.
+    std::deque<Token> token_queue;
+
     struct TokenTree {
-        const int MAX_EXPANSION = 500, MAX_DEPTH = 15;
-        const std::unique_ptr<smart::Model> &m_model;
+        static constexpr int MAX_EXPANSION = 500, MAX_DEPTH = 15;
+
+        const std::shared_ptr<Model> &m_model;
         smart::Tokenizer *m_tokenizer;
         int m_draft_depth, m_previous_position, this_turn_depth = 0;
         std::vector<int> &m_expansion;
@@ -36,7 +41,7 @@ struct Speculative {
         int m_idx = 0;
 
         TokenTree(
-            const std::unique_ptr<smart::Model> &model,
+            const std::shared_ptr<Model> &model,
             smart::Tokenizer *tk,
             int draft_depth,
             int prepos,
@@ -69,9 +74,9 @@ struct Speculative {
         long draft_time = 0, target_time = 0;
     } stats;
 
-    Speculative(
-        std::unique_ptr<smart::Model> main_model,
-        std::unique_ptr<smart::Model> draft_model,
+    TreeSpeculative(
+        std::shared_ptr<Model> main_model,
+        std::shared_ptr<Model> draft_model,
         std::vector<int> expansion = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
     ) :
         m_target_model(std::move(main_model)),
@@ -80,7 +85,9 @@ struct Speculative {
         m_draft_depth     = expansion.size();
     }
 
-    ~Speculative() = default;
+    ~TreeSpeculative() = default;
+
+    void generate_tokens(Tokenizer &tokenizer, Sampler &sampler, Token last_token, int &pos);
 
     void generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps);
 };

@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
         }
     }
     auto config                         = std::make_shared<smart::Config>(work_folder);
-    std::unique_ptr<smart::Model> model = smart::load_model(config->main_model_config, config->main_model_dir);
+    std::shared_ptr<smart::Model> model = smart::load_model(config->main_model_dir, config->main_model_config);
     auto [sampler_config, n_threads, prefill_batch_size] = config->hyper_params;
     SMART_UNUSED(prefill_batch_size);
 

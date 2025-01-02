@@ -149,7 +149,7 @@ public:
 struct ModelContext {
 public:
     std::shared_ptr<smart::Config> m_config_ptr;
-    std::unique_ptr<smart::Model> m_model_ptr;
+    std::shared_ptr<smart::Model> m_model_ptr;
     std::unique_ptr<smart::Tokenizer> m_tokenizer_ptr;
 
 public:
@@ -157,7 +157,7 @@ public:
 
     ModelContext(
         std::shared_ptr<smart::Config> &&config_ptr,
-        std::unique_ptr<smart::Model> &&model_ptr,
+        std::shared_ptr<smart::Model> &&model_ptr,
         std::unique_ptr<smart::Tokenizer> &&tokenizer_ptr
     ) :
         m_config_ptr(std::move(config_ptr)),
@@ -222,8 +222,8 @@ public:
         }
 
         std::shared_ptr<smart::Config> config_ptr = std::make_shared<smart::Config>(work_folder);
-        std::unique_ptr<smart::Model> model_ptr =
-            smart::load_model(config_ptr->main_model_config, config_ptr->main_model_dir);
+        std::shared_ptr<smart::Model> model_ptr =
+            smart::load_model(config_ptr->main_model_dir, config_ptr->main_model_config);
 
         model_ptr->m_platform = std::make_shared<smart::Platform>();
         model_ptr->m_platform->init_ggml_backend(model_ptr->m_config, config_ptr->hyper_params);

@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
     CLI11_PARSE(app, argc, argv);
 
     auto config                                     = std::make_shared<smart::Config>(config_path);
-    std::unique_ptr<smart::Model> model             = smart::load_model(config->main_llm_config, config->main_llm_dir);
+    std::shared_ptr<Model> model                    = smart::load_model(config->main_llm_dir, config->main_llm_config);
     auto [sampler_config, steps, n_threads, prompt] = config->hyper_params;
     model->m_platform                               = std::make_shared<smart::Platform>();
     model->m_platform->init_ggml_backend(model->m_config, n_threads);

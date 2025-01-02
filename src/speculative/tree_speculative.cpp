@@ -1,4 +1,4 @@
-#include "speculator.hpp"
+#include "speculative/tree_speculative.hpp"
 
 #include "common/perf.hpp"
 
@@ -6,7 +6,7 @@
 
 namespace smart {
 
-std::vector<int> Speculative::TokenTree::spec_sample(std::vector<float> &logits, int topk) {
+std::vector<int> TreeSpeculative::TokenTree::spec_sample(std::vector<float> &logits, int topk) {
     std::vector<int> indices(logits.size());
     std::iota(indices.begin(), indices.end(), 0);
 
@@ -27,7 +27,7 @@ std::vector<int> Speculative::TokenTree::spec_sample(std::vector<float> &logits,
     return filtered_indices;
 }
 
-void Speculative::TokenTree::build_tree(
+void TreeSpeculative::TokenTree::build_tree(
     Token father, int father_id, int now_depth, long &elapsed_time, double now_prob
 ) {
     if (now_prob < 0.3)
@@ -81,7 +81,90 @@ void Speculative::TokenTree::build_tree(
     }
 }
 
-void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) {
+void TreeSpeculative::generate_tokens(Tokenizer &tokenizer, Sampler &sampler, Token last_token, int &pos) {
+    auto &platform        = m_target_model->m_platform;
+    auto &target_model_id = m_target_model->m_config->model_id;
+    auto &draft_model_id  = m_draft_model->m_config->model_id;
+
+    TokenTree tk_tree(m_draft_model, m_tokenizer, m_draft_depth, pos, m_expansion);
+
+    long elapsed_time = 0;
+    tk_tree.build_tree(last_token, elapsed_time);
+    stats.draft_time += elapsed_time;
+
+    int bs = tk_tree.tk_list.size();
+    std::vector<int> token_vec(bs);
+    std::vector<int> pos_vec(bs, 0);
+    for (int i = 0; i < bs; i++) {
+        pos_vec[i]   = tk_tree.depth_list[i] + pos;
+        token_vec[i] = tk_tree.tk_list[i];
+    }
+
+    std::vector<std::vector<bool>> mask(bs, std::vector<bool>(bs, 0));
+
+    for (int i = 0; i < bs; i++) {
+        if (tk_tree.fa_list[i] >= 0)
+            mask[i] = mask[tk_tree.fa_list[i]];
+        mask[i][i] = true;
+    }
+
+    CausalAttentionMask batch_mask(bs, mask);
+
+    long temp_start                        = time_in_ms();
+    std::vector<std::vector<float>> logits = m_target_model->forward(token_vec, pos_vec, batch_mask);
+    long temp_end                          = time_in_ms();
+    stats.target_time += temp_end - temp_start;
+
+    int n_accepted = 0;
+    int cache_pos  = pos;
+    Token next_token;
+    for (int local_id = 0; local_id < (int)bs;) {
+        auto logit = logits[local_id];
+        auto probs = ProbArray(logit);
+        sampler.apply(probs);
+        next_token = probs.greedy_sample().index;
+
+        bool verified = false;
+        for (auto i : tk_tree.son[local_id]) {
+            if (tk_tree.tk_list[i] == next_token) {
+                verified = true;
+                local_id = i;
+                cache_pos++;
+                platform->qnn_backend->m_models[target_model_id]->kv_cache->move(cache_pos, pos + i);
+                platform->qnn_backend->m_models[draft_model_id]->kv_cache->move(cache_pos, pos + i);
+                break;
+            }
+        }
+
+        token_queue.push_back(next_token);
+        fflush(stdout);
+
+        // verified = false;
+
+        if (verified) {
+            n_accepted++;
+            // draft_model->forward({next}, {pos + n_accepted}, CausalAttentionMask(1))[0];
+
+            sampler.accept(next_token);
+
+            if (next_token == tokenizer.bos_token() || next_token == tokenizer.m_vocab.special_eos_id ||
+                next_token == tokenizer.m_vocab.special_eom_id || next_token == tokenizer.m_vocab.special_eot_id) {
+                break;
+            }
+        } else
+            break;
+    }
+    platform->qnn_backend->m_models[target_model_id]->kv_cache->rollback(bs - n_accepted - 1);
+    platform->qnn_backend->m_models[draft_model_id]->kv_cache->rollback(bs - n_accepted - 1);
+    pos += n_accepted + 1;
+    stats.all_tk_num += m_draft_depth;
+    stats.accept_tk_num += n_accepted;
+    stats.accept_tk_num_every_turn.push_back(n_accepted);
+    stats.accept_rate_every_turn.push_back(n_accepted / (double)tk_tree.this_turn_depth);
+    stats.draft_depth_every_turn.push_back(tk_tree.this_turn_depth);
+}
+
+void TreeSpeculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) {
     m_tokenizer = &tokenizer;
 
     int num_prompt_tokens = 0;
@@ -90,12 +173,10 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
 
     SMART_ASSERT(num_prompt_tokens >= 1);
     // start the main loop
-    long start = 0;            // used to time our code, only initialized after first iteration
-    int next;                  // will store the next token in the sequence
-    int pos               = 0; // position in the sequence
+    long start            = 0; // used to time our code, only initialized after first iteration
+    int pos               = 0; // position in the sequence, TODO: Use size_t?
     auto &platform        = m_target_model->m_platform;
     auto &target_model_id = m_target_model->m_config->model_id;
-    auto &draft_model_id  = m_draft_model->m_config->model_id;
 
     pos = platform->get_kv_position(target_model_id);
 
@@ -121,113 +202,31 @@ void Speculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::st
     fmt::print("{}", prompt);
     auto prefill_end = time_in_ms();
 
-    auto token                 = prompt_tokens[num_prompt_tokens - 1]; // kick off with the first token in the prompt
-    auto decode_attention_mask = CausalAttentionMask(1);
-    pos                        = platform->get_kv_position(target_model_id);
-    auto n_prefill             = pos;
-
-    next = token;
-    std::vector<std::string> output;
-    output.push_back(prompt);
-    int draft_depth = m_draft_depth;
+    auto last_token = prompt_tokens[num_prompt_tokens - 1]; // kick off with the first token in the prompt
+    pos             = platform->get_kv_position(target_model_id);
+    auto n_prefill  = pos;
 
     while (pos < steps + n_prefill) {
-
-        TokenTree tk_tree(m_draft_model, m_tokenizer, draft_depth, pos, m_expansion);
-
-        long elapsed_time = 0;
-        tk_tree.build_tree(next, elapsed_time);
-        stats.draft_time += elapsed_time;
-
-        int bs = tk_tree.tk_list.size();
-        std::vector<int> token_vec(bs);
-        std::vector<int> pos_vec(bs, 0);
-        for (int i = 0; i < bs; i++) {
-            pos_vec[i]   = tk_tree.depth_list[i] + pos;
-            token_vec[i] = tk_tree.tk_list[i];
+        if (token_queue.empty()) {
+            generate_tokens(tokenizer, sampler, last_token, pos);
+            SMART_ASSERT(token_queue.size() > 0);
         }
 
-        std::vector<std::vector<bool>> mask(bs, std::vector<bool>(bs, 0));
-
-        for (int i = 0; i < bs; i++) {
-            if (tk_tree.fa_list[i] >= 0)
-                mask[i] = mask[tk_tree.fa_list[i]];
-            mask[i][i] = true;
-        }
-
-        CausalAttentionMask batch_mask(bs, mask);
-
-        long temp_start                        = time_in_ms();
-        std::vector<std::vector<float>> logits = m_target_model->forward(token_vec, pos_vec, batch_mask);
-        long temp_end                          = time_in_ms();
-        stats.target_time += temp_end - temp_start;
-
-        std::vector<int> pos_to_foward;
-        std::vector<int> tk_to_foward;
-
-        int n_accepted = 0;
-        int cache_pos  = pos;
-        for (int local_id = 0; local_id < (int)bs;) {
-            auto logit = logits[local_id];
-            auto probs = ProbArray(logit);
-            sampler.apply(probs);
-            next = probs.greedy_sample().index;
-
-            bool verified = false;
-            for (auto i : tk_tree.son[local_id]) {
-                if (tk_tree.tk_list[i] == next) {
-                    verified = true;
-                    local_id = i;
-                    cache_pos++;
-                    platform->qnn_backend->m_models[target_model_id]->kv_cache->move(cache_pos, pos + i);
-                    platform->qnn_backend->m_models[draft_model_id]->kv_cache->move(cache_pos, pos + i);
-                    break;
-                }
-            }
-
-            auto piece = tokenizer.to_string(next);
-            fmt::print("{}", piece);
-            output.push_back(piece);
-            fflush(stdout);
-
-            // verified = false;
-
-            if (verified) {
-                n_accepted++;
-                // draft_model->forward({next}, {pos + n_accepted}, CausalAttentionMask(1))[0];
-                pos_to_foward.push_back(pos + n_accepted);
-                tk_to_foward.push_back(next);
-
-                sampler.accept(next);
-                if (next == tokenizer.bos_token()) {
-                    break;
-                } else if (next == tokenizer.m_vocab.special_eos_id || next == tokenizer.m_vocab.special_eom_id ||
-                           next == tokenizer.m_vocab.special_eot_id) {
-                    break;
-                }
-            } else
-                break;
-        }
-        platform->qnn_backend->m_models[target_model_id]->kv_cache->rollback(bs - n_accepted - 1);
-        platform->qnn_backend->m_models[draft_model_id]->kv_cache->rollback(bs - n_accepted - 1);
-        pos += n_accepted + 1;
-        stats.all_tk_num += draft_depth;
-        stats.accept_tk_num += n_accepted;
-        stats.accept_tk_num_every_turn.push_back(n_accepted);
-        stats.accept_rate_every_turn.push_back(n_accepted / (double)tk_tree.this_turn_depth);
-        stats.draft_depth_every_turn.push_back(tk_tree.this_turn_depth);
+        last_token = token_queue.front();
+        token_queue.pop_front();
+        auto piece = tokenizer.to_string(last_token);
+        fmt::print("{}", piece);
+        fflush(stdout);
 
         // data-dependent terminating condition: the BOS token delimits sequences
-        if (next == tokenizer.bos_token()) {
+        if (last_token == tokenizer.bos_token()) {
             break;
-        } else if (next == tokenizer.m_vocab.special_eos_id || next == tokenizer.m_vocab.special_eom_id ||
-                   next == tokenizer.m_vocab.special_eot_id) {
+        } else if (last_token == tokenizer.m_vocab.special_eos_id || last_token == tokenizer.m_vocab.special_eom_id ||
+                   last_token == tokenizer.m_vocab.special_eot_id) {
             fmt::print("[end of text]");
+            fflush(stdout);
             break;
         }
-
-        fflush(stdout);
-        token = next;
 
         // init the timer here because the first iteration can be slower
         if (start == 0) {

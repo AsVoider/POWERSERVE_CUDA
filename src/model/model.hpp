@@ -102,7 +102,7 @@ public:
         }
     };
 
-    class TokenRange {
+    class TokenGenerator {
     public:
         size_t m_steps;
         std::string m_prompt;
@@ -113,7 +113,7 @@ public:
         Sampler &m_sampler;
 
     public:
-        TokenRange(
+        TokenGenerator(
             Model &model,
             Tokenizer &tokenizer,
             Sampler &sampler,
@@ -128,7 +128,7 @@ public:
             m_tokenizer(tokenizer),
             m_sampler(sampler) {}
 
-        ~TokenRange() = default;
+        ~TokenGenerator() = default;
 
     public:
         TokenIterator begin() const {
@@ -171,7 +171,7 @@ public:
         -> std::vector<Token> = 0;
     virtual auto generate(
         Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
-    ) -> TokenRange = 0;
+    ) -> TokenGenerator = 0;
 };
 
 } // namespace smart

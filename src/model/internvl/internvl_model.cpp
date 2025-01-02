@@ -138,7 +138,7 @@ auto InternVL::decode(Sampler &sampler, const std::vector<Token> tokens, const s
 }
 
 auto InternVL::generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size)
-    -> Model::TokenRange {
+    -> Model::TokenGenerator {
     std::vector<Path> imgs;
     size_t start_pos = 0, end_pos = 0;
     std::string start_tag   = "<img>";
@@ -164,7 +164,7 @@ auto InternVL::generate(Tokenizer &tokenizer, Sampler &sampler, const std::strin
     if (!imgs.empty()) {
         processed_prompt = preprocess(imgs, instruction);
     }
-    return Model::TokenRange(*this, tokenizer, sampler, processed_prompt, steps, batch_size);
+    return Model::TokenGenerator(*this, tokenizer, sampler, processed_prompt, steps, batch_size);
 }
 
 } // namespace smart

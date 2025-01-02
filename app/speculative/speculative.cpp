@@ -4,7 +4,7 @@
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
 #include "sampler/sampler_chain.hpp"
-#include "speculative/speculator.hpp"
+#include "speculative/tree_speculative.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cstdlib>
@@ -46,8 +46,8 @@ int main(int argc, char *argv[]) {
     }
 
     auto config                               = std::make_shared<smart::Config>(work_folder);
-    std::unique_ptr<smart::Model> main_model  = smart::load_model(config->main_model_config, config->main_model_dir);
-    std::unique_ptr<smart::Model> draft_model = smart::load_model(config->draft_model_config, config->draft_model_dir);
+    std::shared_ptr<smart::Model> main_model  = smart::load_model(config->main_model_dir, config->main_model_config);
+    std::shared_ptr<smart::Model> draft_model = smart::load_model(config->draft_model_dir, config->draft_model_config);
     auto [sampler_config, n_threads, batch_size] = config->hyper_params;
 
     main_model->m_platform  = std::make_shared<smart::Platform>();
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
 
     // generate
 #if defined(SMART_WITH_QNN)
-    smart::Speculative spec(
+    smart::TreeSpeculative spec(
         std::move(main_model), std::move(draft_model), {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
     );
     spec.generate(tokenizer, sampler, prompt, n_predicts);

@@ -30,7 +30,7 @@ public:
     auto decode(Sampler &sampler, const std::vector<Token> tokens, const std::vector<int> pos, bool lm_head)
         -> std::vector<Token> override;
     auto generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size)
-        -> TokenRange override;
+        -> TokenGenerator override;
     auto preprocess(const std::vector<Path> &img_paths, const std::string &prompt) -> std::string;
     auto forward(
         const std::vector<int> &tokens,
