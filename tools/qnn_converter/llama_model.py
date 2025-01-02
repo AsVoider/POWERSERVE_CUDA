@@ -44,25 +44,44 @@ class ModelLoader:
 
 
 class LinearWithQuantizationDebugger(nn.Linear):
+    max_n_records = 128
+
     def __init__(self, in_features: int, out_features: int, bias: bool = True, device=None, dtype=None) -> None:
         super().__init__(in_features, out_features, bias, device, dtype)
 
         self.first_forward = True
+        self.input_norm_records = []
+        self.output_norm_records = []
         self.cos_sim_records = []
 
     @property
+    def top_input_norms(self) -> list[tuple[float, int]]:
+        records = [(-v, i) for i, v in enumerate(self.input_norm_records)]
+        records = sorted(records)[:10]
+        return [(round(-v, 5), i) for v, i in records]
+
+    @property
+    def top_output_norms(self) -> list[tuple[float, int]]:
+        records = [(-v, i) for i, v in enumerate(self.output_norm_records)]
+        records = sorted(records)[:10]
+        return [(round(-v, 5), i) for v, i in records]
+
+    @property
     def quant_cos_sim(self) -> float:
-        records = self.cos_sim_records[-128 :]
-        return sum(records) / len(records)
+        records = self.cos_sim_records[-self.max_n_records :]
+        return round(sum(records) / len(records), 5)
 
     def forward(self, x: Tensor) -> Tensor:
         if self.first_forward:
             self.quantized_weight = Quantizer(bitwidth=4, per_channel=True).quantize(self.weight)
             self.first_forward = False
 
+        self.input_norm_records.extend(x.norm(dim=-1).tolist())
         out = super().forward(x)
-        quantized_out = nn.functional.linear(x, self.quantized_weight)
-        self.cos_sim_records.extend(torch.cosine_similarity(out, quantized_out).tolist())
+        self.output_norm_records.extend(out.norm(dim=-1).tolist())
+
+        quantized_out = nn.functional.linear(x, self.quantized_weight, self.bias)
+        self.cos_sim_records.extend(torch.cosine_similarity(out, quantized_out, dim=-1).tolist())
 
         return out
 

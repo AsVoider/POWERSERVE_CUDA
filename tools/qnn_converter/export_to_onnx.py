@@ -996,13 +996,31 @@ def eval_prompt(save_samples: bool = False):
 
 eval_prompt(save_samples=True)
 
-quant_error_list = sorted(
-    (module.quant_cos_sim, name)
-    for name, module in model.named_modules()
-    if isinstance(module, LinearWithQuantizationDebugger)
-)
-for quant_cos_sim, name in quant_error_list:
-    print(name, quant_cos_sim)
+
+def dump_quant_debug_info(attr_name: str):
+    attr_list = sorted(
+        (getattr(module, attr_name), name)
+        for name, module in model.named_modules()
+        if isinstance(module, LinearWithQuantizationDebugger)
+    )
+
+    if len(attr_list) == 0:
+        return
+
+    debug_folder = Path("./debug")
+    debug_folder.mkdir(exist_ok=True, parents=True)
+
+    debug_file = debug_folder/f"{attr_name}.txt"
+    with open(debug_file, "w") as f:
+        for attr, name in attr_list:
+            f.write(f'{name} {attr}\n')
+
+    print(f"NOTE: Dumped \"{debug_file}\".")
+
+
+dump_quant_debug_info("top_input_norms")
+dump_quant_debug_info("top_output_norms")
+dump_quant_debug_info("quant_cos_sim")
 
 if args.output_folder is None:
     exit(0)
