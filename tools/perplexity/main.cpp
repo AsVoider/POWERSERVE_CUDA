@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
 #if defined(SMART_WITH_QNN)
     if (!no_qnn) {
         auto &qnn_backend = model->m_platform->qnn_backend;
-        model->m_platform->init_qnn_backend(smart::Path(work_folder) / smart::qnn::QNN_WORKSPACE_DIR_NAME);
+        model->m_platform->init_qnn_backend(smart::Path(work_folder) / smart::qnn::QNN_LIB_DIR_NAME);
         qnn_backend->load_model(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, model->m_config);
     }
 #endif
