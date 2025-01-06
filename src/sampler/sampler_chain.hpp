@@ -20,7 +20,7 @@
 
 #include <vector>
 
-namespace smart {
+namespace powerserve {
 
 struct SamplerChain final : Sampler {
     virtual ~SamplerChain() override = default;
@@ -45,4 +45,4 @@ private:
     std::vector<std::unique_ptr<Sampler>> m_samplers;
 };
 
-} // namespace smart
+} // namespace powerserve

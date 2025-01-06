@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-namespace smart {
+namespace powerserve {
 
 LlamaModel::LlamaModel(const std::string &filename, const std::shared_ptr<ModelConfig> &config) : Model(filename) {
     {
@@ -61,7 +61,7 @@ auto LlamaModel::forward(
 
     auto &llm_config = m_config->llm;
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     if (m_platform->qnn_backend) {
         auto size            = llm_config.dim;
         bool use_qnn_lm_head = m_platform->qnn_backend->m_models[m_config->model_id]->m_config.lm_heads.size() > 0;
@@ -102,7 +102,7 @@ auto LlamaModel::forward(
     executor.allocate_buffers();
 
     executor.run();
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     if (!m_platform->qnn_backend)
 #endif
     {
@@ -138,4 +138,4 @@ auto LlamaModel::generate(
     return Model::TokenGenerator(*this, tokenizer, sampler, prompt, steps, batch_size);
 }
 
-} // namespace smart
+} // namespace powerserve

@@ -14,7 +14,7 @@
 
 #include "attention_mask.hpp"
 
-namespace smart {
+namespace powerserve {
 
 AttentionMask::AttentionMask(size_t size) : size(size) {}
 
@@ -40,4 +40,4 @@ bool CausalAttentionMask::not_masked(size_t i, size_t j) const {
     return i >= j;
 }
 
-} // namespace smart
+} // namespace powerserve

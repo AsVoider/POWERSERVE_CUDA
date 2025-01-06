@@ -20,7 +20,7 @@
 #include <map>
 #include <span>
 
-namespace smart::qnn {
+namespace powerserve::qnn {
 
 struct CausalLM {
     static constexpr const char *m_config_file_name = "config.json";
@@ -181,4 +181,4 @@ struct CausalVLM : CausalLM {
     virtual ~CausalVLM() override = default;
 };
 
-} // namespace smart::qnn
+} // namespace powerserve::qnn

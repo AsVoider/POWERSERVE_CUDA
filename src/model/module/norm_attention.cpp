@@ -21,7 +21,7 @@
 #include <cstdio>
 #include <cstring>
 
-namespace smart {
+namespace powerserve {
 
 TensorNode *NormAttention::build(
     Graph &g,
@@ -159,4 +159,4 @@ TensorNode *NormAttention::build(
     return res_conn;
 }
 
-} // namespace smart
+} // namespace powerserve

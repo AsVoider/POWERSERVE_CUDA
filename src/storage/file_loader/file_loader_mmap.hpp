@@ -23,7 +23,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace smart::storage {
+namespace powerserve::storage {
 
 class FileLoaderMMap final : public FileLoader {
 private:
@@ -101,4 +101,4 @@ public:
     }
 };
 
-} // namespace smart::storage
+} // namespace powerserve::storage

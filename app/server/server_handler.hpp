@@ -38,7 +38,7 @@
 #include <thread>
 #include <unordered_map>
 
-using ModelChatHistroyEntry = smart::ChatEntry;
+using ModelChatHistroyEntry = powerserve::ChatEntry;
 
 struct ModelInput {
 
@@ -166,17 +166,17 @@ public:
 
 struct ModelContext {
 public:
-    std::shared_ptr<smart::Config> m_config_ptr;
-    std::shared_ptr<smart::Model> m_model_ptr;
-    std::unique_ptr<smart::Tokenizer> m_tokenizer_ptr;
+    std::shared_ptr<powerserve::Config> m_config_ptr;
+    std::shared_ptr<powerserve::Model> m_model_ptr;
+    std::unique_ptr<powerserve::Tokenizer> m_tokenizer_ptr;
 
 public:
     ModelContext() = default;
 
     ModelContext(
-        std::shared_ptr<smart::Config> &&config_ptr,
-        std::shared_ptr<smart::Model> &&model_ptr,
-        std::unique_ptr<smart::Tokenizer> &&tokenizer_ptr
+        std::shared_ptr<powerserve::Config> &&config_ptr,
+        std::shared_ptr<powerserve::Model> &&model_ptr,
+        std::unique_ptr<powerserve::Tokenizer> &&tokenizer_ptr
     ) :
         m_config_ptr(std::move(config_ptr)),
         m_model_ptr(std::move(model_ptr)),
@@ -239,25 +239,27 @@ public:
             return m_context_slot_map.at(work_folder);
         }
 
-        std::shared_ptr<smart::Config> config_ptr = std::make_shared<smart::Config>(work_folder);
-        std::shared_ptr<smart::Model> model_ptr =
-            smart::load_model(config_ptr->main_model_dir, config_ptr->main_model_config);
+        std::shared_ptr<powerserve::Config> config_ptr = std::make_shared<powerserve::Config>(work_folder);
+        std::shared_ptr<powerserve::Model> model_ptr =
+            powerserve::load_model(config_ptr->main_model_dir, config_ptr->main_model_config);
 
-        model_ptr->m_platform = std::make_shared<smart::Platform>();
+        model_ptr->m_platform = std::make_shared<powerserve::Platform>();
         model_ptr->m_platform->init_ggml_backend(model_ptr->m_config, config_ptr->hyper_params);
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
         auto &qnn_backend = model_ptr->m_platform->qnn_backend;
         model_ptr->m_platform->init_qnn_backend(m_lib_folder);
-        qnn_backend->load_model(config_ptr->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, model_ptr->m_config);
+        qnn_backend->load_model(
+            config_ptr->main_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, model_ptr->m_config
+        );
 #endif
 
-        model_ptr->m_attn = std::make_shared<smart::NormAttention>(model_ptr->m_config->llm, model_ptr->m_weights);
-        SMART_LOG_INFO("after attn init: {}", smart::perf_get_mem_result());
+        model_ptr->m_attn = std::make_shared<powerserve::NormAttention>(model_ptr->m_config->llm, model_ptr->m_weights);
+        SMART_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
 
-        std::string tokenizer_path                      = config_ptr->main_model_dir / smart::MODEL_VOCAB_FILENAME;
-        std::unique_ptr<smart::Tokenizer> tokenizer_ptr = std::make_unique<smart::Tokenizer>(tokenizer_path);
-        SMART_LOG_INFO("after tokenizer init: {}", smart::perf_get_mem_result());
+        std::string tokenizer_path = config_ptr->main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
+        std::unique_ptr<powerserve::Tokenizer> tokenizer_ptr = std::make_unique<powerserve::Tokenizer>(tokenizer_path);
+        SMART_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
         ModelContext context(std::move(config_ptr), std::move(model_ptr), std::move(tokenizer_ptr));
         m_context_slot_map[work_folder] = std::move(context);
@@ -314,7 +316,7 @@ public:
         {
             std::lock_guard<std::mutex> lock_guard(m_lock);
             if (!m_session_map.contains(session_id)) {
-                SMART_LOG_WARN("cannot destroy sesssion with session id: {}", session_id);
+                SMART_LOG_WARN("cannot destroy session with session id: {}", session_id);
                 return;
             }
             m_session_map.erase(session_id);
@@ -389,7 +391,7 @@ inline std::string &remove_incomplete_utf8_char(std::string &output_string) {
 #pragma optimize("", on)
 
 inline void stream_inference(const ModelContext &context, ServerSession &session, const std::string &input_prompt) {
-    using namespace smart;
+    using namespace powerserve;
 
     const ModelInput &input = session.m_input;
 
@@ -405,7 +407,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
     sampler_config.penalty_repeat  = input.m_repeat_penalty;
     sampler_config.top_p           = input.m_top_p;
     sampler_config.temperature     = input.m_temperature;
-    smart::SamplerChain sampler{sampler_config, tokenizer};
+    powerserve::SamplerChain sampler{sampler_config, tokenizer};
 
     /* Inference */
     ModelOutput output;
@@ -420,7 +422,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
     std::string stop_reason = "length";
     size_t step             = 0;
 
-    SMART_LOG_DEBUG("Model input     : {}", smart::abbreviation(input_prompt, 50));
+    SMART_LOG_DEBUG("Model input     : {}", powerserve::abbreviation(input_prompt, 50));
     SMART_LOG_DEBUG("Model max token : {}", max_num_token);
     SMART_LOG_DEBUG("Model batch size: {}", batch_size);
 
@@ -444,7 +446,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
             );
             timer.reset();
             continue;
-        } // Avoid outputing the last token
+        } // Avoid outputting the last token
 
         if (token == tokenizer.bos_token()) {
             continue;
@@ -485,7 +487,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
 inline ModelOutput blocking_inference(
     const ModelContext &context, const ModelInput &input, const std::string &input_prompt
 ) {
-    using namespace smart;
+    using namespace powerserve;
 
     auto &config    = *context.m_config_ptr;
     auto &model     = *context.m_model_ptr;
@@ -499,7 +501,7 @@ inline ModelOutput blocking_inference(
     sampler_config.penalty_repeat  = input.m_repeat_penalty;
     sampler_config.top_p           = input.m_top_p;
     sampler_config.temperature     = input.m_temperature;
-    smart::SamplerChain sampler{sampler_config, tokenizer};
+    powerserve::SamplerChain sampler{sampler_config, tokenizer};
 
     /* Inference */
     ModelOutput output;
@@ -515,7 +517,7 @@ inline ModelOutput blocking_inference(
     std::string stop_reason = "length";
     size_t step             = 0;
 
-    SMART_LOG_DEBUG("Model input     : {}", smart::abbreviation(input_prompt, 20));
+    SMART_LOG_DEBUG("Model input     : {}", powerserve::abbreviation(input_prompt, 20));
     SMART_LOG_DEBUG("Model max token : {}", max_num_token);
     SMART_LOG_DEBUG("Model batch size: {}", batch_size);
 
@@ -537,7 +539,7 @@ inline ModelOutput blocking_inference(
             );
             timer.reset();
             continue;
-        } // Avoid outputing the last token
+        } // Avoid outputting the last token
 
         if (token == tokenizer.bos_token()) {
             continue;
@@ -575,7 +577,7 @@ inline ModelOutput blocking_inference(
  * @todo Streamly generation
  */
 inline ModelOutput completion(ServerContext &server_context, const ModelInput &input) {
-    using namespace smart;
+    using namespace powerserve;
     /* Parse and concat user inputs */
     const ModelContext &context = server_context.setup_model(input.m_model);
     const Tokenizer &tokenizer  = *context.m_tokenizer_ptr;
@@ -584,7 +586,7 @@ inline ModelOutput completion(ServerContext &server_context, const ModelInput &i
 }
 
 inline void completion(ServerContext &server_context, ServerSession &session) {
-    using namespace smart;
+    using namespace powerserve;
     /* Parse and concat user inputs */
     const ModelInput &input     = session.m_input;
     const ModelContext &context = server_context.setup_model(input.m_model);
@@ -594,7 +596,7 @@ inline void completion(ServerContext &server_context, ServerSession &session) {
 }
 
 inline ModelOutput chat(ServerContext &server_context, const ModelInput &input) {
-    using namespace smart;
+    using namespace powerserve;
     /* Parse and concat user inputs */
     const ModelContext &context    = server_context.setup_model(input.m_model);
     const Tokenizer &tokenizer     = *context.m_tokenizer_ptr;
@@ -604,7 +606,7 @@ inline ModelOutput chat(ServerContext &server_context, const ModelInput &input) 
 }
 
 inline void chat(ServerContext &server_context, ServerSession &session) {
-    using namespace smart;
+    using namespace powerserve;
     /* Parse and concat user inputs */
     const ModelInput &input        = session.m_input;
     const ModelContext &context    = server_context.setup_model(input.m_model);

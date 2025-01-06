@@ -22,7 +22,7 @@
 
 #include <string>
 
-namespace smart {
+namespace powerserve {
 
 struct LogitsVector {
     BufferPtr buffer;
@@ -206,4 +206,4 @@ public:
 
 using ModelPtr = std::shared_ptr<Model>;
 
-} // namespace smart
+} // namespace powerserve

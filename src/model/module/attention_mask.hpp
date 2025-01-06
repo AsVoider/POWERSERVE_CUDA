@@ -17,7 +17,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace smart {
+namespace powerserve {
 
 struct AttentionMask {
     size_t size = 0;
@@ -49,4 +49,4 @@ struct CausalAttentionMask : AttentionMask {
     virtual bool not_masked(size_t i, size_t j) const override;
 };
 
-} // namespace smart
+} // namespace powerserve

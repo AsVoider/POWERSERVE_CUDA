@@ -46,7 +46,7 @@
         fflush(stderr);                                                                                                \
         SMART_LOG_ERROR("{}:{}: {}: Abort", __FILE__, __LINE__, __func__);                                             \
         SMART_LOG_ERROR("" __VA_ARGS__);                                                                               \
-        SMART_LOG_ERROR("System error: {}", ::smart::get_system_error());                                              \
+        SMART_LOG_ERROR("System error: {}", ::powerserve::get_system_error());                                         \
         abort();                                                                                                       \
     } while (0)
 
@@ -59,14 +59,14 @@
             fflush(stdout);                                                                                            \
             fflush(stderr);                                                                                            \
             SMART_LOG_ERROR("{}:{}: {}: Assertion failed: {}", __FILE__, __LINE__, __func__, #expr);                   \
-            SMART_LOG_ERROR("System error: {}", ::smart::get_system_error());                                          \
+            SMART_LOG_ERROR("System error: {}", ::powerserve::get_system_error());                                     \
             SMART_LOG_ERROR("" __VA_ARGS__);                                                                           \
             abort();                                                                                                   \
         }                                                                                                              \
     } while (0)
 #endif
 
-namespace smart {
+namespace powerserve {
 
 inline void print_timestamp() {
     SMART_LOG_INFO("Compiled on: {} at {}", __DATE__, __TIME__);
@@ -118,4 +118,4 @@ inline std::string trim(const std::string &str) {
     return str.substr(start, end - start);
 }
 
-} // namespace smart
+} // namespace powerserve

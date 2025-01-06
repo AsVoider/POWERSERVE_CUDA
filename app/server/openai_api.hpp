@@ -260,7 +260,7 @@ template <
     class T_DataSink = httplib::DataSink>
 inline void handler_completion(ServerContext &server_context, const T_Request &request, T_Response &response) {
     SMART_LOG_INFO("process completion task");
-    /* Parse recevied message */
+    /* Parse received message */
     ModelInput model_input;
     try {
         const auto body = nlohmann::json::parse(request.body);
@@ -320,7 +320,7 @@ inline void handler_completion(ServerContext &server_context, const T_Request &r
             response.set_chunked_content_provider("text/event-stream", chunked_content_provider);
         }
 
-        SMART_LOG_INFO("after completion: {}", smart::perf_get_mem_result());
+        SMART_LOG_INFO("after completion: {}", powerserve::perf_get_mem_result());
     } catch (const std::invalid_argument &err) {
         response_error(err.what(), ErrorType::InvalidRequest, response);
     } catch (const std::exception &err) {
@@ -336,7 +336,7 @@ template <
     class T_DataSink = httplib::DataSink>
 inline void handler_chat(ServerContext &server_context, const T_Request &request, T_Response &response) {
     SMART_LOG_INFO("process chat task");
-    /* Parse recevied message */
+    /* Parse received message */
     ModelInput model_input;
     try {
         const auto body = nlohmann::json::parse(request.body);
@@ -397,7 +397,7 @@ inline void handler_chat(ServerContext &server_context, const T_Request &request
             response.set_chunked_content_provider("text/event-stream", chunked_content_provider);
         }
 
-        SMART_LOG_INFO("after chat: {}", smart::perf_get_mem_result());
+        SMART_LOG_INFO("after chat: {}", powerserve::perf_get_mem_result());
     } catch (const std::invalid_argument &err) {
         response_error(err.what(), ErrorType::InvalidRequest, response);
     } catch (const std::exception &err) {

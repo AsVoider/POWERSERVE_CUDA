@@ -32,7 +32,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace smart::qnn {
+namespace powerserve::qnn {
 
 static void log_callback(const char *fmt, QnnLog_Level_t level, uint64_t timestamp, va_list args) {
     SMART_UNUSED(level);
@@ -131,7 +131,7 @@ void Library::open_qnn_system_library(const Path &lib_system_path) {
         auto api_version = system_interface_providers[i]->systemApiVersion;
         if (QNN_SYSTEM_API_VERSION_MAJOR == api_version.major && QNN_SYSTEM_API_VERSION_MINOR <= api_version.minor) {
             found = true;
-            SMART_LOG_INFO("QNN system API verion: {}", format_qnn_version(api_version));
+            SMART_LOG_INFO("QNN system API version: {}", format_qnn_version(api_version));
             m_qnn_system = system_interface_providers[i]->QNN_SYSTEM_INTERFACE_VER_NAME;
             break;
         }
@@ -235,7 +235,7 @@ void Backend::print_info() {
 
     auto &platform_info = platform_info_ptr->v1;
 
-    SMART_LOG_INFO("Hardware device infomation:");
+    SMART_LOG_INFO("Hardware device information:");
     for (size_t i = 0; i < platform_info.numHwDevices; i++) {
         auto &hw_info_struct = platform_info.hwDevices[i];
         SMART_ASSERT(hw_info_struct.version == QNN_DEVICE_HARDWARE_DEVICE_INFO_VERSION_1);
@@ -391,7 +391,7 @@ Context::Context(Backend &backend, const Path &binary_file_path, ContextGroup *g
     m_binary_filename(binary_file_path) {
     SMART_ASSERT(
         std::filesystem::exists(binary_file_path) && std::filesystem::is_regular_file(binary_file_path),
-        "cound not found regular binary file: {}",
+        "could not found regular binary file: {}",
         binary_file_path
     );
 
@@ -576,7 +576,7 @@ SharedBuffer::SharedBuffer(Context &context, SharedBufferAllocator &allocator, Q
     };
 
     auto ret = lib.m_qnn_backend.memRegister(context.m_handle, &mem_desc, 1, &m_handle);
-    SMART_ASSERT(ret == QNN_SUCCESS, "faield to register QNN shared buffer");
+    SMART_ASSERT(ret == QNN_SUCCESS, "failed to register QNN shared buffer");
 
     allocator.m_offset += m_size;
 }
@@ -905,4 +905,4 @@ ContextBinary::ContextBinary(Backend &backend, const Path &path) {
     m_context = std::make_unique<Context>(backend, path, nullptr);
 }
 
-} // namespace smart::qnn
+} // namespace powerserve::qnn

@@ -1,5 +1,5 @@
 #!/bin/bash
-# test-speculative.sh /data/data/com.termux/files/home/CI u0_a342@192.168.60.173 8022 smart-llama3.1-8b-spec
+# test-speculative.sh /data/data/com.termux/files/home/CI u0_a342@192.168.60.173 8022 powerserve-llama3.1-8b-spec
 
 DEVICE_ROOT=$1
 DEVICE_URL=$2
@@ -7,7 +7,7 @@ DEVICE_PORT=$3
 
 TARGET=$4
 if [ "${TARGET}" == "" ]; then
-    TARGET="smart-llama3.1-8b-spec"
+    TARGET="powerserve-llama3.1-8b-spec"
 fi
 
 USE_QNN=$5
@@ -47,7 +47,7 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
 set -x
 if [ "${USE_QNN}" == "1" ]; then
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ${WORK_FOLDER}/bin/smart-speculative -d ${WORK_FOLDER};
+        export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ${WORK_FOLDER}/bin/powerserve-speculative -d ${WORK_FOLDER};
     "
 else
     echo "No support"

@@ -20,7 +20,7 @@
 
 #include <fstream>
 
-namespace smart::qnn {
+namespace powerserve::qnn {
 
 const std::string QNN_WORKSPACE_DIR_NAME = "qnn";
 const std::string QNN_LIB_DIR_NAME       = "qnn_libs";
@@ -124,4 +124,4 @@ struct QNNConfig {
     }
 };
 
-} // namespace smart::qnn
+} // namespace powerserve::qnn

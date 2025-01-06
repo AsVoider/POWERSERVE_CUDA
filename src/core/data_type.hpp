@@ -19,7 +19,7 @@
 
 #include <cstddef>
 
-namespace smart {
+namespace powerserve {
 
 enum class DataType {
     UNKNOWN,
@@ -72,4 +72,4 @@ static size_t get_block_size(DataType dtype) {
     }
 }
 
-} // namespace smart
+} // namespace powerserve

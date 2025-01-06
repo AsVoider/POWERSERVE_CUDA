@@ -22,7 +22,7 @@
 
 #include <cstdlib>
 
-namespace smart {
+namespace powerserve {
 
 struct NormAttention : Attention {
 
@@ -44,4 +44,4 @@ public:
     ) override;
 };
 
-} // namespace smart
+} // namespace powerserve

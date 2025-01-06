@@ -17,7 +17,7 @@
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
 
-namespace smart {
+namespace powerserve {
 
 TensorNode *FFN::build(Graph &g, TensorNode *attn_o, int64_t L) {
     auto ffn_norm_w = g.add_tensor(m_weights->lw[L].ffn_norm);
@@ -41,4 +41,4 @@ TensorNode *FFN::build(Graph &g, TensorNode *attn_o, int64_t L) {
     return res_conn;
 }
 
-} // namespace smart
+} // namespace powerserve

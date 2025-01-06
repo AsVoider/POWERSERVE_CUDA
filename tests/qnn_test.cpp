@@ -22,7 +22,7 @@
 #include <memory>
 #include <string>
 
-using namespace smart;
+using namespace powerserve;
 
 struct AutoTimeCounter {
 public:
@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
     app.add_option("--qnn-path", qnn_path_str, "The path to the QNN workspace")->required();
     app.add_option("--model-name", model_name, "The name of model");
     app.add_option("--graph-num", num_graph, "The number of graphs");
-    app.add_option("--repeat", repeat_times, "The times to repeatly execute QNN graph");
+    app.add_option("--repeat", repeat_times, "The times to repeatedly execute QNN graph");
     CLI11_PARSE(app, argc, argv);
 
     std::filesystem::path qnn_path(qnn_path_str);

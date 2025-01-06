@@ -64,7 +64,7 @@ build:
     - whoami
     - pwd
     - source /qnn/bin/envsetup.sh
-    - cmake -DCMAKE_TOOLCHAIN_FILE=/ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSMART_ENABLE_WERROR=ON -DSMART_ENABLE_ASAN=OFF -DSMART_WITH_QNN=ON -S . -B build_android
+    - cmake -DCMAKE_TOOLCHAIN_FILE=/ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSMART_ENABLE_WERROR=ON -DSMART_ENABLE_ASAN=OFF -DPOWERSERVE_WITH_QNN=ON -S . -B build_android
     - cmake --build build_android --config RelWithDebInfo --parallel 12
     - rm -rf ${BUILD_ROOT}/build_android
     - cp -r . ${BUILD_ROOT}
@@ -78,7 +78,6 @@ deploy:
     - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/out/* ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_BIN}
     - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/out/* ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_MMMU_BIN}
     - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/build_android/out/* ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_SPEC_BIN}
-    - ./.gitlab/ecmd.sh scp -o StrictHostKeyChecking=no -P ${DEVICE_PORT} ${BUILD_ROOT}/smartserving ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_ROOT}
     - ./.gitlab/ecmd.sh ssh -o StrictHostKeyChecking=no -p "${DEVICE_PORT}" "${DEVICE_USER}@${DEVICE_HOST}" "ls -ahl ${DEVICE_BIN}"
 
 # =============== Required Tests ===============

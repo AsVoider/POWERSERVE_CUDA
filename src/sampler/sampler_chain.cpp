@@ -14,7 +14,7 @@
 
 #include "sampler_chain.hpp"
 
-namespace smart {
+namespace powerserve {
 
 void SamplerChain::build_from_config(const HyperParams::SamplerConfig &config, const Tokenizer &tokenizer) {
     auto seed = config.seed;
@@ -62,4 +62,4 @@ void SamplerChain::accept(Token token) {
     }
 }
 
-} // namespace smart
+} // namespace powerserve

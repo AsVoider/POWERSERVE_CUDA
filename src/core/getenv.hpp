@@ -16,7 +16,7 @@
 
 #include <string>
 
-namespace smart {
+namespace powerserve {
 
 template <typename T>
 T getenv(const std::string &name, const T &default_value) {
@@ -34,4 +34,4 @@ T getenv(const std::string &name, const T &default_value) {
     }
 }
 
-} // namespace smart
+} // namespace powerserve

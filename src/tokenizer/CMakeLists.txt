@@ -1,3 +1,3 @@
-target_sources(smart_serving PRIVATE
+target_sources(powerserve PRIVATE
     "tokenizer.cpp"
 )

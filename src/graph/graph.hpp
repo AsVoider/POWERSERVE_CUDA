@@ -16,7 +16,7 @@
 
 #include "graph/node.hpp"
 
-namespace smart {
+namespace powerserve {
 
 struct Graph {
 public:
@@ -42,7 +42,7 @@ public:
     void copy(TensorNode *dst, TensorNode *src);
     auto make_contiguous(TensorNode *x) -> TensorNode *;
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     auto qnn_forward(
         TensorNode *x, std::vector<int> pos, const CausalAttentionMask &mask, size_t vocab_size, bool lm_head
     ) -> TensorNode *;
@@ -72,4 +72,4 @@ public:
     auto transpose(TensorNode *x) -> TensorViewNode *;
 };
 
-} // namespace smart
+} // namespace powerserve

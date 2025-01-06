@@ -30,7 +30,7 @@
 #include <string>
 #include <vector>
 
-namespace smart {
+namespace powerserve {
 
 InternVL::InternVL(const std::string &filename, const std::shared_ptr<ModelConfig> &config) : Model(filename) {
     {
@@ -100,7 +100,7 @@ auto InternVL::forward(
         }
     }
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     if (m_platform->qnn_backend) {
         if (pixel_values_list.empty()) {
             logits = g.qnn_forward(x, pos, mask, m_config->llm.vocab_size, lm_head);
@@ -178,4 +178,4 @@ auto InternVL::generate(
     return Model::TokenGenerator(*this, tokenizer, sampler, processed_prompt, steps, batch_size);
 }
 
-} // namespace smart
+} // namespace powerserve

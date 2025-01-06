@@ -31,7 +31,7 @@
 #include <memory>
 #include <vector>
 
-namespace smart::ggml {
+namespace powerserve::ggml {
 
 static ggml_type convert_datatype_to_ggml(DataType dtp) {
     switch (dtp) {
@@ -246,4 +246,4 @@ private:
     std::atomic<int> m_current_chunk = 0;
 };
 
-} // namespace smart::ggml
+} // namespace powerserve::ggml

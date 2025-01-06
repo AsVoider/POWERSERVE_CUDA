@@ -17,7 +17,7 @@
 #include "core/defines.hpp"
 #include "core/logger.hpp"
 
-namespace smart {
+namespace powerserve {
 
 struct KVPosition {
     size_t layer_id = 0;
@@ -268,4 +268,4 @@ private:
     KVInterface interface;
 };
 
-} // namespace smart
+} // namespace powerserve

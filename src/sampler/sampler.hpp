@@ -21,7 +21,7 @@
 #include <cstddef>
 #include <deque>
 
-namespace smart {
+namespace powerserve {
 
 struct Sampler {
     virtual ~Sampler() = default;
@@ -126,4 +126,4 @@ struct StochasticSampler final : Sampler {
     void apply(ProbArray &probs) override;
 };
 
-} // namespace smart
+} // namespace powerserve

@@ -21,7 +21,7 @@
 #include <string>
 #include <string_view>
 
-namespace smart {
+namespace powerserve {
 
 CPUPerfResult perf_get_cpu_result() {
     constexpr std::string_view stat_file = "/proc/stat";
@@ -108,4 +108,4 @@ MemPerfResult perf_get_mem_result() {
 #endif
 }
 
-} // namespace smart
+} // namespace powerserve

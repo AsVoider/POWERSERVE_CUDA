@@ -18,7 +18,7 @@
 
 #include <cstdio>
 
-namespace smart {
+namespace powerserve {
 
 // Note: Each model can add its local tensors
 struct LayerWeights {
@@ -73,4 +73,4 @@ public:
     virtual ~Weight() = default;
 };
 
-} // namespace smart
+} // namespace powerserve

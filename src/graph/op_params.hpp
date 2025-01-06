@@ -22,7 +22,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace smart {
+namespace powerserve {
 
 // Base class for op parameters
 struct OpParams {
@@ -59,7 +59,7 @@ struct AddCacheParams {
 
 struct CopyParams {};
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
 struct QNNForwardParams : OpParams {
     const CausalAttentionMask mask;
     std::vector<int> pos;
@@ -116,4 +116,4 @@ struct GetMaskParams {
     const std::vector<int> &pos;
 };
 
-} // namespace smart
+} // namespace powerserve

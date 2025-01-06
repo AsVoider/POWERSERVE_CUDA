@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-namespace smart {
+namespace powerserve {
 
 Qwen2Model::Qwen2Model(const std::string &filename, const std::shared_ptr<ModelConfig> &config) : Model(filename) {
     {
@@ -63,7 +63,7 @@ auto Qwen2Model::forward(
 
     auto &llm_config = m_config->llm;
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     if (m_platform->qnn_backend) {
         auto size            = llm_config.dim;
         bool use_qnn_lm_head = m_platform->qnn_backend->m_models[m_config->model_id]->m_config.lm_heads.size() > 0;
@@ -104,7 +104,7 @@ auto Qwen2Model::forward(
     executor.allocate_buffers();
 
     executor.run();
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     if (!m_platform->qnn_backend)
 #endif
     {
@@ -140,4 +140,4 @@ auto Qwen2Model::generate(
     return Model::TokenGenerator(*this, tokenizer, sampler, prompt, steps, batch_size);
 }
 
-} // namespace smart
+} // namespace powerserve

@@ -16,7 +16,7 @@
 
 #include "core/logger.hpp"
 
-namespace smart {
+namespace powerserve {
 
 void ProbArray::normalize() {
     if (m_is_normalized) {
@@ -66,4 +66,4 @@ auto ProbArray::greedy_sample() -> ProbIndex & {
     return *std::max_element(m_probs.begin(), m_probs.end(), std::greater());
 }
 
-} // namespace smart
+} // namespace powerserve

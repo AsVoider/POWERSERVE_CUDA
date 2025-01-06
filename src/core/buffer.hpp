@@ -16,7 +16,7 @@
 
 #include <memory>
 
-namespace smart {
+namespace powerserve {
 
 struct BaseBuffer {
 public:
@@ -25,4 +25,4 @@ public:
 
 using BufferPtr = std::shared_ptr<BaseBuffer>;
 
-} // namespace smart
+} // namespace powerserve

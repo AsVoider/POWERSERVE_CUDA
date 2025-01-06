@@ -44,18 +44,18 @@ Take llama3.1-8b-instruct model as example, the structure of model folder:
 -- models                       # Level-1 dir, where server search different models.
     -- llama3.1-8b-instruct         # Level-2 dir, where CLI search for runtime configurations
         -- hparams.json                 # Hyper params, containing #threads, #batch_size and sampler configurations.
-        -- workspace.json               # The defintion of model workspace structure, where main model and target model(if exist) is determined.
+        -- workspace.json               # The definition of model workspace structure, where main model and target model(if exist) is determined.
         -- bin                          # The binaries for execution
-            -- smart-config-generator
-            -- smart-perplexity-test
-            -- smart-run
-            -- smart-server
+            -- powerserve-config-generator
+            -- powerserve-perplexity-test
+            -- powerserve-run
+            -- powerserve-server
         -- model_dir                    # The model weights of GGUF and QNN
             -- model.json               #
             -- vocab.gguf               # The vocab table of model
             -- ggml                     # GGUF model binaries
                 -- weights.gguf
-            -- qnn                      # QNN model bianries
+            -- qnn                      # QNN model binaries
                 -- kv
                     -- *.raw
                     -- ...
@@ -91,7 +91,7 @@ If you just want to run PowerServe on CPUs, this step can be skipped. More detai
 
 ```shell
 # Under the root directory of PowerServe
-cd smartserving/tools/qnn_converter
+cd powerserve/tools/qnn_converter
 
 # This may take a long time...
 python converter.py                                 \
@@ -125,7 +125,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-### Build for Andorid cpu
+### Build for Android cpu
 ```shell
 # Under the root directory of PowerServe
 cmake -B build                                                      \
@@ -134,12 +134,12 @@ cmake -B build                                                      \
     -DANDROID_ABI=arm64-v8a                                         \
     -DANDROID_PLATFORM=android-35                                   \
     -DGGML_OPENMP=OFF                                               \
-    -DSMART_WITH_QNN=OFF
+    -DPOWERSERVE_WITH_QNN=OFF
 
 cmake --build build
 ```
 
-### Build for Andorid qnn
+### Build for Android qnn
 ```shell
 # Under the root directory of PowerServe
 cmake -B build                                                      \
@@ -148,7 +148,7 @@ cmake -B build                                                      \
     -DANDROID_ABI=arm64-v8a                                         \
     -DANDROID_PLATFORM=android-35                                   \
     -DGGML_OPENMP=OFF                                               \
-    -DSMART_WITH_QNN=ON
+    -DPOWERSERVE_WITH_QNN=ON
 
 cmake --build build
 ```
@@ -161,7 +161,7 @@ cmake --build build
 mkdir -p models
 
 # Generate PowerServe Workspace
-./smartserving create -m ./llama3.1-8b-instruct-model --exe-path ./build -o ./models/llama3.1-8b-instruct
+./powerserve create -m ./llama3.1-8b-instruct-model --exe-path ./build -o ./models/llama3.1-8b-instruct
 ```
 
 ## Execution
@@ -172,19 +172,19 @@ More details please refer to [CLI App](./app/run/README.md)
 For pure CPU execution
 ```shell
 # Under the root directory of PowerServe
-./models/llama3.1-8b-instruct/bin/smart-run --work-folder ./models/llama3.1-8b-instruct --prompt "Once upon a time, there was a little girl named Lucy" --no-qnn
+./models/llama3.1-8b-instruct/bin/powerserve-run --work-folder ./models/llama3.1-8b-instruct --prompt "Once upon a time, there was a little girl named Lucy" --no-qnn
 ```
 For NPU execution
 ```shell
 # Under the root directory of PowerServe
-export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64 && ./models/llama3.1-8b-instruct/bin/smart-run --work-folder ./models/llama3.1-8b-instruct --prompt "Once upon a time, there was a little girl named Lucy"
+export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64 && ./models/llama3.1-8b-instruct/bin/powerserve-run --work-folder ./models/llama3.1-8b-instruct --prompt "Once upon a time, there was a little girl named Lucy"
 ```
 
 ### Server
 More details please refer to [Server App](./app/server/README.md)
 ```shell
 # Under the root directory of PowerServe
-./models/llama3.1-8b-instruct/bin/smart-server --model-folder ./models --host <ip-addr> --port <port>
+./models/llama3.1-8b-instruct/bin/powerserve-server --model-folder ./models --host <ip-addr> --port <port>
 ```
 
 
@@ -232,7 +232,7 @@ Mia is planning a camping trip in the Canadian Rockies and has a budget of $800 
 
 ### Execution
 
-1. **When inferencing with QNN**: Failed to open lib /vendor/lib64/libcdsprpc.so: dlopen failed: library "/vendor/lib64/libcdsprpc.so" needed or dlopened by "/data/data/com.termux/files/home/workspace/qnn/llama-3.2-1b-instruct/bin/smart-run" is not accessible for the namespace "(default)
+1. **When inferencing with QNN**: Failed to open lib /vendor/lib64/libcdsprpc.so: dlopen failed: library "/vendor/lib64/libcdsprpc.so" needed or dlopened by "/data/data/com.termux/files/home/workspace/qnn/llama-3.2-1b-instruct/bin/powerserve-run" is not accessible for the namespace "(default)
 
     > Use `export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64` before executing the program.
     >

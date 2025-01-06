@@ -23,7 +23,7 @@
 #include <memory>
 #include <unistd.h>
 
-namespace smart::storage {
+namespace powerserve::storage {
 
 std::unique_ptr<FileLoader> build_file_loader(const std::filesystem::path &file_path, FileLoaderMethod method) {
     switch (method) {
@@ -40,9 +40,9 @@ std::unique_ptr<FileLoader> build_file_loader(const std::filesystem::path &file_
         return std::make_unique<FileLoaderUV>(file_path);
 
     default:
-        SMART_LOG_WARN("unknwon file loader method {}, fallback to bio", static_cast<int>(method));
+        SMART_LOG_WARN("unknown file loader method {}, fallback to bio", static_cast<int>(method));
         return std::make_unique<FileLoaderBIO>(file_path);
     }
 }
 
-} // namespace smart::storage
+} // namespace powerserve::storage

@@ -21,7 +21,7 @@
 #include <cstddef>
 #include <string>
 
-namespace smart {
+namespace powerserve {
 
 struct ChatEntry {
     std::string role;
@@ -71,4 +71,4 @@ public:
     }
 };
 
-} // namespace smart
+} // namespace powerserve

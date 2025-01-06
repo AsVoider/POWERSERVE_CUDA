@@ -17,7 +17,7 @@
 #include "graph/graph.hpp"
 #include "model/common/weights.hpp"
 
-namespace smart {
+namespace powerserve {
 
 struct FFN {
 private:
@@ -31,4 +31,4 @@ public:
     TensorNode *build(Graph &g, TensorNode *attn_o, int64_t L);
 };
 
-} // namespace smart
+} // namespace powerserve

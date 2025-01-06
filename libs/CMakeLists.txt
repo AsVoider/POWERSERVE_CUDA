@@ -46,7 +46,7 @@ add_subdirectory(cpp-httplib)
 add_subdirectory(concurrentqueue)
 
 # Perfetto
-if (SMART_WITH_PERFETTO)
+if (POWERSERVE_WITH_PERFETTO)
     add_library(perfetto STATIC perfetto/sdk/perfetto.cc)
     target_include_directories(perfetto PUBLIC perfetto/sdk)
     if (ANDROID)

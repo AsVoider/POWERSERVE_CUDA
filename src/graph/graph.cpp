@@ -14,7 +14,7 @@
 
 #include "graph/graph.hpp"
 
-namespace smart {
+namespace powerserve {
 
 // Add a tensorNode from existing tensor to graph and this tensor have allocated memory
 auto Graph::add_tensor(const Tensor &tensor) -> TensorNode * {
@@ -122,7 +122,7 @@ auto Graph::softmax(TensorNode *x) -> TensorNode * {
     return out;
 }
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
 auto Graph::qnn_forward(TensorNode *x, std::vector<int> pos, const CausalAttentionMask &mask, size_t size, bool lm_head)
     -> TensorNode * {
     TensorNode *out = nullptr;
@@ -265,4 +265,4 @@ auto Graph::make_contiguous(TensorNode *x) -> TensorNode * {
     return out;
 }
 
-} // namespace smart
+} // namespace powerserve

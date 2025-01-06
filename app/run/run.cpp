@@ -25,9 +25,9 @@
 #include <string>
 
 int main(int argc, char *argv[]) {
-    smart::print_timestamp();
+    powerserve::print_timestamp();
 
-    std::string work_folder = "/home/zwb/SS/smartserving/";
+    std::string work_folder = "/home/zwb/SS/powerserve/";
     std::string prompt      = "One day,";
     std::string prompt_file = "";
     int n_predicts          = 128;
@@ -59,34 +59,35 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    auto config                         = std::make_shared<smart::Config>(work_folder);
-    std::shared_ptr<smart::Model> model = smart::load_model(config->main_model_dir, config->main_model_config);
-    SMART_LOG_INFO("after model init: {}", smart::perf_get_mem_result());
+    auto config = std::make_shared<powerserve::Config>(work_folder);
+    std::shared_ptr<powerserve::Model> model =
+        powerserve::load_model(config->main_model_dir, config->main_model_config);
+    SMART_LOG_INFO("after model init: {}", powerserve::perf_get_mem_result());
 
     auto [sampler_config, n_threads, batch_size] = config->hyper_params;
-    model->m_platform                            = std::make_shared<smart::Platform>();
+    model->m_platform                            = std::make_shared<powerserve::Platform>();
     model->m_platform->init_ggml_backend(model->m_config, config->hyper_params);
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     if (!no_qnn) {
         auto &qnn_backend = model->m_platform->qnn_backend;
-        model->m_platform->init_qnn_backend(smart::Path(work_folder) / smart::qnn::QNN_LIB_DIR_NAME);
-        qnn_backend->load_model(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, model->m_config);
+        model->m_platform->init_qnn_backend(powerserve::Path(work_folder) / powerserve::qnn::QNN_LIB_DIR_NAME);
+        qnn_backend->load_model(config->main_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, model->m_config);
     }
 #endif
-    SMART_LOG_INFO("after platform init: {}", smart::perf_get_mem_result());
+    SMART_LOG_INFO("after platform init: {}", powerserve::perf_get_mem_result());
 
-    model->m_attn = std::make_shared<smart::NormAttention>(model->m_config->llm, model->m_weights);
-    SMART_LOG_INFO("after attn init: {}", smart::perf_get_mem_result());
+    model->m_attn = std::make_shared<powerserve::NormAttention>(model->m_config->llm, model->m_weights);
+    SMART_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
 
-    std::string tokenizer_path = config->main_model_dir / smart::MODEL_VOCAB_FILENAME;
-    smart::Tokenizer tokenizer(tokenizer_path);
-    SMART_LOG_INFO("after tokenizer init: {}", smart::perf_get_mem_result());
+    std::string tokenizer_path = config->main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
+    powerserve::Tokenizer tokenizer(tokenizer_path);
+    SMART_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
-    smart::SamplerChain sampler{sampler_config, tokenizer};
-    SMART_LOG_INFO("after sampler init: {}", smart::perf_get_mem_result());
+    powerserve::SamplerChain sampler{sampler_config, tokenizer};
+    SMART_LOG_INFO("after sampler init: {}", powerserve::perf_get_mem_result());
 
     {
-        SMART_LOG_INFO("prompt      : {:?}", smart::abbreviation(prompt, 50));
+        SMART_LOG_INFO("prompt      : {:?}", powerserve::abbreviation(prompt, 50));
         SMART_LOG_INFO("n_predicts       : {}", n_predicts);
         SMART_LOG_INFO("model arch  : {}", config->main_model_config->arch);
         SMART_LOG_INFO("n_threads   : {}", n_threads);
@@ -101,10 +102,10 @@ int main(int argc, char *argv[]) {
     for (auto prompt_token : tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos)) {
         fmt::print("{}", tokenizer.to_string(prompt_token, false));
     }
-    prefill_start = smart::timestamp_ms();
+    prefill_start = powerserve::timestamp_ms();
     for (auto next : model->generate(tokenizer, sampler, prompt, n_predicts, batch_size)) {
         if (!start) {
-            prefill_end = smart::timestamp_ms();
+            prefill_end = powerserve::timestamp_ms();
             start       = true;
             continue;
         }
@@ -123,7 +124,7 @@ int main(int argc, char *argv[]) {
     fmt::println("");
 
     if (start) {
-        decode_end     = smart::timestamp_ms();
+        decode_end     = powerserve::timestamp_ms();
         auto n_prefill = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
         SMART_LOG_INFO("prefill time: {} s", (double)(prefill_end - prefill_start) / 1000);
         SMART_LOG_INFO(

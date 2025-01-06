@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace smart {
+namespace powerserve {
 
 enum class NodeType {
     TENSOR,
@@ -153,4 +153,4 @@ public:
     }
 };
 
-} // namespace smart
+} // namespace powerserve

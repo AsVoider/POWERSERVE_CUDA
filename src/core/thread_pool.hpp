@@ -21,7 +21,7 @@
 #include <thread>
 #include <vector>
 
-namespace smart {
+namespace powerserve {
 
 struct ThreadConfig {
     std::vector<size_t> cpu_ids; // CPU affinity. Leave empty to create thread without setting affinity
@@ -65,4 +65,4 @@ private:
     void thread_main(size_t thread_id);
 };
 
-} // namespace smart
+} // namespace powerserve

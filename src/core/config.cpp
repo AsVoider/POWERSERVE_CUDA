@@ -24,7 +24,7 @@
 #include <fstream>
 #include <string>
 
-namespace smart {
+namespace powerserve {
 
 HyperParams::HyperParams(const Path &params_file) {
     nlohmann::json j;
@@ -138,4 +138,4 @@ Config::Config(const Path &work_folder) {
         SMART_LOG_ERROR("failed parsing artifact config file {}: {}", artifact_config_path, err.what());
     }
 }
-} // namespace smart
+} // namespace powerserve

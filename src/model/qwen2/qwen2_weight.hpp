@@ -16,7 +16,7 @@
 
 #include "model/common/weights.hpp"
 
-namespace smart {
+namespace powerserve {
 
 struct Qwen2LayerWeights : LayerWeights {
 
@@ -53,4 +53,4 @@ public:
     ~Qwen2Weight() override = default;
 };
 
-} // namespace smart
+} // namespace powerserve

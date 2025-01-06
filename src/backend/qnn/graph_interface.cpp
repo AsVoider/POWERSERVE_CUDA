@@ -22,7 +22,7 @@
 #include <memory>
 #include <vector>
 
-namespace smart::qnn {
+namespace powerserve::qnn {
 
 GraphInterface::GraphInterface(CausalLM &parent, const QNNGraphConfig &config) :
     m_parent(parent),
@@ -266,4 +266,4 @@ void ModelChunk::load_kv(KVCacheInterface &kv_cache) {
     }
 }
 
-} // namespace smart::qnn
+} // namespace powerserve::qnn

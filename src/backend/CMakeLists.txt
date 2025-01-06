@@ -1,9 +1,9 @@
-target_sources(smart_serving PRIVATE
+target_sources(powerserve PRIVATE
     "platform.cpp"
 )
 
 add_subdirectory(ggml)
 
-if (SMART_WITH_QNN)
+if (POWERSERVE_WITH_QNN)
     add_subdirectory(qnn)
 endif()

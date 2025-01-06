@@ -18,7 +18,7 @@
 
 #include <cstdint>
 
-namespace smart {
+namespace powerserve {
 
 void Executor::allocate_buffers() {
     for (auto tensor : m_graph.tensors) {
@@ -109,7 +109,7 @@ void Executor::run() {
             m_platform.ggml_backends[model_id]->copy(dst, src);
         } break;
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
         case OpType::QNN_FORWARD: {
             auto x     = op->prev[0]->tensor();
             auto out   = op->output();
@@ -199,4 +199,4 @@ void Executor::run() {
         }
     }
 }
-} // namespace smart
+} // namespace powerserve

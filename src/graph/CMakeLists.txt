@@ -1,4 +1,4 @@
-target_sources(smart_serving PRIVATE
+target_sources(powerserve PRIVATE
     "graph.cpp"
     "node.cpp"
 )

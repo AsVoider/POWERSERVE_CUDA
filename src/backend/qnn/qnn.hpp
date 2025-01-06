@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-namespace smart::qnn {
+namespace powerserve::qnn {
 
 using QNNDataType = Qnn_DataType_t;
 
@@ -241,4 +241,4 @@ struct ContextBinary {
     ContextBinary(Backend &backend, const Path &path);
 };
 
-} // namespace smart::qnn
+} // namespace powerserve::qnn

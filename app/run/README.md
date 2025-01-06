@@ -16,7 +16,7 @@ In this section, we cover the most commonly used options for running the `run` p
 
 -  `--work-folder [-d] DIRECTORY` The directory containing GGUF or QNN models
 - `--n_predicts [-n] N` Set the number of tokens to predict when generating text. Adjusting this value can influence the length of the generated text.
-- `--no-qnn` Set this flag to diable QNN backend (if compiled with SMART_WITH_QNN=ON)
+- `--no-qnn` Set this flag to disable QNN backend (if compiled with POWERSERVE_WITH_QNN=ON)
 
 
 ## Input Prompts

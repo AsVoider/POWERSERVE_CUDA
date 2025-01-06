@@ -22,8 +22,8 @@
 #include "graph_interface.hpp"
 #include "qnn.hpp"
 
-namespace smart::qnn {
-struct QNNBackend : smart::Backend {
+namespace powerserve::qnn {
+struct QNNBackend : powerserve::Backend {
     Session m_session;
     std::map<std::string, std::unique_ptr<CausalLM>> m_models;
     std::map<std::string, std::unique_ptr<Vision>> m_visions;
@@ -31,7 +31,7 @@ struct QNNBackend : smart::Backend {
     QNNBackend(Path libs_path);
     virtual ~QNNBackend() override = default;
 
-    void load_model(const Path &path, const std::shared_ptr<smart::ModelConfig> &model_config);
+    void load_model(const Path &path, const std::shared_ptr<powerserve::ModelConfig> &model_config);
     void forward(
         const std::string &model_id,
         const Tensor *dst,
@@ -50,4 +50,4 @@ struct QNNBackend : smart::Backend {
     );
 };
 
-} // namespace smart::qnn
+} // namespace powerserve::qnn

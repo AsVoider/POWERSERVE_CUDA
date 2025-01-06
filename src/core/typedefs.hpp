@@ -19,7 +19,7 @@
 #include <array>
 #include <filesystem>
 
-namespace smart {
+namespace powerserve {
 
 using Path  = std::filesystem::path;
 using Token = llama_vocab::id;
@@ -37,4 +37,4 @@ protected:
     ~Noncopyable() = default;
 };
 
-} // namespace smart
+} // namespace powerserve

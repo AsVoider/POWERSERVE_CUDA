@@ -39,7 +39,7 @@ static std::unique_ptr<perfetto::TracingSession> tracing;
 
 #endif
 
-namespace smart {
+namespace powerserve {
 
 void PerfettoTrace::start_tracing(size_t buffer_size_kb) {
 #if defined(SMART_WITH_PERFETTO)
@@ -159,4 +159,4 @@ void PerfettoTrace::end_event() {
 #endif
 }
 
-} // namespace smart
+} // namespace powerserve

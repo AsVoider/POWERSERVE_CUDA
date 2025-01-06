@@ -22,7 +22,7 @@
 #include <cstddef>
 #include <numeric>
 
-namespace smart {
+namespace powerserve {
 
 struct Tensor {
 public:
@@ -101,4 +101,4 @@ static bool tensor_can_repeat(const Tensor *t0, const Tensor *t1) {
                                 (t1->m_shape[2] % t0->m_shape[2] == 0) && (t1->m_shape[3] % t0->m_shape[3] == 0);
 }
 
-} // namespace smart
+} // namespace powerserve

@@ -15,10 +15,10 @@
 // WIP: direct pass funcs
 #pragma once
 
-namespace smart {
+namespace powerserve {
 
 struct Backend {
     virtual ~Backend() = default;
 };
 
-} // namespace smart
+} // namespace powerserve

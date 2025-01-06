@@ -1,5 +1,5 @@
-target_sources(smart_serving PRIVATE
+target_sources(powerserve PRIVATE
     "internvl_model.cpp"
 )
-target_link_libraries(smart_serving PRIVATE stb_headers)
-target_link_libraries(smart_serving PRIVATE xtensor xtl)
+target_link_libraries(powerserve PRIVATE stb_headers)
+target_link_libraries(powerserve PRIVATE xtensor xtl)

@@ -18,7 +18,7 @@
 
 #include <cstring>
 
-namespace smart {
+namespace powerserve {
 
 static int set_thread_affinity(uv_thread_t *thread, const std::vector<size_t> &cpu_ids) {
     int mask_size = uv_cpumask_size();
@@ -99,4 +99,4 @@ void ThreadPool::thread_main(size_t thread_id) {
     }
 }
 
-} // namespace smart
+} // namespace powerserve

@@ -20,7 +20,7 @@
 #include <random>
 #include <span>
 
-namespace smart {
+namespace powerserve {
 
 struct ProbIndex {
     float prob  = 0.0f;
@@ -81,4 +81,4 @@ struct ProbArray {
     auto greedy_sample() -> ProbIndex &;
 };
 
-} // namespace smart
+} // namespace powerserve

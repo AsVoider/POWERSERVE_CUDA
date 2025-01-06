@@ -1,5 +1,5 @@
 #!/bin/bash
-# test-decode.sh /data/data/com.termux/files/home/CI u0_a342@192.168.60.173 8022 smart-llama3.1-8b / smart-qwen2-7b
+# test-decode.sh /data/data/com.termux/files/home/CI u0_a342@192.168.60.173 8022 powerserve-llama3.1-8b / powerserve-qwen2-7b
 
 DEVICE_ROOT=$1
 DEVICE_URL=$2
@@ -7,7 +7,7 @@ DEVICE_PORT=$3
 
 TARGET=$4
 if [ "${TARGET}" == "" ]; then
-    TARGET="smart-llama3.1-8b_n"
+    TARGET="powerserve-llama3.1-8b_n"
 fi
 
 USE_QNN=$5
@@ -55,11 +55,11 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
 set -x
 if [ "${USE_QNN}" == "1" ]; then
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ${WORK_FOLDER}/bin/smart-run -d ${WORK_FOLDER};
+        export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ${WORK_FOLDER}/bin/powerserve-run -d ${WORK_FOLDER};
     "
 else
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${WORK_FOLDER}/bin/smart-run -d ${WORK_FOLDER} --no-qnn -n 32;
+        ${WORK_FOLDER}/bin/powerserve-run -d ${WORK_FOLDER} --no-qnn -n 32;
     "
 fi
 set +x

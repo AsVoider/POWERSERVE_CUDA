@@ -79,7 +79,7 @@ def clang_format(path: Path):
 
 
 def black_format(path: Path):
-    assert os.system(f"black -q {path}") == 0
+    assert os.system(f"black -q {path} -l 120") == 0
 
 
 def isort_format(path: Path):

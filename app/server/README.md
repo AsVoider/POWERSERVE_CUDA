@@ -3,7 +3,7 @@
 ## Usage
 
 Start a server:
-- `--model-folder`(optional): The folder of model workspace. When receving a request specifying the model, it search firstly in this directory. For example, when I specify `--model-folder model`, it will search models in the directoy **./model** if it exists. When I specify the model folder with such a request:
+- `--model-folder`(optional): The folder of model workspace. When receiving a request specifying the model, it search firstly in this directory. For example, when I specify `--model-folder model`, it will search models in the directory **./model** if it exists. When I specify the model folder with such a request:
     ```json
     {
         "model": "llama3.1-8b-instruct",

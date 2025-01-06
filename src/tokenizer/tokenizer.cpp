@@ -17,7 +17,7 @@
 #include "core/logger.hpp"
 #include "ggml.h"
 
-namespace smart {
+namespace powerserve {
 
 Tokenizer::Tokenizer(const Path &vocab_path) {
     struct ggml_context *ctx       = nullptr;
@@ -345,4 +345,4 @@ auto Tokenizer::apply_chat_template(const std::vector<ChatEntry> &chat_history, 
     return apply_chat_template_internal(m_template_type, chat_history, add_ass);
 }
 
-} // namespace smart
+} // namespace powerserve

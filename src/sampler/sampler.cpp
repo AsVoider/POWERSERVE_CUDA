@@ -14,7 +14,7 @@
 
 #include "sampler.hpp"
 
-namespace smart {
+namespace powerserve {
 
 void TemperatureSampler::apply(ProbArray &probs) {
     SMART_ASSERT(m_temperature > 0);
@@ -184,4 +184,4 @@ void StochasticSampler::apply(ProbArray &probs) {
     probs.m_is_normalized = true;
 }
 
-} // namespace smart
+} // namespace powerserve

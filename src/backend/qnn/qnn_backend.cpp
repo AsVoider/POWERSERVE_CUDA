@@ -18,7 +18,7 @@
 #include "core/logger.hpp"
 #include "core/perfetto_trace.hpp"
 
-namespace smart::qnn {
+namespace powerserve::qnn {
 
 QNNBackend::QNNBackend(Path libs_path) : m_session(libs_path) {}
 
@@ -169,4 +169,4 @@ void QNNBackend::forward(
     }
 }
 
-} // namespace smart::qnn
+} // namespace powerserve::qnn

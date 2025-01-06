@@ -18,7 +18,7 @@
 #include "core/logger.hpp"
 #include "core/typedefs.hpp"
 
-namespace smart {
+namespace powerserve {
 
 struct CPUBuffer : BaseBuffer {
 public:
@@ -64,4 +64,4 @@ public:
     }
 };
 
-} // namespace smart
+} // namespace powerserve

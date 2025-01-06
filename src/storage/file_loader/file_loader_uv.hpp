@@ -19,7 +19,7 @@
 
 #include <span>
 
-namespace smart::storage {
+namespace powerserve::storage {
 
 class FileLoaderUV final : public FileLoader {
 private:
@@ -96,7 +96,7 @@ public:
             const ssize_t ret = pread(m_file_handle.m_fd, buffer_ptr, file_size, 0);
             SMART_ASSERT(
                 ret == static_cast<ssize_t>(file_size),
-                "faild to read {} bytes from file {} (ret = {})",
+                "failed to read {} bytes from file {} (ret = {})",
                 file_size,
                 m_file_path,
                 ret
@@ -123,4 +123,4 @@ public:
     }
 };
 
-} // namespace smart::storage
+} // namespace powerserve::storage

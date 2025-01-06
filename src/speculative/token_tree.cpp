@@ -16,12 +16,13 @@
 
 #include "core/getenv.hpp"
 #include "core/perfetto_trace.hpp"
+#include "nlohmann/json.hpp"
 
 #include <fstream>
 
 namespace {
 
-using smart::getenv;
+using powerserve::getenv;
 
 static auto dump_file_path = getenv<std::string>("dump_file", "");
 
@@ -39,7 +40,7 @@ static struct {
 
 } // namespace
 
-namespace smart {
+namespace powerserve {
 
 TokenTree::TokenTree() {
     draft_sampler.append<TopKSampler>(draft_params.top_k);
@@ -314,4 +315,4 @@ void TokenTree::switch_parent(const ModelPtr &draft_model, int old_parent, int n
     }
 }
 
-} // namespace smart
+} // namespace powerserve

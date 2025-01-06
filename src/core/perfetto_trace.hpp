@@ -18,7 +18,7 @@
 #include "core/logger.hpp"
 #include "core/typedefs.hpp"
 
-namespace smart {
+namespace powerserve {
 
 struct PerfettoTrace final : Noncopyable {
     // This is a singleton class.
@@ -92,4 +92,4 @@ private:
     void end_event();
 };
 
-} // namespace smart
+} // namespace powerserve

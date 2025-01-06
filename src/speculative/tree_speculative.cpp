@@ -19,7 +19,7 @@
 
 constexpr bool debug_token_tree = false;
 
-namespace smart {
+namespace powerserve {
 
 TreeSpeculative::TreeSpeculative(const ModelPtr &target_model, const ModelPtr &draft_model) :
     target_model(target_model),
@@ -122,4 +122,4 @@ void TreeSpeculative::print_stat() {
     token_tree.print_stat();
 }
 
-} // namespace smart
+} // namespace powerserve

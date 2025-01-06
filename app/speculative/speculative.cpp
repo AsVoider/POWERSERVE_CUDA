@@ -28,7 +28,7 @@
 
 int main(int argc, char *argv[]) {
     // 0. load config
-    std::string work_folder = "/home/zwb/SS/smartserving/";
+    std::string work_folder = "/home/zwb/SS/powerserve/";
     std::string prompt      = "One day,";
     std::string prompt_file = "";
     int n_predicts          = 128;
@@ -60,23 +60,27 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    auto config                               = std::make_shared<smart::Config>(work_folder);
-    std::shared_ptr<smart::Model> main_model  = smart::load_model(config->main_model_dir, config->main_model_config);
-    std::shared_ptr<smart::Model> draft_model = smart::load_model(config->draft_model_dir, config->draft_model_config);
+    auto config = std::make_shared<powerserve::Config>(work_folder);
+    std::shared_ptr<powerserve::Model> main_model =
+        powerserve::load_model(config->main_model_dir, config->main_model_config);
+    std::shared_ptr<powerserve::Model> draft_model =
+        powerserve::load_model(config->draft_model_dir, config->draft_model_config);
     auto [sampler_config, n_threads, batch_size] = config->hyper_params;
 
-    main_model->m_platform  = std::make_shared<smart::Platform>();
+    main_model->m_platform  = std::make_shared<powerserve::Platform>();
     auto &platform          = main_model->m_platform;
     draft_model->m_platform = platform;
 
     platform->init_ggml_backend(main_model->m_config, config->hyper_params);
     platform->init_ggml_backend(draft_model->m_config, config->hyper_params);
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     if (!no_qnn) {
-        platform->init_qnn_backend(smart::Path(work_folder) / smart::qnn::QNN_LIB_DIR_NAME);
+        platform->init_qnn_backend(powerserve::Path(work_folder) / powerserve::qnn::QNN_LIB_DIR_NAME);
         auto &qnn_backend = platform->qnn_backend;
-        qnn_backend->load_model(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, main_model->m_config);
-        qnn_backend->load_model(config->draft_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, draft_model->m_config);
+        qnn_backend->load_model(config->main_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, main_model->m_config);
+        qnn_backend->load_model(
+            config->draft_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, draft_model->m_config
+        );
 
         // TODO: Fix it.
         main_model->kv_cache  = platform->qnn_backend->m_models[main_model->m_config->model_id]->kv_cache.get();
@@ -84,26 +88,27 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    main_model->m_attn  = std::make_shared<smart::NormAttention>(main_model->m_config->llm, main_model->m_weights);
-    draft_model->m_attn = std::make_shared<smart::NormAttention>(draft_model->m_config->llm, draft_model->m_weights);
+    main_model->m_attn = std::make_shared<powerserve::NormAttention>(main_model->m_config->llm, main_model->m_weights);
+    draft_model->m_attn =
+        std::make_shared<powerserve::NormAttention>(draft_model->m_config->llm, draft_model->m_weights);
 
-    std::string tokenizer_path = config->main_model_dir / smart::MODEL_VOCAB_FILENAME;
-    smart::Tokenizer tokenizer(tokenizer_path);
-    SMART_LOG_INFO("after tokenizer init: {}", smart::perf_get_mem_result());
+    std::string tokenizer_path = config->main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
+    powerserve::Tokenizer tokenizer(tokenizer_path);
+    SMART_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
-    smart::SamplerChain sampler{sampler_config, tokenizer};
-    SMART_LOG_INFO("after sampler init: {}", smart::perf_get_mem_result());
+    powerserve::SamplerChain sampler{sampler_config, tokenizer};
+    SMART_LOG_INFO("after sampler init: {}", powerserve::perf_get_mem_result());
 
     {
-        SMART_LOG_INFO("prompt      : {}", smart::abbreviation(prompt, 50));
+        SMART_LOG_INFO("prompt      : {}", powerserve::abbreviation(prompt, 50));
         SMART_LOG_INFO("vocab_path  : {}", tokenizer_path);
         SMART_LOG_INFO("n_predicts  : {}", n_predicts);
         SMART_LOG_INFO("n_threads   : {}", n_threads);
     }
 
-    smart::PerfettoTrace::instance().start_tracing(32 * 1024);
-    smart::TreeSpeculative spec(main_model, draft_model);
+    powerserve::PerfettoTrace::instance().start_tracing(32 * 1024);
+    powerserve::TreeSpeculative spec(main_model, draft_model);
     spec.generate(tokenizer, sampler, prompt, n_predicts);
     spec.print_stat();
-    smart::PerfettoTrace::instance().stop_tracing();
+    powerserve::PerfettoTrace::instance().stop_tracing();
 }

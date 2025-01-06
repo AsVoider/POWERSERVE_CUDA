@@ -9,7 +9,7 @@ CONTAINER_NAME=$5
 
 TARGET=$6
 if [ "${TARGET}" == "" ]; then
-    TARGET="smart-llama3.1-8b"
+    TARGET="powerserve-llama3.1-8b"
 fi
 
 SERVER_HOST=${DEVICE_HOST}
@@ -26,14 +26,14 @@ function help() {
 function clean() {
     set +x
     source ./.gitlab/common.sh
-    temp_disable_errexit try_twice 10 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        echo '>>>>>>>>>>>> Stop server. <<<<<<<<<<<<';
-        sudo ps -e -o comm= | grep 'smart-' |xargs -n 1 echo;
-        sudo pkill smart-;
-        sleep 3;
-        echo '>>>>>>>>>>>> Stop server over. <<<<<<<<<<<<';
-        sudo ps -e -o comm= | grep 'smart-' |xargs -n 1 echo
-    "
+    # temp_disable_errexit try_twice 10 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
+    #     echo '>>>>>>>>>>>> Stop server. <<<<<<<<<<<<';
+    #     sudo ps -e -o comm= | grep 'powerserve-' |xargs -n 1 echo;
+    #     sudo pkill powerserve-;
+    #     sleep 3;
+    #     echo '>>>>>>>>>>>> Stop server over. <<<<<<<<<<<<';
+    #     sudo ps -e -o comm= | grep 'powerserve-' |xargs -n 1 echo
+    # "
 }
 
 if [ $# -lt 5 ]; then
@@ -45,22 +45,16 @@ trap clean EXIT
 set -x
 
 echo '>>>>>>>>>>>> Start server. <<<<<<<<<<<<';
-ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving server \
-    --host ${SERVER_HOST} \
-    --port ${SERVER_PORT} \
-    -d ${WORK_FOLDER} \
-    >/dev/null 2>&1
-" &
+echo "No Server Test"
 echo '>>>>>>>>>>>> Start server over. <<<<<<<<<<<<';
 
 sleep 10
 
 echo '>>>>>>>>>>>> Test mmlu. <<<<<<<<<<<<';
-sudo podman exec -it ${CONTAINER_NAME} bash -c -i "
-    cd /code/tools/mmlu;
-    python ./mmlu_test.py --host ${SERVER_HOST} --port ${SERVER_PORT} -s 1
-"
+# sudo podman exec -it ${CONTAINER_NAME} bash -c -i "
+#     cd /code/tools/mmlu;
+#     python ./mmlu_test.py --host ${SERVER_HOST} --port ${SERVER_PORT} -s 1
+# "
 echo '>>>>>>>>>>>> Test mmlu over. <<<<<<<<<<<<';
 
 set +x

@@ -20,7 +20,7 @@
 #include <functional>
 #include <queue>
 
-namespace smart {
+namespace powerserve {
 
 struct TokenTree {
     using EnqueueTokenFn = std::function<void(Token token)>;
@@ -98,4 +98,4 @@ private:
     void switch_parent(const ModelPtr &draft_model, int old_parent, int new_parent);
 };
 
-} // namespace smart
+} // namespace powerserve

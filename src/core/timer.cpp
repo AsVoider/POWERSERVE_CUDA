@@ -22,7 +22,7 @@ constexpr auto div_round(int64_t a, int64_t b) -> int64_t {
 
 } // namespace
 
-namespace smart {
+namespace powerserve {
 
 auto timestamp_ns() -> int64_t {
     auto timepoint = std::chrono::steady_clock::now().time_since_epoch();
@@ -78,4 +78,4 @@ auto Timer::tick_impl(Clock::time_point *out_time_point) const -> int64_t {
     return elapsed_time.count();
 }
 
-} // namespace smart
+} // namespace powerserve

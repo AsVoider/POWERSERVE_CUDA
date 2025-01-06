@@ -18,7 +18,7 @@
 #include "core/kv_cache.hpp"
 #include "core/tensor.hpp"
 
-namespace smart::ggml {
+namespace powerserve::ggml {
 
 struct GGMLKV {
 public:
@@ -162,4 +162,4 @@ private:
     void prepare_model_chunk();
 };
 
-} // namespace smart::ggml
+} // namespace powerserve::ggml

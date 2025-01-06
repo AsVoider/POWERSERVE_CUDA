@@ -3,11 +3,11 @@
 然后要在代码里显示地启用和停止tracing，例如：
 
 ```c++
-smart::PerfettoTrace::instance().start_tracing(32 * 1024); // 这里填的是缓冲区大小，单位KiB，需要大于最终导出的trace文件大小
-smart::TreeSpeculative spec(main_model, draft_model);
+powerserve::PerfettoTrace::instance().start_tracing(32 * 1024); // 这里填的是缓冲区大小，单位KiB，需要大于最终导出的trace文件大小
+powerserve::TreeSpeculative spec(main_model, draft_model);
 spec.generate(tokenizer, sampler, prompt, n_predicts);
 spec.print_stat();
-smart::PerfettoTrace::instance().stop_tracing("./perfetto.data"); // 最后会保存到perfetto.data文件
+powerserve::PerfettoTrace::instance().stop_tracing("./perfetto.data"); // 最后会保存到perfetto.data文件
 ```
 
 用`PerfettoTrace::begin`和`PerfettoTrace::end`标记开始和结束的位置，例如：

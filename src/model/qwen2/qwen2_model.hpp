@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-namespace smart {
+namespace powerserve {
 
 struct Qwen2Model : Model {
 public:
@@ -49,4 +49,4 @@ public:
     ) -> LogitsVector override;
 };
 
-} // namespace smart
+} // namespace powerserve

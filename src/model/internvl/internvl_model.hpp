@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-namespace smart {
+namespace powerserve {
 
 struct InternVL : Model {
 public:
@@ -54,4 +54,4 @@ public:
     ) -> LogitsVector override;
 };
 
-} // namespace smart
+} // namespace powerserve

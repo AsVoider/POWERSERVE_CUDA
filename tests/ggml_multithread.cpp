@@ -22,7 +22,7 @@
 #include <string>
 #include <unistd.h>
 
-using namespace smart;
+using namespace powerserve;
 
 int main() {
 

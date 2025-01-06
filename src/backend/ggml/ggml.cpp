@@ -25,7 +25,7 @@
 #include <cstring>
 #include <vector>
 
-namespace smart::ggml {
+namespace powerserve::ggml {
 
 void GGMLBackend::plan(std::vector<std::shared_ptr<OpNode>> &ops) {
     size_t max_work_size = 0;
@@ -78,7 +78,7 @@ void GGMLBackend::plan(std::vector<std::shared_ptr<OpNode>> &ops) {
         case OpType::RMS_NORM: {
         } break;
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
         case OpType::QNN_FORWARD: {
         } break;
         case OpType::QNN_FORWARD_VL: {
@@ -176,4 +176,4 @@ void GGMLBackend::transpose(const Tensor *out, const Tensor *x) const {
     out->get<CPUBuffer>().m_stride = stride;
 }
 
-} // namespace smart::ggml
+} // namespace powerserve::ggml

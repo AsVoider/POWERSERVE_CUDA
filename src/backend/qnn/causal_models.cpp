@@ -17,7 +17,7 @@
 #include "core/logger.hpp"
 #include "core/perfetto_trace.hpp"
 
-namespace smart::qnn {
+namespace powerserve::qnn {
 
 auto CausalLM::ChunkVector::get_chunk(size_t layer_id) -> ModelChunk & {
     for (auto &chunk_ptr : *this) {
@@ -343,4 +343,4 @@ CausalVLM::CausalVLM(const Path model_folder, const std::shared_ptr<ModelConfig>
     SMART_ASSERT(context_binary.m_alloc->unallocated_size() == 0);
     context_binary.m_context->free_system_context();
 }
-} // namespace smart::qnn
+} // namespace powerserve::qnn

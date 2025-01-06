@@ -6,7 +6,7 @@ CONTAINER_NAME=$5
 
 TARGET=$6
 if [ "${TARGET}" == "" ]; then
-    TARGET="smart-internvl2-1b"
+    TARGET="powerserve-internvl2-1b"
 fi
 
 SERVER_HOST=${DEVICE_HOST}
@@ -25,11 +25,11 @@ function clean() {
     source ./.gitlab/common.sh
     temp_disable_errexit try_twice 10 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
         echo '>>>>>>>>>>>> Stop server. <<<<<<<<<<<<';
-        sudo ps -e -o comm= | grep 'smart-' |xargs -n 1 echo;
-        sudo pkill smart-;
+        sudo ps -e -o comm= | grep 'powerserve-' |xargs -n 1 echo;
+        sudo pkill powerserve-;
         sleep 3;
         echo '>>>>>>>>>>>> Stop server over. <<<<<<<<<<<<';
-        sudo ps -e -o comm= | grep 'smart-' |xargs -n 1 echo
+        sudo ps -e -o comm= | grep 'powerserve-' |xargs -n 1 echo
     "
 }
 
@@ -43,7 +43,7 @@ set -x
 
 echo '>>>>>>>>>>>> Start server. <<<<<<<<<<<<';
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving server \
+    ${DEVICE_ROOT}/powerserve server \
     --host ${SERVER_HOST} \
     --port ${SERVER_PORT} \
     -d ${WORK_FOLDER} \
