@@ -18,6 +18,7 @@
 #include "core/typedefs.hpp"
 
 #include <random>
+#include <span>
 
 namespace smart {
 
@@ -39,7 +40,7 @@ struct ProbArray {
     bool m_is_sorted     = false; // Is sorted in descending order?
     bool m_is_normalized = false; // Does the sum of probs equal to 1?
 
-    ProbArray(const std::vector<float> &logits) {
+    ProbArray(std::span<const float> logits) {
         m_probs.resize(logits.size());
         for (size_t i = 0; i < logits.size(); i++) {
             m_probs[i].token = i;

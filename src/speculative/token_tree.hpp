@@ -37,7 +37,7 @@ struct TokenTree {
         const ModelPtr &target_model,
         const ModelPtr &draft_model,
         Sampler &sampler,
-        const std::vector<std::vector<float>> &logits,
+        std::vector<std::span<const float>> &logits,
         const EnqueueTokenFn &enqueue_token
     );
 

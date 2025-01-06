@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
         {
             const smart::CausalAttentionMask mask(tokens.size());
             const auto ret = model->forward(tokens, pos_list, mask, true);
-            for (const auto &logits : ret) {
+            for (auto logits : ret.logits_vector) {
                 auto probs = smart::ProbArray(logits);
                 if (batch_id >= PPL_START_ID && pos + 1 < n_tokens) {
                     if (pos != (PPL_START_ID - 1) * batch_size) { // skip the first token

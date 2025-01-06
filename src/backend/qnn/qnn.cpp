@@ -499,7 +499,7 @@ void Context::print_info() {
         SMART_LOG_INFO("Number of graphs: {}", info.numGraphs);
         SMART_LOG_INFO("Spill-fill buffer size: {:.3f} MiB", hw_blob_info.spillFillBufferSize / 1024.0 / 1024);
     } break;
-#if (QNN_API_VERSION_MINOR == 21)
+#if (QNN_API_VERSION_MINOR >= 21)
     case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_3: {
         auto &info = m_binary_info->contextBinaryInfoV3;
         SMART_LOG_INFO("Context core API version: {}", format_qnn_version(info.coreApiVersion));

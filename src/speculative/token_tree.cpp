@@ -153,13 +153,12 @@ void TokenTree::draft(const ModelPtr &draft_model, const Tokenizer &tokenizer, s
         node.cache_index = draft_model->kv_cache->position;
 
         PerfettoTrace::begin("draft_model_forward");
-        auto logits = draft_model->forward({node.token}, {node.position}, CausalAttentionMask(1));
+        auto ret = draft_model->forward({node.token}, {node.position}, CausalAttentionMask(1));
         PerfettoTrace::end();
 
         n_saved_tokens++;
         last_parent = u;
-
-        ProbArray probs(logits[0]);
+        ProbArray probs(ret.logits_vector[0]);
         draft_sampler.apply(probs);
         SMART_ASSERT(probs.m_is_normalized);
         SMART_ASSERT(probs.m_is_sorted);
@@ -188,11 +187,10 @@ void TokenTree::verify(
     const ModelPtr &target_model,
     const ModelPtr &draft_model,
     Sampler &sampler,
-    const std::vector<std::vector<float>> &logits,
+    std::vector<std::span<const float>> &logits,
     const EnqueueTokenFn &enqueue_token
 ) {
     SMART_ASSERT(target_model->kv_cache->position == draft_model->kv_cache->position);
-
     stat.n_iterations += 1;
 
     int u = 0;

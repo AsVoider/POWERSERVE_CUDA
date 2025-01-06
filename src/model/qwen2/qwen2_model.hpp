@@ -46,7 +46,7 @@ public:
         const std::vector<int> &pos,
         const CausalAttentionMask &mask,
         bool lm_head = true
-    ) -> std::vector<std::vector<float>> override;
+    ) -> LogitsVector override;
 };
 
 } // namespace smart

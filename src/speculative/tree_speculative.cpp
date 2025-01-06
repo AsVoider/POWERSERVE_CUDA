@@ -103,12 +103,12 @@ void TreeSpeculative::generate_tokens(const Tokenizer &tokenizer, Sampler &sampl
     CausalAttentionMask mask(draft_batch_size, token_tree.attention_mask());
 
     PerfettoTrace::begin("target_model_forward");
-    auto logits = target_model->forward(token_tree.tokens(), token_tree.positions(), mask);
+    auto ret = target_model->forward(token_tree.tokens(), token_tree.positions(), mask);
     PerfettoTrace::end();
 
     target_model->kv_cache->rollback_tokens(draft_batch_size);
 
-    token_tree.verify(target_model, draft_model, sampler, logits, [this](Token token) {
+    token_tree.verify(target_model, draft_model, sampler, ret.logits_vector, [this](Token token) {
         token_queue.push_back(token);
     });
 
