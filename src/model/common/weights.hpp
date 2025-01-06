@@ -30,7 +30,12 @@ protected:
         if (t == nullptr) {
             throw std::runtime_error(fmt::format("Failed to get tensor: {}", tensor_name));
         }
+
+#ifdef SMART_WITH_CUDA
+        return ggml_cuda::convert_from_ggml_with_data_copied(t);
+#else
         return ggml::convert_from_ggml(t);
+#endif
     }
 };
 

@@ -17,9 +17,9 @@ if (NOT MSVC)
     target_compile_options(smart_serving PRIVATE
         -Wall
         -Wextra
-        -Werror
+        # -Werror
 
-        -Wno-unused-function
+        # -Wno-unused-function
     )
 endif()
 

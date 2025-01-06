@@ -28,6 +28,10 @@ public:
         }
     }
 
+    Tensor(DataType dtype, Shape &&shape) : m_dtype(dtype), m_shape(std::move(shape)) {
+        SMART_ASSERT(shape.size() <= max_n_dims);
+    }
+
 public:
     size_t n_dims() const {
         for (size_t i = max_n_dims - 1; i > 0; i--) {

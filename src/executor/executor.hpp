@@ -28,6 +28,24 @@ private:
             tensor->m_data = CPUBuffer::create_buffer<T>(tensor->m_shape);
         }
     }
+
+    template <typename T>
+    void create_backend_buffer(std::shared_ptr<TensorNode> tensor) {
+        if (tensor->type == NodeType::TENSOR_VIEW) {
+
+        } else {
+            
+        }
+    }
+
+    // ! TODO: Core Function!!!!!!
+    void shed_op_to_backend() {
+
+    }
+
+    void convert_backend_buffer(Tensor &tensor) {
+        SMART_UNUSED(tensor);
+    }
 };
 
 } // namespace smart

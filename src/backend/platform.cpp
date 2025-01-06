@@ -30,5 +30,10 @@ void Platform::reset_kv_position(std::string &model_id) {
     }
 #endif
 }
+#ifdef SMART_WITH_CUDA
+void Platform::init_cuda_backend(const std::shared_ptr<LLMConfig> &config, const HyperParams &hparams) {
+    ggml_cuda_backend = std::make_unique<ggml_cuda::GGML_CUDABackend>(config, hparams);
+}
+#endif
 
 } // namespace smart

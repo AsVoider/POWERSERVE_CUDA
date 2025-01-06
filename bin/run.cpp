@@ -13,7 +13,7 @@
 int main(int argc, char *argv[]) {
     smart::print_timestamp();
 
-    std::string work_folder = "/home/zwb/SS/smartserving/";
+    std::string work_folder = "/mnt/gjx/models/llama3.1/";
     std::string prompt      = "";
     std::string prompt_file = "";
 
@@ -47,6 +47,11 @@ int main(int argc, char *argv[]) {
     }
     model->m_platform = std::make_shared<smart::Platform>();
     model->m_platform->init_ggml_backend(model->m_config, config->hyper_params);
+
+#ifdef SMART_WITH_CUDA
+    model->m_platform->init_cuda_backend(model->m_config, config->hyper_params);
+#endif
+
 #if defined(SMART_WITH_QNN)
     if (!no_qnn) {
         auto &qnn_backend = model->m_platform->qnn_backend;

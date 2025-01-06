@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
-project("SmartServing" C CXX)
+project("SmartServing" C CXX CUDA)
 
 option(SMART_ENABLE_ASAN "Enable address santizer" OFF)
 option(SMART_ENABLE_UBSAN "Enable undefined santizer" OFF)
 option(SMART_ENABLE_LTO "Enable link-time optimization" OFF)
 
 option(SMART_WITH_QNN "Enable QNN backend" OFF)
+option(SMART_WITH_CUDA "Enable CUDA backend" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -13,6 +14,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED true)
+set(CMAKE_CUDA_STANDARD 20)
+set(CMAKE_CUDA_STANDARD_REQUIRED true)
 
 # Remove -DNDEBUG from the default Release flags
 string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
