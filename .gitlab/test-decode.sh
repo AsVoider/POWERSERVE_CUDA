@@ -33,15 +33,12 @@ fi
 WORK_FOLDER="${DEVICE_ROOT}/${TARGET}"
 
 function help() {
-    echo "Usage: $0 <device_root> <device_url> <device_port> [-] [target] [use_qnn] [steps] [threads_num] [prompt_file]"
+    echo "Usage: $0 <device_root> <device_url> <device_port> [-] [target] [use_qnn]"
     exit 1
 }
 
 function clean() {
-    ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving hparams load -d ${WORK_FOLDER} -f ./hparams.old;
-        ${DEVICE_ROOT}/smartserving hparams get -d ${WORK_FOLDER};
-    "
+    echo "finish"
 }
 
 if [ $# -lt 3 ]; then
@@ -52,23 +49,17 @@ set -e
 trap clean EXIT
 
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving hparams store -d ${WORK_FOLDER} -f ./hparams.old;
-    ${DEVICE_ROOT}/smartserving hparams set -d ${WORK_FOLDER} -e n_predicts=${STEPS} n_threads=${THREADS_NUM} prompt_file=${PROMPT_FILE};
-    ${DEVICE_ROOT}/smartserving hparams get -d ${WORK_FOLDER};
-"
-
-ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
     echo '>>>>>>>>>>>> Run test. <<<<<<<<<<<<';
 "
 
 set -x
 if [ "${USE_QNN}" == "1" ]; then
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving run -d ${WORK_FOLDER};
+        export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ${WORK_FOLDER}/bin/smart-run -d ${WORK_FOLDER};
     "
 else
     ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving run -d ${WORK_FOLDER} --no-qnn;
+        ${WORK_FOLDER}/bin/smart-run -d ${WORK_FOLDER} --no-qnn -n 32;
     "
 fi
 set +x

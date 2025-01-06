@@ -1,6 +1,6 @@
 import argparse
-import os
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -63,7 +63,7 @@ def convert_model():
         # '--no_simplification',
         "--use_per_channel_quantization",
         "--use_per_row_quantization",
-        # '--keep_weights_quantized',
+        # "--keep_weights_quantized",
         "--param_quantizer_schema symmetric",
         "--act_quantizer_schema asymmetric",
         "--input_list",

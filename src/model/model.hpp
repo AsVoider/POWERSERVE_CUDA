@@ -1,3 +1,17 @@
+// Copyright 2024-2025 PowerServe Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #pragma once
 
 #include "backend/platform.hpp"
@@ -20,13 +34,13 @@ public:
         std::deque<Token> m_tokens = {};
 
         Model &m_model;
-        Tokenizer &m_tokenizer;
+        const Tokenizer &m_tokenizer;
         Sampler &m_sampler;
 
     public:
         TokenIterator(
             Model &model,
-            Tokenizer &tokenizer,
+            const Tokenizer &tokenizer,
             Sampler &sampler,
             const std::string &prompt,
             int steps,
@@ -102,20 +116,20 @@ public:
         }
     };
 
-    class TokenRange {
+    class TokenGenerator {
     public:
         size_t m_steps;
         std::string m_prompt;
         size_t m_batch_size;
 
         Model &m_model;
-        Tokenizer &m_tokenizer;
+        const Tokenizer &m_tokenizer;
         Sampler &m_sampler;
 
     public:
-        TokenRange(
+        TokenGenerator(
             Model &model,
-            Tokenizer &tokenizer,
+            const Tokenizer &tokenizer,
             Sampler &sampler,
             const std::string &prompt,
             int steps,
@@ -128,7 +142,7 @@ public:
             m_tokenizer(tokenizer),
             m_sampler(sampler) {}
 
-        ~TokenRange() = default;
+        ~TokenGenerator() = default;
 
     public:
         TokenIterator begin() const {
@@ -147,6 +161,7 @@ public:
     std::shared_ptr<Attention> m_attn;
     std::shared_ptr<FFN> m_ffn;
     std::shared_ptr<Platform> m_platform;
+    KVCacheInterface *kv_cache = nullptr;
 
 public:
     Model(const std::string &filename) :
@@ -170,8 +185,10 @@ public:
     virtual auto decode(Sampler &sampler, const std::vector<Token> tokens, const std::vector<int> pos, bool lm_head)
         -> std::vector<Token> = 0;
     virtual auto generate(
-        Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
-    ) -> TokenRange = 0;
+        const Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
+    ) -> TokenGenerator = 0;
 };
+
+using ModelPtr = std::shared_ptr<Model>;
 
 } // namespace smart

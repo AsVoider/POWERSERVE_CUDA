@@ -1,5 +1,3 @@
-add_subdirectory(common)
-
 add_library(smart_serving STATIC)
 target_include_directories(smart_serving PUBLIC .)
 
@@ -7,20 +5,25 @@ target_link_libraries(smart_serving PUBLIC
     fmt
     ggml
     llama_tokenizer
-    uv_a
     nlohmann_json::nlohmann_json
-
-    smart_serving.common
+    uv_a
 )
+
+if (SMART_WITH_PERFETTO)
+    target_link_libraries(smart_serving PRIVATE perfetto)
+endif()
 
 if (NOT MSVC)
     target_compile_options(smart_serving PRIVATE
         -Wall
         -Wextra
-        # -Werror
 
         # -Wno-unused-function
     )
+
+    if (SMART_ENABLE_WERROR)
+        target_compile_options(smart_serving PRIVATE -Werror)
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")

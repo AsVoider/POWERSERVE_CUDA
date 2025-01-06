@@ -1,41 +1,30 @@
+// Copyright 2024-2025 PowerServe Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "sampler.hpp"
 
 namespace smart {
 
-void ProbArray::normalize() {
-    double sum = 0.;
-    for (const auto &p : m_probs) {
-        sum += p.prob;
-    }
-
-    for (auto &p : m_probs) {
-        p.prob /= sum;
-    }
-    m_is_normalized = true;
-}
-
-void ProbArray::softmax() {
-    SMART_ASSERT(m_probs.size() > 0);
-    if (!m_is_sorted) {
-        std::sort(m_probs.begin(), m_probs.end(), std::greater<>());
-        m_is_sorted = true;
-    }
-
-    auto max_val = m_probs[0].prob;
-
-    for (auto &p : m_probs) {
-        p.prob = std::exp(p.prob - max_val);
-    }
-
-    normalize();
-}
-
 void TemperatureSampler::apply(ProbArray &probs) {
-    if (m_temperature > 0) {
-        // temperature scaling
+    SMART_ASSERT(m_temperature > 0);
+
+    if (m_temperature != 1) {
         for (auto &prob : probs.m_probs) {
             prob.prob /= m_temperature;
         }
+
+        probs.m_is_normalized = false;
     }
 }
 
@@ -58,9 +47,11 @@ void TopKSampler::apply(ProbArray &probs) {
         );
         probs.m_is_sorted = true;
     }
+
     if (k != probs.m_probs.size()) {
         probs.m_is_normalized = false;
     }
+
     probs.m_probs.resize(k);
 }
 
@@ -89,70 +80,20 @@ void TopPSampler::apply(ProbArray &probs) {
     if (last_idx != probs.m_probs.size()) {
         probs.m_is_normalized = false;
     }
+
     probs.m_probs.resize(last_idx);
 }
 
-void TemperatureExtSampler::apply(ProbArray &probs) {
-    if (m_delta > 0) {
-        const float min_temp = std::max(0.0f, m_temperature - m_delta);
-        const float max_temp = m_temperature + m_delta;
-        float exponent_val   = m_exponent;
-
-        // no need to do anything if there is only one (or zero) candidates
-        if (probs.m_probs.size() <= 1) {
-            return;
-        }
-
-        // Calculate maximum possible entropy
-        float max_entropy = -std::log(1.0f / probs.m_probs.size());
-
-        SMART_ASSERT(probs.m_is_normalized);
-        SMART_ASSERT(probs.m_is_sorted);
-
-        // Calculate entropy of the softmax probabilities
-        float entropy = 0.0f;
-        for (size_t i = 0; i < probs.m_probs.size(); ++i) {
-            float prob = probs.m_probs[i].prob;
-            if (prob > 0.0f) { // Ensure no log(0)
-                entropy -= prob * std::log(prob);
-            }
-        }
-
-        // Normalize the entropy (max_entropy cannot be 0 here because we checked cur_p->size != 1 above)
-        float normalized_entropy = entropy / max_entropy;
-
-        // Map the normalized entropy to the desired temperature range using the power function
-        float dyn_temp = min_temp + (max_temp - min_temp) * std::pow(normalized_entropy, exponent_val);
-
-        // Re-compute softmax probabilities after scaling logits with dynamic temperature
-        const double max_l_double = probs.m_probs[0].prob / dyn_temp;
-
-        for (size_t i = 0; i < probs.m_probs.size(); ++i) {
-            probs.m_probs[i].prob /= dyn_temp; // Apply the dynamically calculated temperature scaling
-            double p              = std::exp(probs.m_probs[i].prob - max_l_double);
-            probs.m_probs[i].prob = p; // Store the scaled probability
-        }
-
-        probs.normalize();
-
-    } else {
-        for (size_t i = 0; i < probs.m_probs.size(); ++i) {
-            probs.m_probs[i].prob /= m_temperature;
-        }
-        probs.m_is_normalized = false;
-    }
-}
-
-void PenaltyChecker::apply(ProbArray &probs) {
+void RepeatPenaltySampler::apply(ProbArray &probs) {
     if (m_ignore_eos) {
         // if ignore eos, set the logit of eos token to -INFINITY, so it will not be selected
         if (probs.m_probs.size() > (size_t)m_special_eos_id &&
-            probs.m_probs[m_special_eos_id].index == m_special_eos_id) {
+            probs.m_probs[m_special_eos_id].token == m_special_eos_id) {
             probs.m_probs[m_special_eos_id].prob = -INFINITY;
         } else {
             // search and set the logit of eos token to -INFINITY
             for (size_t i = 0; i < probs.m_probs.size(); ++i) {
-                if (probs.m_probs[i].index == m_special_eos_id) {
+                if (probs.m_probs[i].token == m_special_eos_id) {
                     probs.m_probs[i].prob = -INFINITY;
                     break;
                 }
@@ -172,14 +113,14 @@ void PenaltyChecker::apply(ProbArray &probs) {
         SMART_ASSERT(m_linefeed_id >= 0);
 
         // optimistically check if the candidates are not yet sorted/shuffled/truncated
-        if (probs.m_probs.size() > (size_t)m_linefeed_id && probs.m_probs[m_linefeed_id].index == m_linefeed_id) {
+        if (probs.m_probs.size() > (size_t)m_linefeed_id && probs.m_probs[m_linefeed_id].token == m_linefeed_id) {
             nl_found = true;
             nl_idx   = m_linefeed_id;
             nl_logit = probs.m_probs[m_linefeed_id].prob;
         } else {
             // else, search for the linefeed token
             for (size_t i = 0; i < probs.m_probs.size(); ++i) {
-                if (probs.m_probs[i].index == m_linefeed_id) {
+                if (probs.m_probs[i].token == m_linefeed_id) {
                     nl_found = true;
                     nl_idx   = i;
                     nl_logit = probs.m_probs[i].prob;
@@ -200,7 +141,7 @@ void PenaltyChecker::apply(ProbArray &probs) {
 
     // Apply frequency and presence penalties to the cur_p
     for (size_t i = 0; i < probs.m_probs.size(); ++i) {
-        const auto token_iter = token_count.find(probs.m_probs[i].index);
+        const auto token_iter = token_count.find(probs.m_probs[i].token);
         if (token_iter == token_count.end()) {
             continue;
         }
@@ -226,10 +167,21 @@ void PenaltyChecker::apply(ProbArray &probs) {
     }
 }
 
-void PenaltyChecker::accept(Token token) {
+void RepeatPenaltySampler::accept(Token token) {
     if (m_penalty_last_n > 0) {
         m_prev.push_back(token);
     }
+}
+
+StochasticSampler::StochasticSampler(uint64_t seed) : m_random_state(seed) {}
+
+void StochasticSampler::apply(ProbArray &probs) {
+    probs[0] = probs.stochastic_sample(m_random_state);
+
+    probs.resize(1);
+    probs[0].prob         = 1.0f;
+    probs.m_is_sorted     = true;
+    probs.m_is_normalized = true;
 }
 
 } // namespace smart

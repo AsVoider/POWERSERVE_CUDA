@@ -29,10 +29,7 @@ function help() {
 }
 
 function clean() {
-    ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving hparams load -d ${WORK_FOLDER} -f ./hparams.old;
-        ${DEVICE_ROOT}/smartserving hparams get -d ${WORK_FOLDER};
-    "
+    echo "pass"
 }
 
 if [ $# -lt 3 ]; then
@@ -42,11 +39,6 @@ fi
 set -e
 trap clean EXIT
 
-ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    ${DEVICE_ROOT}/smartserving hparams store -d ${WORK_FOLDER} -f ./hparams.old;
-    ${DEVICE_ROOT}/smartserving hparams set -d ${WORK_FOLDER} -e n_predicts=${STEPS} prompt_file=${PROMPT_FILE};
-    ${DEVICE_ROOT}/smartserving hparams get -d ${WORK_FOLDER};
-"
 
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
     echo '>>>>>>>>>>>> Run test. <<<<<<<<<<<<';
@@ -55,7 +47,7 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
 set -x
 if [ "${USE_QNN}" == "1" ]; then
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        ${DEVICE_ROOT}/smartserving speculate -d ${WORK_FOLDER};
+        export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ${WORK_FOLDER}/bin/smart-speculative -d ${WORK_FOLDER};
     "
 else
     echo "No support"

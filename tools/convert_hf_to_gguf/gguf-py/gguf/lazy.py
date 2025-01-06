@@ -1,7 +1,7 @@
 from __future__ import annotations
-from abc import ABC, ABCMeta, abstractmethod
 
 import logging
+from abc import ABC, ABCMeta, abstractmethod
 from typing import Any, Callable
 
 import numpy as np
@@ -18,8 +18,7 @@ class LazyMeta(ABCMeta):
             meta_attr = getattr(self._meta, name)
             if callable(meta_attr):
                 return type(self)._wrap_fn(
-                    (lambda s, *args, **kwargs: getattr(s, name)(*args, **kwargs)),
-                    use_self=self,
+                    (lambda s, *args, **kwargs: getattr(s, name)(*args, **kwargs)), use_self=self
                 )
             elif isinstance(meta_attr, self._tensor_type):
                 # e.g. self.T with torch.Tensor should still be wrapped
@@ -37,10 +36,10 @@ class LazyMeta(ABCMeta):
         def mk_wrap(op_name: str, *, meta_noop: bool = False):
             # need to wrap the wrapper to get self
             def wrapped_special_op(self, *args, **kwargs):
-                return type(self)._wrap_fn(
-                    getattr(type(self)._tensor_type, op_name),
-                    meta_noop=meta_noop,
-                )(self, *args, **kwargs)
+                return type(self)._wrap_fn(getattr(type(self)._tensor_type, op_name), meta_noop=meta_noop)(
+                    self, *args, **kwargs
+                )
+
             return wrapped_special_op
 
         # special methods bypass __getattr__, so they need to be added manually
@@ -48,20 +47,55 @@ class LazyMeta(ABCMeta):
         # NOTE: doing this from a metaclass is very convenient
         # TODO: make this even more comprehensive
         for binary_op in (
-            "lt", "le", "eq", "ne", "ge", "gt", "not"
-            "abs", "add", "and", "floordiv", "invert", "lshift", "mod", "mul", "matmul",
-            "neg", "or", "pos", "pow", "rshift", "sub", "truediv", "xor",
-            "iadd", "iand", "ifloordiv", "ilshift", "imod", "imul", "ior", "irshift", "isub", "ixor",
-            "radd", "rand", "rfloordiv", "rmul", "ror", "rpow", "rsub", "rtruediv", "rxor",
+            "lt",
+            "le",
+            "eq",
+            "ne",
+            "ge",
+            "gt",
+            "not" "abs",
+            "add",
+            "and",
+            "floordiv",
+            "invert",
+            "lshift",
+            "mod",
+            "mul",
+            "matmul",
+            "neg",
+            "or",
+            "pos",
+            "pow",
+            "rshift",
+            "sub",
+            "truediv",
+            "xor",
+            "iadd",
+            "iand",
+            "ifloordiv",
+            "ilshift",
+            "imod",
+            "imul",
+            "ior",
+            "irshift",
+            "isub",
+            "ixor",
+            "radd",
+            "rand",
+            "rfloordiv",
+            "rmul",
+            "ror",
+            "rpow",
+            "rsub",
+            "rtruediv",
+            "rxor",
         ):
             attr_name = f"__{binary_op}__"
             # the result of these operators usually has the same shape and dtype as the input,
             # so evaluation on the meta tensor can be skipped.
             namespace[attr_name] = mk_wrap(attr_name, meta_noop=True)
 
-        for special_op in (
-            "getitem", "setitem", "len",
-        ):
+        for special_op in ("getitem", "setitem", "len"):
             attr_name = f"__{special_op}__"
             namespace[attr_name] = mk_wrap(attr_name, meta_noop=False)
 
@@ -77,7 +111,15 @@ class LazyBase(ABC, metaclass=LazyMeta):
     _kwargs: dict[str, Any]
     _func: Callable[[Any], Any] | None
 
-    def __init__(self, *, meta: Any, data: Any | None = None, args: tuple = (), kwargs: dict[str, Any] | None = None, func: Callable[[Any], Any] | None = None):
+    def __init__(
+        self,
+        *,
+        meta: Any,
+        data: Any | None = None,
+        args: tuple = (),
+        kwargs: dict[str, Any] | None = None,
+        func: Callable[[Any], Any] | None = None,
+    ):
         super().__init__()
         self._meta = meta
         self._data = data
@@ -107,7 +149,13 @@ class LazyBase(ABC, metaclass=LazyMeta):
             return o
 
     @classmethod
-    def _wrap_fn(cls, fn: Callable, *, use_self: LazyBase | None = None, meta_noop: bool | DTypeLike | tuple[DTypeLike, Callable[[tuple[int, ...]], tuple[int, ...]]] = False) -> Callable[[Any], Any]:
+    def _wrap_fn(
+        cls,
+        fn: Callable,
+        *,
+        use_self: LazyBase | None = None,
+        meta_noop: bool | DTypeLike | tuple[DTypeLike, Callable[[tuple[int, ...]], tuple[int, ...]]] = False,
+    ) -> Callable[[Any], Any]:
         def wrapped_fn(*args, **kwargs):
             if kwargs is None:
                 kwargs = {}
@@ -145,6 +193,7 @@ class LazyBase(ABC, metaclass=LazyMeta):
                 # (e.g. the result of torch.equal)
                 eager_args = cls.to_eager(args)
                 return fn(*eager_args, **kwargs)
+
         return wrapped_fn
 
     @classmethod
@@ -175,7 +224,8 @@ class LazyBase(ABC, metaclass=LazyMeta):
     # must be overridden, meta tensor init is backend-specific
     @classmethod
     @abstractmethod
-    def meta_with_dtype_and_shape(cls, dtype: Any, shape: Any) -> Any: pass
+    def meta_with_dtype_and_shape(cls, dtype: Any, shape: Any) -> Any:
+        pass
 
     @classmethod
     def from_eager(cls, t: Any) -> Any:
@@ -203,8 +253,10 @@ class LazyNumpyTensor(LazyBase):
 
     def astype(self, dtype, *args, **kwargs):
         meta = type(self).meta_with_dtype_and_shape(dtype, self._meta.shape)
-        full_args = (self, dtype,) + args
-        return type(self)(meta=meta, args=full_args, kwargs=kwargs, func=(lambda a, *args, **kwargs: a.astype(*args, **kwargs)))
+        full_args = (self, dtype) + args
+        return type(self)(
+            meta=meta, args=full_args, kwargs=kwargs, func=(lambda a, *args, **kwargs: a.astype(*args, **kwargs))
+        )
 
     def tofile(self, *args, **kwargs):
         eager = LazyNumpyTensor.to_eager(self)

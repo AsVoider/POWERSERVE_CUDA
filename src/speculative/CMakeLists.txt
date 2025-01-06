@@ -1,3 +1,4 @@
 target_sources(smart_serving PRIVATE
-    "speculator.cpp"
+    "token_tree.cpp"
+    "tree_speculative.cpp"
 )

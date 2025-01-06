@@ -1,6 +1,20 @@
+// Copyright 2024-2025 PowerServe Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #pragma once
 
-#include "common/type_def.hpp"
+#include "core/typedefs.hpp"
 
 #include <cstdint>
 #include <string>
@@ -11,13 +25,14 @@ const std::string HYPER_PARAMS_FILENAME_KEY = "hparams_config";
 const std::string MAIN_MODEL_KEY            = "model_main";
 const std::string DRAFT_MODEL_KEY           = "model_draft";
 const std::string MODEL_CONFIG_FILENAME     = "model.json";
+const std::string MODEL_WEIGHTS_DIR         = "ggml";
 const std::string MODEL_WEIGHTS_FILENAME    = "weights.gguf";
 const std::string MODEL_VOCAB_FILENAME      = "vocab.gguf";
-const std::string ARTIFACT_CONFIG_FILENAME  = "artifact.json";
+const std::string WORKSPACE_CONFIG_FILENAME = "workspace.json";
 
 struct HyperParams {
     struct SamplerConfig {
-        uint64_t seed     = 0;
+        uint64_t seed     = 0; // 0 = randomly choose a new seed
         float temperature = 0.80f;
         float top_p       = 0.95f; // 1.0 = disabled
         size_t top_k      = 40;
@@ -31,10 +46,8 @@ struct HyperParams {
         bool ignore_eos       = false;
     } sampler_config;
 
-    size_t n_predicts  = 32;
-    size_t n_threads   = 4;
-    std::string prompt = "One day,";
-    size_t batch_size  = 128;
+    size_t n_threads  = 4;
+    size_t batch_size = 128;
 
     HyperParams() = default;
     HyperParams(const Path &params_file);

@@ -1,5 +1,6 @@
 import argparse
 
+
 try:
     import numpy as np
 
@@ -32,16 +33,8 @@ if __name__ == "__main__":
         lines1 = f1.readlines()
         lines2 = f2.readlines()
 
-    a = [
-        float(line.replace("\n", ""))
-        for line in lines1
-        if line.replace("\n", "").strip()
-    ]
-    b = [
-        float(line.replace("\n", ""))
-        for line in lines2
-        if line.replace("\n", "").strip()
-    ]
+    a = [float(line.replace("\n", "")) for line in lines1 if line.replace("\n", "").strip()]
+    b = [float(line.replace("\n", "")) for line in lines2 if line.replace("\n", "").strip()]
 
     assert len(a) == len(b), "two file's length must be equal!"
     print(cos_sim(a, b))

@@ -1,11 +1,26 @@
+// Copyright 2024-2025 PowerServe Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "qnn.hpp"
 
 #include "HTP/QnnHtpGraph.h"
 #include "HTP/QnnHtpMem.h"
 #include "HTP/QnnHtpSystemContext.h"
 #include "QnnContext.h"
-#include "common/logger.hpp"
-#include "common/type_def.hpp"
+#include "core/defines.hpp"
+#include "core/logger.hpp"
+#include "core/typedefs.hpp"
 #include "qnn_type_macros.hpp"
 #include "storage/file_loader.hpp"
 
@@ -380,8 +395,8 @@ Context::Context(Backend &backend, const Path &binary_file_path, ContextGroup *g
         binary_file_path
     );
 
-    /* 
-     * mmap binary 
+    /*
+     * mmap binary
      */
     m_binary_loader    = storage::build_file_loader(binary_file_path, DEFAULT_FILE_LOAD_METHOD);
     auto binary_buffer = m_binary_loader->get_buffer();

@@ -1,264 +1,18 @@
 import argparse
 import json
-import math
 import re
-import itertools
-from enum import Enum, auto
 from pathlib import Path
-from typing import Dict, List, Literal, NamedTuple, Optional, Tuple, Type, Union
+from typing import Dict, List, Literal, NamedTuple, Optional, Tuple, Union
 
 import onnx
-import safetensors
 import torch
+from graph_params import *
+from model_params import *
 from onnx import shape_inference
 from torch import nn
 from torch.nn.utils import skip_init
 from tqdm import tqdm
 from transformers import AutoTokenizer
-
-
-profile_prune_ffn = False
-prune_ffn_threshold = 1e-6
-perform_prune_ffn = False
-
-
-class ModelParams:
-    has_qkv_bias: bool
-    use_drelu: bool
-    tie_embedding: bool
-
-    n_layers: int
-    vocab_size: int
-    ffn_hidden_dim: int
-    head_dim: int
-    n_heads: int
-    n_kv_heads: int
-
-    rope_theta: float
-    rms_norm_eps: float
-    attention_mask_value: float
-
-    fp16_attention_layers: List[int]
-    fp16_ffn_layers: List[int]
-
-    @property
-    def embed_dim(self) -> int:
-        return self.head_dim * self.n_heads
-
-    @property
-    def group_size(self) -> int:
-        assert self.n_heads % self.n_kv_heads == 0
-        return self.n_heads // self.n_kv_heads
-
-
-class Llama3_1_8B_Params(ModelParams):
-    has_qkv_bias = False
-    use_drelu = False
-    tie_embedding = False
-
-    n_layers = 32
-    vocab_size = 128256
-    ffn_hidden_dim = 14336
-    head_dim = 128
-    n_heads = 32
-    n_kv_heads = 8
-
-    rope_theta = 5e5
-    rms_norm_eps = 1e-5
-    attention_mask_value = -1e5
-
-    fp16_attention_layers = []
-    fp16_ffn_layers = []
-
-
-class Llama3_2_1B_Params(ModelParams):
-    has_qkv_bias = False
-    use_drelu = False
-    tie_embedding = True
-
-    n_layers = 16
-    vocab_size = 128256
-    ffn_hidden_dim = 8192
-    head_dim = 64
-    n_heads = 32
-    n_kv_heads = 8
-
-    rope_theta = 5e5
-    rms_norm_eps = 1e-5
-    attention_mask_value = -1e5
-
-    fp16_attention_layers = []
-    fp16_ffn_layers = []
-
-
-class Llama2_7B_Params(ModelParams):
-    has_qkv_bias = False
-    use_drelu = False
-    tie_embedding = False
-
-    n_layers = 32
-    vocab_size = 32000
-    ffn_hidden_dim = 11008
-    head_dim = 128
-    n_heads = 32
-    n_kv_heads = 32
-
-    rope_theta = 10000.0
-    rms_norm_eps = 1e-5
-    attention_mask_value = -1e6
-
-    fp16_attention_layers = []
-    fp16_ffn_layers = []
-
-
-class Mistral_7B_Params(ModelParams):
-    has_qkv_bias = False
-    use_drelu = True
-    tie_embedding = False
-
-    n_layers = 32
-    vocab_size = 32000
-    ffn_hidden_dim = 14336
-    head_dim = 128
-    n_heads = 32
-    n_kv_heads = 8
-
-    rope_theta = 1e4
-    rms_norm_eps = 1e-5
-    attention_mask_value = -1e2
-
-    fp16_attention_layers = []
-    fp16_ffn_layers = []
-
-
-class Qwen2_7B_Params(ModelParams):
-    has_qkv_bias = True
-    use_drelu = True
-    # use_drelu = False
-    tie_embedding = False
-
-    n_layers = 28
-    vocab_size = 152064
-    ffn_hidden_dim = 18944
-    head_dim = 128
-    n_heads = 28
-    n_kv_heads = 4
-
-    rope_theta = 1e4
-    rms_norm_eps = 1e-6
-    attention_mask_value = -5e4
-
-    fp16_attention_layers = [0, 27]
-    fp16_ffn_layers = [27]
-
-
-class Qwen2_0_5B_Params(ModelParams):
-    has_qkv_bias = True
-    use_drelu = False
-    tie_embedding = True
-
-    n_layers = 24
-    vocab_size = 151936
-    ffn_hidden_dim = 4864
-    head_dim = 64
-    n_heads = 14
-    n_kv_heads = 2
-
-    rope_theta = 1e6
-    rms_norm_eps = 1e-6
-    attention_mask_value = -5e4
-
-    fp16_attention_layers = [0, 1, 2, 10, 23]
-    fp16_ffn_layers = [23]
-
-
-class SmallThinker_3B_Params(ModelParams):
-    has_qkv_bias = True
-    use_drelu = False
-    tie_embedding = True
-
-    n_layers = 36
-    vocab_size = 151936
-    ffn_hidden_dim = 11008
-    head_dim = 128
-    n_heads = 16
-    n_kv_heads = 2
-
-    rope_theta = 1e6
-    rms_norm_eps = 1e-6
-    attention_mask_value = -5e4
-
-    # fp16_attention_layers = list(range(36))
-    # fp16_ffn_layers = list(range(36))
-    fp16_attention_layers = [0, 27, 33]
-    fp16_ffn_layers = [2, 3, 4, 29, 30, 31, 32, 33, 34, 35]
-
-
-model_map: Dict[str, ModelParams] = {
-    "mistral_7b": Mistral_7B_Params,
-    "qwen2_7b": Qwen2_7B_Params,
-    "qwen2_0.5b": Qwen2_0_5B_Params,
-    "llama3_1_8b": Llama3_1_8B_Params,
-    "llama3_2_1b": Llama3_2_1B_Params,
-    "llama2_7b": Llama2_7B_Params,
-    "smallthinker_3b": SmallThinker_3B_Params,
-}
-
-
-class GraphParams:
-    batch_size: int
-    cache_size: int
-    context_size: int
-
-
-class Batch1_Params(GraphParams):
-    batch_size = 1
-    cache_size = 1920
-    context_size = 2048
-
-
-class Batch4_Params(GraphParams):
-    batch_size = 4
-    cache_size = 1920
-    context_size = 2048
-
-
-class Batch8_Params(GraphParams):
-    batch_size = 8
-    cache_size = 1920
-    context_size = 2048
-
-
-class Batch16_Params(GraphParams):
-    batch_size = 16
-    cache_size = 1920
-    context_size = 2048
-
-
-class Batch32_Params(GraphParams):
-    batch_size = 32
-    cache_size = 1920
-    context_size = 2048
-
-
-class Batch128_Params(GraphParams):
-    batch_size = 128
-    cache_size = 1920
-    context_size = 2048
-
-
-if profile_prune_ffn:
-    Batch128_Params.cache_size = 16384
-
-
-graph_map: Dict[str, GraphParams] = {
-    "batch_1": Batch1_Params,
-    "batch_4": Batch4_Params,
-    "batch_8": Batch8_Params,
-    "batch_16": Batch16_Params,
-    "batch_32": Batch32_Params,
-    "batch_128": Batch128_Params,
-}
 
 
 parser = argparse.ArgumentParser()
@@ -286,620 +40,7 @@ def export_json(obj, path: Path):
         json.dump(obj, f, indent=2)
 
 
-class ModelLoader:
-    """Helper class to load weight tensors from safetensors"""
-
-    def __init__(self, folder: Path):
-        """Load tensors from safetensor files and create a mapping between tensor names and tensors"""
-
-        self.tensor_map: Dict[str, torch.Tensor] = {}
-        for model_shard_file in folder.glob("*.safetensors"):
-            tensors = safetensors.safe_open(model_shard_file, "pt")
-            for name in tensors.keys():
-                self.tensor_map[name] = tensors.get_tensor(name)
-
-    def contain(self, name: str) -> bool:
-        return name in self.tensor_map
-
-    def load(self, dest: Union[nn.Module, torch.Tensor], name: str, transposed: bool = False):
-        """Look up tensor in tensor map and copy data to destination tensor"""
-
-        tensor = self.tensor_map[name]
-
-        target = None
-        if isinstance(dest, nn.Module):
-            target = dest.weight.data
-        elif isinstance(dest, torch.Tensor):
-            target = dest.data
-        else:
-            raise RuntimeError
-
-        if transposed:
-            tensor = tensor.T
-
-        assert target.shape == tensor.shape, f"Expect {tuple(target.shape)}, got {tuple(tensor.shape)}"
-        target.copy_(tensor.to(torch.float32))
-
-
-class Monitor:
-    def __init__(self, name: str):
-        self.name = name
-        self.enabled = True
-        self.history: List[float] = []
-
-    def disable(self):
-        self.enabled = False
-
-    def track(self, values: torch.Tensor):
-        assert len(values.shape) == 1
-        self.history.extend(values.tolist())
-
-    def track_norm(self, tensor: torch.Tensor):
-        if self.enabled:
-            self.track(tensor.norm(dim=-1))
-
-    def track_absolute_max(self, tensor: torch.Tensor):
-        if self.enabled:
-            self.track(tensor.abs().max(dim=-1).values)
-
-    def print(self, threshold: float = 100):
-        def format_value(value: float):
-            return f"{value:.1f}"
-
-        def format_item(item: Tuple[int, float]):
-            return f"({item[0]}, {item[1]:.1f})"
-
-        items_top5 = sorted(enumerate(self.history), key=lambda item: -item[1])[:5]
-        values_top5 = [value for _, value in items_top5]
-
-        if values_top5[0] < threshold:
-            return
-
-        items = ", ".join(map(format_item, items_top5))
-        values = ", ".join(map(format_value, values_top5))
-        print(f"NOTE: {self.name}: [{values}] [{items}]")
-
-    def disable_and_print(self):
-        self.disable()
-        self.print()
-
-
-class QLinearMode(Enum):
-    UNINITIALIZED = auto()
-    TRACKING = auto()
-    COMPUTED = auto()
-    FINALIZED = auto()
-
-
-class QLinear(nn.Linear):
-    """
-    QNN-style quantized linear layer.
-    16bit per-tensor asymmetric quantization for activations.
-    4bit per-channel symmetric quantization for weights.
-    Fake quantization performs quantize+dequantize to mimic the effect of quantization.
-    Actual computations still perform in FP32.
-    """
-
-    def __init__(self, in_features: int, out_features: int, bias: bool = True, device=None, dtype=None):
-        super().__init__(in_features, out_features, bias, device, dtype)
-        self.mode = QLinearMode.UNINITIALIZED
-
-    @staticmethod
-    def fake_quantize(x: torch.Tensor, bitwidth: int, symmetric: bool, per_channel: bool) -> torch.Tensor:
-        """Quantize to int, and then dequantize back to float"""
-
-        max_quant_value = 2 ** (bitwidth - 1) - 1
-
-        if per_channel:
-            assert symmetric
-            scales = x.abs().max(dim=1).values / max_quant_value
-            inverted_scales = 1 / scales
-            quants = (x * inverted_scales[:, None]).round().clamp(-max_quant_value, max_quant_value)
-            return quants * scales[:, None]
-        else:
-            if symmetric:
-                scale = x.abs().max() / max_quant_value
-                inverted_scale = 1 / scale
-                quants = (x * inverted_scale).round().clamp(-max_quant_value, max_quant_value)
-                return quants * scale
-            else:
-                x_max = x.max()
-                x_min = x.min()
-                zero = (x_max + x_min) / 2
-                scale = (x_max - zero) / max_quant_value
-
-                inverted_scale = 1 / scale
-                quants = ((x - zero) * inverted_scale).round().clamp(-max_quant_value, max_quant_value)
-
-        return quants * scale + zero
-
-    def fake_quantize_activation(self, x: torch.Tensor) -> torch.Tensor:
-        return self.fake_quantize(x, bitwidth=16, symmetric=False, per_channel=False)
-
-    @property
-    def uninitialized(self):
-        return self.mode == QLinearMode.UNINITIALIZED
-
-    @property
-    def tracking(self):
-        return self.mode == QLinearMode.TRACKING
-
-    @property
-    def computed(self):
-        return self.mode == QLinearMode.COMPUTED
-
-    @property
-    def finalized(self):
-        return self.mode == QLinearMode.FINALIZED
-
-    def enable_impl(self):
-        pass
-
-    def enable(self):
-        assert self.uninitialized
-        self.enable_impl()
-        self.mode = QLinearMode.TRACKING
-
-    def compute_impl(self):
-        self.original_weight = self.weight.clone()
-        self.weight.data.copy_(self.fake_quantize(self.weight, bitwidth=4, symmetric=True, per_channel=True))
-
-    def compute(self):
-        assert self.tracking
-        self.compute_impl()
-        self.mode = QLinearMode.COMPUTED
-
-    def finalize_impl(self):
-        self.weight.data = self.original_weight
-
-    def finalize(self):
-        assert self.computed
-        self.finalize_impl()
-        self.mode = QLinearMode.FINALIZED
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if self.computed:
-            x = self.fake_quantize_activation(x)
-        return super().forward(x)
-
-
-class LlamaRoPE(nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-
-    @staticmethod
-    def compute_embeds(
-        dim: int, start_position: int, end_position: int, theta: float
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        assert dim % 2 == 0
-        inv_freq = 1 / (theta ** (torch.arange(0, dim, 2, dtype=torch.float32) / dim))
-        t = torch.arange(start=start_position, end=end_position, dtype=torch.float32)
-        freqs = torch.einsum("i,j->ij", t, inv_freq).to(device)  # (n_positions, dim / 2)
-        return (freqs.cos(), freqs.sin())
-
-    def forward(self, x: torch.Tensor, rope_embeds: Tuple[torch.Tensor]) -> torch.Tensor:
-        rope_cos = rope_embeds[0]  # (batch_size, dim / 2)
-        rope_sin = rope_embeds[1]  # (batch_size, dim / 2)
-
-        head_dim = x.shape[-1]
-        x0 = x[:, : head_dim // 2]
-        x1 = x[:, head_dim // 2 :]
-        return torch.cat((x0 * rope_cos - x1 * rope_sin, x0 * rope_sin + x1 * rope_cos), dim=-1)
-
-
-class LlamaRMSNorm(nn.Module):
-    def __init__(self, embed_dim: int, eps: float):
-        super().__init__()
-        self.eps = eps
-        self.weight = nn.Parameter(torch.ones(embed_dim, dtype=torch.float32, device=device))
-
-    def normalize(self, x: torch.Tensor) -> torch.Tensor:
-        return x * torch.sqrt(x.pow(2).mean(-1, keepdim=True) + self.eps).reciprocal()
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.normalize(x) * self.weight
-
-
-class LlamaAttentionCore(nn.Module):
-    def __init__(self, layer_id: int, n_kv_heads: int, group_size: int, context_size: int):
-        super().__init__()
-        self.n_kv_heads = n_kv_heads
-        self.group_size = group_size
-        self.context_size = context_size
-        self.neg_inf = torch.tensor([-1e4], dtype=torch.float32, device=device)
-
-        self.score_monitors = [Monitor(f"attn_{layer_id}_head_{i}.score") for i in range(n_kv_heads)]
-
-    def forward(
-        self,
-        queries: List[torch.Tensor],
-        keys: List[torch.Tensor],
-        key_t_caches: List[torch.Tensor],
-        values: List[torch.Tensor],
-        value_caches: List[torch.Tensor],
-        attn_bias: torch.Tensor,
-        kq_scale: float,
-    ) -> torch.Tensor:
-        n_heads = len(queries)
-        assert len(keys) == self.n_kv_heads
-        assert self.n_kv_heads * self.group_size == n_heads
-
-        batch_size = values[0].shape[0]
-        cache_size = value_caches[0].shape[0]
-        kv_pad_size = self.context_size - batch_size - cache_size
-
-        scaled_keys = []
-        scaled_values = []
-        head_outs = []
-        for i in range(self.n_kv_heads):
-            scaled_key = keys[i] * kq_scale
-            scaled_value = torch.max(values[i], self.neg_inf)  # No scaling
-            scaled_keys.append(scaled_key)
-            scaled_values.append(scaled_value)
-
-            scaled_key_t = scaled_key.transpose(0, 1)
-            padded_key_t = nn.functional.pad(scaled_key_t, (0, kv_pad_size))
-            padded_value = nn.functional.pad(scaled_value, (0, 0, 0, kv_pad_size))
-
-            all_keys_t = torch.cat((key_t_caches[i], padded_key_t), dim=-1)
-            all_values = torch.cat((value_caches[i], padded_value), dim=-2)
-
-            for query in queries[i * self.group_size : (i + 1) * self.group_size]:
-                score = query @ all_keys_t
-                self.score_monitors[i].track_absolute_max(score)
-
-                score = score + attn_bias
-                score = score.softmax(dim=-1)
-                out = score @ all_values
-                head_outs.append(out)
-
-        out = torch.cat(head_outs, dim=-1)
-        return out, scaled_keys, scaled_values
-
-
-class LlamaAttention(nn.Module):
-    def __init__(
-        self,
-        layer_id: int,
-        embed_dim: int,
-        n_heads: int,
-        n_kv_heads: int,
-        context_size: int,
-        has_qkv_bias: bool,
-        rms_norm_eps: float,
-        linear_class: Type[nn.Linear],
-    ):
-        super().__init__()
-        self.layer_id = layer_id
-        self.embed_dim = embed_dim
-        self.n_heads = n_heads
-        self.n_kv_heads = n_kv_heads
-        self.has_qkv_bias = has_qkv_bias
-
-        assert embed_dim % n_heads == 0
-        assert n_heads % n_kv_heads == 0
-        self.head_dim = embed_dim // n_heads
-        self.group_size = n_heads // n_kv_heads
-
-        self.norm = LlamaRMSNorm(embed_dim=embed_dim, eps=rms_norm_eps)
-        self.rope = LlamaRoPE()
-        self.core = LlamaAttentionCore(
-            layer_id=layer_id, n_kv_heads=n_kv_heads, group_size=self.group_size, context_size=context_size
-        )
-
-        self.q_heads = nn.ModuleList([
-            skip_init(
-                linear_class,
-                in_features=embed_dim,
-                out_features=self.head_dim,
-                bias=has_qkv_bias,
-                dtype=torch.float32,
-                device=device,
-            )
-            for _ in range(n_heads)
-        ])
-        self.k_heads = nn.ModuleList([
-            skip_init(
-                linear_class,
-                in_features=embed_dim,
-                out_features=self.head_dim,
-                bias=has_qkv_bias,
-                dtype=torch.float32,
-                device=device,
-            )
-            for _ in range(n_kv_heads)
-        ])
-        self.v_heads = nn.ModuleList([
-            skip_init(
-                linear_class,
-                in_features=embed_dim,
-                out_features=self.head_dim,
-                bias=has_qkv_bias,
-                dtype=torch.float32,
-                device=device,
-            )
-            for _ in range(n_kv_heads)
-        ])
-        self.o_proj = skip_init(
-            linear_class, in_features=embed_dim, out_features=embed_dim, bias=False, dtype=torch.float32, device=device
-        )
-
-        self.key_monitors = [Monitor(f"attn_{layer_id}_head_{i}.key") for i in range(n_kv_heads)]
-        self.value_monitors = [Monitor(f"attn_{layer_id}_head_{i}.value") for i in range(n_kv_heads)]
-        self.output_monitor = Monitor(f"attn_{layer_id}.output")
-
-    def load_weights(self, loader: ModelLoader):
-        loader.load(self.norm, f"model.layers.{self.layer_id}.input_layernorm.weight")
-
-        wq = torch.empty(self.embed_dim, self.embed_dim, dtype=torch.float32, device=device)
-        loader.load(wq, f"model.layers.{self.layer_id}.self_attn.q_proj.weight")
-        if self.has_qkv_bias:
-            bq = torch.empty(self.embed_dim, dtype=torch.float32, device=device)
-            loader.load(bq, f"model.layers.{self.layer_id}.self_attn.q_proj.bias")
-
-        for i in range(self.n_heads):
-            self.q_heads[i].weight.data.copy_(wq[i * self.head_dim : (i + 1) * self.head_dim, :])
-            if self.has_qkv_bias:
-                self.q_heads[i].bias.data.copy_(bq[i * self.head_dim : (i + 1) * self.head_dim])
-
-        wk = torch.empty(self.head_dim * self.n_kv_heads, self.embed_dim, dtype=torch.float32, device=device)
-        loader.load(wk, f"model.layers.{self.layer_id}.self_attn.k_proj.weight")
-        if self.has_qkv_bias:
-            bk = torch.empty(self.head_dim * self.n_kv_heads, dtype=torch.float32, device=device)
-            loader.load(bk, f"model.layers.{self.layer_id}.self_attn.k_proj.bias")
-
-        for i in range(self.n_kv_heads):
-            self.k_heads[i].weight.data.copy_(wk[i * self.head_dim : (i + 1) * self.head_dim, :])
-            if self.has_qkv_bias:
-                self.k_heads[i].bias.data.copy_(bk[i * self.head_dim : (i + 1) * self.head_dim])
-
-        wv = torch.empty(self.head_dim * self.n_kv_heads, self.embed_dim, dtype=torch.float32, device=device)
-        loader.load(wv, f"model.layers.{self.layer_id}.self_attn.v_proj.weight")
-        if self.has_qkv_bias:
-            bv = torch.empty(self.head_dim * self.n_kv_heads, dtype=torch.float32, device=device)
-            loader.load(bv, f"model.layers.{self.layer_id}.self_attn.v_proj.bias")
-
-        for i in range(self.n_kv_heads):
-            self.v_heads[i].weight.data.copy_(wv[i * self.head_dim : (i + 1) * self.head_dim, :])
-            if self.has_qkv_bias:
-                self.v_heads[i].bias.data.copy_(bv[i * self.head_dim : (i + 1) * self.head_dim])
-
-        loader.load(self.o_proj, f"model.layers.{self.layer_id}.self_attn.o_proj.weight")
-
-    def disable_monitors(self):
-        for i in range(self.n_kv_heads):
-            self.core.score_monitors[i].disable_and_print()
-            self.key_monitors[i].disable_and_print()
-            self.value_monitors[i].disable_and_print()
-
-        self.output_monitor.disable_and_print()
-
-    def forward(
-        self,
-        x: torch.Tensor,  # (batch_size, embed_dim)
-        key_t_caches: Tuple[torch.Tensor],  # Transposed keys: (head_dim, cache_size) * n_kv_heads
-        value_caches: Tuple[torch.Tensor],  # (cache_size, head_dim) * n_kv_heads
-        attn_bias: torch.Tensor,  # (batch_size, context_size)
-        rope_embeds: Tuple[torch.Tensor],  # (batch_size, head_dim / 2) * 2
-    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor], Tuple[torch.Tensor]]:
-        """Returns the attention output, keys and values of input x"""
-
-        attn_input = self.norm(x)
-        queries = [self.rope(q_head(attn_input), rope_embeds) for q_head in self.q_heads]
-        keys = [self.rope(k_head(attn_input), rope_embeds) for k_head in self.k_heads]
-        values = [v_head(attn_input) for v_head in self.v_heads]
-
-        for key, monitor in zip(keys, self.key_monitors):
-            monitor.track_norm(key)
-        for value, monitor in zip(values, self.value_monitors):
-            monitor.track_norm(value)
-
-        out, scaled_keys, scaled_values = self.core(
-            queries, keys, key_t_caches, values, value_caches, attn_bias, kq_scale=(1 / math.sqrt(self.head_dim))
-        )
-
-        out = self.o_proj(out)
-
-        self.output_monitor.track_norm(out)
-
-        return out + x, tuple(scaled_keys), tuple(scaled_values)
-
-
-class LlamaFeedForward(nn.Module):
-    def __init__(
-        self,
-        layer_id: int,
-        embed_dim: int,
-        ffn_hidden_dim: int,
-        rms_norm_eps: float,
-        linear_class: Type[nn.Linear],
-        use_drelu: bool,
-        n_shards: int = 1,
-    ):
-        super().__init__()
-        self.layer_id = layer_id
-        self.embed_dim = embed_dim
-
-        if perform_prune_ffn:
-            with open(f"prune/ffn_{layer_id}.txt", "r") as f:
-                self.mask = f.read().strip()
-                assert len(self.mask) == ffn_hidden_dim
-                ffn_hidden_dim = sum(1 for x in self.mask if x == "1")
-
-        self.ffn_hidden_dim = ffn_hidden_dim
-        self.n_shards = n_shards
-        assert ffn_hidden_dim % n_shards == 0
-        self.shard_dim = ffn_hidden_dim // n_shards
-        self.use_drelu = use_drelu
-
-        self.norm = LlamaRMSNorm(embed_dim=embed_dim, eps=rms_norm_eps)
-
-        if use_drelu:
-            self.relu = nn.ReLU()
-        else:
-            self.silu = nn.SiLU()
-
-        self.gate_shards = nn.ModuleList([
-            skip_init(
-                linear_class,
-                in_features=embed_dim,
-                out_features=self.shard_dim,
-                bias=False,
-                dtype=torch.float32,
-                device=device,
-            )
-            for _ in range(n_shards)
-        ])
-        self.up_shards = nn.ModuleList([
-            skip_init(
-                linear_class,
-                in_features=embed_dim,
-                out_features=self.shard_dim,
-                bias=False,
-                dtype=torch.float32,
-                device=device,
-            )
-            for _ in range(n_shards)
-        ])
-        self.down_shards = nn.ModuleList([
-            skip_init(
-                linear_class,
-                in_features=self.shard_dim,
-                out_features=embed_dim,
-                bias=False,
-                dtype=torch.float32,
-                device=device,
-            )
-            for _ in range(n_shards)
-        ])
-
-        self.output_monitor = Monitor(f"ffn_{layer_id}.output")
-
-        if profile_prune_ffn:
-            self.n_activation_samples = 0
-            self.activation_count = torch.zeros(ffn_hidden_dim, dtype=torch.int32, device=device)
-
-    def load_weights(self, loader: ModelLoader):
-        loader.load(self.norm, f"model.layers.{self.layer_id}.post_attention_layernorm.weight")
-
-        if perform_prune_ffn:
-            original_ffn_hidden_dim = len(self.mask)
-        else:
-            original_ffn_hidden_dim = self.ffn_hidden_dim
-
-        gate_proj = torch.empty((original_ffn_hidden_dim, self.embed_dim), dtype=torch.float32, device=device)
-        up_proj = torch.empty((original_ffn_hidden_dim, self.embed_dim), dtype=torch.float32, device=device)
-        down_proj = torch.empty((self.embed_dim, original_ffn_hidden_dim), dtype=torch.float32, device=device)
-
-        loader.load(gate_proj, f"model.layers.{self.layer_id}.mlp.gate_proj.weight")
-        loader.load(up_proj, f"model.layers.{self.layer_id}.mlp.up_proj.weight")
-        loader.load(down_proj, f"model.layers.{self.layer_id}.mlp.down_proj.weight")
-
-        if perform_prune_ffn:
-            mask = torch.zeros(len(self.mask), dtype=torch.bool)
-            for i, x in enumerate(self.mask):
-                if x == "1":
-                    mask[i] = True
-
-            gate_proj = gate_proj[mask, :]
-            up_proj = up_proj[mask, :]
-            down_proj = down_proj[:, mask]
-            print(f"FFN #{self.layer_id} removed {original_ffn_hidden_dim - self.ffn_hidden_dim} rows")
-
-        for i in range(self.n_shards):
-            self.gate_shards[i].weight.data.copy_(gate_proj[i * self.shard_dim : (i + 1) * self.shard_dim, :])
-            self.up_shards[i].weight.data.copy_(up_proj[i * self.shard_dim : (i + 1) * self.shard_dim, :])
-            self.down_shards[i].weight.data.copy_(down_proj[:, i * self.shard_dim : (i + 1) * self.shard_dim])
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        ffn_input = self.norm(x)
-
-        outs = []
-        for i in range(self.n_shards):
-            gate = self.gate_shards[i](ffn_input)
-            if self.use_drelu:
-                gate = self.relu(gate)
-            else:
-                gate = self.silu(gate)
-
-            up = self.up_shards[i](ffn_input)
-            if self.use_drelu:
-                up = self.relu(up)
-
-            out = gate * up
-
-            if profile_prune_ffn:
-                self.n_activation_samples += out.shape[0]
-                self.activation_count.add_((out > prune_ffn_threshold).to(torch.int32).sum(dim=0))
-
-            out = self.down_shards[i](out)
-            outs.append(out)
-
-        # Reduce like a binary tree
-        k = 1
-        while k < len(outs):
-            for i in range(0, len(outs), 2 * k):
-                outs[i] = outs[i] + outs[i + k]
-            k *= 2
-        out = outs[0]
-
-        self.output_monitor.track_norm(out)
-
-        return out + x
-
-
-class LlamaTransformer(nn.Module):
-    def __init__(
-        self,
-        layer_id: int,
-        embed_dim: int,
-        n_heads: int,
-        n_kv_heads: int,
-        context_size: int,
-        ffn_hidden_dim: int,
-        rms_norm_eps: float,
-        has_qkv_bias: bool,
-        use_drelu: bool,
-        attention_linear_class: Type[nn.Linear],
-        ffn_linear_class: Type[nn.Linear],
-    ):
-        super().__init__()
-        self.layer_id = layer_id
-
-        self.attn = LlamaAttention(
-            layer_id=layer_id,
-            embed_dim=embed_dim,
-            n_heads=n_heads,
-            n_kv_heads=n_kv_heads,
-            context_size=context_size,
-            has_qkv_bias=has_qkv_bias,
-            rms_norm_eps=rms_norm_eps,
-            linear_class=attention_linear_class,
-        )
-        self.ffn = LlamaFeedForward(
-            layer_id=layer_id,
-            embed_dim=embed_dim,
-            ffn_hidden_dim=ffn_hidden_dim,
-            rms_norm_eps=rms_norm_eps,
-            linear_class=ffn_linear_class,
-            use_drelu=use_drelu,
-        )
-
-    def load_weights(self, loader: ModelLoader):
-        self.attn.load_weights(loader)
-        self.ffn.load_weights(loader)
-
-    def forward(
-        self,
-        x: torch.Tensor,
-        key_t_caches: Tuple[torch.Tensor],
-        value_caches: Tuple[torch.Tensor],
-        attn_bias: torch.Tensor,
-        rope_embeds: Tuple[torch.Tensor],
-    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor], Tuple[torch.Tensor]]:
-        attn_out, keys, values = self.attn(x, key_t_caches, value_caches, attn_bias, rope_embeds)
-        ffn_out = self.ffn(attn_out)
-        return ffn_out, keys, values
+from llama_model import *
 
 
 class Sample(NamedTuple):
@@ -1013,150 +154,6 @@ class ExportableModule(nn.Module):
     ) -> Tuple[torch.Tensor]:
         raise RuntimeError
 
-    def disable_monitors(self):
-        pass
-
-
-class LlamaAttentionWithGateProj(ExportableModule, KVCache):
-    def __init__(
-        self,
-        layer_id: int,
-        embed_dim: int,
-        n_heads: int,
-        n_kv_heads: int,
-        has_qkv_bias: bool,
-        rms_norm_eps: float,
-        ffn_hidden_dim: int,
-        cache_size: int,
-        attention_linear_class: Type[nn.Linear],
-        ffn_linear_class: Type[nn.Linear],
-    ):
-        super().__init__("attn_gate", layer_id, layer_id + 1)
-        self.layer_id = layer_id
-        self.n_kv_heads = n_kv_heads
-
-        self.attn = LlamaAttention(
-            layer_id=layer_id,
-            embed_dim=embed_dim,
-            n_heads=n_heads,
-            n_kv_heads=n_kv_heads,
-            has_qkv_bias=has_qkv_bias,
-            rms_norm_eps=rms_norm_eps,
-            linear_class=attention_linear_class,
-        )
-        self.ffn_norm = LlamaRMSNorm(embed_dim=embed_dim, eps=rms_norm_eps)
-        self.gate_proj = skip_init(
-            ffn_linear_class,
-            in_features=embed_dim,
-            out_features=ffn_hidden_dim,
-            bias=False,
-            dtype=torch.float32,
-            device=device,
-        )
-        self.relu = nn.ReLU()
-
-        self.init_kv_caches(
-            start_layer_id=layer_id,
-            end_layer_id=(layer_id + 1),
-            n_kv_heads=n_kv_heads,
-            head_dim=(embed_dim // n_heads),
-            cache_size=cache_size,
-        )
-
-    @property
-    def input_names(self) -> List[str]:
-        return ["x", "attn_bias", "rope_embed_cos", "rope_embed_sin", *self.kv_cache_names]
-
-    @property
-    def output_names(self) -> List[str]:
-        return ["attn_out", "ffn_input", "gate_out", *self.kv_names]
-
-    @property
-    def dtype_preserved_io_names(self) -> List[str]:
-        return ["x", "attn_out", "ffn_input", "gate_out", "rope_embed_cos", "rope_embed_sin"]
-
-    def load_weights(self, loader: ModelLoader):
-        self.attn.load_weights(loader)
-        loader.load(self.ffn_norm, f"model.layers.{self.layer_id}.post_attention_layernorm.weight")
-        loader.load(self.gate_proj, f"model.layers.{self.layer_id}.mlp.gate_proj.weight")
-
-    def disable_monitors(self):
-        self.attn.disable_monitors()
-
-    def get_inputs(
-        self, last_outputs: Tuple[torch.Tensor], attn_bias: torch.Tensor, rope_embeds: Tuple[torch.Tensor]
-    ) -> Tuple[torch.Tensor]:
-        return (last_outputs[0], attn_bias, rope_embeds[0], rope_embeds[1], *self.kv_caches)
-
-    def forward(
-        self,
-        x: torch.Tensor,
-        attn_bias: torch.Tensor,
-        rope_embed_cos: torch.Tensor,
-        rope_embed_sin: torch.Tensor,
-        *caches: torch.Tensor,
-    ) -> torch.Tensor:
-        key_t_caches = caches[: self.n_kv_heads]
-        value_caches = caches[self.n_kv_heads :]
-
-        attn_out, keys, values = self.attn(x, key_t_caches, value_caches, attn_bias, (rope_embed_cos, rope_embed_sin))
-
-        ffn_input = self.ffn_norm(attn_out)
-        gate_out = self.relu(self.gate_proj(ffn_input))
-
-        return attn_out, ffn_input, gate_out, *keys, *values
-
-
-class LlamaUpDownProj(ExportableModule):
-    def __init__(self, layer_id: int, embed_dim: int, ffn_hidden_dim: int, linear_class: Type[nn.Linear]):
-        super().__init__("up_down", layer_id, layer_id + 1)
-        self.layer_id = layer_id
-
-        self.up_proj = skip_init(
-            linear_class,
-            in_features=embed_dim,
-            out_features=ffn_hidden_dim,
-            bias=False,
-            dtype=torch.float32,
-            device=device,
-        )
-        self.down_proj = skip_init(
-            linear_class,
-            in_features=ffn_hidden_dim,
-            out_features=embed_dim,
-            bias=False,
-            dtype=torch.float32,
-            device=device,
-        )
-        self.relu = nn.ReLU()
-
-    @property
-    def input_names(self) -> List[str]:
-        return ["attn_out", "ffn_input", "gate_out"]
-
-    @property
-    def output_names(self) -> List[str]:
-        return ["ffn_out"]
-
-    @property
-    def dtype_preserved_io_names(self) -> List[str]:
-        return ["attn_out", "ffn_input", "gate_out", "ffn_out"]
-
-    def load_weights(self, loader: ModelLoader):
-        loader.load(self.up_proj, f"model.layers.{self.layer_id}.mlp.up_proj.weight")
-        loader.load(self.down_proj, f"model.layers.{self.layer_id}.mlp.down_proj.weight")
-
-    def get_inputs(
-        self, last_outputs: Tuple[torch.Tensor], attn_bias: torch.Tensor, rope_embeds: Tuple[torch.Tensor]
-    ) -> Tuple[torch.Tensor]:
-        return last_outputs[:3]
-
-    def forward(self, attn_out: torch.Tensor, ffn_input: torch.Tensor, gate_out: torch.Tensor) -> torch.Tensor:
-        up_out = self.relu(self.up_proj(ffn_input))
-        out = gate_out * up_out
-        out = self.down_proj(out)
-        return attn_out + out
-
 
 class LlamaModelChunk(ExportableModule, KVCache):
     """A model chunk consists of consecutive transformer layers"""
@@ -1174,30 +171,53 @@ class LlamaModelChunk(ExportableModule, KVCache):
         has_qkv_bias: bool,
         use_drelu: bool,
         cache_size: int,
-        fp16_attention_layers: List[int],
-        fp16_ffn_layers: List[int],
+        n_fp16_heads: int | dict[int, int],
+        n_fp16_neurons: int | dict[int, int],
+        stat_folder: Path,
     ):
         super().__init__("transformers", start_layer_id, end_layer_id)
         self.n_kv_heads = n_kv_heads
 
-        self.layers = nn.ModuleList([
-            LlamaTransformer(
-                layer_id=layer_id,
-                embed_dim=embed_dim,
-                n_heads=n_heads,
-                n_kv_heads=n_kv_heads,
-                context_size=context_size,
-                ffn_hidden_dim=ffn_hidden_dim,
-                rms_norm_eps=rms_norm_eps,
-                has_qkv_bias=has_qkv_bias,
-                use_drelu=use_drelu,
-                # attention_linear_class=(nn.Linear if layer_id in fp16_attention_layers else GPTQLinear),
-                # ffn_linear_class=(nn.Linear if layer_id in fp16_ffn_layers else GPTQLinear),
-                attention_linear_class=nn.Linear,
-                ffn_linear_class=nn.Linear,
+        self.layers = nn.ModuleList()
+        for layer_id in range(start_layer_id, end_layer_id):
+            if isinstance(n_fp16_heads, int):
+                cur_n_fp16_heads = n_fp16_heads
+            else:
+                cur_n_fp16_heads = n_fp16_heads[layer_id]
+
+            if isinstance(n_fp16_neurons, int):
+                cur_n_fp16_neurons = n_fp16_neurons
+            else:
+                cur_n_fp16_neurons = n_fp16_neurons[layer_id]
+
+            if stat_folder.exists():
+                assert stat_folder.is_dir()
+                with open(stat_folder / f"attn_{layer_id}_stat.json", "r") as f:
+                    attn_head_ids = json.load(f)
+                    attn_head_ids = attn_head_ids[:cur_n_fp16_heads]
+                with open(stat_folder / f"ffn_{layer_id}_stat.json", "r") as f:
+                    ffn_neuron_ids = json.load(f)
+                    ffn_neuron_ids = ffn_neuron_ids[:cur_n_fp16_neurons]
+            else:
+                attn_head_ids = list(range(cur_n_fp16_heads))
+                ffn_neuron_ids = list(range(cur_n_fp16_neurons))
+
+            self.layers.append(
+                LlamaTransformer(
+                    layer_id=layer_id,
+                    embed_dim=embed_dim,
+                    n_heads=n_heads,
+                    n_kv_heads=n_kv_heads,
+                    context_size=context_size,
+                    ffn_hidden_dim=ffn_hidden_dim,
+                    rms_norm_eps=rms_norm_eps,
+                    has_qkv_bias=has_qkv_bias,
+                    use_drelu=use_drelu,
+                    fp16_head_ids=attn_head_ids,
+                    fp16_neuron_ids=ffn_neuron_ids,
+                    device=device,
+                )
             )
-            for layer_id in range(start_layer_id, end_layer_id)
-        ])
 
         self.init_kv_caches(
             start_layer_id=start_layer_id,
@@ -1230,27 +250,6 @@ class LlamaModelChunk(ExportableModule, KVCache):
     def load_weights(self, loader: ModelLoader):
         for layer in self.layers:
             layer.load_weights(loader)
-
-    def disable_monitors(self):
-        for layer in self.layers:
-            layer.attn.disable_monitors()
-            layer.ffn.output_monitor.disable_and_print()
-
-    def enable_quantization(self):
-        for module in self.modules():
-            if isinstance(module, QLinear):
-                module.enable()
-
-    def compute_quantization(self):
-        modules = list(item for item in self.named_modules() if isinstance(item[1], QLinear))
-        for name, module in (bar := tqdm(modules)):
-            bar.set_description(f'{module.__class__.__name__} "{name}"')
-            module.compute()
-
-    def finalize_quantization(self):
-        for module in self.modules():
-            if isinstance(module, QLinear):
-                module.finalize()
 
     def get_inputs(
         self, last_outputs: Tuple[torch.Tensor], attn_bias: torch.Tensor, rope_embeds: Tuple[torch.Tensor]
@@ -1300,7 +299,7 @@ class LlamaOutputEmbedding(nn.Module):
     def __init__(self, vocab_size: int, embed_dim: int, rms_norm_eps: float):
         super().__init__()
 
-        self.norm = LlamaRMSNorm(embed_dim=embed_dim, eps=rms_norm_eps)
+        self.norm = LlamaRMSNorm(embed_dim=embed_dim, eps=rms_norm_eps, device=device)
         self.output_proj = skip_init(
             nn.Linear, in_features=embed_dim, out_features=vocab_size, bias=False, dtype=torch.float32, device=device
         )
@@ -1432,6 +431,7 @@ class LlamaModel(nn.Module):
             start_position=self.kv_cache_position,
             end_position=self.kv_cache_position + batch_size,
             theta=self.model_params.rope_theta,
+            device=device,
         )
 
         for model_chunk in self.model_chunks:
@@ -1493,10 +493,6 @@ class LlamaModel(nn.Module):
 
         for model_chunk in self.model_chunks:
             model_chunk.reset_kv_cache_position(self.system_prompt_length)
-
-    def disable_monitors(self):
-        for model_chunk in self.model_chunks:
-            model_chunk.disable_monitors()
 
     def dump_config_template(self) -> dict:
         return {
@@ -1662,9 +658,9 @@ class OutputEmbeddingExporter:
                 encode_output(node, 32)
 
         if self.use_fp16:
-            print('NOTE: Use FP16 for output embedding.')
+            print("NOTE: Use FP16 for output embedding.")
             for node in graph.initializer:
-                encode_param(node, 16, 'float')
+                encode_param(node, 16, "float")
             for node in graph.node:
                 encode_output(node, 16)
 
@@ -1810,6 +806,8 @@ class ModelChunkExporter:
         # Inputs
         encode_activation("x", 32)
         encode_activation("attn_bias", 16)
+        encode_activation("rope_embed_cos", 16)
+        encode_activation("rope_embed_sin", 16)
 
         # KV cache: FP16
         for node in graph.input:
@@ -1825,7 +823,9 @@ class ModelChunkExporter:
                 encode_output(node, 16)
 
         # Manually specified FP16 attention/FFN layers
-        for layer_type, layer_id_list in self.fp16_overrides.items():
+        for layer_type in ["attn", "ffn"]:
+            layer_id_list = self.fp16_overrides[layer_type]
+
             for layer_id in layer_id_list:
                 if not (self.model_chunk.start_layer_id <= layer_id < self.model_chunk.end_layer_id):
                     continue
@@ -1843,6 +843,12 @@ class ModelChunkExporter:
                         encode_output(node, 16)
                 print(f'Override {count} nodes in layer "{layer_type}_{layer_id}" to FP16')
 
+        if self.fp16_overrides["rope"] == True:
+            print("Use FP16 for attention RoPE.")
+            for node in graph.node:
+                if "/attn/rope" in node.name:
+                    encode_output(node, 16)
+
         # Residual connection: FP32
         for node in graph.node:
             if match(node, "/layers\.[0-9]+/(attn|ffn|ffn/down_proj)/Add(_[0-9]+|)"):
@@ -1855,6 +861,23 @@ class ModelChunkExporter:
         for node in graph.node:
             if match(node, "/layers\.[0-9]+/(attn|ffn)/norm.*"):
                 encode_output(node, 32)
+
+        # FP16 components
+        for node in graph.initializer:
+            if "fp16_" in node.name:
+                encode_param(node, 16, "float")
+        for node in graph.node:
+            if "fp16_" in node.name:
+                encode_output(node, 16)
+
+        if self.fp16_overrides["qkv_heads"] == True:
+            print("Use FP16 for QKV heads.")
+            for node in graph.initializer:
+                if match(node, ".*[qkv]_heads.*"):
+                    encode_param(node, 16, "float")
+            for node in graph.node:
+                if match(node, ".*[qkv]_heads.*"):
+                    encode_output(node, 16)
 
         # Generate config
         config = {
@@ -1933,8 +956,9 @@ model_chunks = [
         has_qkv_bias=model_params.has_qkv_bias,
         use_drelu=model_params.use_drelu,
         cache_size=graph_params.cache_size,
-        fp16_attention_layers=model_params.fp16_attention_layers,
-        fp16_ffn_layers=model_params.fp16_ffn_layers,
+        n_fp16_heads=model_params.n_fp16_heads,
+        n_fp16_neurons=model_params.n_fp16_neurons,
+        stat_folder=args.model_folder / "stat",
     )
     for i in range(0, model_params.n_layers, n_layers_per_model_chunk)
 ]
@@ -1968,32 +992,31 @@ def eval_prompt(save_samples: bool = False):
 
 eval_prompt(save_samples=True)
 
-if profile_prune_ffn:
-    for name, module in model.named_modules():
-        if isinstance(module, LlamaFeedForward):
-            zero_count = (module.activation_count == 0).sum().item()
-            dead_ratio = zero_count / module.activation_count.shape[0]
-            sparsity = 1 - module.activation_count.sum().item() / (module.ffn_hidden_dim * module.n_activation_samples)
 
-            print(
-                name, f"dead_ratio={100 * dead_ratio:.1f}%", f"sparsity={100 * sparsity:.1f}%", module.activation_count
-            )
+def dump_quant_debug_info(attr_name: str):
+    attr_list = sorted(
+        (getattr(module, attr_name), name)
+        for name, module in model.named_modules()
+        if isinstance(module, LinearWithQuantizationDebugger)
+    )
 
-            n_save = zero_count % 256
-            mask = (module.activation_count == 0).tolist()
-            for i in range(len(mask)):
-                mask[i] = not mask[i]
-                if not mask[i] and n_save > 0:
-                    mask[i] = True
-                    n_save -= 1
+    if len(attr_list) == 0:
+        return
 
-            layer_id = module.layer_id
-            text = "".join(map(str, map(int, mask)))
-            with open(f"prune/ffn_{layer_id}.txt", "w") as f:
-                f.write(text)
+    debug_folder = Path("./debug")
+    debug_folder.mkdir(exist_ok=True, parents=True)
 
-model.disable_monitors()
+    debug_file = debug_folder / f"{attr_name}.txt"
+    with open(debug_file, "w") as f:
+        for attr, name in attr_list:
+            f.write(f"{name} {attr}\n")
 
+    print(f'NOTE: Dumped "{debug_file}".')
+
+
+dump_quant_debug_info("top_input_norms")
+dump_quant_debug_info("top_output_norms")
+dump_quant_debug_info("quant_cos_sim")
 
 if args.output_folder is None:
     exit(0)
@@ -2016,7 +1039,12 @@ for i, model_chunk in enumerate(model.model_chunks):
     exporter = ModelChunkExporter(
         graph_name=args.graph_name,
         model_chunk=model_chunk,
-        fp16_overrides={"attn": model_params.fp16_attention_layers, "ffn": model_params.fp16_ffn_layers},
+        fp16_overrides={
+            "attn": model_params.fp16_attention_layers,
+            "ffn": model_params.fp16_ffn_layers,
+            "rope": model_params.fp16_rope,
+            "qkv_heads": model_params.fp16_qkv_heads,
+        },
         output_folder=output_folder,
     )
     exporter.export()

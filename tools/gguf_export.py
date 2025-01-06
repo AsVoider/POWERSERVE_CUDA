@@ -1,14 +1,15 @@
 #!/usr/bin/python3
 
 import argparse
-from pathlib import Path
+import json
+import logging
 import platform
 import shutil
-from typing import List, Dict, Literal, Set
 import subprocess
-import json
 from datetime import datetime
-import logging
+from pathlib import Path
+from typing import Dict, List, Literal, Set
+
 
 today = datetime.today().strftime("%Y_%m_%d")
 
@@ -56,7 +57,6 @@ def export_executable(out_path: Path, plats: Set[support_plat_l]) -> Path:
     file_dir = Path("bin")
     generate_model_path = out_path / file_dir
     base_targets = []
-    # base_targets = ["run", "server", "config_generator", "perplexity_test"]
 
     if not generate_model_path.exists():
         generate_model_path.mkdir(parents=True, exist_ok=True)
@@ -103,6 +103,13 @@ def export_executable(out_path: Path, plats: Set[support_plat_l]) -> Path:
     return file_dir
 
 
+def remove_executable(out_path: Path):
+    file_dir = Path("bin")
+    generate_model_path = out_path / file_dir
+    if generate_model_path.exists():
+        shutil.rmtree(generate_model_path)
+
+
 def export_gguf(
     model_path: Path,
     model_id: str,
@@ -113,9 +120,13 @@ def export_gguf(
 ) -> Path:
     file_dir = Path("")
     generate_model_path = out_path / file_dir
+    ggml_model_dir = generate_model_path / "ggml"
 
     if not generate_model_path.exists():
         generate_model_path.mkdir(parents=True, exist_ok=True)
+
+    if not ggml_model_dir.exists():
+        ggml_model_dir.mkdir(parents=True, exist_ok=True)
 
     # generate vocab.gguf
     print(">>>>>>>>>> generate vocab file <<<<<<<<<<")
@@ -129,17 +140,17 @@ def export_gguf(
     print(f">>>>>>>>>> generate weight files: {out_type} <<<<<<<<<<")
     tool_path = root_folder / "tools/convert_hf_to_gguf/convert_hf_to_gguf.py"
     execute_command(
-        ["python", tool_path, model_path, "--outfile", generate_model_path / "weights.gguf", "--outtype", out_type]
+        ["python", tool_path, model_path, "--outfile", ggml_model_dir / "weights.gguf", "--outtype", out_type]
     )
 
     print(f">>>>>>>>>> generate config file <<<<<<<<<<")
     # TODO: use python tools replace cpp tools
-    tool_path = out_path / f"bin/{current_platform}/smart-config_generator"
+    tool_path = out_path / f"bin/{current_platform}/smart-config-generator"
     params_file_name = "model.json"
     execute_command([
         tool_path,
         "--file-path",
-        generate_model_path / f"weights.gguf",
+        ggml_model_dir / f"weights.gguf",
         "--target-path",
         generate_model_path / params_file_name,
     ])
@@ -175,7 +186,7 @@ def export_gguf(
         ])
 
     print(f">>>>>>>>>> copy qnn files <<<<<<<<<<")
-    qnn_workspace = generate_model_path / "qnn-workspace"
+    qnn_workspace = generate_model_path / "qnn"
     if not qnn_workspace.exists():
         qnn_workspace.mkdir(parents=True, exist_ok=True)
     if qnn_path:
@@ -189,11 +200,14 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--model-path", type=Path, required=True, help="Model path")
     parser.add_argument("-o", "--out-path", type=Path, default=Path(f"./model-{today}/"), help="Output path")
     parser.add_argument("-t", "--out-type", type=str, choices=support_type, default="q8_0")
+    parser.add_argument("--target-arch", type=str, choices=["x86_64", "aarch64"], nargs="+", default=[])
     parser.add_argument("--model-id", type=str, default=f"model-{today}", help="Model ID")
     parser.add_argument("--qnn-path", type=Path, help="Qnn model path", default=None)
     parser.add_argument("--only-embed", action="store_true")
 
     args = parser.parse_args()
 
-    export_executable(args.out_path, {"aarch64", "x86_64"})
+    archs = set([current_platform] + args.target_arch)
+    export_executable(args.out_path, archs)
     export_gguf(args.model_path, args.model_id, args.out_path, args.out_type, args.qnn_path, args.only_embed)
+    remove_executable(args.out_path)

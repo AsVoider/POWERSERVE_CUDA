@@ -1,9 +1,25 @@
+// Copyright 2024-2025 PowerServe Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "qnn_backend.hpp"
 
 #include "backend/cpu_buffer.hpp"
-#include "common/logger.hpp"
+#include "core/logger.hpp"
+#include "core/perfetto_trace.hpp"
 
 namespace smart::qnn {
+
 QNNBackend::QNNBackend(Path libs_path) : m_session(libs_path) {}
 
 void QNNBackend::load_model(const Path &path, const std::shared_ptr<ModelConfig> &model_config) {
@@ -49,12 +65,22 @@ void QNNBackend::forward(
                 out_buf = (float *)batch.lm_head->output_buffer();
                 size    = batch_size * vocab_size * sizeof(float);
             }
+
+            PerfettoTrace::begin("qnn_forward_memcpy");
             memcpy(dst_data_ptr, out_buf, size);
+            PerfettoTrace::end();
+
             if (batch.lm_head != nullptr) {
                 dst_data_ptr += batch_size * vocab_size;
+            } else {
+                dst_data_ptr += batch_size * dim;
             }
         }
+
+        PerfettoTrace::begin("qnn_save_kv");
         batch.save_kv();
+        PerfettoTrace::end();
+
         batch.advance();
     }
 }
@@ -73,7 +99,13 @@ void QNNBackend::forward(
     auto token_embeddings = std::span<float>((float *)src->get<CPUBuffer>().m_data, src->n_elements());
     auto pos_size_t       = std::vector<size_t>(pos.size());
     if (pos.size() > 2750) //for mmmu test
+    {
+        if (dst->n_elements() > 1) {
+            memset(dst->get<CPUBuffer>().m_data, 0, dst->n_elements() * get_type_size(dst->m_dtype));
+        }
         return;
+    }
+
     std::transform(pos.begin(), pos.end(), pos_size_t.begin(), [](int v) { return size_t(v); });
     int64_t v_time = 0;
 

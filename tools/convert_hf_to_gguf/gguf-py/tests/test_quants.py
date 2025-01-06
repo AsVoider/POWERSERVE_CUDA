@@ -7,16 +7,18 @@
 from __future__ import annotations
 
 import argparse
-from math import prod
-import os
-import sys
-from pathlib import Path
 import ctypes
 import logging
+import os
+import sys
+from math import prod
+from pathlib import Path
+
 import numpy as np
 
+
 # Necessary to load the local gguf package
-if "NO_LOCAL_GGUF" not in os.environ and (Path(__file__).parent.parent.parent / 'gguf-py').exists():
+if "NO_LOCAL_GGUF" not in os.environ and (Path(__file__).parent.parent.parent / "gguf-py").exists():
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import gguf
@@ -30,11 +32,7 @@ c_float_p = ctypes.POINTER(ctypes.c_float)
 
 
 class ggml_init_params(ctypes.Structure):
-    _fields_ = [
-        ("mem_size", ctypes.c_size_t),
-        ("mem_buffer", ctypes.c_void_p),
-        ("no_alloc", ctypes.c_bool),
-    ]
+    _fields_ = [("mem_size", ctypes.c_size_t), ("mem_buffer", ctypes.c_void_p), ("no_alloc", ctypes.c_bool)]
 
 
 class GGMLQuants:
@@ -64,20 +62,44 @@ class GGMLQuants:
         self.libggml.ggml_quantize_requires_imatrix.argtypes = (ctypes.c_int,)
 
         for t in (
-            "q4_0", "q4_1", "q5_0", "q5_1", "q8_0",
-            "q2_K", "q3_K", "q4_K", "q5_K", "q6_K",
-            "tq1_0", "tq2_0",
-            "iq2_xxs", "iq2_xs", "iq2_s", "iq3_xxs", "iq3_s", "iq1_s", "iq1_m",
-            "iq4_nl", "iq4_xs",
+            "q4_0",
+            "q4_1",
+            "q5_0",
+            "q5_1",
+            "q8_0",
+            "q2_K",
+            "q3_K",
+            "q4_K",
+            "q5_K",
+            "q6_K",
+            "tq1_0",
+            "tq2_0",
+            "iq2_xxs",
+            "iq2_xs",
+            "iq2_s",
+            "iq3_xxs",
+            "iq3_s",
+            "iq1_s",
+            "iq1_m",
+            "iq4_nl",
+            "iq4_xs",
         ):
             dequant_func: ctypes._NamedFuncPointer = getattr(self.libggml, "dequantize_row_" + t)
             dequant_func.restype = None
             dequant_func.argtypes = (ctypes.c_void_p, ctypes.POINTER(ctypes.c_float), ctypes.c_int64)
 
         self.libggml.ggml_fp16_to_fp32_row.restype = None
-        self.libggml.ggml_fp16_to_fp32_row.argtypes = (ctypes.POINTER(ctypes.c_uint16), ctypes.POINTER(ctypes.c_float), ctypes.c_int64)
+        self.libggml.ggml_fp16_to_fp32_row.argtypes = (
+            ctypes.POINTER(ctypes.c_uint16),
+            ctypes.POINTER(ctypes.c_float),
+            ctypes.c_int64,
+        )
         self.libggml.ggml_bf16_to_fp32_row.restype = None
-        self.libggml.ggml_bf16_to_fp32_row.argtypes = (ctypes.POINTER(ctypes.c_uint16), ctypes.POINTER(ctypes.c_float), ctypes.c_int64)
+        self.libggml.ggml_bf16_to_fp32_row.argtypes = (
+            ctypes.POINTER(ctypes.c_uint16),
+            ctypes.POINTER(ctypes.c_float),
+            ctypes.c_int64,
+        )
 
         self.libggml.ggml_init.argtypes = (ggml_init_params,)
 
@@ -89,9 +111,13 @@ class GGMLQuants:
             # no-op
             result = tensor.view(np.float32)
         elif qtype == GGMLQuantizationType.F16:
-            self.libggml.ggml_fp16_to_fp32_row(tensor.ctypes.data_as(ctypes.POINTER(ctypes.c_uint16)), result.ctypes.data_as(c_float_p), result.size)
+            self.libggml.ggml_fp16_to_fp32_row(
+                tensor.ctypes.data_as(ctypes.POINTER(ctypes.c_uint16)), result.ctypes.data_as(c_float_p), result.size
+            )
         elif qtype == GGMLQuantizationType.BF16:
-            self.libggml.ggml_bf16_to_fp32_row(tensor.ctypes.data_as(ctypes.POINTER(ctypes.c_uint16)), result.ctypes.data_as(c_float_p), result.size)
+            self.libggml.ggml_bf16_to_fp32_row(
+                tensor.ctypes.data_as(ctypes.POINTER(ctypes.c_uint16)), result.ctypes.data_as(c_float_p), result.size
+            )
         else:
             lw_qname = qtype.name.lower()
             if lw_qname[-1] == "k":
@@ -107,7 +133,15 @@ class GGMLQuants:
             qw = np.sum((data * data).reshape((-1, data.shape[-1])), axis=0).ctypes.data_as(c_float_p)
         else:
             qw = ctypes.cast(0, c_float_p)
-        result_size = self.libggml.ggml_quantize_chunk(qtype.value, data.ctypes.data_as(c_float_p), result.ctypes.data_as(ctypes.c_void_p), 0, prod(data.shape[:-1]), data.shape[-1], qw)
+        result_size = self.libggml.ggml_quantize_chunk(
+            qtype.value,
+            data.ctypes.data_as(c_float_p),
+            result.ctypes.data_as(ctypes.c_void_p),
+            0,
+            prod(data.shape[:-1]),
+            data.shape[-1],
+            qw,
+        )
         assert result.size == result_size
         return result
 
@@ -133,7 +167,9 @@ def compare_tensors(t1: np.ndarray, t2: np.ndarray, qtype: GGMLQuantizationType)
         logger.debug(f"{num_bad_blocks} bad blocks ({100 * num_bad_blocks / x.shape[0]:.6f}%)")
         bad_block_id = np.argmax(diff_bits, axis=0)
         logger.debug(f"Worst block id: {bad_block_id}")
-        logger.debug(f"Sample bad block ({diff_bits[bad_block_id]} differing bits):\n{t1[bad_block_id]}\nReference:\n{t2[bad_block_id]}")
+        logger.debug(
+            f"Sample bad block ({diff_bits[bad_block_id]} differing bits):\n{t1[bad_block_id]}\nReference:\n{t2[bad_block_id]}"
+        )
 
         sum_diff_bits = np.sum(diff_bits)
         logger.debug(f"{sum_diff_bits} bits differ ({100 * sum_diff_bits/(x.size * 8):.6f}%)")
@@ -228,7 +264,12 @@ def do_test(libggml_path: Path, quick: bool = False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Test Python (de)quantization against the reference C implementation")
-    parser.add_argument("--libggml", type=Path, default=Path(__file__).parent.parent.parent / "build" / "ggml" / "src" / "libggml.so", help="The path to libggml.so")
+    parser.add_argument(
+        "--libggml",
+        type=Path,
+        default=Path(__file__).parent.parent.parent / "build" / "ggml" / "src" / "libggml.so",
+        help="The path to libggml.so",
+    )
     parser.add_argument("--quick", action="store_true", help="Don't quantize with C when it's not strictly necessary")
 
     args = parser.parse_args()

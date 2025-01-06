@@ -1,6 +1,21 @@
+// Copyright 2024-2025 PowerServe Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "causal_models.hpp"
 
-#include "common/logger.hpp"
+#include "core/logger.hpp"
+#include "core/perfetto_trace.hpp"
 
 namespace smart::qnn {
 
@@ -14,7 +29,7 @@ auto CausalLM::ChunkVector::get_chunk(size_t layer_id) -> ModelChunk & {
     SMART_ABORT("cannot found mode chunk containing layer: {}", layer_id);
 }
 
-CausalLM::CausalLM(const Path model_folder, const std::shared_ptr<ModelConfig> &model_config, Session &environment) :
+CausalLM::CausalLM(const Path &model_folder, const std::shared_ptr<ModelConfig> &model_config, Session &environment) :
     m_model_folder(model_folder),
     m_config(model_folder / m_config_file_name, model_config),
     m_model_config(model_config),
@@ -29,7 +44,7 @@ CausalLM::CausalLM(const Path model_folder, const std::shared_ptr<ModelConfig> &
         m_gparams.max_batch_size = std::max(m_gparams.max_batch_size, info.batch_size);
     }
     load_model_chunks();
-    if (m_config.lm_heads.size() > 0) {
+    if (!m_config.lm_heads.empty()) {
         for (auto &config : m_config.lm_heads) {
             m_lm_heads.emplace(config.batch_size, std::make_unique<Embedding>(*this, config));
         }
@@ -139,10 +154,11 @@ void CausalLM::load_model_chunks() {
         }
     }
 
-    kv_cache->advance(m_gparams.kv_size);
+    kv_cache->advance_tokens(m_gparams.kv_size);
 }
 
 void CausalLM::compute_rope_embeds() {
+    // TODO: Only support linear ROPE now
     auto head_dim = m_model_config->llm.head_size;
     std::vector<float> inv_freqs(head_dim / 2);
     for (size_t i = 0; i < head_dim / 2; i++) {
@@ -163,6 +179,7 @@ void CausalLM::compute_rope_embeds() {
 }
 
 void CausalLM::fill_rope_embeds(std::span<const size_t> pos) {
+    // TODO: Only support linear ROPE now
     auto head_dim = m_model_config->llm.head_size;
     for (auto &chunk_ptr : largest_chunks()) {
         auto &chunk = *chunk_ptr;
@@ -205,7 +222,7 @@ void CausalLM::fill_attention_mask(AttentionMaskView mask) {
 }
 
 void CausalLM::reset_kv_cache() {
-    kv_cache->truncate(m_gparams.kv_size);
+    kv_cache->truncate_tokens(m_gparams.kv_size);
 }
 
 void CausalLM::Batch::forward() {
@@ -240,6 +257,8 @@ void CausalLM::Batch::forward() {
 }
 
 void CausalLM::Batch::compute_logits() {
+    PerfettoTrace::begin("qnn_compute_logits");
+
     SMART_ASSERT(lm_head != nullptr);
     size_t batch_size = pos.size();
 
@@ -253,14 +272,16 @@ void CausalLM::Batch::compute_logits() {
 #else
     lm_head->execute();
 #endif
+
+    PerfettoTrace::end();
 }
 
 void CausalLM::Batch::save_kv() {
-    parent.kv_cache->save(pos.size());
+    parent.kv_cache->save_tokens(pos.size());
 }
 
 void CausalLM::Batch::advance() {
-    parent.kv_cache->advance(pos.size());
+    parent.kv_cache->advance_tokens(pos.size());
 }
 
 auto CausalLM::split_batch(

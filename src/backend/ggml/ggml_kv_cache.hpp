@@ -1,3 +1,17 @@
+// Copyright 2024-2025 PowerServe Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #pragma once
 
 #include "core/config.hpp"
@@ -129,15 +143,15 @@ public:
     }
 
     void reset_kv_cache() {
-        kv_cache->truncate(kv_size);
+        kv_cache->truncate_tokens(kv_size);
     }
 
     void save_kv(int size) {
-        kv_cache->save(size);
+        kv_cache->save_tokens(size);
     }
 
     void advance(int size) {
-        kv_cache->advance(size);
+        kv_cache->advance_tokens(size);
     }
 
     auto get_cache(size_t L) -> std::pair<Tensor &, Tensor &> {

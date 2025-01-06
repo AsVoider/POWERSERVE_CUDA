@@ -1,13 +1,25 @@
+// Copyright 2024-2025 PowerServe Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "llama_model.hpp"
 
 #include "backend/cpu_buffer.hpp"
-#include "backend/platform.hpp"
-#include "common/logger.hpp"
+#include "core/logger.hpp"
 #include "executor/executor.hpp"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
 #include "model/llama/llama_weight.hpp"
-#include "sampler/sampler.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cstring>
@@ -119,8 +131,7 @@ auto LlamaModel::decode(Sampler &sampler, const std::vector<Token> tokens, const
     for (auto logits : ret) {
         auto probs = ProbArray(logits);
         sampler.apply(probs);
-        std::mt19937 gen(std::random_device{}());
-        auto next = probs.sample(gen).index;
+        auto next = probs.greedy_sample().token;
         sampler.accept(next);
         toks.push_back(next);
     }
@@ -128,9 +139,9 @@ auto LlamaModel::decode(Sampler &sampler, const std::vector<Token> tokens, const
 }
 
 auto LlamaModel::generate(
-    Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
-) -> Model::TokenRange {
-    return Model::TokenRange(*this, tokenizer, sampler, prompt, steps, batch_size);
+    const Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
+) -> Model::TokenGenerator {
+    return Model::TokenGenerator(*this, tokenizer, sampler, prompt, steps, batch_size);
 }
 
 } // namespace smart

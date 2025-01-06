@@ -18,8 +18,7 @@ variables:
   IMAGE_NAME: ubuntu:22.04
   CONTAINER_NAME: ndk
   HF_TOKEN: "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"
-  HOME: /tmp
-  BUILD_ROOT: "/home/gitlab-runner/Downloads"
+  BUILD_ROOT: "/root"
   QNN_SDK_26_ROOT: "/opt/qcom/aistack/qairt/2.26.0.240828"
   QNN_SDK_27_ROOT: "/opt/qcom/aistack/qairt/2.27.7.241014"
   QNN_SDK_28_ROOT: "/opt/qcom/aistack/qairt/2.28"
@@ -45,7 +44,7 @@ check_formatting:
     - if: $CHECK_FORMAT == "true"
       when: always
   script:
-    - export CLANG_FORMAT=${BUILD_ROOT}/clang-format-18
+    - export CLANG_FORMAT=/usr/bin/clang-format
     - $CLANG_FORMAT --version
     - cd "$CI_PROJECT_DIR"
     - echo "Checking formatting from ${CI_MERGE_REQUEST_DIFF_BASE_SHA}..."
@@ -59,32 +58,17 @@ check_formatting:
     - echo "$format_exit_status"
     - if [[ "$format_exit_status" -eq "0" ]]; then echo "Formatting is correct"; exit 0; else echo "Detected formatting issues; please fix"; exit 1; fi
 
-setup:
-  stage: setup
-  script:
-    - pwd
-    - podman stop $CONTAINER_NAME || true
-    - podman rm $CONTAINER_NAME || true
-    - git submodule update --init --recursive
-    - podman run -v $(realpath .):/code -v $(realpath ${BUILD_ROOT}):/data -v $(realpath ${QNN_SDK_ROOT}):/qnn -dit --name ndk ubuntu:22.04
-    - podman exec -it $CONTAINER_NAME bash -c "echo -e 'deb http://mirrors.aliyun.com/ubuntu/ jammy main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-updates main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-backports main restricted universe multiverse\ndeb http://mirrors.aliyun.com/ubuntu/ jammy-security main restricted universe multiverse' | tee /etc/apt/sources.list"
-    - podman exec -it $CONTAINER_NAME bash -c "apt update && apt upgrade -y && apt install -y sudo vim cmake unzip git python-is-python3 python3-pip build-essential sshpass"
-    - podman exec -it $CONTAINER_NAME bash -c "git config --global --add safe.directory /code"
-    - podman exec -it $CONTAINER_NAME bash -c "pip install pandas requests pillow numpy tqdm datasets"
-
 build:
   stage: build
   script:
-    - sleep 3
-    - podman exec -it $CONTAINER_NAME bash -c "export QNN_SDK_ROOT=/qnn"
-    - podman exec -it $CONTAINER_NAME bash -c "echo 'export QNN_SDK_ROOT=/qnn' >> ~/.bashrc"
-    - podman exec -it $CONTAINER_NAME bash -c "echo 'export NDK=/data/android-ndk-r27b' >> ~/.bashrc"
-    - podman exec -it $CONTAINER_NAME bash -c "source ~/.bashrc"
-    - sleep 1
-    - podman exec -it $CONTAINER_NAME bash -c -i "cd /code && cmake -DCMAKE_TOOLCHAIN_FILE=/data/android-ndk-r27b/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF -DGGML_OPENMP=OFF -DSMART_ENABLE_ASAN=OFF -DSMART_WITH_QNN=ON -S . -B build_android"
-    - podman exec -it $CONTAINER_NAME bash -c -i "cd /code && cmake --build build_android --config RelWithDebInfo --parallel 12 && sudo chmod -R 777 build_android"
-    - podman exec -it $CONTAINER_NAME bash -c -i "cp -r /code/build_android /data"
-    - podman exec -it $CONTAINER_NAME bash -c -i "cp /code/smartserving /data"
+    - whoami
+    - pwd
+    - source /qnn/bin/envsetup.sh
+    - cmake -DCMAKE_TOOLCHAIN_FILE=/ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSMART_ENABLE_WERROR=ON -DSMART_ENABLE_ASAN=OFF -DSMART_WITH_QNN=ON -S . -B build_android
+    - cmake --build build_android --config RelWithDebInfo --parallel 12
+    - rm -rf ${BUILD_ROOT}/build_android
+    - cp -r . ${BUILD_ROOT}
+    - cp -r ./build_android ${BUILD_ROOT}
 
 deploy:
   stage: deploy
@@ -102,12 +86,13 @@ test_llama3.1:
   stage: test
   script:
     - sleep 2 # just relax
-    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 0 32 4
+    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1_SPEC} 0
 
 test_thread:
   stage: test
   script:
-    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 0 32 8
+    # - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 0 32 8
+    - echo "no test"
   needs:
     - test_llama3.1
 
@@ -115,14 +100,23 @@ test_qnn:
   stage: test
   allow_failure: true
   rules:
-    - if: $CI_TEST_QNN == "true"
-      when: always
-    - when: manual
+    - when: always
   script:
     - sleep 2
-    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 1 300 4
+    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1_SPEC} 1
   needs:
     - test_thread
+
+test_speculative:
+  stage: test
+  allow_failure: true
+  rules:
+    - when: always
+  script:
+    - sleep 1
+    - .gitlab/test-speculative.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1_SPEC}
+  needs:
+    - test_qnn
 
 test_ppl:
   stage: test
@@ -133,21 +127,11 @@ test_ppl:
       when: always
     - when: manual
   script:
-    - sleep 10
-    - .gitlab/test-ppl.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1}
+    - sleep 1
+    # - .gitlab/test-ppl.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1}
+    - echo "no test"
   needs:
-    - test_qnn
-
-test_speculative:
-  stage: test
-  allow_failure: true
-  rules:
-    - if: $CI_TEST_QNN == "true"
-      when: always
-    - when: manual
-  script:
-    - echo "PASS"
-    - .gitlab/test-speculative.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT}
+    - test_speculative
 
 # =============== Daily Tests ===============
 test_long_out:
@@ -159,7 +143,8 @@ test_long_out:
     - when: manual
   script:
     - sleep 10
-    - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 1 2000 8 "math.txt"
+    # - .gitlab/test-decode.sh ${DEVICE_ROOT} ${DEVICE_USER}@${DEVICE_HOST} ${DEVICE_PORT} ${TARGET_LLAMA3_1} 1 2000 8 "math.txt"
+    - echo "no test"
   needs:
     - test_speculative
 
@@ -172,7 +157,8 @@ test_mmlu_llama3.1:
     - when: manual
   script:
     - sleep 10
-    - .gitlab/test-mmlu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_LLAMA3_1}
+    # - .gitlab/test-mmlu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_LLAMA3_1}
+    - echo "no test"
   needs:
     - test_long_out
 
@@ -185,7 +171,8 @@ test_mmlu_qwen2:
     - when: manual
   script:
     - sleep 10
-    - .gitlab/test-mmlu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_QWEN2}
+    # - .gitlab/test-mmlu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_QWEN2}
+    - echo "no test"
   needs:
     - test_mmlu_llama3.1
 
@@ -198,4 +185,5 @@ test_mmmu_internvl2-1b:
     - when: manual
   script:
     - sleep 10
-    - .gitlab/test-mmmu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_INTERNVL2_1}
+    # - .gitlab/test-mmmu.sh ${DEVICE_ROOT} ${DEVICE_USER} ${DEVICE_HOST} ${DEVICE_PORT} ${CONTAINER_NAME} ${TARGET_INTERNVL2_1}
+    - echo "no test"

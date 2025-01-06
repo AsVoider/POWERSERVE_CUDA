@@ -1,3 +1,17 @@
+// Copyright 2024-2025 PowerServe Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #pragma once
 
 #include "backend/ggml/ggml.hpp"
@@ -20,6 +34,10 @@ public:
     Tensor ffn_gate; // "blk.$.ffn_gate.weight" (layer, dim, hidden_dim)
     Tensor ffn_up;   // "blk.$.ffn_up.weight" (layer, dim, hidden_dim)
     Tensor ffn_down; // "blk.$.ffn_down.weight" (layer, hidden_dim, dim)
+
+    Tensor attn_q_bias;
+    Tensor attn_k_bias;
+    Tensor attn_v_bias;
 
     virtual ~LayerWeights() = default;
 

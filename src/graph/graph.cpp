@@ -1,3 +1,17 @@
+// Copyright 2024-2025 PowerServe Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "graph/graph.hpp"
 
 namespace smart {
@@ -37,7 +51,7 @@ auto Graph::get_embedding(TensorNode *weight, const std::vector<int> &tokens) ->
 }
 
 auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
-    SMART_ASSERT(tensor_can_repeat(a, b));
+    SMART_ASSERT(tensor_can_repeat(b, a));
 
     auto out = dup_tensor(a);
     auto op  = new_op(OpType::ADD);
@@ -89,6 +103,7 @@ auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
 
 auto Graph::rope(TensorNode *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &params)
     -> TensorNode * {
+    // TODO: Only support linear ROPE now
     auto out = dup_tensor(src);
     auto op  = new_op(OpType::ROPE);
     op->set_inputs({src});

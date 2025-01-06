@@ -4,9 +4,11 @@ project("SmartServing" C CXX CUDA)
 option(SMART_ENABLE_ASAN "Enable address santizer" OFF)
 option(SMART_ENABLE_UBSAN "Enable undefined santizer" OFF)
 option(SMART_ENABLE_LTO "Enable link-time optimization" OFF)
+option(SMART_ENABLE_WERROR "Enable -Werror" OFF)
 
 option(SMART_WITH_QNN "Enable QNN backend" OFF)
 option(SMART_WITH_CUDA "Enable CUDA backend" OFF)
+option(SMART_WITH_PERFETTO "Enable Perfetto tracing" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -37,12 +39,13 @@ if (SMART_ENABLE_ASAN)
     endif()
 endif()
 
-if (SMART_ENABLE_UBSAN) # use with --target, not use full compilition
-    add_compile_options(-fsanitize=undefined)
-    link_libraries(-fsanitize=undefined)
+if (SMART_ENABLE_UBSAN)
     if (ANDROID)
-        add_compile_options(-static-libsan)
-        link_libraries(-static-libsan)
+        add_compile_options(-fsanitize=undefined,bounds -static-libsan)
+        link_libraries(-fsanitize=undefined,bounds -static-libsan)
+    else()
+        add_compile_options(-fsanitize=undefined)
+        link_libraries(-fsanitize=undefined)
     endif()
 endif()
 
@@ -59,7 +62,7 @@ add_custom_target(
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/out
 )
 
-function(add_artifact target_name)
+function(smart_add_artifact target_name)
     add_custom_command(
         TARGET ${target_name} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
@@ -70,5 +73,5 @@ endfunction()
 
 add_subdirectory(libs)
 add_subdirectory(src)
-add_subdirectory(bin)
+add_subdirectory(app)
 add_subdirectory(tools)
