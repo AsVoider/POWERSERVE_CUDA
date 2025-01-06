@@ -13,8 +13,9 @@
 // limitations under the License.
 
 #include "CLI/CLI.hpp"
-#include "common/logger.hpp"
-#include "common/perf.hpp"
+#include "core/logger.hpp"
+#include "core/perf.hpp"
+#include "core/perfetto_trace.hpp"
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
 #include "sampler/sampler_chain.hpp"
@@ -76,6 +77,10 @@ int main(int argc, char *argv[]) {
         auto &qnn_backend = platform->qnn_backend;
         qnn_backend->load_model(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, main_model->m_config);
         qnn_backend->load_model(config->draft_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, draft_model->m_config);
+
+        // TODO: Fix it.
+        main_model->kv_cache  = platform->qnn_backend->m_models[main_model->m_config->model_id]->kv_cache.get();
+        draft_model->kv_cache = platform->qnn_backend->m_models[draft_model->m_config->model_id]->kv_cache.get();
     }
 #endif
 
@@ -96,11 +101,9 @@ int main(int argc, char *argv[]) {
         SMART_LOG_INFO("n_threads   : {}", n_threads);
     }
 
-    // generate
-#if defined(SMART_WITH_QNN)
-    smart::TreeSpeculative spec(
-        std::move(main_model), std::move(draft_model), {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-    );
+    smart::PerfettoTrace::instance().start_tracing(32 * 1024);
+    smart::TreeSpeculative spec(main_model, draft_model);
     spec.generate(tokenizer, sampler, prompt, n_predicts);
-#endif
+    spec.print_stat();
+    smart::PerfettoTrace::instance().stop_tracing();
 }

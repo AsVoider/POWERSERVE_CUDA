@@ -23,7 +23,6 @@
 
 namespace smart {
 
-inline namespace common {
 CPUPerfResult perf_get_cpu_result() {
     constexpr std::string_view stat_file = "/proc/stat";
     std::ifstream file(stat_file.data());
@@ -108,6 +107,5 @@ MemPerfResult perf_get_mem_result() {
     return {};
 #endif
 }
-} // namespace common
 
 } // namespace smart

@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include "common/logger.hpp"
-#include "common/type_def.hpp"
+#include "core/logger.hpp"
+#include "core/typedefs.hpp"
 #include "llama-vocab.h"
 
 #include <cstddef>
@@ -41,6 +41,7 @@ public:
 public:
     size_t n_vocabs() const;
     auto bos_token() const -> Token;
+    bool should_stop(Token token) const;
     auto tokenize(const std::string &text, bool add_special) const -> std::vector<Token>;
     auto to_string(Token token, bool special = true) const -> std::string;
 

@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include "common/logger.hpp"
 #include "core/config.hpp"
+#include "core/logger.hpp"
 #include "nlohmann/json.hpp"
 
 #include <fstream>

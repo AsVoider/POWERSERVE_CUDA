@@ -58,9 +58,22 @@ python ./tools/gguf_export.py \
     -o /data/smallthinker_500m
 ```
 
-## 组装模型
+## 编译项目
 
-先在build目录下编译好aarch64的二进制。
+```bash
+cmake -B build \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+    -DANDROID_ABI=arm64-v8a \
+    -DANDROID_PLATFORM=android-35 \
+    -DSMART_WITH_QNN=ON
+    # -DSMART_ENABLE_ASAN=OFF \
+    # -DSMART_ENABLE_UBSAN=ON
+    # -DSMART_WITH_PERFETTO=ON
+time cmake --build build
+```
+
+## 组装模型
 
 单独运行3B模型：
 
@@ -101,12 +114,15 @@ rsync -avzP assets/prompts/*.txt 8gen4:~/
 ```
 
 ```bash
-cd /data/local/tmp
-sudo cp ~/smallthinker/bin/smart-{run,speculative} .
+export ASAN_OPTIONS=abort_on_error=1
+export UBSAN_OPTIONS=print_stacktrace=1
+export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64
+
+sudo cp smallthinker/bin/smart-{run,speculative} .
 
 # 不开投机推理
-sudo ./smart-run --work-folder ~/smallthinker --prompt-file ~/strawberry_qwen2.txt -n 1536
+sudo ./smart-run --work-folder smallthinker --prompt-file strawberry_qwen2.txt -n 1536
 
 # 开投机推理
-sudo ./smart-speculative --work-folder ~/smallthinker --prompt-file ~/strawberry_qwen2.txt -n 1536
+sudo ./smart-speculative --work-folder smallthinker --prompt-file strawberry_qwen2.txt -n 1536
 ```

@@ -16,6 +16,7 @@ endif()
 add_subdirectory(json)
 
 # libuv
+set(LIBUV_BUILD_SHARED OFF CACHE BOOL "Build shared lib")
 add_subdirectory(libuv)
 
 if (CMAKE_C_COMPILER_ID MATCHES "Clang")
@@ -43,3 +44,12 @@ add_subdirectory(cpp-httplib)
 
 # concurrent queue
 add_subdirectory(concurrentqueue)
+
+# Perfetto
+if (SMART_WITH_PERFETTO)
+    add_library(perfetto STATIC perfetto/sdk/perfetto.cc)
+    target_include_directories(perfetto PUBLIC perfetto/sdk)
+    if (ANDROID)
+        target_link_libraries(perfetto PRIVATE -llog)
+    endif()
+endif()

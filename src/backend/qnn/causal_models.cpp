@@ -14,7 +14,8 @@
 
 #include "causal_models.hpp"
 
-#include "common/logger.hpp"
+#include "core/logger.hpp"
+#include "core/perfetto_trace.hpp"
 
 namespace smart::qnn {
 
@@ -153,7 +154,7 @@ void CausalLM::load_model_chunks() {
         }
     }
 
-    kv_cache->advance(m_gparams.kv_size);
+    kv_cache->advance_tokens(m_gparams.kv_size);
 }
 
 void CausalLM::compute_rope_embeds() {
@@ -221,7 +222,7 @@ void CausalLM::fill_attention_mask(AttentionMaskView mask) {
 }
 
 void CausalLM::reset_kv_cache() {
-    kv_cache->truncate(m_gparams.kv_size);
+    kv_cache->truncate_tokens(m_gparams.kv_size);
 }
 
 void CausalLM::Batch::forward() {
@@ -256,6 +257,8 @@ void CausalLM::Batch::forward() {
 }
 
 void CausalLM::Batch::compute_logits() {
+    PerfettoTrace::begin("qnn_compute_logits");
+
     SMART_ASSERT(lm_head != nullptr);
     size_t batch_size = pos.size();
 
@@ -269,14 +272,16 @@ void CausalLM::Batch::compute_logits() {
 #else
     lm_head->execute();
 #endif
+
+    PerfettoTrace::end();
 }
 
 void CausalLM::Batch::save_kv() {
-    parent.kv_cache->save(pos.size());
+    parent.kv_cache->save_tokens(pos.size());
 }
 
 void CausalLM::Batch::advance() {
-    parent.kv_cache->advance(pos.size());
+    parent.kv_cache->advance_tokens(pos.size());
 }
 
 auto CausalLM::split_batch(

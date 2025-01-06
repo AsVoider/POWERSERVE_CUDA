@@ -88,12 +88,12 @@ void RepeatPenaltySampler::apply(ProbArray &probs) {
     if (m_ignore_eos) {
         // if ignore eos, set the logit of eos token to -INFINITY, so it will not be selected
         if (probs.m_probs.size() > (size_t)m_special_eos_id &&
-            probs.m_probs[m_special_eos_id].index == m_special_eos_id) {
+            probs.m_probs[m_special_eos_id].token == m_special_eos_id) {
             probs.m_probs[m_special_eos_id].prob = -INFINITY;
         } else {
             // search and set the logit of eos token to -INFINITY
             for (size_t i = 0; i < probs.m_probs.size(); ++i) {
-                if (probs.m_probs[i].index == m_special_eos_id) {
+                if (probs.m_probs[i].token == m_special_eos_id) {
                     probs.m_probs[i].prob = -INFINITY;
                     break;
                 }
@@ -113,14 +113,14 @@ void RepeatPenaltySampler::apply(ProbArray &probs) {
         SMART_ASSERT(m_linefeed_id >= 0);
 
         // optimistically check if the candidates are not yet sorted/shuffled/truncated
-        if (probs.m_probs.size() > (size_t)m_linefeed_id && probs.m_probs[m_linefeed_id].index == m_linefeed_id) {
+        if (probs.m_probs.size() > (size_t)m_linefeed_id && probs.m_probs[m_linefeed_id].token == m_linefeed_id) {
             nl_found = true;
             nl_idx   = m_linefeed_id;
             nl_logit = probs.m_probs[m_linefeed_id].prob;
         } else {
             // else, search for the linefeed token
             for (size_t i = 0; i < probs.m_probs.size(); ++i) {
-                if (probs.m_probs[i].index == m_linefeed_id) {
+                if (probs.m_probs[i].token == m_linefeed_id) {
                     nl_found = true;
                     nl_idx   = i;
                     nl_logit = probs.m_probs[i].prob;
@@ -141,7 +141,7 @@ void RepeatPenaltySampler::apply(ProbArray &probs) {
 
     // Apply frequency and presence penalties to the cur_p
     for (size_t i = 0; i < probs.m_probs.size(); ++i) {
-        const auto token_iter = token_count.find(probs.m_probs[i].index);
+        const auto token_iter = token_count.find(probs.m_probs[i].token);
         if (token_iter == token_count.end()) {
             continue;
         }

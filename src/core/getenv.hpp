@@ -14,18 +14,24 @@
 
 #pragma once
 
-#include "llama-vocab.h"
-
-#include <array>
-#include <filesystem>
+#include <string>
 
 namespace smart {
 
-using Path  = std::filesystem::path;
-using Token = llama_vocab::id;
-
-static constexpr size_t max_n_dims = 4;
-using Shape                        = std::array<size_t, max_n_dims>;
-using Stride                       = std::array<size_t, max_n_dims>;
+template <typename T>
+T getenv(const std::string &name, const T &default_value) {
+    auto env = ::getenv(name.c_str());
+    if (env) {
+        if constexpr (std::is_integral_v<T>) {
+            return atoll(env);
+        } else if constexpr (std::is_floating_point_v<T>) {
+            return atof(env);
+        } else {
+            return std::string(env);
+        }
+    } else {
+        return default_value;
+    }
+}
 
 } // namespace smart

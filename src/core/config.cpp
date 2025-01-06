@@ -14,8 +14,8 @@
 
 #include "core/config.hpp"
 
-#include "common/logger.hpp"
-#include "common/type_def.hpp"
+#include "core/logger.hpp"
+#include "core/typedefs.hpp"
 #include "nlohmann/json.hpp"
 #include "uv.h"
 

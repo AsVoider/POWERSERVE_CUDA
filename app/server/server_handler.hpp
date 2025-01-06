@@ -19,10 +19,10 @@
  */
 
 #include "backend/platform.hpp"
-#include "common/logger.hpp"
-#include "common/perf.hpp"
 #include "concurrentqueue.h"
 #include "core/config.hpp"
+#include "core/logger.hpp"
+#include "core/timer.hpp"
 #include "model/model.hpp"
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
@@ -422,7 +422,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
     /*
      * Prefill
      */
-    TimeCounter time_counter;
+    Timer timer;
     const size_t num_prefill_token = tokenizer.tokenize(input_prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
 
     bool end_of_text = false;
@@ -430,14 +430,14 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
     for (const Token token : model.generate(tokenizer, sampler, input_prompt, max_num_token, batch_size)) {
         step++;
         if (step == 1) {
-            const size_t prefill_time_ms = time_counter.get_time_in_ms();
+            const size_t prefill_time_ms = timer.elapsed_time_ms();
             SMART_LOG_INFO(
                 "prefill step: {}, prefill time: {}ms ({} token/s)",
                 num_prefill_token,
                 prefill_time_ms,
                 num_prefill_token * 1000.f / prefill_time_ms
             );
-            time_counter.reset();
+            timer.reset();
             continue;
         } // Avoid outputing the last token
 
@@ -471,7 +471,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
          .m_stop_reason      = end_of_text ? "stop" : "length"}
     );
 
-    const size_t decode_time_ms = time_counter.get_time_in_ms();
+    const size_t decode_time_ms = timer.elapsed_time_ms();
     SMART_LOG_INFO(
         "decode  step: {}, decode  time: {}ms ({} token/s)", step, decode_time_ms, step * 1000.f / decode_time_ms
     );
@@ -516,20 +516,20 @@ inline ModelOutput blocking_inference(
     /*
      * Prefill
      */
-    TimeCounter time_counter;
+    Timer timer;
     const size_t num_prefill_token = tokenizer.tokenize(input_prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
     bool end_of_text               = false;
     for (const Token token : model.generate(tokenizer, sampler, input_prompt, max_num_token, batch_size)) {
         step++;
         if (step == 1) {
-            const size_t prefill_time_ms = time_counter.get_time_in_ms();
+            const size_t prefill_time_ms = timer.elapsed_time_ms();
             SMART_LOG_INFO(
                 "prefill step: {}, prefill time: {}ms ({} token/s)",
                 num_prefill_token,
                 prefill_time_ms,
                 num_prefill_token * 1000.f / prefill_time_ms
             );
-            time_counter.reset();
+            timer.reset();
             continue;
         } // Avoid outputing the last token
 
@@ -549,7 +549,7 @@ inline ModelOutput blocking_inference(
     remove_incomplete_utf8_char(output_text);
     output_text += end_of_text ? "[end of text]" : "";
 
-    const size_t decode_time_ms = time_counter.get_time_in_ms();
+    const size_t decode_time_ms = timer.elapsed_time_ms();
     SMART_LOG_INFO(
         "decode  step: {}, decode  time: {}ms ({} token/s)", step, decode_time_ms, step * 1000.f / decode_time_ms
     );

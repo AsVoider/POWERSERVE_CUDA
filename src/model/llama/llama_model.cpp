@@ -15,7 +15,7 @@
 #include "llama_model.hpp"
 
 #include "backend/cpu_buffer.hpp"
-#include "common/logger.hpp"
+#include "core/logger.hpp"
 #include "executor/executor.hpp"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
@@ -131,7 +131,7 @@ auto LlamaModel::decode(Sampler &sampler, const std::vector<Token> tokens, const
     for (auto logits : ret) {
         auto probs = ProbArray(logits);
         sampler.apply(probs);
-        auto next = probs.greedy_sample().index;
+        auto next = probs.greedy_sample().token;
         sampler.accept(next);
         toks.push_back(next);
     }
@@ -139,7 +139,7 @@ auto LlamaModel::decode(Sampler &sampler, const std::vector<Token> tokens, const
 }
 
 auto LlamaModel::generate(
-    Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
+    const Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
 ) -> Model::TokenGenerator {
     return Model::TokenGenerator(*this, tokenizer, sampler, prompt, steps, batch_size);
 }

@@ -14,10 +14,10 @@
 
 #pragma once
 
-#include "common/logger.hpp"
-#include "common/type_def.hpp"
 #include "core/buffer.hpp"
 #include "core/data_type.hpp"
+#include "core/logger.hpp"
+#include "core/typedefs.hpp"
 
 #include <cstddef>
 #include <numeric>

@@ -22,8 +22,6 @@
 
 namespace smart {
 
-inline namespace common {
-
 struct CPUPerfResult {
     size_t total_user_time;
     size_t total_user_low_time;
@@ -106,37 +104,6 @@ CPUPerfResult perf_get_cpu_result();
 IOPerfResult perf_get_io_result();
 
 MemPerfResult perf_get_mem_result();
-
-struct TimeCounter {
-public:
-    std::chrono::steady_clock::time_point start;
-
-public:
-    TimeCounter() {
-        start = std::chrono::steady_clock::now();
-    }
-
-    ~TimeCounter() noexcept = default;
-
-public:
-    size_t get_time_in_ms() const {
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    }
-
-    void reset() {
-        start = std::chrono::steady_clock::now();
-    }
-};
-
-static long time_in_ms() {
-    // return time in milliseconds, for benchmarking the model speed
-    struct timespec time;
-    clock_gettime(CLOCK_REALTIME, &time);
-    return time.tv_sec * 1000 + time.tv_nsec / 1000000;
-}
-
-} // namespace common
 
 } // namespace smart
 

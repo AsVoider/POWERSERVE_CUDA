@@ -15,8 +15,8 @@
 #include "qwen2_model.hpp"
 
 #include "backend/cpu_buffer.hpp"
-#include "backend/platform.hpp"
-#include "common/logger.hpp"
+#include "core/logger.hpp"
+#include "core/perfetto_trace.hpp"
 #include "executor/executor.hpp"
 #include "graph/graph.hpp"
 #include "graph/node.hpp"
@@ -113,6 +113,7 @@ auto Qwen2Model::forward(
 
     auto res = std::vector<std::vector<float>>();
     if (lm_head) {
+        PerfettoTrace::begin("create_logits_vector");
         SMART_ASSERT(logits != nullptr);
         float *logits_data = static_cast<float *>(logits->get<CPUBuffer>().m_data);
         for (size_t i = 0; i < batch_size; i++) {
@@ -120,6 +121,7 @@ auto Qwen2Model::forward(
                 logits_data + i * llm_config.vocab_size, logits_data + (i + 1) * llm_config.vocab_size
             ));
         }
+        PerfettoTrace::end();
     }
 
     return res;
@@ -133,7 +135,7 @@ auto Qwen2Model::decode(Sampler &sampler, const std::vector<Token> tokens, const
     for (auto logits : ret) {
         auto probs = ProbArray(logits);
         sampler.apply(probs);
-        auto next = probs.greedy_sample().index;
+        auto next = probs.greedy_sample().token;
         sampler.accept(next);
         toks.push_back(next);
     }
@@ -141,7 +143,7 @@ auto Qwen2Model::decode(Sampler &sampler, const std::vector<Token> tokens, const
 }
 
 auto Qwen2Model::generate(
-    Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
+    const Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
 ) -> Model::TokenGenerator {
     return Model::TokenGenerator(*this, tokenizer, sampler, prompt, steps, batch_size);
 }

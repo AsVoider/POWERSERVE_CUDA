@@ -14,9 +14,8 @@
 
 #include "CLI/CLI.hpp"
 #include "backend/platform.hpp"
-#include "common/logger.hpp"
-#include "common/perf.hpp"
 #include "core/config.hpp"
+#include "core/logger.hpp"
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
 
@@ -50,7 +49,7 @@ public:
 void PerplexityCalculator::apply(smart::ProbArray probs) {
     probs.softmax();
     for (const auto &p : probs.m_probs) {
-        log_logits[p.index] = std::log(p.prob);
+        log_logits[p.token] = std::log(p.prob);
     }
     n_tokens++;
 }

@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include "common/logger.hpp"
-#include "common/type_def.hpp"
+#include "core/logger.hpp"
+#include "core/typedefs.hpp"
 
 #include <random>
 
@@ -23,7 +23,7 @@ namespace smart {
 
 struct ProbIndex {
     float prob  = 0.0f;
-    Token index = -1;
+    Token token = -1;
 
     bool operator<(const ProbIndex &other) const {
         return prob < other.prob;
@@ -42,13 +42,21 @@ struct ProbArray {
     ProbArray(const std::vector<float> &logits) {
         m_probs.resize(logits.size());
         for (size_t i = 0; i < logits.size(); i++) {
-            m_probs[i].index = i;
+            m_probs[i].token = i;
             m_probs[i].prob  = logits[i];
         }
     }
 
     auto operator[](size_t i) -> ProbIndex & {
         return m_probs[i];
+    }
+
+    auto begin() {
+        return m_probs.begin();
+    }
+
+    auto end() {
+        return m_probs.end();
     }
 
     void normalize();

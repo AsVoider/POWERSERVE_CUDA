@@ -31,3 +31,6 @@
 [submodule "libs/concurrentqueue"]
 	path = libs/concurrentqueue
 	url = https://github.com/cameron314/concurrentqueue
+[submodule "libs/perfetto"]
+	path = libs/perfetto
+	url = https://android.googlesource.com/platform/external/perfetto

@@ -15,9 +15,11 @@
 #include "qnn_backend.hpp"
 
 #include "backend/cpu_buffer.hpp"
-#include "common/logger.hpp"
+#include "core/logger.hpp"
+#include "core/perfetto_trace.hpp"
 
 namespace smart::qnn {
+
 QNNBackend::QNNBackend(Path libs_path) : m_session(libs_path) {}
 
 void QNNBackend::load_model(const Path &path, const std::shared_ptr<ModelConfig> &model_config) {
@@ -63,14 +65,22 @@ void QNNBackend::forward(
                 out_buf = (float *)batch.lm_head->output_buffer();
                 size    = batch_size * vocab_size * sizeof(float);
             }
+
+            PerfettoTrace::begin("qnn_forward_memcpy");
             memcpy(dst_data_ptr, out_buf, size);
+            PerfettoTrace::end();
+
             if (batch.lm_head != nullptr) {
                 dst_data_ptr += batch_size * vocab_size;
             } else {
                 dst_data_ptr += batch_size * dim;
             }
         }
+
+        PerfettoTrace::begin("qnn_save_kv");
         batch.save_kv();
+        PerfettoTrace::end();
+
         batch.advance();
     }
 }

@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include "common/logger.hpp"
-#include "common/type_def.hpp"
 #include "core/buffer.hpp"
+#include "core/logger.hpp"
+#include "core/typedefs.hpp"
 
 namespace smart {
 

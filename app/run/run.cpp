@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "CLI/CLI.hpp"
-#include "common/logger.hpp"
-#include "common/perf.hpp"
+#include "core/logger.hpp"
+#include "core/timer.hpp"
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
 #include "sampler/sampler_chain.hpp"
@@ -101,10 +101,10 @@ int main(int argc, char *argv[]) {
     for (auto prompt_token : tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos)) {
         fmt::print("{}", tokenizer.to_string(prompt_token, false));
     }
-    prefill_start = smart::time_in_ms();
+    prefill_start = smart::timestamp_ms();
     for (auto next : model->generate(tokenizer, sampler, prompt, n_predicts, batch_size)) {
         if (!start) {
-            prefill_end = smart::time_in_ms();
+            prefill_end = smart::timestamp_ms();
             start       = true;
             continue;
         }
@@ -123,7 +123,7 @@ int main(int argc, char *argv[]) {
     fmt::println("");
 
     if (start) {
-        decode_end     = smart::time_in_ms();
+        decode_end     = smart::timestamp_ms();
         auto n_prefill = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
         SMART_LOG_INFO("prefill time: {} s", (double)(prefill_end - prefill_start) / 1000);
         SMART_LOG_INFO(

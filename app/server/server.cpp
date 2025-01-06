@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "CLI/CLI.hpp"
-#include "common/logger.hpp"
+#include "core/logger.hpp"
 #include "simple_server.hpp"
 
 #ifdef SMART_WITH_QNN

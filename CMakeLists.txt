@@ -4,8 +4,10 @@ project("SmartServing" C CXX)
 option(SMART_ENABLE_ASAN "Enable address santizer" OFF)
 option(SMART_ENABLE_UBSAN "Enable undefined santizer" OFF)
 option(SMART_ENABLE_LTO "Enable link-time optimization" OFF)
+option(SMART_ENABLE_WERROR "Enable -Werror" OFF)
 
 option(SMART_WITH_QNN "Enable QNN backend" OFF)
+option(SMART_WITH_PERFETTO "Enable Perfetto tracing" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -34,12 +36,13 @@ if (SMART_ENABLE_ASAN)
     endif()
 endif()
 
-if (SMART_ENABLE_UBSAN) # use with --target, not use full compilition
-    add_compile_options(-fsanitize=undefined)
-    link_libraries(-fsanitize=undefined)
+if (SMART_ENABLE_UBSAN)
     if (ANDROID)
-        add_compile_options(-static-libsan)
-        link_libraries(-static-libsan)
+        add_compile_options(-fsanitize=undefined,bounds -static-libsan)
+        link_libraries(-fsanitize=undefined,bounds -static-libsan)
+    else()
+        add_compile_options(-fsanitize=undefined)
+        link_libraries(-fsanitize=undefined)
     endif()
 endif()
 

@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include "common/logger.hpp"
-#include "common/type_def.hpp"
+#include "core/defines.hpp"
+#include "core/typedefs.hpp"
 #include "sampler/prob_array.hpp"
 
 #include <cstddef>

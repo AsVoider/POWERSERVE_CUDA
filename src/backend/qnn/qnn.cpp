@@ -18,8 +18,9 @@
 #include "HTP/QnnHtpMem.h"
 #include "HTP/QnnHtpSystemContext.h"
 #include "QnnContext.h"
-#include "common/logger.hpp"
-#include "common/type_def.hpp"
+#include "core/defines.hpp"
+#include "core/logger.hpp"
+#include "core/typedefs.hpp"
 #include "qnn_type_macros.hpp"
 #include "storage/file_loader.hpp"
 

@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common/logger.hpp"
+#include "core/logger.hpp"
 #include "ggml.h"
 
 #include <cstddef>

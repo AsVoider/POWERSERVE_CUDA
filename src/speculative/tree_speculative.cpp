@@ -14,216 +14,62 @@
 
 #include "speculative/tree_speculative.hpp"
 
-#include "common/perf.hpp"
+#include "core/perfetto_trace.hpp"
+#include "core/timer.hpp"
 
-#include <algorithm>
+constexpr bool debug_token_tree = false;
 
 namespace smart {
 
-std::vector<int> TreeSpeculative::TokenTree::spec_sample(std::vector<float> &logits, int topk) {
-    std::vector<int> indices(logits.size());
-    std::iota(indices.begin(), indices.end(), 0);
+TreeSpeculative::TreeSpeculative(const ModelPtr &target_model, const ModelPtr &draft_model) :
+    target_model(target_model),
+    draft_model(draft_model) {}
 
-    // Use nth_element to partition the topk elements
-    std::nth_element(indices.begin(), indices.begin() + topk, indices.end(), [&logits](int a, int b) {
-        return logits[a] > logits[b];
-    });
+void TreeSpeculative::generate(const Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) {
+    auto prompt_tokens           = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos);
+    const size_t n_prompt_tokens = prompt_tokens.size();
+    SMART_ASSERT(n_prompt_tokens >= 1);
 
-    // Sort the topk elements
-    std::sort(indices.begin(), indices.begin() + topk, [&logits](int a, int b) { return logits[a] > logits[b]; });
-
-    // Filter the results based on the condition
-    std::vector<int> filtered_indices;
-    for (int i = 0; i < topk; ++i) {
-        filtered_indices.push_back(indices[i]);
-    }
-
-    return filtered_indices;
-}
-
-void TreeSpeculative::TokenTree::build_tree(
-    Token father, int father_id, int now_depth, long &elapsed_time, double now_prob
-) {
-    if (now_prob < 0.3)
-        return;
-    this_turn_depth = std::max(this_turn_depth, now_depth);
-    int id          = m_idx++;
-    if (id > MAX_SPEC_NODES) {
-        FMT_ASSERT(false, "too many nodes");
-    }
-    if (father_id != -1) {
-        son[father_id].push_back(id);
-    }
-    SMART_ASSERT(id == int(tk_list.size()), "wrong index");
-
-    tk_list.push_back(father);
-    depth_list.push_back(now_depth);
-    fa_list.push_back(father_id);
-
-    const TimeCounter model_forward_timer;
-    auto logits = m_model->forward({father}, {m_previous_position + now_depth}, CausalAttentionMask(1));
-    elapsed_time += model_forward_timer.get_time_in_ms();
-
-    auto x = logits[0];
-    std::nth_element(x.begin(), x.begin() + MAX_EXPANSION, x.end(), std::greater<float>());
-    std::vector<float> topk_logits(x.begin(), x.begin() + MAX_EXPANSION);
-
-    ProbArray probs(topk_logits);
-    probs.softmax();
-
-    std::nth_element(
-        probs.m_probs.begin(), probs.m_probs.begin() + MAX_EXPANSION, probs.m_probs.end(), std::greater<ProbIndex>()
-    );
-    auto probs_indices = probs.m_probs;
-    std::sort(probs_indices.begin(), probs_indices.end(), std::greater<ProbIndex>());
-
-    int expansion = 1;
-
-    if (now_depth >= MAX_DEPTH) {
-        if (now_depth > MAX_DEPTH * 3)
-            return;
-        if (now_prob < 0.5)
-            return;
-    }
-
-    auto tokens = spec_sample(logits[0], expansion);
-
-    int cnt = 0;
-    for (auto token : tokens) {
-        auto prob = probs.m_probs[cnt++].prob;
-        build_tree(token, id, now_depth + 1, elapsed_time, prob * now_prob);
-    }
-}
-
-void TreeSpeculative::generate_tokens(Tokenizer &tokenizer, Sampler &sampler, Token last_token, int &pos) {
-    auto &platform        = m_target_model->m_platform;
-    auto &target_model_id = m_target_model->m_config->model_id;
-    auto &draft_model_id  = m_draft_model->m_config->model_id;
-
-    TokenTree tk_tree(m_draft_model, m_tokenizer, m_draft_depth, pos, m_expansion);
-
-    long elapsed_time = 0;
-    tk_tree.build_tree(last_token, elapsed_time);
-    stats.draft_time += elapsed_time;
-
-    int bs = tk_tree.tk_list.size();
-    std::vector<int> token_vec(bs);
-    std::vector<int> pos_vec(bs, 0);
-    for (int i = 0; i < bs; i++) {
-        pos_vec[i]   = tk_tree.depth_list[i] + pos;
-        token_vec[i] = tk_tree.tk_list[i];
-    }
-
-    std::vector<std::vector<bool>> mask(bs, std::vector<bool>(bs, 0));
-
-    for (int i = 0; i < bs; i++) {
-        if (tk_tree.fa_list[i] >= 0)
-            mask[i] = mask[tk_tree.fa_list[i]];
-        mask[i][i] = true;
-    }
-
-    CausalAttentionMask batch_mask(bs, mask);
-
-    long temp_start                        = time_in_ms();
-    std::vector<std::vector<float>> logits = m_target_model->forward(token_vec, pos_vec, batch_mask);
-    long temp_end                          = time_in_ms();
-    stats.target_time += temp_end - temp_start;
-
-    int n_accepted = 0;
-    int cache_pos  = pos;
-    Token next_token;
-    for (int local_id = 0; local_id < (int)bs;) {
-        auto logit = logits[local_id];
-        auto probs = ProbArray(logit);
-        sampler.apply(probs);
-        next_token = probs.greedy_sample().index;
-
-        bool verified = false;
-        for (auto i : tk_tree.son[local_id]) {
-            if (tk_tree.tk_list[i] == next_token) {
-                verified = true;
-                local_id = i;
-                cache_pos++;
-                platform->qnn_backend->m_models[target_model_id]->kv_cache->move(cache_pos, pos + i);
-                platform->qnn_backend->m_models[draft_model_id]->kv_cache->move(cache_pos, pos + i);
-                break;
-            }
-        }
-
-        token_queue.push_back(next_token);
-        fflush(stdout);
-
-        // verified = false;
-
-        if (verified) {
-            n_accepted++;
-            // draft_model->forward({next}, {pos + n_accepted}, CausalAttentionMask(1))[0];
-
-            sampler.accept(next_token);
-
-            if (next_token == tokenizer.bos_token() || next_token == tokenizer.m_vocab.special_eos_id ||
-                next_token == tokenizer.m_vocab.special_eom_id || next_token == tokenizer.m_vocab.special_eot_id) {
-                break;
-            }
-        } else
-            break;
-    }
-    platform->qnn_backend->m_models[target_model_id]->kv_cache->rollback(bs - n_accepted - 1);
-    platform->qnn_backend->m_models[draft_model_id]->kv_cache->rollback(bs - n_accepted - 1);
-    pos += n_accepted + 1;
-    stats.all_tk_num += m_draft_depth;
-    stats.accept_tk_num += n_accepted;
-    stats.accept_tk_num_every_turn.push_back(n_accepted);
-    stats.accept_rate_every_turn.push_back(n_accepted / (double)tk_tree.this_turn_depth);
-    stats.draft_depth_every_turn.push_back(tk_tree.this_turn_depth);
-}
-
-void TreeSpeculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) {
-    m_tokenizer = &tokenizer;
-
-    int num_prompt_tokens = 0;
-    auto prompt_tokens    = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos);
-    num_prompt_tokens     = prompt_tokens.size();
-
-    SMART_ASSERT(num_prompt_tokens >= 1);
-    // start the main loop
-    long start            = 0; // used to time our code, only initialized after first iteration
-    int pos               = 0; // position in the sequence, TODO: Use size_t?
-    auto &platform        = m_target_model->m_platform;
-    auto &target_model_id = m_target_model->m_config->model_id;
-
-    pos = platform->get_kv_position(target_model_id);
-
-    //prefill
-    auto prefill_start = time_in_ms();
-    auto prefill_pos   = std::vector<int>(num_prompt_tokens - 1);
-    std::iota(prefill_pos.begin(), prefill_pos.end(), pos);
-    auto prefill_attention_mask = CausalAttentionMask(num_prompt_tokens - 1);
-    m_target_model->forward(
-        std::vector<int>(prompt_tokens.begin(), std::prev(prompt_tokens.end())),
-        prefill_pos,
-        prefill_attention_mask,
-        false
-    );
-    // long temp_start = time_in_ms();
-    m_draft_model->forward(
-        std::vector<int>(prompt_tokens.begin(), std::prev(prompt_tokens.end())),
-        prefill_pos,
-        prefill_attention_mask,
-        false
-    );
+    SMART_ASSERT(target_model->kv_cache->position == draft_model->kv_cache->position);
+    size_t position = target_model->kv_cache->position;
 
     fmt::print("{}", prompt);
-    auto prefill_end = time_in_ms();
+    fflush(stdout);
 
-    auto last_token = prompt_tokens[num_prompt_tokens - 1]; // kick off with the first token in the prompt
-    pos             = platform->get_kv_position(target_model_id);
-    auto n_prefill  = pos;
+    {
+        // Last prompt token is excluded in prefill, and will be used as the initiating token for decoding phase.
+        const size_t n_prefill_tokens = n_prompt_tokens - 1;
 
-    while (pos < steps + n_prefill) {
+        std::vector<Token> prefill_tokens(prompt_tokens.begin(), prompt_tokens.begin() + n_prefill_tokens);
+
+        std::vector<int> prefill_positions(n_prefill_tokens);
+        std::iota(prefill_positions.begin(), prefill_positions.end(), position);
+
+        CausalAttentionMask prefill_attention_mask(n_prefill_tokens);
+
+        PerfettoTrace::begin("target_model_prefill");
+        target_model->forward(prefill_tokens, prefill_positions, prefill_attention_mask, false);
+        PerfettoTrace::end();
+
+        PerfettoTrace::begin("draft_model_prefill");
+        draft_model->forward(prefill_tokens, prefill_positions, prefill_attention_mask, false);
+        PerfettoTrace::end();
+
+        position += n_prefill_tokens;
+    }
+
+    size_t n_generated_tokens = 0;
+    size_t generation_time_ns = 0;
+    auto last_token           = prompt_tokens[n_prompt_tokens - 1];
+    Timer timer;
+    while (position < n_prompt_tokens + steps) {
         if (token_queue.empty()) {
-            generate_tokens(tokenizer, sampler, last_token, pos);
+            timer.reset();
+            generate_tokens(tokenizer, sampler, last_token);
+            generation_time_ns += timer.elapsed_time_ns();
+
             SMART_ASSERT(token_queue.size() > 0);
+            n_generated_tokens += token_queue.size();
         }
 
         last_token = token_queue.front();
@@ -231,85 +77,49 @@ void TreeSpeculative::generate(Tokenizer &tokenizer, Sampler &sampler, const std
         auto piece = tokenizer.to_string(last_token);
         fmt::print("{}", piece);
         fflush(stdout);
+        position++;
 
-        // data-dependent terminating condition: the BOS token delimits sequences
-        if (last_token == tokenizer.bos_token()) {
-            break;
-        } else if (last_token == tokenizer.m_vocab.special_eos_id || last_token == tokenizer.m_vocab.special_eom_id ||
-                   last_token == tokenizer.m_vocab.special_eot_id) {
-            fmt::print("[end of text]");
+        if (tokenizer.should_stop(last_token)) {
+            fmt::println("[end of text]");
             fflush(stdout);
             break;
         }
-
-        // init the timer here because the first iteration can be slower
-        if (start == 0) {
-            start = time_in_ms();
-        }
     }
-    SMART_LOG_EMPTY_LINE();
 
-    if (pos > 1) {
-        int system_prompt_num = 11;
-        long end              = time_in_ms();
-        SMART_LOG_INFO(
-            "prefill speed: {} tokens/s", (num_prompt_tokens - 1) / (double)(prefill_end - prefill_start) * 1000
-        );
-        SMART_LOG_INFO(
-            "decode speed: {} tokens/s", (pos - num_prompt_tokens - system_prompt_num) / (double)(end - start) * 1000
-        );
-        SMART_LOG_INFO(
-            "accept rate: {}%",
-            100.0 * std::accumulate(stats.accept_tk_num_every_turn.begin(), stats.accept_tk_num_every_turn.end(), 0) /
-                (double)stats.accept_tk_num_every_turn.size() /
-                (std::accumulate(stats.draft_depth_every_turn.begin(), stats.draft_depth_every_turn.end(), 0) /
-                 (double)stats.draft_depth_every_turn.size())
-        );
-        SMART_LOG_INFO(
-            "average generate toks every turn: {} / {}",
-            std::accumulate(stats.accept_tk_num_every_turn.begin(), stats.accept_tk_num_every_turn.end(), 0) /
-                    (double)stats.accept_tk_num_every_turn.size() +
-                1,
-            std::accumulate(stats.draft_depth_every_turn.begin(), stats.draft_depth_every_turn.end(), 0) /
-                    (double)stats.draft_depth_every_turn.size() +
-                1
-        );
-        SMART_LOG_INFO(
-            "draft time: {} s, {}% of all model time",
-            stats.draft_time / 1000.0,
-            stats.draft_time * 100.0 / (stats.draft_time + stats.target_time)
-        );
-        SMART_LOG_INFO(
-            "target time: {} s, {}% of all model time",
-            stats.target_time / 1000.0,
-            100.0 - stats.draft_time * 100.0 / (stats.draft_time + stats.target_time)
-        );
-        SMART_LOG_INFO(
-            "npu free time: {} s, {}% of all decoding time",
-            (end - prefill_end - stats.draft_time - stats.target_time) / 1000.0,
-            (end - prefill_end - stats.draft_time - stats.target_time) * 100.0 / (end - prefill_end)
-        );
-        // 统计Accept数量各自是多少
-        std::map<int, int> accept_tk_num_every_turn;
-        for (auto i : stats.accept_tk_num_every_turn) {
-            accept_tk_num_every_turn[i]++;
-        }
-        SMART_LOG_INFO("Accept_tk_num_every_turn:");
-        for (auto [k, v] : accept_tk_num_every_turn) {
-            SMART_LOG_INFO("-- Accept_tk_num_every_turn[{}]: {}", k, v);
-        }
-        SMART_LOG_INFO("All accept_tk_num_every_turn: {}", stats.accept_tk_num_every_turn);
-        SMART_LOG_INFO("Accept rate every turn: [");
-        for (auto i : stats.accept_rate_every_turn) {
-            SMART_LOG_INFO("{:.2f}, ", i);
-        }
-        SMART_LOG_INFO("]");
-        SMART_LOG_INFO("Draft depth every turn: {}", stats.draft_depth_every_turn);
-        SMART_LOG_INFO(
-            "Prefilled tokens: {}, Decoded tokens: {}",
-            num_prompt_tokens - 1,
-            pos - num_prompt_tokens - system_prompt_num
-        );
+    fmt::print("\n");
+    fmt::println(
+        "Generation speed: {} tokens, {:.3f} ms, {:.3f} tokens/s",
+        n_generated_tokens,
+        generation_time_ns / 1e6,
+        n_generated_tokens * 1e9 / generation_time_ns
+    );
+}
+
+void TreeSpeculative::generate_tokens(const Tokenizer &tokenizer, Sampler &sampler, Token last_token) {
+    constexpr size_t draft_batch_size = 16;
+
+    token_tree.draft(draft_model, tokenizer, draft_batch_size, last_token);
+
+    CausalAttentionMask mask(draft_batch_size, token_tree.attention_mask());
+
+    PerfettoTrace::begin("target_model_forward");
+    auto logits = target_model->forward(token_tree.tokens(), token_tree.positions(), mask);
+    PerfettoTrace::end();
+
+    target_model->kv_cache->rollback_tokens(draft_batch_size);
+
+    token_tree.verify(target_model, draft_model, sampler, logits, [this](Token token) {
+        token_queue.push_back(token);
+    });
+
+    if constexpr (debug_token_tree) {
+        fmt::print("\n");
+        token_tree.print_tree(tokenizer);
     }
 }
-}; // namespace smart
+
+void TreeSpeculative::print_stat() {
+    token_tree.print_stat();
+}
+
+} // namespace smart

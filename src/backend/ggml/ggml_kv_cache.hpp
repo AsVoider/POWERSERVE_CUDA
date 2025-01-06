@@ -143,15 +143,15 @@ public:
     }
 
     void reset_kv_cache() {
-        kv_cache->truncate(kv_size);
+        kv_cache->truncate_tokens(kv_size);
     }
 
     void save_kv(int size) {
-        kv_cache->save(size);
+        kv_cache->save_tokens(size);
     }
 
     void advance(int size) {
-        kv_cache->advance(size);
+        kv_cache->advance_tokens(size);
     }
 
     auto get_cache(size_t L) -> std::pair<Tensor &, Tensor &> {

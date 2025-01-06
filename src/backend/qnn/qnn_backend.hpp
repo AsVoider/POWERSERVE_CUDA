@@ -14,13 +14,11 @@
 
 #pragma once
 
-#include "QnnTypes.h"
 #include "backend/backend.hpp"
 #include "causal_models.hpp"
-#include "common/type_def.hpp"
 #include "core/config.hpp"
-#include "core/data_type.hpp"
 #include "core/tensor.hpp"
+#include "core/typedefs.hpp"
 #include "graph_interface.hpp"
 #include "qnn.hpp"
 

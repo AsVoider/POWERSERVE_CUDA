@@ -22,16 +22,27 @@
 
 namespace smart {
 
-struct SamplerChain : Sampler {
-    HyperParams::SamplerConfig m_config;
-    std::vector<std::unique_ptr<Sampler>> m_samplers;
-
-    SamplerChain(const HyperParams::SamplerConfig &config, const Tokenizer &tokenizer);
-
+struct SamplerChain final : Sampler {
     virtual ~SamplerChain() override = default;
+
+    SamplerChain() = default;
+
+    SamplerChain(const HyperParams::SamplerConfig &config, const Tokenizer &tokenizer) {
+        build_from_config(config, tokenizer);
+    }
+
+    template <typename SamplerType, typename... Args>
+    void append(Args &&...args) {
+        m_samplers.emplace_back(std::make_unique<SamplerType>(std::forward<Args>(args)...));
+    }
+
+    void build_from_config(const HyperParams::SamplerConfig &config, const Tokenizer &tokenizer);
 
     void apply(ProbArray &probs) override;
     void accept(Token token) override;
+
+private:
+    std::vector<std::unique_ptr<Sampler>> m_samplers;
 };
 
 } // namespace smart

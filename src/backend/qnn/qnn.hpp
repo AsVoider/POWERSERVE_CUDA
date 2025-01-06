@@ -18,8 +18,8 @@
 #include "HTP/QnnHtpDevice.h"
 #include "QnnInterface.h"
 #include "System/QnnSystemInterface.h"
-#include "common/logger.hpp"
-#include "common/type_def.hpp"
+#include "core/logger.hpp"
+#include "core/typedefs.hpp"
 #include "storage/file_loader.hpp"
 #include "uv.h"
 

@@ -34,13 +34,13 @@ public:
         std::deque<Token> m_tokens = {};
 
         Model &m_model;
-        Tokenizer &m_tokenizer;
+        const Tokenizer &m_tokenizer;
         Sampler &m_sampler;
 
     public:
         TokenIterator(
             Model &model,
-            Tokenizer &tokenizer,
+            const Tokenizer &tokenizer,
             Sampler &sampler,
             const std::string &prompt,
             int steps,
@@ -123,13 +123,13 @@ public:
         size_t m_batch_size;
 
         Model &m_model;
-        Tokenizer &m_tokenizer;
+        const Tokenizer &m_tokenizer;
         Sampler &m_sampler;
 
     public:
         TokenGenerator(
             Model &model,
-            Tokenizer &tokenizer,
+            const Tokenizer &tokenizer,
             Sampler &sampler,
             const std::string &prompt,
             int steps,
@@ -161,6 +161,7 @@ public:
     std::shared_ptr<Attention> m_attn;
     std::shared_ptr<FFN> m_ffn;
     std::shared_ptr<Platform> m_platform;
+    KVCacheInterface *kv_cache = nullptr;
 
 public:
     Model(const std::string &filename) :
@@ -184,8 +185,10 @@ public:
     virtual auto decode(Sampler &sampler, const std::vector<Token> tokens, const std::vector<int> pos, bool lm_head)
         -> std::vector<Token> = 0;
     virtual auto generate(
-        Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
+        const Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
     ) -> TokenGenerator = 0;
 };
+
+using ModelPtr = std::shared_ptr<Model>;
 
 } // namespace smart

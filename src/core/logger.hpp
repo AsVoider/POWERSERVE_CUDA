@@ -23,14 +23,6 @@
 #include <string>
 #include <string_view>
 
-#if !defined(ALWAYS_INLINE)
-#define ALWAYS_INLINE __attribute__((always_inline))
-#endif
-
-#define SMART_UNUSED(x) ((void)(x))
-
-#define SMART_BUILTIN_EXPECT(expr, value) __builtin_expect((expr), (value))
-
 // #define SMART_NO_ASSERT
 
 #define SMART_LOG_DEBUG(...) fmt::println(stdout, "[DEBUG] " __VA_ARGS__)
@@ -75,7 +67,6 @@
 #endif
 
 namespace smart {
-inline namespace common {
 
 inline void print_timestamp() {
     SMART_LOG_INFO("Compiled on: {} at {}", __DATE__, __TIME__);
@@ -127,5 +118,4 @@ inline std::string trim(const std::string &str) {
     return str.substr(start, end - start);
 }
 
-} // namespace common
 } // namespace smart

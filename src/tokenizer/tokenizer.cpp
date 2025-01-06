@@ -14,7 +14,7 @@
 
 #include "tokenizer.hpp"
 
-#include "common/logger.hpp"
+#include "core/logger.hpp"
 #include "ggml.h"
 
 namespace smart {
@@ -52,6 +52,11 @@ size_t Tokenizer::n_vocabs() const {
 
 auto Tokenizer::bos_token() const -> Token {
     return m_vocab.special_bos_id;
+}
+
+bool Tokenizer::should_stop(Token token) const {
+    return token == m_vocab.special_bos_id || token == m_vocab.special_eom_id || token == m_vocab.special_eos_id ||
+           token == m_vocab.special_eot_id;
 }
 
 auto Tokenizer::tokenize(const std::string &text, bool add_special) const -> std::vector<Token> {

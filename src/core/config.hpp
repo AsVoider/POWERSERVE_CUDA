@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common/type_def.hpp"
+#include "core/typedefs.hpp"
 
 #include <cstdint>
 #include <string>
