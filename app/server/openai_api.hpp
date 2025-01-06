@@ -125,6 +125,8 @@ inline ModelInput parse_completion_model_input(const nlohmann::json &request) {
         .m_log_probs  = request.value("logprobs", 0),
         .stream       = request.value("stream", false),
 
+        .m_repeat_penalty = request.value("repeat_penalty", 1.F),
+
         .request_id = request_counter++
     };
     return input;
@@ -146,8 +148,10 @@ inline ModelInput parse_chat_model_input(const nlohmann::json &request) {
         .m_presence_penalty  = request.value("presence_penalty", 0.F),
         .m_frequency_penalty = request.value("frequency_penalty", 0.F),
 
-        .stream     = request.value("stream", false),
-        .request_id = request_counter++
+        .stream = request.value("stream", false),
+
+        .m_repeat_penalty = request.value("repeat_penalty", 1.F),
+        .request_id       = request_counter++
     };
     const auto &message = request["messages"];
     for (const auto &entry : message) {

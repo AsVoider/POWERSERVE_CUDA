@@ -10,9 +10,6 @@
 [submodule "libs/libuv"]
 	path = libs/libuv
 	url = https://github.com/libuv/libuv.git
-[submodule "tools/mmlu"]
-	path = tools/mmlu
-	url = https://github.com/bobozi-cmd/mmlu.git
 [submodule "libs/xtensor"]
 	path = libs/xtensor
 	url = https://github.com/xtensor-stack/xtensor.git

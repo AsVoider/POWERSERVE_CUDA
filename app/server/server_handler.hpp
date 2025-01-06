@@ -79,6 +79,10 @@ struct ModelInput {
     /// Whether to stream back partial progress. If set, tokens will be sent as data-only server-sent events as they become available, with the stream terminated by a data: [DONE] message.
     bool stream;
 
+    /* Extension */
+
+    float m_repeat_penalty;
+
     /* Metadata */
 
     size_t request_id;
@@ -398,6 +402,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
     sampler_config.temperature     = input.m_temperature;
     sampler_config.penalty_freq    = input.m_frequency_penalty;
     sampler_config.penalty_present = input.m_presence_penalty;
+    sampler_config.penalty_repeat  = input.m_repeat_penalty;
     sampler_config.top_p           = input.m_top_p;
     sampler_config.temperature     = input.m_temperature;
     smart::SamplerChain sampler{sampler_config, tokenizer};
@@ -491,6 +496,7 @@ inline ModelOutput blocking_inference(
     sampler_config.temperature     = input.m_temperature;
     sampler_config.penalty_freq    = input.m_frequency_penalty;
     sampler_config.penalty_present = input.m_presence_penalty;
+    sampler_config.penalty_repeat  = input.m_repeat_penalty;
     sampler_config.top_p           = input.m_top_p;
     sampler_config.temperature     = input.m_temperature;
     smart::SamplerChain sampler{sampler_config, tokenizer};

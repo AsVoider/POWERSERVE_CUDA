@@ -10,6 +10,7 @@ function(smart_add_binary target_name)
 endfunction()
 
 add_subdirectory(run)
+add_subdirectory(perplexity)
 add_subdirectory(server)
 
 if (SMART_WITH_QNN)
