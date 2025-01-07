@@ -60,7 +60,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    auto config = std::make_shared<powerserve::Config>(work_folder);
+    auto config = std::make_shared<powerserve::Config>(
+        work_folder, powerserve::Path(work_folder) / powerserve::WORKSPACE_CONFIG_FILENAME
+    );
     std::shared_ptr<powerserve::Model> main_model =
         powerserve::load_model(config->main_model_dir, config->main_model_config);
     std::shared_ptr<powerserve::Model> draft_model =

@@ -92,7 +92,9 @@ int main(int argc, char *argv[]) {
             POWERSERVE_ASSERT(false, "failed to open prompt file: {}", prompt_file);
         }
     }
-    auto config = std::make_shared<powerserve::Config>(work_folder);
+    auto config = std::make_shared<powerserve::Config>(
+        work_folder, powerserve::Path(work_folder) / powerserve::WORKSPACE_CONFIG_FILENAME
+    );
     std::shared_ptr<powerserve::Model> model =
         powerserve::load_model(config->main_model_dir, config->main_model_config);
     auto [sampler_config, n_threads, prefill_batch_size] = config->hyper_params;

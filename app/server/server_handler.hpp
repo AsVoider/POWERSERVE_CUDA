@@ -166,7 +166,7 @@ public:
 
 struct ModelContext {
 public:
-    std::shared_ptr<powerserve::Config> m_config_ptr;
+    std::unique_ptr<powerserve::Config> m_config_ptr;
     std::shared_ptr<powerserve::Model> m_model_ptr;
     std::unique_ptr<powerserve::Tokenizer> m_tokenizer_ptr;
 
@@ -174,7 +174,7 @@ public:
     ModelContext() = default;
 
     ModelContext(
-        std::shared_ptr<powerserve::Config> &&config_ptr,
+        std::unique_ptr<powerserve::Config> &&config_ptr,
         std::shared_ptr<powerserve::Model> &&model_ptr,
         std::unique_ptr<powerserve::Tokenizer> &&tokenizer_ptr
     ) :
@@ -195,7 +195,7 @@ public:
 
 struct ServerContext {
 private:
-    std::filesystem::path m_model_folder;
+    std::filesystem::path m_work_folder;
 
     std::filesystem::path m_lib_folder;
 
@@ -206,14 +206,14 @@ private:
     std::map<ServerSessionId, ServerSession> m_session_map;
 
 public:
-    ServerContext(const std::filesystem::path &model_folder, const std::filesystem::path &lib_folder) :
-        m_model_folder(model_folder),
+    ServerContext(const std::filesystem::path &work_folder, const std::filesystem::path &lib_folder) :
+        m_work_folder(work_folder),
         m_lib_folder(lib_folder) {
-        if (!std::filesystem::exists(model_folder)) {
-            POWERSERVE_LOG_WARN("model base folder does not exist: {}", m_model_folder);
+        if (!std::filesystem::exists(m_work_folder)) {
+            POWERSERVE_LOG_WARN("model base folder does not exist: {}", m_work_folder);
         }
-        if (!std::filesystem::is_directory(model_folder)) {
-            POWERSERVE_LOG_WARN("model base folder is not directory: {}", m_model_folder);
+        if (!std::filesystem::is_directory(m_work_folder)) {
+            POWERSERVE_LOG_WARN("model base folder is not directory: {}", m_work_folder);
         }
     }
 
@@ -223,23 +223,24 @@ public:
     ModelContext &setup_model(const std::string &model_name) {
         std::lock_guard<std::mutex> lock_guard(m_lock);
 
-        const std::string workspace_model_folder = m_model_folder / model_name;
-        std::string work_folder;
-
-        if (std::filesystem::exists(workspace_model_folder) && std::filesystem::is_directory(workspace_model_folder)) {
-            work_folder = workspace_model_folder;
+        const std::filesystem::path inner_model_folder = m_work_folder / model_name;
+        std::filesystem::path model_folder;
+        if (!std::filesystem::exists(inner_model_folder) && !std::filesystem::is_directory(inner_model_folder)) {
+            model_folder = inner_model_folder;
         } else if (std::filesystem::exists(model_name) && std::filesystem::is_directory(model_name)) {
-            work_folder = model_name;
+            model_folder = model_name;
         } else {
             throw std::invalid_argument("model folder does not exist: " + model_name);
         }
-        POWERSERVE_LOG_INFO("found model folder: {}", work_folder);
+        POWERSERVE_LOG_INFO("found model folder: {}", model_folder);
 
-        if (m_context_slot_map.contains(work_folder)) {
-            return m_context_slot_map.at(work_folder);
+        if (m_context_slot_map.contains(model_name)) {
+            return m_context_slot_map.at(model_name);
         }
 
-        std::shared_ptr<powerserve::Config> config_ptr = std::make_shared<powerserve::Config>(work_folder);
+        std::unique_ptr<powerserve::Config> config_ptr = std::make_unique<powerserve::Config>(
+            m_work_folder, powerserve::Path(m_work_folder) / powerserve::WORKSPACE_CONFIG_FILENAME
+        );
         std::shared_ptr<powerserve::Model> model_ptr =
             powerserve::load_model(config_ptr->main_model_dir, config_ptr->main_model_config);
 
@@ -248,9 +249,15 @@ public:
 
 #if defined(POWERSERVE_WITH_QNN)
         auto &qnn_backend = model_ptr->m_platform->qnn_backend;
-        model_ptr->m_platform->init_qnn_backend(m_lib_folder);
+        if (m_lib_folder.empty()) {
+            model_ptr->m_platform->init_qnn_backend(
+                powerserve::Path(m_work_folder) / powerserve::qnn::QNN_LIB_DIR_NAME
+            );
+        } else {
+            model_ptr->m_platform->init_qnn_backend(m_lib_folder);
+        }
         qnn_backend->load_model(
-            config_ptr->main_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, model_ptr->m_config
+            powerserve::Path(model_folder) / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, model_ptr->m_config
         );
 #endif
 
@@ -262,9 +269,9 @@ public:
         POWERSERVE_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
         ModelContext context(std::move(config_ptr), std::move(model_ptr), std::move(tokenizer_ptr));
-        m_context_slot_map[work_folder] = std::move(context);
+        m_context_slot_map[model_name] = std::move(context);
 
-        return m_context_slot_map.at(work_folder);
+        return m_context_slot_map.at(model_name);
     }
 
     void destroy_model(const std::string &work_folder) {
@@ -274,15 +281,22 @@ public:
     }
 
     std::vector<std::string> list_models() const {
-        if (!std::filesystem::exists(m_model_folder) && !std::filesystem::is_directory(m_model_folder)) {
-            POWERSERVE_LOG_ERROR("model base folder does not exist: {}", m_model_folder);
+        if (!std::filesystem::exists(m_work_folder) && !std::filesystem::is_directory(m_work_folder)) {
+            POWERSERVE_LOG_ERROR("model base folder does not exist: {}", m_work_folder);
             return {};
         }
 
         std::vector<std::string> model_list;
-        for (const auto &entry : std::filesystem::directory_iterator(m_model_folder)) {
+        for (const auto &entry : std::filesystem::directory_iterator(m_work_folder)) {
+            const std::string dir_name = entry.path().filename();
+
+            // TODO: no hardcoded string
+            if (dir_name == "bin" || dir_name == "qnn_libs") {
+                continue;
+            }
+
             if (!entry.is_directory()) {
-                POWERSERVE_LOG_ERROR("model folder is not directory: {}", m_model_folder);
+                POWERSERVE_LOG_ERROR("model folder is not directory: {}", m_work_folder);
                 continue;
             }
             model_list.emplace_back(entry.path().filename());
@@ -355,6 +369,7 @@ inline bool is_utf8_string_incomplete(const std::string &output_string) {
 }
 
 #pragma optimize("", off)
+
 inline std::string &remove_incomplete_utf8_char(std::string &output_string) {
     for (unsigned i = 1; i < 5 && i <= output_string.size(); ++i) {
         unsigned char c = output_string[output_string.size() - i];

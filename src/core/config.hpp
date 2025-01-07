@@ -139,7 +139,7 @@ public:
     std::shared_ptr<ModelConfig> draft_model_config;
 
 public:
-    Config(const Path &work_folder);
+    Config(const Path &work_folder, const Path &workspace_config_path);
 
     virtual ~Config() = default;
 };

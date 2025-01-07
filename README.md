@@ -41,38 +41,36 @@ For CPU-only execution, only `Models For CPU` is required. For NPU execution, bo
 
 Take llama3.1-8b-instruct model as example, the structure of model folder:
 ```shell
--- models                       # Level-1 dir, where server search different models.
-    -- llama3.1-8b-instruct         # Level-2 dir, where CLI search for runtime configurations
-        -- hparams.json                 # Hyper params, containing #threads, #batch_size and sampler configurations.
-        -- workspace.json               # The definition of model workspace structure, where main model and target model(if exist) is determined.
-        -- bin                          # The binaries for execution
-            -- powerserve-config-generator
-            -- powerserve-perplexity-test
-            -- powerserve-run
-            -- powerserve-server
-        -- model_dir                    # The model weights of GGUF and QNN
-            -- model.json               #
-            -- vocab.gguf               # The vocab table of model
-            -- ggml                     # GGUF model binaries
-                -- weights.gguf
-            -- qnn                      # QNN model binaries
-                -- kv
-                    -- *.raw
-                    -- ...
-                -- config.json          # The information of QNN models and QNN backend configurations
-                -- llama3_1_8b_0.bin
-                -- llama3_1_8b_1.bin
-                -- llama3_1_8b_2.bin
-                -- llama3_1_8b_3.bin
-                -- lmhead.bin
-        -- qnn_libs                     # Dependent libraries of QNN
-            -- libQNNSystem.so
-            -- libQNNHtp.so
-            -- libQNNHtpV79.so
-            -- libQNNHtpV79Skel.so
-            -- libQNNHtpV79Stub.so
-
-    -- qwen2_7b_instruct            # Level-2 dir of another model
+-- models                       # Level-1 dir, where server search different models and CLI search for runtime configurations
+    -- hparams.json                 # Hyper params, containing #threads, #batch_size and sampler configurations.
+    -- workspace.json               # The definition of model workspace structure, where main model and target model(if exist) is determined.
+    -- bin                          # The binaries for execution
+        -- powerserve-config-generator
+        -- powerserve-perplexity-test
+        -- powerserve-run
+        -- powerserve-server
+    -- qnn_libs                     # Dependent libraries of QNN
+        -- libQNNSystem.so
+        -- libQNNHtp.so
+        -- libQNNHtpV79.so
+        -- libQNNHtpV79Skel.so
+        -- libQNNHtpV79Stub.so
+    -- llama3.1-8b-instruct         # The model weights of GGUF and QNN
+        -- model.json
+        -- vocab.gguf               # The vocab table of model
+        -- ggml                     # GGUF model binaries
+            -- weights.gguf
+        -- qnn                      # QNN model binaries
+            -- kv
+                -- *.raw
+                -- ...
+            -- config.json          # The information of QNN models and QNN backend configurations
+            -- llama3_1_8b_0.bin
+            -- llama3_1_8b_1.bin
+            -- llama3_1_8b_2.bin
+            -- llama3_1_8b_3.bin
+            -- lmhead.bin
+    -- qwen2_7b_instruct            # another model
         -- ...
 
 ```
@@ -161,7 +159,7 @@ cmake --build build
 mkdir -p models
 
 # Generate PowerServe Workspace
-./powerserve create -m ./llama3.1-8b-instruct-model --exe-path ./build -o ./models/llama3.1-8b-instruct
+./powerserve create -m ./llama3.1-8b-instruct-model --exe-path ./build/out -o ./models/llama3.1-8b-instruct
 ```
 
 ## Execution
@@ -184,7 +182,7 @@ export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64 && ./models/llama3.1-8b-instr
 More details please refer to [Server App](./app/server/README.md)
 ```shell
 # Under the root directory of PowerServe
-./models/llama3.1-8b-instruct/bin/powerserve-server --model-folder ./models --host <ip-addr> --port <port>
+export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64 && ./models/llama3.1-8b-instruct/bin/powerserve-server --model-folder ./models --host <ip-addr> --port <port>
 ```
 
 

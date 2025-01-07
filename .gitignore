@@ -3,6 +3,7 @@ build*/
 .vscode/
 __pycache__/
 .venv/
+models/
 
 *.svg
 *.data
