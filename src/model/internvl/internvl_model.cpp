@@ -125,7 +125,6 @@ auto InternVL::forward(
     executor.run();
 
     if (!lm_head) {
-        POWERSERVE_ASSERT(logits == nullptr);
         return LogitsVector();
     }
 

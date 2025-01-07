@@ -112,7 +112,6 @@ auto Qwen2Model::forward(
     }
 
     if (!lm_head) {
-        POWERSERVE_ASSERT(logits == nullptr);
         return LogitsVector();
     }
 

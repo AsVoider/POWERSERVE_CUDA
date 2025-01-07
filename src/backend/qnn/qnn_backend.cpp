@@ -65,7 +65,7 @@ void QNNBackend::forward(
                 out_buf = (float *)batch.lm_head->output_buffer();
                 size    = batch_size * vocab_size * sizeof(float);
             }
-
+            //TODO: Eliminate memcpy
             PerfettoTrace::begin("qnn_forward_memcpy");
             memcpy(dst_data_ptr, out_buf, size);
             PerfettoTrace::end();
