@@ -22,7 +22,7 @@ void SamplerChain::build_from_config(const HyperParams::SamplerConfig &config, c
         std::random_device rd;
         seed = rd();
     }
-    SMART_LOG_INFO("seed: {}", seed);
+    POWERSERVE_LOG_INFO("seed: {}", seed);
 
     // Samplers in order:
     // - Repeat penalty

@@ -34,7 +34,7 @@ public:
 
     std::vector<float> load_image(const std::string &image_path) {
         int width, height, channels;
-        SMART_ASSERT(std::filesystem::exists(image_path));
+        POWERSERVE_ASSERT(std::filesystem::exists(image_path));
         unsigned char *data = stbi_load(image_path.c_str(), &width, &height, &channels, 3);
         if (!data) {
             throw std::runtime_error("Failed to load image");

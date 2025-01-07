@@ -169,7 +169,7 @@ def powerserve_create(args):
 
 
 def command():
-    parser = argparse.ArgumentParser(prog="SmartServing", description="SmartServing CommandLine Tool")
+    parser = argparse.ArgumentParser(prog="PowerServe", description="PowerServe CommandLine Tool")
     subparser = parser.add_subparsers()
     # ============== Create ==============
     create_parser = subparser.add_parser("create")

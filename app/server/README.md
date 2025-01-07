@@ -1,4 +1,4 @@
-# SmartServe.Server
+# PowerServe.Server
 
 ## Usage
 
@@ -43,7 +43,7 @@ Test the server simply:
 
 ## OpenAI API
 
-SmartServe.server support part of OpenAI API:
+PowerServe.server support part of OpenAI API:
 - `/v1/completions`
 - `/v1/chat/completions`
 - `/v1/models`

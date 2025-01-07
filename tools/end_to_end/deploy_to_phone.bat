@@ -19,13 +19,13 @@ if "%ADB_DEVICES_OUTPUT%"=="" (
 )
 
 REM 定义目标路径变量
-set TARGET_PATH=/data/local/tmp/smartserving
+set TARGET_PATH=/data/local/tmp/powerserve
 
 REM 如果TARGET_PATH不存在，则创建
 adb shell mkdir -p %TARGET_PATH%
 
 adb push .\proj %TARGET_PATH%/
 
-adb shell "%TARGET_PATH%/proj/bin/smart-run -d ./Llama-3.1-8B-PowerServe-QNN"
+adb shell "%TARGET_PATH%/proj/bin/powerserve-run -d ./Llama-3.1-8B-PowerServe-QNN"
 
 echo Deployment finished.

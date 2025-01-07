@@ -40,7 +40,7 @@ std::unique_ptr<FileLoader> build_file_loader(const std::filesystem::path &file_
         return std::make_unique<FileLoaderUV>(file_path);
 
     default:
-        SMART_LOG_WARN("unknown file loader method {}, fallback to bio", static_cast<int>(method));
+        POWERSERVE_LOG_WARN("unknown file loader method {}, fallback to bio", static_cast<int>(method));
         return std::make_unique<FileLoaderBIO>(file_path);
     }
 }

@@ -54,12 +54,12 @@ void GraphInterface::setup_buffer(std::shared_ptr<SharedBuffer> &buffer, qnn::QN
 }
 
 auto GraphInterface::input_buffer() const -> void * {
-    SMART_ASSERT(m_buffers.at(m_graph_config.x_name)->m_type == QNN_DATATYPE_FLOAT_32);
+    POWERSERVE_ASSERT(m_buffers.at(m_graph_config.x_name)->m_type == QNN_DATATYPE_FLOAT_32);
     return (void *)m_buffers.at(m_graph_config.x_name)->m_data;
 }
 
 auto GraphInterface::output_buffer() const -> void * {
-    SMART_ASSERT(m_buffers.at(m_graph_config.out_name)->m_type == QNN_DATATYPE_FLOAT_32);
+    POWERSERVE_ASSERT(m_buffers.at(m_graph_config.out_name)->m_type == QNN_DATATYPE_FLOAT_32);
     return (void *)m_buffers.at(m_graph_config.out_name)->m_data;
 }
 

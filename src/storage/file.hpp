@@ -65,7 +65,7 @@ public:
     void reset(const int new_fd = INVALID_FILE_HANDLE) {
         if (m_fd != INVALID_FILE_HANDLE) {
             const int ret = close(m_fd);
-            SMART_ASSERT(ret != -1, "failed to close file {}", m_fd);
+            POWERSERVE_ASSERT(ret != -1, "failed to close file {}", m_fd);
         }
         m_fd = new_fd;
     }

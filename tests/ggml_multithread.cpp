@@ -41,8 +41,8 @@ int main() {
     {
         gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
         gguf_ctx                = gguf_init_from_file(filename.c_str(), params);
-        SMART_ASSERT(gguf_ctx != nullptr);
-        SMART_ASSERT(ggml_ctx != nullptr);
+        POWERSERVE_ASSERT(gguf_ctx != nullptr);
+        POWERSERVE_ASSERT(ggml_ctx != nullptr);
     }
 
     std::shared_ptr<LlamaConfig> m_config = std::make_shared<LlamaConfig>(gguf_ctx);

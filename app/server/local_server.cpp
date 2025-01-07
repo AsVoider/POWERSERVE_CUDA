@@ -109,18 +109,18 @@ LocalServer::LocalServer(
 ) :
     m_context(model_folder, qnn_lib_folder),
     m_server_thread([this, task_interval] {
-        SMART_LOG_INFO("Local Server pool thread start");
+        POWERSERVE_LOG_INFO("Local Server pool thread start");
         while (!m_stop.test()) {
             LocalResponse *response_ptr = nullptr;
 
             if (m_task_queue.try_dequeue(response_ptr)) {
-                SMART_LOG_INFO("Local Server process a new task");
+                POWERSERVE_LOG_INFO("Local Server process a new task");
                 response_ptr->m_func(*response_ptr);
             } else {
                 std::this_thread::sleep_for(task_interval);
             }
         }
-        SMART_LOG_INFO("Local Server pool thread stop");
+        POWERSERVE_LOG_INFO("Local Server pool thread stop");
     }) {}
 
 LocalServer::~LocalServer() noexcept {

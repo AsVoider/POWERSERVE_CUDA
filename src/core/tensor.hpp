@@ -36,7 +36,7 @@ public:
     Tensor &operator=(const Tensor &) = default;
 
     Tensor(DataType dtype, const Shape &shape) : m_dtype(dtype) {
-        SMART_ASSERT(shape.size() <= max_n_dims);
+        POWERSERVE_ASSERT(shape.size() <= max_n_dims);
         for (size_t i = 0; i < shape.size(); i++) {
             m_shape[i] = std::max(shape[i], size_t(1));
         }
@@ -85,7 +85,7 @@ public:
     }
 
     size_t row_size(int64_t ne) const {
-        SMART_ASSERT(ne % get_block_size(m_dtype) == 0);
+        POWERSERVE_ASSERT(ne % get_block_size(m_dtype) == 0);
         return element_size() * ne / get_block_size(m_dtype);
     }
 };

@@ -1,4 +1,4 @@
-首先编译代码时要设置`SMART_WITH_PERFETTO`为`ON`。
+首先编译代码时要设置`POWERSERVE_WITH_PERFETTO`为`ON`。
 
 然后要在代码里显示地启用和停止tracing，例如：
 

@@ -35,30 +35,30 @@ struct PerfettoTrace final : Noncopyable {
 
     // NOTE: name must be a static string
     static void begin(const char *name) {
-#if defined(SMART_WITH_PERFETTO)
+#if defined(POWERSERVE_WITH_PERFETTO)
         if (instance().enabled.load(std::memory_order_relaxed)) {
             instance().begin_event(name, true);
         }
 #else
-        SMART_UNUSED(name);
+        POWERSERVE_UNUSED(name);
 #endif
     }
 
     template <typename... Args>
     static void begin(const char *name_fmt, Args &&...args) {
-#if defined(SMART_WITH_PERFETTO)
+#if defined(POWERSERVE_WITH_PERFETTO)
         if (instance().enabled.load(std::memory_order_relaxed)) {
             auto name = fmt::vformat(name_fmt, fmt::make_format_args(args...));
             instance().begin_event(name.c_str(), false);
         }
 #else
-        SMART_UNUSED(name_fmt);
-        (SMART_UNUSED(args), ...);
+        POWERSERVE_UNUSED(name_fmt);
+        (POWERSERVE_UNUSED(args), ...);
 #endif
     }
 
     static void end() {
-#if defined(SMART_WITH_PERFETTO)
+#if defined(POWERSERVE_WITH_PERFETTO)
         if (instance().enabled.load(std::memory_order_relaxed)) {
             instance().end_event();
         }
@@ -77,11 +77,11 @@ struct PerfettoTrace final : Noncopyable {
     static auto counter() -> CounterTimePoint;
 
     static void counter(const char *name, double value) {
-#if defined(SMART_WITH_PERFETTO)
+#if defined(POWERSERVE_WITH_PERFETTO)
         counter().set_value(name, value);
 #else
-        SMART_UNUSED(name);
-        SMART_UNUSED(value);
+        POWERSERVE_UNUSED(name);
+        POWERSERVE_UNUSED(value);
 #endif
     }
 

@@ -27,7 +27,7 @@ CPUPerfResult perf_get_cpu_result() {
     constexpr std::string_view stat_file = "/proc/stat";
     std::ifstream file(stat_file.data());
     if (!file.good()) [[unlikely]] {
-        SMART_LOG_ERROR("failed reading file: {}", stat_file);
+        POWERSERVE_LOG_ERROR("failed reading file: {}", stat_file);
         return {};
     }
 
@@ -47,7 +47,7 @@ CPUPerfResult perf_get_cpu_result() {
         );
         return ret;
     }
-    SMART_LOG_ERROR("failed reading stat");
+    POWERSERVE_LOG_ERROR("failed reading stat");
     return {};
 }
 
@@ -55,7 +55,7 @@ IOPerfResult perf_get_io_result() {
     constexpr std::string_view stat_file = "/proc/self/io";
     std::ifstream file(stat_file.data());
     if (!file.good()) [[unlikely]] {
-        SMART_LOG_ERROR("failed reading file: {}", stat_file);
+        POWERSERVE_LOG_ERROR("failed reading file: {}", stat_file);
         return {};
     }
 
@@ -103,7 +103,7 @@ MemPerfResult perf_get_mem_result() {
     }
     return ret;
 #else
-    SMART_LOG_ERROR("unimplement platform for perf");
+    POWERSERVE_LOG_ERROR("unimplement platform for perf");
     return {};
 #endif
 }

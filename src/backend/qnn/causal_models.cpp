@@ -26,7 +26,7 @@ auto CausalLM::ChunkVector::get_chunk(size_t layer_id) -> ModelChunk & {
         }
     }
 
-    SMART_ABORT("cannot found mode chunk containing layer: {}", layer_id);
+    POWERSERVE_ABORT("cannot found mode chunk containing layer: {}", layer_id);
 }
 
 CausalLM::CausalLM(const Path &model_folder, const std::shared_ptr<ModelConfig> &model_config, Session &environment) :
@@ -38,9 +38,9 @@ CausalLM::CausalLM(const Path &model_folder, const std::shared_ptr<ModelConfig> 
     m_gparams.kv_size      = m_config.chunks[0].kv_size;
     m_gparams.context_size = m_config.chunks[0].context_size;
     for (auto &info : m_config.chunks) {
-        SMART_ASSERT(info.cache_size == m_gparams.cache_size);
-        SMART_ASSERT(info.kv_size == m_gparams.kv_size);
-        SMART_ASSERT(info.context_size == m_gparams.context_size);
+        POWERSERVE_ASSERT(info.cache_size == m_gparams.cache_size);
+        POWERSERVE_ASSERT(info.kv_size == m_gparams.kv_size);
+        POWERSERVE_ASSERT(info.context_size == m_gparams.context_size);
         m_gparams.max_batch_size = std::max(m_gparams.max_batch_size, info.batch_size);
     }
     load_model_chunks();
@@ -53,14 +53,14 @@ CausalLM::CausalLM(const Path &model_folder, const std::shared_ptr<ModelConfig> 
         auto &context_binary   = load_context_binary(max_lm_head.m_graph_config.model_path);
         context_binary.m_alloc = std::make_unique<SharedBufferAllocator>(max_lm_head.io_tensor_size());
         max_lm_head.setup_buffers();
-        SMART_ASSERT(context_binary.m_alloc->unallocated_size() == 0);
+        POWERSERVE_ASSERT(context_binary.m_alloc->unallocated_size() == 0);
         context_binary.m_context->free_system_context();
         for (auto &[batch_size, lm_head_ptr] : m_lm_heads) {
             if (batch_size == max_lm_head.m_graph_config.batch_size) {
                 continue;
             }
             auto &lm_head = *lm_head_ptr;
-            SMART_ASSERT(lm_head.io_tensor_size() <= max_lm_head.io_tensor_size());
+            POWERSERVE_ASSERT(lm_head.io_tensor_size() <= max_lm_head.io_tensor_size());
             lm_head.m_sibling = &max_lm_head;
             lm_head.setup_buffers();
         }
@@ -75,7 +75,7 @@ auto CausalLM::load_context_binary(const Path &path) -> ContextBinary & {
         return iter->second;
     }
 
-    SMART_LOG_INFO("Loading \"{}\"...", path);
+    POWERSERVE_LOG_INFO("Loading \"{}\"...", path);
     auto result          = m_context_binaries.emplace(path, ContextBinary(*m_session.m_backend, m_model_folder / path));
     auto &context_binary = result.first->second;
 
@@ -117,7 +117,7 @@ void CausalLM::load_model_chunks() {
         chunks.emplace_back(std::make_unique<ModelChunk>(*this, *config));
     }
 
-    SMART_ASSERT(m_chunks_map.find(m_gparams.max_batch_size) != m_chunks_map.end());
+    POWERSERVE_ASSERT(m_chunks_map.find(m_gparams.max_batch_size) != m_chunks_map.end());
 
     auto &max_chunks = m_chunks_map[m_gparams.max_batch_size];
     kv_cache         = std::make_unique<KVCache<CausalLMKV>>(
@@ -134,7 +134,7 @@ void CausalLM::load_model_chunks() {
 
         max_chunk.initialize(*kv_cache);
 
-        SMART_ASSERT(context_binary.m_alloc->unallocated_size() == 0);
+        POWERSERVE_ASSERT(context_binary.m_alloc->unallocated_size() == 0);
         context_binary.m_context->free_system_context();
 
         for (auto &[batch_size, chunks] : m_chunks_map) {
@@ -142,12 +142,12 @@ void CausalLM::load_model_chunks() {
                 continue;
             }
 
-            SMART_ASSERT(i < chunks.size());
+            POWERSERVE_ASSERT(i < chunks.size());
             auto &chunk = *chunks[i];
-            SMART_ASSERT(chunk.m_config.start_layer_id == max_chunk.m_config.start_layer_id);
-            SMART_ASSERT(chunk.m_config.end_layer_id == max_chunk.m_config.end_layer_id);
-            SMART_ASSERT(chunk.m_config.kv_size == max_chunk.m_config.kv_size);
-            SMART_ASSERT(chunk.io_tensor_size() <= max_chunk.io_tensor_size());
+            POWERSERVE_ASSERT(chunk.m_config.start_layer_id == max_chunk.m_config.start_layer_id);
+            POWERSERVE_ASSERT(chunk.m_config.end_layer_id == max_chunk.m_config.end_layer_id);
+            POWERSERVE_ASSERT(chunk.m_config.kv_size == max_chunk.m_config.kv_size);
+            POWERSERVE_ASSERT(chunk.io_tensor_size() <= max_chunk.io_tensor_size());
 
             chunk.m_sibling = &max_chunk;
             chunk.initialize(*kv_cache);
@@ -183,11 +183,11 @@ void CausalLM::fill_rope_embeds(std::span<const size_t> pos) {
     auto head_dim = m_model_config->llm.head_size;
     for (auto &chunk_ptr : largest_chunks()) {
         auto &chunk = *chunk_ptr;
-        SMART_ASSERT(pos.size() <= chunk.m_config.batch_size);
+        POWERSERVE_ASSERT(pos.size() <= chunk.m_config.batch_size);
 
         for (size_t i = 0; i < pos.size(); i++) {
             size_t p = pos[i];
-            SMART_ASSERT(p < m_rope_embeds.size());
+            POWERSERVE_ASSERT(p < m_rope_embeds.size());
 
             auto &src = m_rope_embeds[p];
             memcpy(
@@ -259,7 +259,7 @@ void CausalLM::Batch::forward() {
 void CausalLM::Batch::compute_logits() {
     PerfettoTrace::begin("qnn_compute_logits");
 
-    SMART_ASSERT(lm_head != nullptr);
+    POWERSERVE_ASSERT(lm_head != nullptr);
     size_t batch_size = pos.size();
 
     memcpy(
@@ -289,8 +289,8 @@ auto CausalLM::split_batch(
 ) -> std::vector<Batch> {
     auto embedding_dim = m_model_config->llm.dim;
     size_t batch_size  = token_embeddings.size() / embedding_dim;
-    SMART_ASSERT(pos.size() == batch_size);
-    SMART_ASSERT(mask.size == batch_size);
+    POWERSERVE_ASSERT(pos.size() == batch_size);
+    POWERSERVE_ASSERT(mask.size == batch_size);
 
     std::vector<Batch> batches;
     for (size_t index = 0, step_size; index < batch_size; index += step_size) {
@@ -330,7 +330,7 @@ auto CausalLM::create_batch(
     std::span<const float> token_embeddings, std::span<const size_t> pos, const CausalAttentionMask &mask
 ) -> Batch {
     auto batches = split_batch(token_embeddings, pos, mask);
-    SMART_ASSERT(batches.size() == 1);
+    POWERSERVE_ASSERT(batches.size() == 1);
     return batches[0];
 }
 
@@ -340,7 +340,7 @@ CausalVLM::CausalVLM(const Path model_folder, const std::shared_ptr<ModelConfig>
     auto &context_binary   = load_context_binary(m_config.vision.model_path);
     context_binary.m_alloc = std::make_unique<SharedBufferAllocator>(m_vision->io_tensor_size());
     m_vision->setup_buffers();
-    SMART_ASSERT(context_binary.m_alloc->unallocated_size() == 0);
+    POWERSERVE_ASSERT(context_binary.m_alloc->unallocated_size() == 0);
     context_binary.m_context->free_system_context();
 }
 } // namespace powerserve::qnn

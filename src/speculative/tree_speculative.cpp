@@ -28,9 +28,9 @@ TreeSpeculative::TreeSpeculative(const ModelPtr &target_model, const ModelPtr &d
 void TreeSpeculative::generate(const Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) {
     auto prompt_tokens           = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos);
     const size_t n_prompt_tokens = prompt_tokens.size();
-    SMART_ASSERT(n_prompt_tokens >= 1);
+    POWERSERVE_ASSERT(n_prompt_tokens >= 1);
 
-    SMART_ASSERT(target_model->kv_cache->position == draft_model->kv_cache->position);
+    POWERSERVE_ASSERT(target_model->kv_cache->position == draft_model->kv_cache->position);
     size_t position = target_model->kv_cache->position;
 
     fmt::print("{}", prompt);
@@ -68,7 +68,7 @@ void TreeSpeculative::generate(const Tokenizer &tokenizer, Sampler &sampler, con
             generate_tokens(tokenizer, sampler, last_token);
             generation_time_ns += timer.elapsed_time_ns();
 
-            SMART_ASSERT(token_queue.size() > 0);
+            POWERSERVE_ASSERT(token_queue.size() > 0);
             n_generated_tokens += token_queue.size();
         }
 

@@ -86,7 +86,7 @@ void GGMLBackend::plan(std::vector<std::shared_ptr<OpNode>> &ops) {
 #endif
 
         default:
-            SMART_ABORT("unsupported op type: {}", static_cast<int>(op->op));
+            POWERSERVE_ABORT("unsupported op type: {}", static_cast<int>(op->op));
         }
 
         max_work_size = std::max(max_work_size, cur);
@@ -113,9 +113,9 @@ void GGMLBackend::reset_kv_batch_size(const size_t batch_size) const {
 }
 
 void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const {
-    SMART_ASSERT(is_contiguous(out, 0));
-    SMART_ASSERT(is_contiguous(hb, 0));
-    SMART_ASSERT(is_contiguous(hb2, 0));
+    POWERSERVE_ASSERT(is_contiguous(out, 0));
+    POWERSERVE_ASSERT(is_contiguous(hb, 0));
+    POWERSERVE_ASSERT(is_contiguous(hb2, 0));
     float *out_data = static_cast<float *>(out->get<CPUBuffer>().m_data);
     float *hb_data  = static_cast<float *>(hb->get<CPUBuffer>().m_data);
     float *hb2_data = static_cast<float *>(hb2->get<CPUBuffer>().m_data);
@@ -129,8 +129,8 @@ void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tenso
 }
 
 void GGMLBackend::print(const Tensor *x, size_t size) const {
-    SMART_UNUSED(size);
-    SMART_ASSERT(x->m_dtype == DataType::FP32);
+    POWERSERVE_UNUSED(size);
+    POWERSERVE_ASSERT(x->m_dtype == DataType::FP32);
     auto shape  = x->m_shape;
     auto stride = x->get<CPUBuffer>().m_stride;
     printf("\n{%ld, %ld, %ld, %ld}\n", shape[3], shape[2], shape[1], shape[0]);
@@ -152,12 +152,12 @@ void GGMLBackend::print(const Tensor *x, size_t size) const {
 
 void GGMLBackend::add_cache(const Tensor *k, const Tensor *v, size_t L, const std::vector<int> &pos, size_t head_id) {
     fmt::println("This function is deprecated!");
-    SMART_UNUSED(head_id);
+    POWERSERVE_UNUSED(head_id);
 
     auto kv_dim       = m_kv->m_kv_dim;
     auto batch_size   = pos.size();
     auto cur_position = m_kv->kv_cache->position;
-    SMART_ASSERT(batch_size == m_kv->m_batch_size);
+    POWERSERVE_ASSERT(batch_size == m_kv->m_batch_size);
 
     float *src_k  = static_cast<float *>(k->get<CPUBuffer>().m_data); // (kv_dim, batch_size, 1, 1)
     float *src_v  = static_cast<float *>(v->get<CPUBuffer>().m_data); // (kv_dim, batch_size, 1, 1)

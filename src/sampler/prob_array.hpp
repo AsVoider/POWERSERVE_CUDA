@@ -67,7 +67,7 @@ struct ProbArray {
 
     template <typename RandomEngine>
     auto stochastic_sample(RandomEngine &&gen) -> ProbIndex & {
-        SMART_ASSERT(m_is_normalized);
+        POWERSERVE_ASSERT(m_is_normalized);
 
         size_t index = std::discrete_distribution(m_probs.size(), 0, m_probs.size(), [&](double x) {
             // https://en.cppreference.com/w/cpp/numeric/random/discrete_distribution/discrete_distribution

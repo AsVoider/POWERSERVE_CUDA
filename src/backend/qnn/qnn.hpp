@@ -44,7 +44,7 @@ static constexpr size_t type_size(QNNDataType type) {
         return 1;
 
     default:
-        SMART_ABORT("unknown QNN data type: {}", static_cast<int>(type));
+        POWERSERVE_ABORT("unknown QNN data type: {}", static_cast<int>(type));
     }
 }
 

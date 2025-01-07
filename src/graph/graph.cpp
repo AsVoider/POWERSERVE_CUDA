@@ -51,7 +51,7 @@ auto Graph::get_embedding(TensorNode *weight, const std::vector<int> &tokens) ->
 }
 
 auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
-    SMART_ASSERT(tensor_can_repeat(b, a));
+    POWERSERVE_ASSERT(tensor_can_repeat(b, a));
 
     auto out = dup_tensor(a);
     auto op  = new_op(OpType::ADD);
@@ -63,8 +63,8 @@ auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
 
 auto Graph::mat_mul(TensorNode *a, TensorNode *b) -> TensorNode * {
     // TODO: Add checks
-    SMART_ASSERT(a->m_shape[0] == b->m_shape[0]);
-    SMART_ASSERT(tensor_can_mul_mat(a, b));
+    POWERSERVE_ASSERT(a->m_shape[0] == b->m_shape[0]);
+    POWERSERVE_ASSERT(tensor_can_mul_mat(a, b));
 
     Shape shape = {a->m_shape[1], b->m_shape[1], b->m_shape[2], b->m_shape[3]};
     auto out    = new_tensor(DataType::FP32, shape);
@@ -76,9 +76,9 @@ auto Graph::mat_mul(TensorNode *a, TensorNode *b) -> TensorNode * {
 }
 
 auto Graph::rms_norm(TensorNode *x, TensorNode *weight, float eps) -> TensorNode * {
-    SMART_ASSERT(weight->n_dims() == 1);
-    SMART_ASSERT(x->m_dtype == weight->m_dtype);
-    SMART_ASSERT(x->m_shape[0] == weight->m_shape[0]);
+    POWERSERVE_ASSERT(weight->n_dims() == 1);
+    POWERSERVE_ASSERT(x->m_dtype == weight->m_dtype);
+    POWERSERVE_ASSERT(x->m_shape[0] == weight->m_shape[0]);
 
     auto out = dup_tensor(x);
     auto op  = new_op(OpType::RMS_NORM);
@@ -90,8 +90,8 @@ auto Graph::rms_norm(TensorNode *x, TensorNode *weight, float eps) -> TensorNode
 }
 
 auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
-    SMART_ASSERT(gate->m_dtype == up->m_dtype);
-    SMART_ASSERT(gate->m_shape == up->m_shape);
+    POWERSERVE_ASSERT(gate->m_dtype == up->m_dtype);
+    POWERSERVE_ASSERT(gate->m_shape == up->m_shape);
 
     auto out = dup_tensor(gate);
     auto op  = new_op(OpType::SILU_HADAMARD);
@@ -180,17 +180,17 @@ void Graph::add_cache(TensorNode *k, TensorNode *v, size_t L, const std::vector<
 }
 
 auto Graph::permute(TensorNode *x, Shape axes) -> TensorViewNode * {
-    SMART_ASSERT(axes[0] < max_n_dims);
-    SMART_ASSERT(axes[1] < max_n_dims);
-    SMART_ASSERT(axes[2] < max_n_dims);
-    SMART_ASSERT(axes[3] < max_n_dims);
+    POWERSERVE_ASSERT(axes[0] < max_n_dims);
+    POWERSERVE_ASSERT(axes[1] < max_n_dims);
+    POWERSERVE_ASSERT(axes[2] < max_n_dims);
+    POWERSERVE_ASSERT(axes[3] < max_n_dims);
 
-    SMART_ASSERT(axes[0] != axes[1]);
-    SMART_ASSERT(axes[0] != axes[2]);
-    SMART_ASSERT(axes[0] != axes[3]);
-    SMART_ASSERT(axes[1] != axes[2]);
-    SMART_ASSERT(axes[1] != axes[3]);
-    SMART_ASSERT(axes[2] != axes[3]);
+    POWERSERVE_ASSERT(axes[0] != axes[1]);
+    POWERSERVE_ASSERT(axes[0] != axes[2]);
+    POWERSERVE_ASSERT(axes[0] != axes[3]);
+    POWERSERVE_ASSERT(axes[1] != axes[2]);
+    POWERSERVE_ASSERT(axes[1] != axes[3]);
+    POWERSERVE_ASSERT(axes[2] != axes[3]);
 
     Shape shape{};
     shape[axes[0]] = x->m_shape[0];

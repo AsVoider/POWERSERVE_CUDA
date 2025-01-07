@@ -39,7 +39,7 @@ void Executor::allocate_buffers() {
         } break;
 
         default:
-            SMART_ABORT("could not allocate buffer for data type: {}", static_cast<int>(tensor->m_dtype));
+            POWERSERVE_ABORT("could not allocate buffer for data type: {}", static_cast<int>(tensor->m_dtype));
         }
     }
 }
@@ -179,7 +179,7 @@ void Executor::run() {
             auto n_kv        = out->m_shape[0];
             auto batch_size  = out->m_shape[1];
 
-            SMART_ASSERT(out->m_dtype == DataType::FP32);
+            POWERSERVE_ASSERT(out->m_dtype == DataType::FP32);
             auto mask_buf = (float *)out->get<CPUBuffer>().m_data;
             for (size_t i = 0; i < batch_size; i++) {
                 size_t cur_pos = pos[i];
@@ -195,7 +195,7 @@ void Executor::run() {
             m_platform.ggml_backends[model_id]->transpose(out, x);
         } break;
         default:
-            SMART_ABORT("Unknown OpType: {}", static_cast<int>(op->op));
+            POWERSERVE_ABORT("Unknown OpType: {}", static_cast<int>(op->op));
         }
     }
 }

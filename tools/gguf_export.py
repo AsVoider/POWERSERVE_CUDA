@@ -196,7 +196,7 @@ def export_gguf(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog="SmartServing", description="SmartServing CommandLine Tool (GGUF Exporter)")
+    parser = argparse.ArgumentParser(prog="PowerServe", description="PowerServe CommandLine Tool (GGUF Exporter)")
     parser.add_argument("-m", "--model-path", type=Path, required=True, help="Model path")
     parser.add_argument("-o", "--out-path", type=Path, default=Path(f"./model-{today}/"), help="Output path")
     parser.add_argument("-t", "--out-type", type=str, choices=support_type, default="q8_0")

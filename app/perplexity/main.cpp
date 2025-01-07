@@ -89,14 +89,14 @@ int main(int argc, char *argv[]) {
             prompt = oss.str();
             f.close();
         } else {
-            SMART_ASSERT(false, "failed to open prompt file: {}", prompt_file);
+            POWERSERVE_ASSERT(false, "failed to open prompt file: {}", prompt_file);
         }
     }
     auto config = std::make_shared<powerserve::Config>(work_folder);
     std::shared_ptr<powerserve::Model> model =
         powerserve::load_model(config->main_model_dir, config->main_model_config);
     auto [sampler_config, n_threads, prefill_batch_size] = config->hyper_params;
-    SMART_UNUSED(prefill_batch_size);
+    POWERSERVE_UNUSED(prefill_batch_size);
 
     model->m_platform = std::make_shared<powerserve::Platform>();
     model->m_platform->init_ggml_backend(model->m_config, config->hyper_params);
@@ -109,16 +109,16 @@ int main(int argc, char *argv[]) {
 #endif
 
     model->m_attn = std::make_shared<powerserve::NormAttention>(model->m_config->llm, model->m_weights);
-    SMART_LOG_INFO("after attention module init: {}", powerserve::perf_get_mem_result());
+    POWERSERVE_LOG_INFO("after attention module init: {}", powerserve::perf_get_mem_result());
 
     // load tokenizer
     const std::string tokenizer_path = config->main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
     const powerserve::Tokenizer tokenizer(tokenizer_path);
-    SMART_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
+    POWERSERVE_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
     const auto prompt_tokens = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos);
     const size_t n_tokens    = prompt_tokens.size();
-    SMART_LOG_INFO("dataset: {} tokens", n_tokens);
+    POWERSERVE_LOG_INFO("dataset: {} tokens", n_tokens);
 
     // ppl
     PerplexityCalculator ppl_calculator(model->m_config->llm.vocab_size);
@@ -126,9 +126,9 @@ int main(int argc, char *argv[]) {
     if (batch_size > n_tokens) {
         batch_size = n_tokens;
     }
-    { SMART_LOG_INFO("batch_size  : {}", batch_size); }
+    { POWERSERVE_LOG_INFO("batch_size  : {}", batch_size); }
 
-    SMART_ASSERT(n_tokens >= batch_size * PPL_START_ID);
+    POWERSERVE_ASSERT(n_tokens >= batch_size * PPL_START_ID);
 
     // generate
     size_t pos      = 0;
@@ -159,7 +159,7 @@ int main(int argc, char *argv[]) {
             }
         }
         if (batch_id >= PPL_START_ID) {
-            SMART_LOG_INFO("ppl {}: {}", ppl_calculator.n_tokens, ppl_calculator.current_ppl);
+            POWERSERVE_LOG_INFO("ppl {}: {}", ppl_calculator.n_tokens, ppl_calculator.current_ppl);
         }
         batch_id += 1;
     }

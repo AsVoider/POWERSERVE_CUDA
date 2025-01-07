@@ -135,7 +135,7 @@ public:
 public:
     void init(std::function<void()> &&thread_func) {
         if (m_session_thread_ptr) {
-            SMART_LOG_ERROR("trying to init a session twice");
+            POWERSERVE_LOG_ERROR("trying to init a session twice");
         } else {
             m_session_thread_ptr = std::make_unique<std::thread>(std::move(thread_func));
         }
@@ -210,10 +210,10 @@ public:
         m_model_folder(model_folder),
         m_lib_folder(lib_folder) {
         if (!std::filesystem::exists(model_folder)) {
-            SMART_LOG_WARN("model base folder does not exist: {}", m_model_folder);
+            POWERSERVE_LOG_WARN("model base folder does not exist: {}", m_model_folder);
         }
         if (!std::filesystem::is_directory(model_folder)) {
-            SMART_LOG_WARN("model base folder is not directory: {}", m_model_folder);
+            POWERSERVE_LOG_WARN("model base folder is not directory: {}", m_model_folder);
         }
     }
 
@@ -233,7 +233,7 @@ public:
         } else {
             throw std::invalid_argument("model folder does not exist: " + model_name);
         }
-        SMART_LOG_INFO("found model folder: {}", work_folder);
+        POWERSERVE_LOG_INFO("found model folder: {}", work_folder);
 
         if (m_context_slot_map.contains(work_folder)) {
             return m_context_slot_map.at(work_folder);
@@ -255,11 +255,11 @@ public:
 #endif
 
         model_ptr->m_attn = std::make_shared<powerserve::NormAttention>(model_ptr->m_config->llm, model_ptr->m_weights);
-        SMART_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
+        POWERSERVE_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
 
         std::string tokenizer_path = config_ptr->main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
         std::unique_ptr<powerserve::Tokenizer> tokenizer_ptr = std::make_unique<powerserve::Tokenizer>(tokenizer_path);
-        SMART_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
+        POWERSERVE_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
         ModelContext context(std::move(config_ptr), std::move(model_ptr), std::move(tokenizer_ptr));
         m_context_slot_map[work_folder] = std::move(context);
@@ -275,14 +275,14 @@ public:
 
     std::vector<std::string> list_models() const {
         if (!std::filesystem::exists(m_model_folder) && !std::filesystem::is_directory(m_model_folder)) {
-            SMART_LOG_ERROR("model base folder does not exist: {}", m_model_folder);
+            POWERSERVE_LOG_ERROR("model base folder does not exist: {}", m_model_folder);
             return {};
         }
 
         std::vector<std::string> model_list;
         for (const auto &entry : std::filesystem::directory_iterator(m_model_folder)) {
             if (!entry.is_directory()) {
-                SMART_LOG_ERROR("model folder is not directory: {}", m_model_folder);
+                POWERSERVE_LOG_ERROR("model folder is not directory: {}", m_model_folder);
                 continue;
             }
             model_list.emplace_back(entry.path().filename());
@@ -302,7 +302,7 @@ public:
             }
             m_session_map[new_id] = ServerSession(input);
 
-            SMART_LOG_INFO("set up session: {}", new_id);
+            POWERSERVE_LOG_INFO("set up session: {}", new_id);
             return new_id;
         }
     }
@@ -316,12 +316,12 @@ public:
         {
             std::lock_guard<std::mutex> lock_guard(m_lock);
             if (!m_session_map.contains(session_id)) {
-                SMART_LOG_WARN("cannot destroy session with session id: {}", session_id);
+                POWERSERVE_LOG_WARN("cannot destroy session with session id: {}", session_id);
                 return;
             }
             m_session_map.erase(session_id);
         }
-        SMART_LOG_INFO("destroy session: {}", session_id);
+        POWERSERVE_LOG_INFO("destroy session: {}", session_id);
     }
 };
 
@@ -384,7 +384,7 @@ inline std::string &remove_incomplete_utf8_char(std::string &output_string) {
         // else 1-byte character or invalid byte
         break;
     }
-    SMART_LOG_INFO("The output string is completed");
+    POWERSERVE_LOG_INFO("The output string is completed");
     return output_string;
 }
 
@@ -422,9 +422,9 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
     std::string stop_reason = "length";
     size_t step             = 0;
 
-    SMART_LOG_DEBUG("Model input     : {}", powerserve::abbreviation(input_prompt, 50));
-    SMART_LOG_DEBUG("Model max token : {}", max_num_token);
-    SMART_LOG_DEBUG("Model batch size: {}", batch_size);
+    POWERSERVE_LOG_DEBUG("Model input     : {}", powerserve::abbreviation(input_prompt, 50));
+    POWERSERVE_LOG_DEBUG("Model max token : {}", max_num_token);
+    POWERSERVE_LOG_DEBUG("Model batch size: {}", batch_size);
 
     /*
      * Prefill
@@ -438,7 +438,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
         step++;
         if (step == 1) {
             const size_t prefill_time_ms = timer.elapsed_time_ms();
-            SMART_LOG_INFO(
+            POWERSERVE_LOG_INFO(
                 "prefill step: {}, prefill time: {}ms ({} token/s)",
                 num_prefill_token,
                 prefill_time_ms,
@@ -479,7 +479,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
     );
 
     const size_t decode_time_ms = timer.elapsed_time_ms();
-    SMART_LOG_INFO(
+    POWERSERVE_LOG_INFO(
         "decode  step: {}, decode  time: {}ms ({} token/s)", step, decode_time_ms, step * 1000.f / decode_time_ms
     );
 }
@@ -517,9 +517,9 @@ inline ModelOutput blocking_inference(
     std::string stop_reason = "length";
     size_t step             = 0;
 
-    SMART_LOG_DEBUG("Model input     : {}", powerserve::abbreviation(input_prompt, 20));
-    SMART_LOG_DEBUG("Model max token : {}", max_num_token);
-    SMART_LOG_DEBUG("Model batch size: {}", batch_size);
+    POWERSERVE_LOG_DEBUG("Model input     : {}", powerserve::abbreviation(input_prompt, 20));
+    POWERSERVE_LOG_DEBUG("Model max token : {}", max_num_token);
+    POWERSERVE_LOG_DEBUG("Model batch size: {}", batch_size);
 
     /*
      * Prefill
@@ -531,7 +531,7 @@ inline ModelOutput blocking_inference(
         step++;
         if (step == 1) {
             const size_t prefill_time_ms = timer.elapsed_time_ms();
-            SMART_LOG_INFO(
+            POWERSERVE_LOG_INFO(
                 "prefill step: {}, prefill time: {}ms ({} token/s)",
                 num_prefill_token,
                 prefill_time_ms,
@@ -558,10 +558,10 @@ inline ModelOutput blocking_inference(
     output_text += end_of_text ? "[end of text]" : "";
 
     const size_t decode_time_ms = timer.elapsed_time_ms();
-    SMART_LOG_INFO(
+    POWERSERVE_LOG_INFO(
         "decode  step: {}, decode  time: {}ms ({} token/s)", step, decode_time_ms, step * 1000.f / decode_time_ms
     );
-    SMART_LOG_DEBUG("Model output token: {}", output_text);
+    POWERSERVE_LOG_DEBUG("Model output token: {}", output_text);
 
     return {
         .m_text             = output_text,

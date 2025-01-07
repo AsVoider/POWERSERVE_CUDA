@@ -29,7 +29,7 @@ struct Sampler {
     virtual void apply(ProbArray &probs) = 0;
 
     virtual void accept(Token token) {
-        SMART_UNUSED(token);
+        POWERSERVE_UNUSED(token);
     }
 };
 

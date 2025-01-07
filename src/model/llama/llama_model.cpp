@@ -33,14 +33,14 @@ LlamaModel::LlamaModel(const std::string &filename, const std::shared_ptr<ModelC
     {
         gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
         gguf_ctx                = gguf_init_from_file(filename.c_str(), params);
-        SMART_ASSERT(gguf_ctx != nullptr);
-        SMART_ASSERT(ggml_ctx != nullptr);
+        POWERSERVE_ASSERT(gguf_ctx != nullptr);
+        POWERSERVE_ASSERT(ggml_ctx != nullptr);
     }
     m_config  = config;
     lazy_load = ggml_get_tensor(ggml_ctx, "output_norm.weight") == nullptr ? true : false;
     m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->llm.n_layers, lazy_load);
     if (lazy_load) {
-        SMART_LOG_WARN("only the embedding table was loaded");
+        POWERSERVE_LOG_WARN("only the embedding table was loaded");
     }
     m_ffn = std::make_shared<FFN>(m_config->llm, m_weights);
 }
@@ -110,7 +110,7 @@ auto LlamaModel::forward(
     }
 
     if (!lm_head) {
-        SMART_ASSERT(logits == nullptr);
+        POWERSERVE_ASSERT(logits == nullptr);
         return LogitsVector();
     }
 

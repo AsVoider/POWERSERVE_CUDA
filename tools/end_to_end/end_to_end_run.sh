@@ -1,5 +1,15 @@
 #!/bin/bash
 
+function clean() {
+    set +e
+    rm -rf /qnn
+}
+
+set -e
+trap clean EXIT
+
+model=Llama-3.2-1B-PowerServe-QNN
+
 # 如果不是x86-64架构，则退出
 if [ "$(uname -m)" != "x86_64" ]; then
     echo "This script is only supported on x86-64 architecture"
@@ -20,15 +30,16 @@ echo "Now it's private, so need to login first. After it's public, we can git cl
 echo "You may have to wait for a while, about 1 to 10 minutes according to your network speed"
 
 # 如果已经下载过，先删掉目录再下载
-if [ -d "/models/Llama-3.2-1B-PowerServe-QNN" ]; then
-    rm -rf /models/Llama-3.2-1B-PowerServe-QNN
+if [ -d "/models/${model}" ]; then
+    rm -rf "/models/${model}"
 fi
-git clone https://huggingface.co/PowerInfer/Llama-3.2-1B-PowerServe-QNN
+git clone "https://huggingface.co/PowerInfer/${model}"
 
 # 先检测是否有NDK环境变量
 echo "Setting up NDK environment variable"
 if [ -z "$ANDROID_NDK" ]; then
     echo "NDK not found"
+    exit 1
 else
     echo "NDK found at $ANDROID_NDK"
 fi
@@ -53,6 +64,4 @@ cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -D
 echo "Building project for Android"
 cmake --build build_android --config RelWithDebInfo --parallel 12 --target all
 
-./powerserve create -m /models/Llama-3.2-1B-PowerServe-QNN --exe-path /code/build_android/out
-
-rm -rf /qnn
+./powerserve create -m "/models/${model}" --exe-path /code/build_android/out

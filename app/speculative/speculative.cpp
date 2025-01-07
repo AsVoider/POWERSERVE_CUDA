@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
             prompt = oss.str();
             f.close();
         } else {
-            SMART_ASSERT(false, "failed to open prompt file: {}", prompt_file);
+            POWERSERVE_ASSERT(false, "failed to open prompt file: {}", prompt_file);
         }
     }
 
@@ -94,16 +94,16 @@ int main(int argc, char *argv[]) {
 
     std::string tokenizer_path = config->main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
     powerserve::Tokenizer tokenizer(tokenizer_path);
-    SMART_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
+    POWERSERVE_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
     powerserve::SamplerChain sampler{sampler_config, tokenizer};
-    SMART_LOG_INFO("after sampler init: {}", powerserve::perf_get_mem_result());
+    POWERSERVE_LOG_INFO("after sampler init: {}", powerserve::perf_get_mem_result());
 
     {
-        SMART_LOG_INFO("prompt      : {}", powerserve::abbreviation(prompt, 50));
-        SMART_LOG_INFO("vocab_path  : {}", tokenizer_path);
-        SMART_LOG_INFO("n_predicts  : {}", n_predicts);
-        SMART_LOG_INFO("n_threads   : {}", n_threads);
+        POWERSERVE_LOG_INFO("prompt      : {}", powerserve::abbreviation(prompt, 50));
+        POWERSERVE_LOG_INFO("vocab_path  : {}", tokenizer_path);
+        POWERSERVE_LOG_INFO("n_predicts  : {}", n_predicts);
+        POWERSERVE_LOG_INFO("n_threads   : {}", n_threads);
     }
 
     powerserve::PerfettoTrace::instance().start_tracing(32 * 1024);

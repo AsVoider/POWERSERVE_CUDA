@@ -53,7 +53,7 @@ public:
 
         auto print_tok([&](std::string name, llama_vocab::id token) {
             if (token < vocab_size && token >= 0)
-                SMART_LOG_DEBUG("{:20}: {:6}: {}", name, token, to_string(token));
+                POWERSERVE_LOG_DEBUG("{:20}: {:6}: {}", name, token, to_string(token));
         });
 
         print_tok("special_bos", m_vocab.special_bos_id);

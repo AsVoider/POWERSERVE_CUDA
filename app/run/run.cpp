@@ -55,14 +55,14 @@ int main(int argc, char *argv[]) {
             prompt = oss.str();
             f.close();
         } else {
-            SMART_ASSERT(false, "failed to open prompt file: {}", prompt_file);
+            POWERSERVE_ASSERT(false, "failed to open prompt file: {}", prompt_file);
         }
     }
 
     auto config = std::make_shared<powerserve::Config>(work_folder);
     std::shared_ptr<powerserve::Model> model =
         powerserve::load_model(config->main_model_dir, config->main_model_config);
-    SMART_LOG_INFO("after model init: {}", powerserve::perf_get_mem_result());
+    POWERSERVE_LOG_INFO("after model init: {}", powerserve::perf_get_mem_result());
 
     auto [sampler_config, n_threads, batch_size] = config->hyper_params;
     model->m_platform                            = std::make_shared<powerserve::Platform>();
@@ -74,23 +74,23 @@ int main(int argc, char *argv[]) {
         qnn_backend->load_model(config->main_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, model->m_config);
     }
 #endif
-    SMART_LOG_INFO("after platform init: {}", powerserve::perf_get_mem_result());
+    POWERSERVE_LOG_INFO("after platform init: {}", powerserve::perf_get_mem_result());
 
     model->m_attn = std::make_shared<powerserve::NormAttention>(model->m_config->llm, model->m_weights);
-    SMART_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
+    POWERSERVE_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
 
     std::string tokenizer_path = config->main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
     powerserve::Tokenizer tokenizer(tokenizer_path);
-    SMART_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
+    POWERSERVE_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
     powerserve::SamplerChain sampler{sampler_config, tokenizer};
-    SMART_LOG_INFO("after sampler init: {}", powerserve::perf_get_mem_result());
+    POWERSERVE_LOG_INFO("after sampler init: {}", powerserve::perf_get_mem_result());
 
     {
-        SMART_LOG_INFO("prompt      : {:?}", powerserve::abbreviation(prompt, 50));
-        SMART_LOG_INFO("n_predicts       : {}", n_predicts);
-        SMART_LOG_INFO("model arch  : {}", config->main_model_config->arch);
-        SMART_LOG_INFO("n_threads   : {}", n_threads);
+        POWERSERVE_LOG_INFO("prompt      : {:?}", powerserve::abbreviation(prompt, 50));
+        POWERSERVE_LOG_INFO("n_predicts       : {}", n_predicts);
+        POWERSERVE_LOG_INFO("model arch  : {}", config->main_model_config->arch);
+        POWERSERVE_LOG_INFO("n_threads   : {}", n_threads);
     }
 
     // generate
@@ -126,18 +126,18 @@ int main(int argc, char *argv[]) {
     if (start) {
         decode_end     = powerserve::timestamp_ms();
         auto n_prefill = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
-        SMART_LOG_INFO("prefill time: {} s", (double)(prefill_end - prefill_start) / 1000);
-        SMART_LOG_INFO(
+        POWERSERVE_LOG_INFO("prefill time: {} s", (double)(prefill_end - prefill_start) / 1000);
+        POWERSERVE_LOG_INFO(
             "prefill speed ({} tokens): {} tokens/s",
             n_prefill,
             n_prefill / (double)(prefill_end - prefill_start) * 1000
         );
-        SMART_LOG_INFO(
+        POWERSERVE_LOG_INFO(
             "decode speed ({} tokens): {} tokens/s",
             actual_predict,
             actual_predict / (double)(decode_end - prefill_end) * 1000
         );
-        SMART_LOG_INFO(
+        POWERSERVE_LOG_INFO(
             "total speed: {} tokens/s", (n_prefill + actual_predict) / (double)(decode_end - prefill_start) * 1000
         );
     }

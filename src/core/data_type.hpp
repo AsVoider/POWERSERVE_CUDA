@@ -49,7 +49,7 @@ static size_t get_type_size(DataType dtype) {
     case DataType::GGML_Q8_0:
         return ggml_type_size(GGML_TYPE_Q8_0);
     default:
-        SMART_ASSERT(false);
+        POWERSERVE_ASSERT(false);
     }
 }
 
@@ -68,7 +68,7 @@ static size_t get_block_size(DataType dtype) {
     case DataType::GGML_Q8_0:
         return ggml_blck_size(GGML_TYPE_Q8_0);
     default:
-        SMART_ASSERT(false);
+        POWERSERVE_ASSERT(false);
     }
 }
 

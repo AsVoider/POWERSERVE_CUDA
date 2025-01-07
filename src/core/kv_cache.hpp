@@ -36,10 +36,10 @@ struct KVView {
     }
 
     ALWAYS_INLINE void copy_from(KVView other) {
-        SMART_ASSERT(n_elements == other.n_elements);
-        SMART_ASSERT(element_size == other.element_size);
+        POWERSERVE_ASSERT(n_elements == other.n_elements);
+        POWERSERVE_ASSERT(element_size == other.element_size);
 
-        if (SMART_LIKELY(is_contiguous() && other.is_contiguous())) {
+        if (POWERSERVE_LIKELY(is_contiguous() && other.is_contiguous())) {
             memcpy(data, other.data, n_elements * element_size);
         } else if (other.is_contiguous() && element_size == 2) {
             auto src = (uint16_t *)other.data;
@@ -78,7 +78,7 @@ struct KVView {
                 dst += stride;
             }
         } else {
-            SMART_ABORT("unsupported layout of KV");
+            POWERSERVE_ABORT("unsupported layout of KV");
         }
     }
 };
@@ -216,24 +216,24 @@ struct KVCache final : KVCacheInterface {
     }
 
     void mask(size_t cache_index) override {
-        SMART_ASSERT(cache_index < position);
+        POWERSERVE_ASSERT(cache_index < position);
         interface.set_mask(cache_index, true);
     }
 
     void unmask(size_t cache_index) override {
-        SMART_ASSERT(cache_index < position);
+        POWERSERVE_ASSERT(cache_index < position);
         interface.set_mask(cache_index, false);
     }
 
     void save_tokens_for_layers(size_t start_layer_id, size_t end_layer_id, size_t n_tokens) override {
-        SMART_ASSERT(position + n_tokens <= size);
+        POWERSERVE_ASSERT(position + n_tokens <= size);
         for (size_t i = 0; i < n_tokens; i++) {
             copy_for_layers(start_layer_id, end_layer_id, position + i, i);
         }
     }
 
     void unmask_tokens(size_t n_tokens) override {
-        SMART_ASSERT(position + n_tokens <= size);
+        POWERSERVE_ASSERT(position + n_tokens <= size);
         for (size_t i = 0; i < n_tokens; i++) {
             interface.set_mask(position + i, false);
         }
@@ -247,7 +247,7 @@ struct KVCache final : KVCacheInterface {
     }
 
     size_t rollback_tokens(size_t n_tokens) override {
-        SMART_ASSERT(position >= n_tokens);
+        POWERSERVE_ASSERT(position >= n_tokens);
         size_t old_position = position;
         position -= n_tokens;
         for (size_t i = 0; i < n_tokens; i++) {

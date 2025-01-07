@@ -259,7 +259,7 @@ template <
     class T_Response = httplib::Response,
     class T_DataSink = httplib::DataSink>
 inline void handler_completion(ServerContext &server_context, const T_Request &request, T_Response &response) {
-    SMART_LOG_INFO("process completion task");
+    POWERSERVE_LOG_INFO("process completion task");
     /* Parse received message */
     ModelInput model_input;
     try {
@@ -320,7 +320,7 @@ inline void handler_completion(ServerContext &server_context, const T_Request &r
             response.set_chunked_content_provider("text/event-stream", chunked_content_provider);
         }
 
-        SMART_LOG_INFO("after completion: {}", powerserve::perf_get_mem_result());
+        POWERSERVE_LOG_INFO("after completion: {}", powerserve::perf_get_mem_result());
     } catch (const std::invalid_argument &err) {
         response_error(err.what(), ErrorType::InvalidRequest, response);
     } catch (const std::exception &err) {
@@ -335,7 +335,7 @@ template <
     class T_Response = httplib::Response,
     class T_DataSink = httplib::DataSink>
 inline void handler_chat(ServerContext &server_context, const T_Request &request, T_Response &response) {
-    SMART_LOG_INFO("process chat task");
+    POWERSERVE_LOG_INFO("process chat task");
     /* Parse received message */
     ModelInput model_input;
     try {
@@ -397,7 +397,7 @@ inline void handler_chat(ServerContext &server_context, const T_Request &request
             response.set_chunked_content_provider("text/event-stream", chunked_content_provider);
         }
 
-        SMART_LOG_INFO("after chat: {}", powerserve::perf_get_mem_result());
+        POWERSERVE_LOG_INFO("after chat: {}", powerserve::perf_get_mem_result());
     } catch (const std::invalid_argument &err) {
         response_error(err.what(), ErrorType::InvalidRequest, response);
     } catch (const std::exception &err) {
@@ -411,7 +411,7 @@ template <class T_Request = httplib::Request, class T_Response = httplib::Respon
 inline void handler_model(
     ServerContext &server_context, [[maybe_unused]] const T_Request &request, T_Response &response
 ) {
-    SMART_LOG_INFO("process model task");
+    POWERSERVE_LOG_INFO("process model task");
     try {
         std::vector<std::string> models = list_models(server_context);
         const auto response_json        = dump_model_response(models);

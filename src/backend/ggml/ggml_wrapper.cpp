@@ -184,13 +184,13 @@ void GGMLBackend::get_embedding(const Tensor *dst, const Tensor *weight, const s
 
     auto dim        = dst->m_shape[0];
     auto batch_size = tokens.size();
-    SMART_ASSERT(batch_size == dst->m_shape[1]);
+    POWERSERVE_ASSERT(batch_size == dst->m_shape[1]);
     auto weight_strip = weight->get<CPUBuffer>().m_stride;
 
     for (size_t i = 0; i < batch_size; i++) {
         auto token = tokens[i];
         auto src   = embd_tb + weight_strip[1] * token;
-        SMART_ASSERT(src < embd_tb + weight_strip[2]);
+        POWERSERVE_ASSERT(src < embd_tb + weight_strip[2]);
         switch (weight->m_dtype) {
         case DataType::FP32: {
             memcpy(dst_tb + i * dim, src, dim * sizeof(float));
@@ -205,13 +205,13 @@ void GGMLBackend::get_embedding(const Tensor *dst, const Tensor *weight, const s
         } break;
 
         default:
-            SMART_ASSERT(false);
+            POWERSERVE_ASSERT(false);
         }
     }
 }
 
 bool GGMLBackend::is_contiguous(const Tensor *tensor, int n) const {
-    SMART_ASSERT(n >= 0 && n <= 2);
+    POWERSERVE_ASSERT(n >= 0 && n <= 2);
     if (n == 0) {
         return ggml_is_contiguous_0(convert_to_ggml(tensor).get());
     } else if (n == 1) {
@@ -267,7 +267,7 @@ int GGMLBackend::get_n_tasks(std::shared_ptr<OpNode> op) {
 
     default: {
         fmt::println("op not implemented: {}", int(op->op));
-        SMART_ASSERT(false);
+        POWERSERVE_ASSERT(false);
     }
     }
 

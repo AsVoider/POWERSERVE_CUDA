@@ -31,7 +31,7 @@ public:
     FileLoaderUV(const std::filesystem::path &file_path) : FileLoader(file_path) {
         uv_fs_open(nullptr, &m_request, file_path.c_str(), O_RDONLY, 0, nullptr);
         auto fd = (uv_file)m_request.result;
-        SMART_ASSERT(fd >= 0);
+        POWERSERVE_ASSERT(fd >= 0);
         uv_fs_req_cleanup(&m_request);
         m_file_handle.reset(fd);
     }
@@ -65,12 +65,12 @@ public:
 public:
     void load() override {
         if (!m_buffer.empty()) {
-            SMART_LOG_WARN("trying to load a buffer twice");
+            POWERSERVE_LOG_WARN("trying to load a buffer twice");
             unload();
         }
 
         uv_fs_fstat(nullptr, &m_request, m_file_handle.m_fd, nullptr);
-        SMART_ASSERT(m_request.result == 0, "failed to fstat file {}", m_file_path);
+        POWERSERVE_ASSERT(m_request.result == 0, "failed to fstat file {}", m_file_path);
 
         const size_t file_size = m_request.statbuf.st_size;
         uv_fs_req_cleanup(&m_request);
@@ -86,7 +86,7 @@ public:
             .len  = file_size,
         };
         uv_fs_read(nullptr, &m_request, m_file_handle.m_fd, &buf, 1, 0, nullptr);
-        SMART_ASSERT((size_t)m_request.result == file_size);
+        POWERSERVE_ASSERT((size_t)m_request.result == file_size);
         uv_fs_req_cleanup(&m_request);
 
         /*
@@ -94,7 +94,7 @@ public:
              */
         {
             const ssize_t ret = pread(m_file_handle.m_fd, buffer_ptr, file_size, 0);
-            SMART_ASSERT(
+            POWERSERVE_ASSERT(
                 ret == static_cast<ssize_t>(file_size),
                 "failed to read {} bytes from file {} (ret = {})",
                 file_size,

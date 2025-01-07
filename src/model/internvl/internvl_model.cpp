@@ -36,14 +36,14 @@ InternVL::InternVL(const std::string &filename, const std::shared_ptr<ModelConfi
     {
         gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
         gguf_ctx                = gguf_init_from_file(filename.c_str(), params);
-        SMART_ASSERT(gguf_ctx != nullptr);
-        SMART_ASSERT(ggml_ctx != nullptr);
+        POWERSERVE_ASSERT(gguf_ctx != nullptr);
+        POWERSERVE_ASSERT(ggml_ctx != nullptr);
     }
     m_config  = config;
     lazy_load = ggml_get_tensor(ggml_ctx, "output.weight") == nullptr ? true : false;
     m_weights = std::make_shared<InternVLWeight>(ggml_ctx, m_config->llm.n_layers, lazy_load);
     if (lazy_load) {
-        SMART_LOG_WARN("only the embedding table was loaded");
+        POWERSERVE_LOG_WARN("only the embedding table was loaded");
     }
     m_ffn = std::make_shared<FFN>(m_config->llm, m_weights);
 }
@@ -112,11 +112,11 @@ auto InternVL::forward(
 #endif
 
     {
-        SMART_UNUSED(lm_head);
-        SMART_UNUSED(pos);
-        SMART_UNUSED(x);
-        SMART_UNUSED(mask);
-        SMART_ASSERT(false, "Internvl Model not support in cpu");
+        POWERSERVE_UNUSED(lm_head);
+        POWERSERVE_UNUSED(pos);
+        POWERSERVE_UNUSED(x);
+        POWERSERVE_UNUSED(mask);
+        POWERSERVE_ASSERT(false, "Internvl Model not support in cpu");
     }
 
     Executor executor(*m_platform, g);
@@ -125,7 +125,7 @@ auto InternVL::forward(
     executor.run();
 
     if (!lm_head) {
-        SMART_ASSERT(logits == nullptr);
+        POWERSERVE_ASSERT(logits == nullptr);
         return LogitsVector();
     }
 

@@ -2,13 +2,13 @@
 
 2. `cd smartserving`
 
-Please make sure you locates in the smartserving directory. 
+Please make sure you locates in the smartserving directory.
 
 3. `sudo docker run -v "$(pwd):/code" -w /code -it santoxin/mobile-build:v1.1 /bin/bash`
 
 Now you are interact with the bash in the docker container.
 
-4. `git config --global --add safe.directory /code && git checkout end_to_end && ./tools/end_to_end/end_to_end_run.sh`
+4. `git config --global --add safe.directory /code && ./tools/end_to_end/end_to_end_run.sh`
 
 5. press `ctrl+d` to quit the docker container. `pwd` should tell you that you are in the smartserving directory.
 

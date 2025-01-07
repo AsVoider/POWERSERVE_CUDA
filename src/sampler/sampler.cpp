@@ -17,7 +17,7 @@
 namespace powerserve {
 
 void TemperatureSampler::apply(ProbArray &probs) {
-    SMART_ASSERT(m_temperature > 0);
+    POWERSERVE_ASSERT(m_temperature > 0);
 
     if (m_temperature != 1) {
         for (auto &prob : probs.m_probs) {
@@ -37,7 +37,7 @@ void NormalizeSampler::apply(ProbArray &probs) {
 }
 
 void TopKSampler::apply(ProbArray &probs) {
-    SMART_ASSERT(m_topk > 0);
+    POWERSERVE_ASSERT(m_topk > 0);
     auto k = std::min(m_topk, probs.m_probs.size());
 
     // Sort scores in descending order
@@ -59,8 +59,8 @@ void TopPSampler::apply(ProbArray &probs) {
     if (m_topp >= 1.0f) {
         return;
     }
-    SMART_ASSERT(probs.m_is_normalized);
-    SMART_ASSERT(probs.m_is_sorted);
+    POWERSERVE_ASSERT(probs.m_is_normalized);
+    POWERSERVE_ASSERT(probs.m_is_sorted);
 
     // Compute the cumulative probabilities
     float cum_sum   = 0.0f;
@@ -110,7 +110,7 @@ void RepeatPenaltySampler::apply(ProbArray &probs) {
     float nl_logit = -INFINITY;
     if (!m_penalize_nl) {
         // if not penalize nl, save its original logit value, so we can restore it later
-        SMART_ASSERT(m_linefeed_id >= 0);
+        POWERSERVE_ASSERT(m_linefeed_id >= 0);
 
         // optimistically check if the candidates are not yet sorted/shuffled/truncated
         if (probs.m_probs.size() > (size_t)m_linefeed_id && probs.m_probs[m_linefeed_id].token == m_linefeed_id) {
