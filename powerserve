@@ -163,11 +163,13 @@ def powerserve_create(args):
         assert main_config["model_id"] != draft_config["model_id"]
     else:
         artifact_config[DRAFT_MODEL_KEY] = ""
-    for other_model_path in args.other_models:
-        other_model_abspath = out_path / str(other_model_path.name)
-        if not other_model_abspath.exists():
-            other_model_abspath.mkdir(parents=True, exist_ok=True)
-        execute_command(["cp", "-r", other_model_path / "*", other_model_abspath])
+
+    if args.other_models:
+        for other_model_path in args.other_models:
+            other_model_abspath = out_path / str(other_model_path.name)
+            if not other_model_abspath.exists():
+                other_model_abspath.mkdir(parents=True, exist_ok=True)
+            execute_command(["cp", "-r", other_model_path / "*", other_model_abspath])
 
     write_json(out_path / ARTIFACT_CONFIG_FILENAME, artifact_config)
 
