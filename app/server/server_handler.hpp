@@ -225,7 +225,7 @@ public:
 
         const std::filesystem::path inner_model_folder = m_work_folder / model_name;
         std::filesystem::path model_folder;
-        if (!std::filesystem::exists(inner_model_folder) && !std::filesystem::is_directory(inner_model_folder)) {
+        if (std::filesystem::exists(inner_model_folder) && std::filesystem::is_directory(inner_model_folder)) {
             model_folder = inner_model_folder;
         } else if (std::filesystem::exists(model_name) && std::filesystem::is_directory(model_name)) {
             model_folder = model_name;
