@@ -63,7 +63,7 @@ void ProbArray::resize(size_t size) {
 }
 
 auto ProbArray::greedy_sample() -> ProbIndex & {
-    return *std::max_element(m_probs.begin(), m_probs.end(), std::greater());
+    return *std::max_element(m_probs.begin(), m_probs.end());
 }
 
 } // namespace powerserve

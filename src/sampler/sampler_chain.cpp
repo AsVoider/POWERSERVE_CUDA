@@ -18,7 +18,7 @@ namespace powerserve {
 
 void SamplerChain::build_from_config(const HyperParams::SamplerConfig &config, const Tokenizer &tokenizer) {
     auto seed = config.seed;
-    if (seed == 0) {
+    if (seed == (uint64_t)-1) {
         std::random_device rd;
         seed = rd();
     }
@@ -47,7 +47,7 @@ void SamplerChain::build_from_config(const HyperParams::SamplerConfig &config, c
     append<SoftmaxSampler>();
     append<TopPSampler>(config.top_p);
     append<NormalizeSampler>();
-    append<StochasticSampler>(config.seed);
+    append<StochasticSampler>(seed);
 }
 
 void SamplerChain::apply(ProbArray &probs) {

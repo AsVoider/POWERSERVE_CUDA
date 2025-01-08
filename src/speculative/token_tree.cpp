@@ -28,13 +28,13 @@ static auto dump_file_path = getenv<std::string>("dump_file", "");
 
 static struct {
     size_t top_k      = getenv<size_t>("draft_top_k", 15);
-    float temperature = getenv<float>("draft_temperature", 1.2f);
-    float p_base      = getenv<float>("draft_p_base", 0.6f);
+    float temperature = getenv<float>("draft_temperature", 1.5f);
+    float p_base      = getenv<float>("draft_p_base", 0.9f);
 } draft_params;
 
 static struct {
     size_t max_fan_out = getenv<size_t>("tree_max_fan_out", 3);
-    float min_prob     = getenv<float>("tree_min_prob", 0.25f);
+    float min_prob     = getenv<float>("tree_min_prob", 0.2f);
     bool early_stop    = getenv<bool>("tree_early_stop", true);
 } tree_params;
 
@@ -102,6 +102,8 @@ auto TokenTree::attention_mask() const -> std::vector<std::vector<bool>> {
 }
 
 void TokenTree::draft(const ModelPtr &draft_model, const Tokenizer &tokenizer, size_t batch_size, Token root_token) {
+    counter = PerfettoTrace::counter();
+
     reset(batch_size);
 
     main_heap.push(Candidate{
@@ -194,7 +196,8 @@ void TokenTree::verify(
     POWERSERVE_ASSERT(target_model->kv_cache->position == draft_model->kv_cache->position);
     stat.n_iterations += 1;
 
-    int u = 0;
+    int u                     = 0;
+    size_t n_generated_tokens = 0;
     while (true) {
         auto &node    = nodes[u];
         node.accepted = true;
@@ -220,7 +223,7 @@ void TokenTree::verify(
         sampler.apply(probs);
         auto next_token = probs.greedy_sample().token;
         enqueue_token(next_token);
-        stat.n_generated_tokens += 1;
+        n_generated_tokens += 1;
 
         auto it = std::find_if(node.children.begin(), node.children.end(), [next_token, this](int v) {
             return nodes[v].token == next_token;
@@ -233,6 +236,9 @@ void TokenTree::verify(
             stat.n_accepted_tokens += 1;
         }
     }
+
+    stat.n_generated_tokens += n_generated_tokens;
+    counter.set_value("#generated-token", n_generated_tokens);
 }
 
 void TokenTree::print_tree(const Tokenizer &tokenizer, int u) {
@@ -251,6 +257,7 @@ void TokenTree::print_stat() {
     fmt::println("- {:.3f} tokens/iteration", 1.0 * stat.n_generated_tokens / stat.n_iterations);
     fmt::println("- {:.3f} draft-forwards/iteration", 1.0 * stat.n_draft_times / stat.n_iterations);
     fmt::println("- Accept ratio: {:.3f}%", 100.0 * stat.n_accepted_tokens / stat.n_draft_tokens);
+    fmt::println("- Draft effective ratio: {:.3f}%", 100.0 * stat.n_accepted_tokens / stat.n_draft_times);
 }
 
 void TokenTree::Node::reset() {

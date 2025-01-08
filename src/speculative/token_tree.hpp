@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "core/perfetto_trace.hpp"
 #include "model/model.hpp"
 #include "sampler/sampler_chain.hpp"
 
@@ -87,6 +88,8 @@ private:
         size_t n_iterations       = 0;
         size_t n_generated_tokens = 0;
     } stat;
+
+    PerfettoTrace::CounterTimePoint counter;
 
     void reset(size_t batch_size);
 
