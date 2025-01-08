@@ -75,6 +75,8 @@ public:
     static op_interface op_add;
     static op_interface op_cont;
     static op_interface op_copy;
+    static op_interface op_print;
+    static op_interface op_silu_and_mul;
 };
 
 } // namespace smart::ggml_cuda

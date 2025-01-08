@@ -1,6 +1,7 @@
 #include "ggml-cuda.hpp"
 
 #include "backend/ggml-cuda/buffer.hpp"
+#include "core/defines.hpp"
 
 #include "ggml.h"
 #include "ggml-quants.h"
@@ -164,12 +165,30 @@ void GGML_CUDABackend::cont(Tensor *out, const Tensor *x) const {
     op_interfaces::op_cont(*warp, ggml_tensor_out.get());
 }
 
+void GGML_CUDABackend::silu_and_mul(Tensor *out, const Tensor *gate, const Tensor *up) const {
+    auto ggml_tensor_out{convert_to_ggml_tensor(out)};
+    auto ggml_tensor_gate{convert_to_ggml_tensor(gate)};
+    auto ggml_tensor_up{convert_to_ggml_tensor(up)};
+
+    ggml_tensor_out->src[0] = ggml_tensor_gate.get();
+    ggml_tensor_out->src[1] = ggml_tensor_up.get();
+
+    op_interfaces::op_silu_and_mul(*warp, ggml_tensor_out.get());
+}
 void GGML_CUDABackend::copy(Tensor *out, const Tensor *src) const {
     auto ggml_tensor_out{convert_to_ggml_tensor(out)};
     auto ggml_tensor_src{convert_to_ggml_tensor(src)};
 
     ggml_tensor_out->src[0] = ggml_tensor_src.get();
     op_interfaces::op_copy(*warp, ggml_tensor_out.get());
+}
+
+void GGML_CUDABackend::print(const Tensor *x, size_t rows) const {
+    // SMART_UNUSED(size);
+    SMART_ASSERT((rows and 0xFFFF'8000) == 0); // for safe convert
+    auto ggml_tensor_to_print{convert_to_ggml_tensor(x)};
+    ggml_tensor_to_print->op_params[0] = static_cast<int>(rows);
+    op_interfaces::op_print(*warp, ggml_tensor_to_print.get());
 }
 
 void GGML_CUDABackend::transpose(Tensor *out, const Tensor *x) const {

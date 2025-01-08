@@ -7,6 +7,7 @@
 #include "softmax.cuh"
 #include "rope.cuh"
 #include "binbcast.cuh"
+#include "ggml-quants.h"
 
 #include <exception>
 #include <functional>
@@ -104,40 +105,60 @@ op_interface op_interfaces::op_get_embedding = [] (cuda_context_warp &ctx, ggml_
 };
 
 op_interface op_interfaces::op_mat_mul = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
-    auto src0{dst->src[0]}, src1{dst->src[1]};
-    auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
-    auto split{dst->op_params[15] == 1 ? true : false};
-    auto deq_mat_mul_vec{ggml_cuda_dmmv_type_supported(src0->type) and src1->type == GGML_TYPE_F32 and dst->type == GGML_TYPE_F32
-        and src0->ne[0] % (GGML_CUDA_DMMV_X * 2) == 0 and src1->ne[1] == 1};
-    auto mat_mul_vec{ggml_is_quantized(src0->type) and src1->type == GGML_TYPE_F32 and dst->type == GGML_TYPE_F32
-        and src1->ne[1] <= MMVQ_MAX_BATCH_SIZE};
-    auto mat_mul_q{ggml_is_quantized(src0->type) and src1->type == GGML_TYPE_F32 and dst->type == GGML_TYPE_F32};
-
-    auto slow_fp16{false};
-
-    if (split) {
-        // TODO:
-    } else {
-        const auto cc{ggml_cuda_info().devices[cuda_context_ptr->device].cc};
-        mat_mul_q = mat_mul_q && ggml_cuda_should_use_mmq(src0->type, cc, src1->ne[1]);
-        slow_fp16 = slow_fp16 or !fast_fp16_available(cc);
+    if (ctx.ctx == nullptr) [[unlikely]] {
+        exit(1);
     }
 
-    if (not split and slow_fp16 and src0->type == GGML_TYPE_F16 and ggml_is_permuted(src0) and ggml_is_permuted(src1) and src1->ne[1] == 1) {
-        ggml_cuda_mul_mat_vec_p021(*cuda_context_ptr, src0, src1, dst);
-    } else if (not split and slow_fp16 and src0->type == GGML_TYPE_F16 and not ggml_is_contiguous(src0) and not ggml_is_transposed(src1) and src1->ne[1] == 1) {
-        ggml_cuda_mul_mat_vec_nc(*cuda_context_ptr, src0, src1, dst);
-    } else if (not split and src0->type == GGML_TYPE_F16 and (src1->type == GGML_TYPE_F16 or not slow_fp16) and not ggml_is_transposed(src0)
-                and not ggml_is_transposed(src1) and src1->ne[2] * src1->ne[3] > 1) {
-        ggml_cuda_mul_mat_batched_cublas(*cuda_context_ptr, src0, src1, dst);
-    } else if (deq_mat_mul_vec) {
-        ggml_cuda_op_mul_mat(*cuda_context_ptr, src0, src1, dst, ggml_cuda_op_dequantize_mul_mat_vec, nullptr);
-    } else if (mat_mul_vec) {
-        ggml_cuda_op_mul_mat(*cuda_context_ptr, src0, src1, dst, ggml_cuda_op_mul_mat_vec_q, quantize_row_q8_1_cuda);
-    } else if (mat_mul_q) {
-        ggml_cuda_op_mul_mat(*cuda_context_ptr, src0, src1, dst, ggml_cuda_op_mul_mat_q, quantize_mmq_q8_1_cuda);
+    auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
+
+    auto src0{dst->src[0]}, src1{dst->src[1]};
+
+    bool use_mul_mat_vec   = (src0->type == GGML_TYPE_F16 || src0->type == GGML_TYPE_BF16)
+        && src1->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32
+        && src0->ne[0] % 2 == 0 && src1->ne[1] == 1;
+    bool use_mul_mat_vec_q = ggml_is_quantized(src0->type)
+        && src1->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32
+        && src1->ne[1] <= MMVQ_MAX_BATCH_SIZE;
+    bool use_mul_mat_q     = ggml_is_quantized(src0->type)
+        && src1->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32;
+
+    bool any_gpus_with_slow_fp16{false};
+    bool any_gpus_without_fp16_mma{false};
+    bool split{false};
+
+    if (split) {
+        
     } else {
-        ggml_cuda_op_mul_mat(*cuda_context_ptr, src0, src1, dst, ggml_cuda_op_mul_mat_cublas, nullptr);
+        const int cc              = ggml_cuda_info().devices[cuda_context_ptr[0].device].cc;
+        use_mul_mat_q             = use_mul_mat_q             && ggml_cuda_should_use_mmq(src0->type, cc, src1->ne[1]);
+        any_gpus_with_slow_fp16   = any_gpus_with_slow_fp16   || !fast_fp16_available(cc);
+        any_gpus_without_fp16_mma = any_gpus_without_fp16_mma || !fp16_mma_available(cc);
+    }
+
+    // debug helpers
+    //printf("src0: %8d %8d %8d %8d\n", src0->ne[0], src0->ne[1], src0->ne[2], src0->ne[3]);
+    //printf("      %8d %8d %8d %8d\n", src0->nb[0], src0->nb[1], src0->nb[2], src0->nb[3]);
+    //printf("src1: %8d %8d %8d %8d\n", src1->ne[0], src1->ne[1], src1->ne[2], src1->ne[3]);
+    //printf("      %8d %8d %8d %8d\n", src1->nb[0], src1->nb[1], src1->nb[2], src1->nb[3]);
+    //printf("src0 is contiguous %d, transposed %d, type = %s, name = %s\n", ggml_is_contiguous(src0), ggml_is_transposed(src0), ggml_type_name(src0->type), src0->name);
+    //printf("src1 is contiguous %d, transposed %d, type = %s, name = %s\n", ggml_is_contiguous(src1), ggml_is_transposed(src1), ggml_type_name(src1->type), src1->name);
+
+    if (!split && use_mul_mat_vec && dst->ne[3] == 1 && (src0->ne[1] < MMV_MAX_ROWS || any_gpus_without_fp16_mma)) {
+        // the custom F16 vector kernel can be used over batched cuBLAS GEMM
+        // but this is only faster for GPUs without tensor cores or with a thin src0 matrix (particularly KQV in attention)
+        ggml_cuda_mul_mat_vec(ctx, src0, src1, dst);
+    } else if (!split && src0->type == GGML_TYPE_F16 && (src1->type == GGML_TYPE_F16 || !any_gpus_with_slow_fp16)
+               && !ggml_is_transposed(src0) && !ggml_is_transposed(src1) && src1->ne[2]*src1->ne[3] > 1) {
+        // general KQ + KQV multi-batch without FlashAttention
+        ggml_cuda_mul_mat_batched_cublas(ctx, src0, src1, dst);
+    } else if (use_mul_mat_vec) {
+        ggml_cuda_op_mul_mat(ctx, src0, src1, dst, ggml_cuda_op_mul_mat_vec, nullptr);
+    } else if (use_mul_mat_vec_q) {
+        ggml_cuda_op_mul_mat(ctx, src0, src1, dst, ggml_cuda_op_mul_mat_vec_q, quantize_row_q8_1_cuda);
+    } else if (use_mul_mat_q) {
+        ggml_cuda_op_mul_mat(ctx, src0, src1, dst, ggml_cuda_op_mul_mat_q, quantize_mmq_q8_1_cuda);
+    } else {
+        ggml_cuda_op_mul_mat(ctx, src0, src1, dst, ggml_cuda_op_mul_mat_cublas, nullptr);
     }
 };
 
@@ -193,7 +214,7 @@ op_interface op_interfaces::op_cont = [] (cuda_context_warp &ctx, ggml_tensor *d
 
     auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
 
-    ggml_cuda_dup(*cuda_context_ptr, dst);
+    ggml_cuda_dup(cuda_context_ptr[0], dst);
 };
 
 op_interface op_interfaces::op_copy = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
@@ -203,7 +224,103 @@ op_interface op_interfaces::op_copy = [] (cuda_context_warp &ctx, ggml_tensor *d
 
     auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
 
-    ggml_cuda_dup(*cuda_context_ptr, dst);
+    ggml_cuda_dup(cuda_context_ptr[0], dst);
+};
+
+op_interface op_interfaces::op_print = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
+    if (ctx.ctx = nullptr) [[unlikely]] {
+        exit(1);
+    }
+
+    auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
+    // auto file_name{std::string{dst->name}}; TODO:
+    auto file_name{std::string{"output.txt"}};
+    auto file{fopen(file_name.c_str(), "a+")};
+
+    int64_t rows_to_print{static_cast<int64_t>(dst->op_params[0])};
+    if (rows_to_print == 0L) {
+        rows_to_print = dst->ne[1] * dst->ne[2] * dst->ne[3];
+    }
+
+    switch (dst->type) {
+    case GGML_TYPE_F32: {
+        float *buffer_to_print{new float[rows_to_print * dst->ne[0]]};
+        cudaMemcpy(buffer_to_print, dst->data, rows_to_print * dst->ne[0] * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaDeviceSynchronize();
+        for (int64_t row{0}; row < rows_to_print; ++row) {
+            for (int64_t col{0}; col < dst->ne[0]; ++col) {
+                fprintf(file, "%f ", buffer_to_print[row * dst->ne[0] + col]);
+            }
+            fprintf(file, "\n");
+        }
+        fprintf(file, "\n\n");
+    } break;
+    
+    case GGML_TYPE_F16: {
+        half *buffer_to_print{new half[rows_to_print * dst->ne[0]]};
+        cudaMemcpy(buffer_to_print, dst->data, rows_to_print * dst->ne[0] * sizeof(half), cudaMemcpyDeviceToHost);
+        cudaDeviceSynchronize();
+        for (int64_t row{0}; row < rows_to_print; ++row) {
+            for (int64_t col{0}; col < dst->ne[0]; ++col) {
+                float data_to_print{static_cast<float>(buffer_to_print[row * dst->ne[0] + col])};
+                fprintf(file, "%f ", data_to_print);
+            }
+            fprintf(file, "\n");
+        }
+        fprintf(file, "\n\n");
+        delete[] buffer_to_print;
+    } break;
+    
+    case GGML_TYPE_Q4_0: {
+        char *buffer_to_convert{new char[ggml_nbytes(dst)]};
+        float *buffer_to_print{new float[rows_to_print * dst->ne[0]]};
+        cudaMemcpy(buffer_to_convert, dst->data, ggml_nbytes(dst), cudaMemcpyDeviceToHost);
+        cudaDeviceSynchronize();
+        dequantize_row_q4_0((block_q4_0 *)buffer_to_convert, buffer_to_print, rows_to_print * dst->ne[0]);
+
+        for (int64_t row{0}; row < rows_to_print; ++row) {
+            for (int64_t col{0}; col < dst->ne[0]; ++col) {
+                fprintf(file, "%f ", buffer_to_print[row * dst->ne[0] + col]);
+            }
+            fprintf(file, "\n");
+        }
+        fprintf(file, "\n\n");
+
+        delete[] buffer_to_print;
+        delete[] buffer_to_convert;
+    } break;
+
+    case GGML_TYPE_Q8_0: {
+        char *buffer_to_convert{new char[ggml_nbytes(dst)]};
+        float *buffer_to_print{new float[rows_to_print * dst->ne[0]]};
+        cudaMemcpy(buffer_to_convert, dst->data, ggml_nbytes(dst), cudaMemcpyDeviceToHost);
+        cudaDeviceSynchronize();
+        dequantize_row_q8_0((block_q8_0 *)buffer_to_convert, buffer_to_print, rows_to_print * dst->ne[0]);
+
+        for (int64_t row{0}; row < rows_to_print; ++row) {
+            for (int64_t col{0}; col < dst->ne[0]; ++col) {
+                fprintf(file, "%f ", buffer_to_print[row * dst->ne[0] + col]);
+            }
+            fprintf(file, "\n");
+        }
+        fprintf(file, "\n\n");
+
+        delete[] buffer_to_print;
+        delete[] buffer_to_convert;
+    } break;
+
+    default: {
+        fclose(file);
+        exit(0);
+    }
+    }
+
+    fclose(file);
+    return;
+};
+
+op_interface op_interfaces::op_silu_and_mul = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
+
 };
 
 } // namespace smart::ggml_cuda

@@ -95,22 +95,14 @@ public: // ! Math Ops
     void get_embedding(Tensor *dst, const Tensor *weight, const std::vector<int> &tokens) const;
     void matmul(Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void rmsnorm(Tensor *o, const Tensor *x, const Tensor *weight, float eps) const;
-    void softmax(Tensor *out, const Tensor *x, const Tensor *mask, float scale, float bias) const;
     void rope(Tensor *out, const Tensor *src, const Tensor *pos, const Tensor *freq_factors, const ModelConfig::LLMConfig::RopeConfig &rope_cfg) const;
+    void softmax(Tensor *out, const Tensor *x, const Tensor *mask, float scale, float bias) const;
     void permute(Tensor *out, const Tensor *x, Shape axes) const;
-    bool is_contiguous(const Tensor *tensor, int n) const;
     void cont(Tensor *out, const Tensor *x) const;
-    void copy(Tensor *out, const Tensor *src) const;
-    // void quest_attention(
-    //     const Tensor *out,
-    //     const Tensor *q,
-    //     const std::vector<int> &pos,
-    //     const int64_t L,
-    //     std::vector<Region> &regions,
-    //     const uint32_t n_heads
-    // ) const;
-    // void cos_sim(const Tensor *src0, const Tensor *src1) const;
-    // void print(const Tensor *x, size_t size) const;
+    bool is_contiguous(const Tensor *tensor, int n) const;
+    void silu_and_mul(Tensor *out, const Tensor *gate, const Tensor *up) const;
+    void copy(Tensor *out, const Tensor *src) const;    
+    void print(const Tensor *x, size_t size = 0UL) const;
     // void reset_kv_batch_size(const size_t batch_size) const;
     // void add_cache(const Tensor *src, size_t L, const std::vector<int> &pos, size_t head_id, bool is_k);
     void transpose(Tensor *out, const Tensor *x) const;
