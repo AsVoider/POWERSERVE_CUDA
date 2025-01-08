@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace smart {
+namespace powerserve {
 
 enum class NodeType {
     TENSOR,
@@ -81,7 +81,7 @@ public:
 
 public:
     auto prev_op() const -> OpNode * {
-        SMART_ASSERT(prev.size() == 1);
+        POWERSERVE_ASSERT(prev.size() == 1);
         return prev[0]->op();
     }
 };
@@ -97,7 +97,7 @@ private:
     TensorViewNode(const Tensor &tensor, Shape shape) : TensorNode(tensor) {
         type   = NodeType::TENSOR_VIEW;
         parent = const_cast<Tensor *>(&tensor);
-        SMART_ASSERT(parent->n_elements() == n_elements());
+        POWERSERVE_ASSERT(parent->n_elements() == n_elements());
         m_shape = shape;
         m_data  = nullptr;
     }
@@ -148,9 +148,9 @@ public:
     }
 
     auto output() const -> Tensor * {
-        SMART_ASSERT(n_outputs() == 1);
+        POWERSERVE_ASSERT(n_outputs() == 1);
         return next[0]->tensor();
     }
 };
 
-} // namespace smart
+} // namespace powerserve

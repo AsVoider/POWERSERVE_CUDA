@@ -5,7 +5,7 @@
 
 #include <cstddef>
 
-namespace smart::ggml_cuda {
+namespace powerserve::ggml_cuda {
 
 class Buffer_CUDA : public BaseBuffer {
 public:

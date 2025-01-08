@@ -9,7 +9,7 @@
 #include <vector>
 
 
-namespace smart::ggml_cuda {
+namespace powerserve::ggml_cuda {
 
 static ggml_type convert_datatype_to_ggml(DataType dtp) {
     switch (dtp) {
@@ -24,7 +24,7 @@ static ggml_type convert_datatype_to_ggml(DataType dtp) {
     case DataType::INT32:
         return GGML_TYPE_I32;
     default:
-        SMART_ASSERT(false);
+        POWERSERVE_ASSERT(false);
     }
 }
 
@@ -39,12 +39,12 @@ static DataType convert_datatype_from_ggml(ggml_type tp) {
     case GGML_TYPE_Q8_0:
         return DataType::GGML_Q8_0;
     default:
-        SMART_ASSERT(false);
+        POWERSERVE_ASSERT(false);
     }
 }
 
 static Tensor convert_from_ggml_with_data_copied(ggml_tensor *t) {
-    SMART_ASSERT(t != nullptr);
+    POWERSERVE_ASSERT(t != nullptr);
     Shape tensor_shape{static_cast<size_t>(t->ne[0]), static_cast<size_t>(t->ne[1]), static_cast<size_t>(t->ne[2]), static_cast<size_t>(t->ne[3])};
     Stride tensor_stride{t->nb[0], t->nb[1], t->nb[2], t->nb[3]};
     Tensor tensor{convert_datatype_from_ggml(t->type), std::move(tensor_shape)};
@@ -68,7 +68,7 @@ static std::unique_ptr<ggml_tensor> convert_to_ggml_tensor(const Tensor *t) {
 
     // Copy if need
     if (buffer_t.m_data_cuda == nullptr) {
-        SMART_ASSERT(buffer_t.m_data_host not_eq nullptr and "Data host is nullptr\n");
+        POWERSERVE_ASSERT(buffer_t.m_data_host not_eq nullptr and "Data host is nullptr\n");
         cuda_context_warp::copy_memory_async<1>(buffer_t.m_data_cuda, buffer_t.m_data_host, buffer_t.m_size);
     }
 
@@ -129,7 +129,7 @@ public: // ! Mem Ops
         for (size_t i{1}; i < shape.size(); ++i) {
             stride[i] = stride[i - 1] * shape[i - 1];
         }
-        SMART_ASSERT(parent.m_data_cuda != nullptr);
+        POWERSERVE_ASSERT(parent.m_data_cuda != nullptr);
 
 
         auto b{std::make_shared<Buffer_CUDA>(stride, nullptr, nullptr, usage::ANY, parent.m_size, false, false)};
@@ -172,7 +172,7 @@ public: // ! Mem Ops
         } else if constexpr (D_Type == DataType::GGML_Q8_0) {
 
         } else {
-            SMART_ASSERT(false and "not supported tensor type");
+            POWERSERVE_ASSERT(false and "not supported tensor type");
         }
     }
 };

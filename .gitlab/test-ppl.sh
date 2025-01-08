@@ -6,7 +6,7 @@ DEVICE_PORT=$3
 
 TARGET=$4
 if [ "${TARGET}" == "" ]; then
-    TARGET="smart-llama3.1-8b"
+    TARGET="powerserve-llama3.1-8b"
 fi
 
 WORK_FOLDER="${DEVICE_ROOT}/${TARGET}"
@@ -34,7 +34,7 @@ source .gitlab/common.sh
 echo '>>>>>>>>>>>> Test ppl. <<<<<<<<<<<<';
 set -x
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ${WORK_FOLDER}/bin/smart-perplexity-test -d ${WORK_FOLDER} -p ${PROMPT_FILE};
+    export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ${WORK_FOLDER}/bin/powerserve-perplexity-test -d ${WORK_FOLDER} -p ${PROMPT_FILE};
 "
 set +x
 echo '>>>>>>>>>>>> Test ppl over. <<<<<<<<<<<<';

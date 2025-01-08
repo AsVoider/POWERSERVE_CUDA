@@ -1,4 +1,4 @@
-target_sources(smart_serving PRIVATE
+target_sources(powerserve PRIVATE
     "config.cpp"
     "perf.cpp"
     "perfetto_trace.cpp"
@@ -6,6 +6,6 @@ target_sources(smart_serving PRIVATE
     "timer.cpp"
 )
 
-if (SMART_WITH_PERFETTO)
-    target_compile_definitions(smart_serving PUBLIC SMART_WITH_PERFETTO)
+if (POWERSERVE_WITH_PERFETTO)
+    target_compile_definitions(powerserve PUBLIC POWERSERVE_WITH_PERFETTO)
 endif()

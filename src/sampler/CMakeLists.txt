@@ -1,4 +1,4 @@
-target_sources(smart_serving PRIVATE
+target_sources(powerserve PRIVATE
     "prob_array.cpp"
     "sampler_chain.cpp"
     "sampler.cpp"

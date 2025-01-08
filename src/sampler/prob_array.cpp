@@ -16,7 +16,7 @@
 
 #include "core/logger.hpp"
 
-namespace smart {
+namespace powerserve {
 
 void ProbArray::normalize() {
     if (m_is_normalized) {
@@ -36,7 +36,7 @@ void ProbArray::normalize() {
 }
 
 void ProbArray::softmax() {
-    SMART_ASSERT(m_probs.size() > 0);
+    POWERSERVE_ASSERT(m_probs.size() > 0);
     if (!m_is_sorted) {
         std::sort(m_probs.begin(), m_probs.end(), std::greater());
         m_is_sorted = true;
@@ -66,4 +66,4 @@ auto ProbArray::greedy_sample() -> ProbIndex & {
     return *std::max_element(m_probs.begin(), m_probs.end(), std::greater());
 }
 
-} // namespace smart
+} // namespace powerserve

@@ -18,7 +18,7 @@
 
 #include <unistd.h>
 
-namespace smart::storage {
+namespace powerserve::storage {
 
 ///
 /// RAII Wrapper for file descriptor
@@ -28,7 +28,7 @@ public:
     static constexpr int INVALID_FILE_HANDLE = -1;
 
 public:
-    /// File descritor
+    /// File descriptor
     int m_fd = INVALID_FILE_HANDLE;
 
 public:
@@ -59,13 +59,13 @@ public:
 public:
     /*!
          * @brief Reset file descriptor with a new one
-         * @param[in] new_fd New file descirptor assigned to the handle
+         * @param[in] new_fd New file descriptor assigned to the handle
          * @note If the file handle has already been assigned, it will close the old one and hold the new one.
          */
     void reset(const int new_fd = INVALID_FILE_HANDLE) {
         if (m_fd != INVALID_FILE_HANDLE) {
             const int ret = close(m_fd);
-            SMART_ASSERT(ret != -1, "failed to close file {}", m_fd);
+            POWERSERVE_ASSERT(ret != -1, "failed to close file {}", m_fd);
         }
         m_fd = new_fd;
     }
@@ -79,4 +79,4 @@ public:
     }
 };
 
-} // namespace smart::storage
+} // namespace powerserve::storage

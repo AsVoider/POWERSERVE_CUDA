@@ -21,7 +21,7 @@
 #include <cstdio>
 #include <cstring>
 
-namespace smart {
+namespace powerserve {
 
 TensorNode *NormAttention::build(
     Graph &g,
@@ -35,7 +35,7 @@ TensorNode *NormAttention::build(
 ) {
     auto batch_size = pos.size();
     auto head_size  = m_config.head_size;
-    SMART_ASSERT(head_size == (size_t)m_config.rope_config.n_dims);
+    POWERSERVE_ASSERT(head_size == (size_t)m_config.rope_config.n_dims);
     auto n_head    = m_config.n_heads;
     auto n_head_kv = m_config.n_kv_heads;
     auto n_ctx     = m_config.seq_len;
@@ -159,4 +159,4 @@ TensorNode *NormAttention::build(
     return res_conn;
 }
 
-} // namespace smart
+} // namespace powerserve

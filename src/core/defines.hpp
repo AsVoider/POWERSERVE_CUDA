@@ -14,12 +14,12 @@
 
 #pragma once
 
-#define SMART_BUILTIN_EXPECT(expr, value) __builtin_expect((expr), (value))
-#define SMART_LIKELY(expr)                SMART_BUILTIN_EXPECT((expr), 1)
-#define SMART_UNLIKELY(expr)              SMART_BUILTIN_EXPECT((expr), 0)
+#define POWERSERVE_BUILTIN_EXPECT(expr, value) __builtin_expect((expr), (value))
+#define POWERSERVE_LIKELY(expr)                POWERSERVE_BUILTIN_EXPECT((expr), 1)
+#define POWERSERVE_UNLIKELY(expr)              POWERSERVE_BUILTIN_EXPECT((expr), 0)
 
 #if !defined(ALWAYS_INLINE)
 #define ALWAYS_INLINE __attribute__((always_inline))
 #endif
 
-#define SMART_UNUSED(x) ((void)(x))
+#define POWERSERVE_UNUSED(x) ((void)(x))

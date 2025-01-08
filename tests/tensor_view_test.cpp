@@ -23,20 +23,20 @@
 #include <string>
 #include <unistd.h>
 
-using namespace smart;
+using namespace powerserve;
 
 int main(int argc, char *argv[]) {
-    std::string config_path = "/home/zwb/SS/smartserving/";
+    std::string config_path = "/home/zwb/SS/powerserve/";
 
     CLI::App app("Demo program for llama3");
 
     app.add_option("--config-path", config_path)->required();
     CLI11_PARSE(app, argc, argv);
 
-    auto config                                     = std::make_shared<smart::Config>(config_path);
-    std::shared_ptr<Model> model                    = smart::load_model(config->main_llm_dir, config->main_llm_config);
+    auto config                  = std::make_shared<powerserve::Config>(config_path);
+    std::shared_ptr<Model> model = powerserve::load_model(config->main_llm_dir, config->main_llm_config);
     auto [sampler_config, steps, n_threads, prompt] = config->hyper_params;
-    model->m_platform                               = std::make_shared<smart::Platform>();
+    model->m_platform                               = std::make_shared<powerserve::Platform>();
     model->m_platform->init_ggml_backend(model->m_config, n_threads);
 
     Graph g;
@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     size_t batch_size = 2;
     size_t cur_pos    = 1;
 
-    auto cache                   = Tensor(smart::DataType::FP32, {n_ctx, kv_dim, 1, 1});
+    auto cache                   = Tensor(powerserve::DataType::FP32, {n_ctx, kv_dim, 1, 1});
     std::vector<float> cache_buf = std::vector<float>(n_ctx * kv_dim, 0.f);
     // std::iota(cache_buf.begin(), cache_buf.end(), 1.f);
     ggml::Buffer::Stride cache_stride = {
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
     };
     cache.m_data = std::make_shared<ggml::Buffer>(cache_stride, cache_buf.data());
 
-    auto v                   = Tensor(smart::DataType::FP32, {kv_dim, batch_size, 1, 1});
+    auto v                   = Tensor(powerserve::DataType::FP32, {kv_dim, batch_size, 1, 1});
     std::vector<float> v_buf = std::vector<float>(kv_dim * batch_size);
     std::iota(v_buf.begin(), v_buf.end(), 1.f);
 

@@ -1,7 +1,7 @@
-add_library(smart_serving STATIC)
-target_include_directories(smart_serving PUBLIC .)
+add_library(powerserve STATIC)
+target_include_directories(powerserve PUBLIC .)
 
-target_link_libraries(smart_serving PUBLIC
+target_link_libraries(powerserve PUBLIC
     fmt
     ggml
     llama_tokenizer
@@ -9,25 +9,25 @@ target_link_libraries(smart_serving PUBLIC
     uv_a
 )
 
-if (SMART_WITH_PERFETTO)
-    target_link_libraries(smart_serving PRIVATE perfetto)
+if (POWERSERVE_WITH_PERFETTO)
+    target_link_libraries(powerserve PRIVATE perfetto)
 endif()
 
 if (NOT MSVC)
-    target_compile_options(smart_serving PRIVATE
+    target_compile_options(powerserve PRIVATE
         -Wall
         -Wextra
 
         # -Wno-unused-function
     )
 
-    if (SMART_ENABLE_WERROR)
-        target_compile_options(smart_serving PRIVATE -Werror)
+    if (POWERSERVE_ENABLE_WERROR)
+        target_compile_options(powerserve PRIVATE -Werror)
     endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    target_compile_options(smart_serving PRIVATE -Wno-unknown-pragmas)
+    target_compile_options(powerserve PRIVATE -Wno-unknown-pragmas)
 endif()
 
 add_subdirectory(storage)
@@ -37,7 +37,7 @@ add_subdirectory(executor)
 add_subdirectory(graph)
 add_subdirectory(model)
 add_subdirectory(sampler)
-if (SMART_WITH_QNN)
+if (POWERSERVE_WITH_QNN)
     add_subdirectory(speculative)
 endif()
 add_subdirectory(tokenizer)

@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-namespace smart::qnn {
+namespace powerserve::qnn {
 
 using QNNDataType = Qnn_DataType_t;
 
@@ -44,7 +44,7 @@ static constexpr size_t type_size(QNNDataType type) {
         return 1;
 
     default:
-        SMART_ABORT("unknown QNN data type: {}", static_cast<int>(type));
+        POWERSERVE_ABORT("unknown QNN data type: {}", static_cast<int>(type));
     }
 }
 
@@ -241,4 +241,4 @@ struct ContextBinary {
     ContextBinary(Backend &backend, const Path &path);
 };
 
-} // namespace smart::qnn
+} // namespace powerserve::qnn

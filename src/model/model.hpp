@@ -22,7 +22,22 @@
 
 #include <string>
 
-namespace smart {
+namespace powerserve {
+
+struct LogitsVector {
+    BufferPtr buffer;
+    std::vector<std::span<const float>> logits_vector;
+
+    LogitsVector() = default;
+
+    LogitsVector(BufferPtr buffer, size_t vocab_size, size_t batch_size) : buffer(buffer) {
+        float *logits = static_cast<float *>(dynamic_cast<CPUBuffer &>(*buffer).m_data);
+        for (size_t i = 0; i < batch_size; i++) {
+            logits_vector.push_back(std::span<const float>(logits, logits + vocab_size));
+            logits += vocab_size;
+        }
+    }
+};
 
 struct Model {
 public:
@@ -179,7 +194,7 @@ public:
         const std::vector<int> &pos,
         const CausalAttentionMask &mask,
         bool lm_head = true
-    ) -> std::vector<std::vector<float>> = 0;
+    ) -> LogitsVector = 0;
 
 public:
     virtual auto decode(Sampler &sampler, const std::vector<Token> tokens, const std::vector<int> pos, bool lm_head)
@@ -191,4 +206,4 @@ public:
 
 using ModelPtr = std::shared_ptr<Model>;
 
-} // namespace smart
+} // namespace powerserve

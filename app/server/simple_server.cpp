@@ -47,7 +47,7 @@ SimpleServer::SimpleServer(
 
     m_server->Get("/v1/models", model_handler);
 
-    SMART_LOG_INFO("server is listening http://{}:{}", host, port);
+    POWERSERVE_LOG_INFO("server is listening http://{}:{}", host, port);
 }
 
 void simple_server_handler(

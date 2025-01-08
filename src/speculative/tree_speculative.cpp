@@ -19,7 +19,7 @@
 
 constexpr bool debug_token_tree = false;
 
-namespace smart {
+namespace powerserve {
 
 TreeSpeculative::TreeSpeculative(const ModelPtr &target_model, const ModelPtr &draft_model) :
     target_model(target_model),
@@ -28,9 +28,9 @@ TreeSpeculative::TreeSpeculative(const ModelPtr &target_model, const ModelPtr &d
 void TreeSpeculative::generate(const Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) {
     auto prompt_tokens           = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos);
     const size_t n_prompt_tokens = prompt_tokens.size();
-    SMART_ASSERT(n_prompt_tokens >= 1);
+    POWERSERVE_ASSERT(n_prompt_tokens >= 1);
 
-    SMART_ASSERT(target_model->kv_cache->position == draft_model->kv_cache->position);
+    POWERSERVE_ASSERT(target_model->kv_cache->position == draft_model->kv_cache->position);
     size_t position = target_model->kv_cache->position;
 
     fmt::print("{}", prompt);
@@ -68,7 +68,7 @@ void TreeSpeculative::generate(const Tokenizer &tokenizer, Sampler &sampler, con
             generate_tokens(tokenizer, sampler, last_token);
             generation_time_ns += timer.elapsed_time_ns();
 
-            SMART_ASSERT(token_queue.size() > 0);
+            POWERSERVE_ASSERT(token_queue.size() > 0);
             n_generated_tokens += token_queue.size();
         }
 
@@ -103,12 +103,12 @@ void TreeSpeculative::generate_tokens(const Tokenizer &tokenizer, Sampler &sampl
     CausalAttentionMask mask(draft_batch_size, token_tree.attention_mask());
 
     PerfettoTrace::begin("target_model_forward");
-    auto logits = target_model->forward(token_tree.tokens(), token_tree.positions(), mask);
+    auto ret = target_model->forward(token_tree.tokens(), token_tree.positions(), mask);
     PerfettoTrace::end();
 
     target_model->kv_cache->rollback_tokens(draft_batch_size);
 
-    token_tree.verify(target_model, draft_model, sampler, logits, [this](Token token) {
+    token_tree.verify(target_model, draft_model, sampler, ret.logits_vector, [this](Token token) {
         token_queue.push_back(token);
     });
 
@@ -122,4 +122,4 @@ void TreeSpeculative::print_stat() {
     token_tree.print_stat();
 }
 
-} // namespace smart
+} // namespace powerserve

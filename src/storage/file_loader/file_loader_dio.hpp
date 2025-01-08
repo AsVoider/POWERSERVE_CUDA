@@ -27,7 +27,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace smart::storage {
+namespace powerserve::storage {
 
 class FileLoaderDIO final : public FileLoader {
 public:
@@ -68,14 +68,14 @@ public:
 public:
     void load() override {
         if (!m_buffer.empty()) {
-            SMART_LOG_WARN("trying to load a buffer twice");
+            POWERSERVE_LOG_WARN("trying to load a buffer twice");
             unload();
         }
 
         struct stat file_stat;
         {
             const int ret = fstat(m_file_handle.m_fd, &file_stat);
-            SMART_ASSERT(ret == 0, "failed to fstat file {}", m_file_path);
+            POWERSERVE_ASSERT(ret == 0, "failed to fstat file {}", m_file_path);
         }
 
         const size_t file_size = file_stat.st_size;
@@ -85,7 +85,7 @@ public:
              */
         const size_t aligned_file_size = align_ceil(file_size);
         std::byte *buffer_ptr          = new (std::align_val_t{BUFFER_ALIGNMENT}) std::byte[aligned_file_size];
-        SMART_ASSERT(buffer_ptr != nullptr, "failed to allocate buffer of size {}", aligned_file_size);
+        POWERSERVE_ASSERT(buffer_ptr != nullptr, "failed to allocate buffer of size {}", aligned_file_size);
         m_buffer = {buffer_ptr, file_size};
 
         /*
@@ -93,9 +93,9 @@ public:
              */
         {
             const ssize_t ret = pread(m_file_handle.m_fd, buffer_ptr, aligned_file_size, 0);
-            SMART_ASSERT(
+            POWERSERVE_ASSERT(
                 ret == static_cast<ssize_t>(file_size),
-                "faild to read {} bytes from file {} (ret = {})",
+                "failed to read {} bytes from file {} (ret = {})",
                 file_size,
                 m_file_path,
                 ret
@@ -128,4 +128,4 @@ public:
     }
 };
 
-} // namespace smart::storage
+} // namespace powerserve::storage

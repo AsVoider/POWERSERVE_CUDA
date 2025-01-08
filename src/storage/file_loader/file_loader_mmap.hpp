@@ -23,7 +23,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace smart::storage {
+namespace powerserve::storage {
 
 class FileLoaderMMap final : public FileLoader {
 private:
@@ -38,11 +38,11 @@ public:
 
         struct stat file_stat;
         const int ret = fstat(m_file_handle.m_fd, &file_stat);
-        SMART_ASSERT(ret == 0, "failed to fstat file {}", m_file_path);
+        POWERSERVE_ASSERT(ret == 0, "failed to fstat file {}", m_file_path);
 
         const size_t file_size = file_stat.st_size;
         void *mmap_ret         = mmap(nullptr, file_size, PROT_READ, MAP_SHARED, m_file_handle.m_fd, 0);
-        SMART_ASSERT(mmap_ret != MAP_FAILED, "failed to mmap file {}", m_file_path);
+        POWERSERVE_ASSERT(mmap_ret != MAP_FAILED, "failed to mmap file {}", m_file_path);
 
         m_mmap_space = {static_cast<std::byte *>(mmap_ret), file_size};
     }
@@ -101,4 +101,4 @@ public:
     }
 };
 
-} // namespace smart::storage
+} // namespace powerserve::storage

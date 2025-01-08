@@ -99,7 +99,7 @@ class Quantizer:
             y = (((y - beta) * inverted_scale).round().clip(q_min, q_max) + offset) * scale
             # print(scale.item(), offset.item())
 
-            # NOTE: This cannot exactly represent zero, but accurarcy is much better and llama.cpp uses this
+            # NOTE: This cannot exactly represent zero, but accuracy is much better and llama.cpp uses this
             # y = (((y - beta) * inverted_scale).round()) * scale + beta
             # print(scale.item(), beta.item())
 

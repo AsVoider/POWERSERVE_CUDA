@@ -4,7 +4,7 @@
 #include <iostream>
 
 
-namespace smart::ggml_cuda {
+namespace powerserve::ggml_cuda {
 
 class cuda_context_warp;
 

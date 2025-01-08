@@ -23,7 +23,7 @@
 #include <memory>
 #include <span>
 
-namespace smart::storage {
+namespace powerserve::storage {
 
 enum class FileLoaderMethod : int {
     /// Load file using mmap
@@ -76,7 +76,7 @@ public: /* Getter */
     /*!
          * @brief Get the file buffer
          * @param[in] implicit_load Read the file into the buffer if it hasn't been loaded.
-         * @note Getting a buffer without pre-load operation or implcit load flag leads to undefined behaviour.
+         * @note Getting a buffer without pre-load operation or implicit load flag leads to undefined behaviour.
          */
     virtual std::span<std::byte> get_buffer(bool implicit_load = true) = 0;
 
@@ -89,7 +89,7 @@ public: /* Getter */
     }
 
     /*!
-         * @brief Get the underlying implementaion method of FileLoader
+         * @brief Get the underlying implementation method of FileLoader
          */
     virtual FileLoaderMethod get_method() const = 0;
 };
@@ -99,4 +99,4 @@ public: /* Getter */
      */
 std::unique_ptr<FileLoader> build_file_loader(const std::filesystem::path &file_path, FileLoaderMethod method);
 
-} // namespace smart::storage
+} // namespace powerserve::storage

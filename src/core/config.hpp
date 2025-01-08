@@ -19,7 +19,7 @@
 #include <cstdint>
 #include <string>
 
-namespace smart {
+namespace powerserve {
 
 const std::string HYPER_PARAMS_FILENAME_KEY = "hparams_config";
 const std::string MAIN_MODEL_KEY            = "model_main";
@@ -139,9 +139,9 @@ public:
     std::shared_ptr<ModelConfig> draft_model_config;
 
 public:
-    Config(const Path &work_folder);
+    Config(const Path &work_folder, const Path &workspace_config_path);
 
     virtual ~Config() = default;
 };
 
-} // namespace smart
+} // namespace powerserve

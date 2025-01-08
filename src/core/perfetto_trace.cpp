@@ -14,7 +14,7 @@
 
 #include "core/perfetto_trace.hpp"
 
-#if defined(SMART_WITH_PERFETTO)
+#if defined(POWERSERVE_WITH_PERFETTO)
 
 #include "perfetto.h"
 
@@ -39,17 +39,17 @@ static std::unique_ptr<perfetto::TracingSession> tracing;
 
 #endif
 
-namespace smart {
+namespace powerserve {
 
 void PerfettoTrace::start_tracing(size_t buffer_size_kb) {
-#if defined(SMART_WITH_PERFETTO)
-    SMART_ASSERT(!tracing);
+#if defined(POWERSERVE_WITH_PERFETTO)
+    POWERSERVE_ASSERT(!tracing);
 
     perfetto::TracingInitArgs args;
     args.backends            = perfetto::kInProcessBackend;
     args.use_monotonic_clock = true;
     perfetto::Tracing::Initialize(args);
-    SMART_ASSERT(perfetto::TrackEvent::Register());
+    POWERSERVE_ASSERT(perfetto::TrackEvent::Register());
 
     perfetto::TraceConfig cfg;
     cfg.add_buffers()->set_size_kb(buffer_size_kb);
@@ -62,13 +62,13 @@ void PerfettoTrace::start_tracing(size_t buffer_size_kb) {
 
     enabled = true;
 #else
-    SMART_UNUSED(buffer_size_kb);
+    POWERSERVE_UNUSED(buffer_size_kb);
 #endif
 }
 
 void PerfettoTrace::stop_tracing(const Path &output_path) {
-#if defined(SMART_WITH_PERFETTO)
-    SMART_ASSERT(tracing);
+#if defined(POWERSERVE_WITH_PERFETTO)
+    POWERSERVE_ASSERT(tracing);
 
     fmt::println("Saving Perfetto trace data to {:?}...", output_path);
 
@@ -91,24 +91,24 @@ void PerfettoTrace::stop_tracing(const Path &output_path) {
     perfetto::Tracing::Shutdown();
     enabled = false;
 #else
-    SMART_UNUSED(output_path);
+    POWERSERVE_UNUSED(output_path);
 #endif
 }
 
 void PerfettoTrace::enable() {
-#if defined(SMART_WITH_PERFETTO)
+#if defined(POWERSERVE_WITH_PERFETTO)
     enabled = true;
 #endif
 }
 
 void PerfettoTrace::disable() {
-#if defined(SMART_WITH_PERFETTO)
+#if defined(POWERSERVE_WITH_PERFETTO)
     enabled = false;
 #endif
 }
 
 auto PerfettoTrace::counter() -> CounterTimePoint {
-#if defined(SMART_WITH_PERFETTO)
+#if defined(POWERSERVE_WITH_PERFETTO)
     if (instance().enabled.load(std::memory_order_relaxed)) {
         return CounterTimePoint{
             .timestamp = perfetto::TrackEvent::GetTraceTimeNs(),
@@ -122,18 +122,18 @@ auto PerfettoTrace::counter() -> CounterTimePoint {
 }
 
 void PerfettoTrace::CounterTimePoint::set_value(const char *name, double value) {
-#if defined(SMART_WITH_PERFETTO)
+#if defined(POWERSERVE_WITH_PERFETTO)
     if (instance().enabled.load(std::memory_order_relaxed)) {
         TRACE_COUNTER(counter_category, perfetto::StaticString{name}, timestamp, value);
     }
 #else
-    SMART_UNUSED(name);
-    SMART_UNUSED(value);
+    POWERSERVE_UNUSED(name);
+    POWERSERVE_UNUSED(value);
 #endif
 }
 
 uint64_t PerfettoTrace::CounterTimePoint::elapsed_ns() const {
-#if defined(SMART_WITH_PERFETTO)
+#if defined(POWERSERVE_WITH_PERFETTO)
     return perfetto::TrackEvent::GetTraceTimeNs() - timestamp;
 #else
     return 1; // Prevent division by zero
@@ -141,22 +141,22 @@ uint64_t PerfettoTrace::CounterTimePoint::elapsed_ns() const {
 }
 
 void PerfettoTrace::begin_event(const char *name, bool static_name) {
-#if defined(SMART_WITH_PERFETTO)
+#if defined(POWERSERVE_WITH_PERFETTO)
     if (static_name) {
         TRACE_EVENT_BEGIN(event_category, perfetto::StaticString{name});
     } else {
         TRACE_EVENT_BEGIN(event_category, perfetto::DynamicString{name});
     }
 #else
-    SMART_UNUSED(name);
-    SMART_UNUSED(static_name);
+    POWERSERVE_UNUSED(name);
+    POWERSERVE_UNUSED(static_name);
 #endif
 }
 
 void PerfettoTrace::end_event() {
-#if defined(SMART_WITH_PERFETTO)
+#if defined(POWERSERVE_WITH_PERFETTO)
     TRACE_EVENT_END(event_category);
 #endif
 }
 
-} // namespace smart
+} // namespace powerserve

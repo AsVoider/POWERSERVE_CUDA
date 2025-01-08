@@ -74,7 +74,7 @@ def find_files(directory: Path, quiet: bool = False):
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="SmartServing", description="SmartServing License Add Tool")
+    parser = argparse.ArgumentParser(prog="PowerServe", description="PowerServe License Add Tool")
     parser.add_argument("-d", "--dir", type=Path, required=True, help="file path or dir path")
     args = parser.parse_args()
 

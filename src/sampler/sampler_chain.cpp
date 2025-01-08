@@ -14,7 +14,7 @@
 
 #include "sampler_chain.hpp"
 
-namespace smart {
+namespace powerserve {
 
 void SamplerChain::build_from_config(const HyperParams::SamplerConfig &config, const Tokenizer &tokenizer) {
     auto seed = config.seed;
@@ -22,7 +22,7 @@ void SamplerChain::build_from_config(const HyperParams::SamplerConfig &config, c
         std::random_device rd;
         seed = rd();
     }
-    SMART_LOG_INFO("seed: {}", seed);
+    POWERSERVE_LOG_INFO("seed: {}", seed);
 
     // Samplers in order:
     // - Repeat penalty
@@ -62,4 +62,4 @@ void SamplerChain::accept(Token token) {
     }
 }
 
-} // namespace smart
+} // namespace powerserve

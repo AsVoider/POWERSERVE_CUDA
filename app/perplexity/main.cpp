@@ -42,11 +42,11 @@ public:
     ~PerplexityCalculator() = default;
 
 public:
-    void apply(smart::ProbArray probs);
-    void accept(smart::Token token);
+    void apply(powerserve::ProbArray probs);
+    void accept(powerserve::Token token);
 };
 
-void PerplexityCalculator::apply(smart::ProbArray probs) {
+void PerplexityCalculator::apply(powerserve::ProbArray probs) {
     probs.softmax();
     for (const auto &p : probs.m_probs) {
         log_logits[p.token] = std::log(p.prob);
@@ -54,7 +54,7 @@ void PerplexityCalculator::apply(smart::ProbArray probs) {
     n_tokens++;
 }
 
-void PerplexityCalculator::accept(smart::Token token) {
+void PerplexityCalculator::accept(powerserve::Token token) {
     m_logit_sum += log_logits[token];
     current_ppl = std::exp(-m_logit_sum / n_tokens);
 }
@@ -89,35 +89,38 @@ int main(int argc, char *argv[]) {
             prompt = oss.str();
             f.close();
         } else {
-            SMART_ASSERT(false, "failed to open prompt file: {}", prompt_file);
+            POWERSERVE_ASSERT(false, "failed to open prompt file: {}", prompt_file);
         }
     }
-    auto config                         = std::make_shared<smart::Config>(work_folder);
-    std::shared_ptr<smart::Model> model = smart::load_model(config->main_model_dir, config->main_model_config);
+    auto config = std::make_shared<powerserve::Config>(
+        work_folder, powerserve::Path(work_folder) / powerserve::WORKSPACE_CONFIG_FILENAME
+    );
+    std::shared_ptr<powerserve::Model> model =
+        powerserve::load_model(config->main_model_dir, config->main_model_config);
     auto [sampler_config, n_threads, prefill_batch_size] = config->hyper_params;
-    SMART_UNUSED(prefill_batch_size);
+    POWERSERVE_UNUSED(prefill_batch_size);
 
-    model->m_platform = std::make_shared<smart::Platform>();
+    model->m_platform = std::make_shared<powerserve::Platform>();
     model->m_platform->init_ggml_backend(model->m_config, config->hyper_params);
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     if (!no_qnn) {
         auto &qnn_backend = model->m_platform->qnn_backend;
-        model->m_platform->init_qnn_backend(smart::Path(work_folder) / smart::qnn::QNN_LIB_DIR_NAME);
-        qnn_backend->load_model(config->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, model->m_config);
+        model->m_platform->init_qnn_backend(powerserve::Path(work_folder) / powerserve::qnn::QNN_LIB_DIR_NAME);
+        qnn_backend->load_model(config->main_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, model->m_config);
     }
 #endif
 
-    model->m_attn = std::make_shared<smart::NormAttention>(model->m_config->llm, model->m_weights);
-    SMART_LOG_INFO("after attention module init: {}", smart::perf_get_mem_result());
+    model->m_attn = std::make_shared<powerserve::NormAttention>(model->m_config->llm, model->m_weights);
+    POWERSERVE_LOG_INFO("after attention module init: {}", powerserve::perf_get_mem_result());
 
     // load tokenizer
-    const std::string tokenizer_path = config->main_model_dir / smart::MODEL_VOCAB_FILENAME;
-    const smart::Tokenizer tokenizer(tokenizer_path);
-    SMART_LOG_INFO("after tokenizer init: {}", smart::perf_get_mem_result());
+    const std::string tokenizer_path = config->main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
+    const powerserve::Tokenizer tokenizer(tokenizer_path);
+    POWERSERVE_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
     const auto prompt_tokens = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos);
     const size_t n_tokens    = prompt_tokens.size();
-    SMART_LOG_INFO("dataset: {} tokens", n_tokens);
+    POWERSERVE_LOG_INFO("dataset: {} tokens", n_tokens);
 
     // ppl
     PerplexityCalculator ppl_calculator(model->m_config->llm.vocab_size);
@@ -125,9 +128,9 @@ int main(int argc, char *argv[]) {
     if (batch_size > n_tokens) {
         batch_size = n_tokens;
     }
-    { SMART_LOG_INFO("batch_size  : {}", batch_size); }
+    { POWERSERVE_LOG_INFO("batch_size  : {}", batch_size); }
 
-    SMART_ASSERT(n_tokens >= batch_size * PPL_START_ID);
+    POWERSERVE_ASSERT(n_tokens >= batch_size * PPL_START_ID);
 
     // generate
     size_t pos      = 0;
@@ -140,14 +143,14 @@ int main(int argc, char *argv[]) {
 
         std::vector<int> pos_list(size);
         std::iota(pos_list.begin(), pos_list.end(), pos);
-        std::vector<smart::Token> tokens(size);
+        std::vector<powerserve::Token> tokens(size);
         std::copy(prompt_tokens.begin() + pos, prompt_tokens.begin() + pos + size, tokens.begin());
         // decode
         {
-            const smart::CausalAttentionMask mask(tokens.size());
+            const powerserve::CausalAttentionMask mask(tokens.size());
             const auto ret = model->forward(tokens, pos_list, mask, true);
-            for (const auto &logits : ret) {
-                auto probs = smart::ProbArray(logits);
+            for (auto logits : ret.logits_vector) {
+                auto probs = powerserve::ProbArray(logits);
                 if (batch_id >= PPL_START_ID && pos + 1 < n_tokens) {
                     if (pos != (PPL_START_ID - 1) * batch_size) { // skip the first token
                         ppl_calculator.apply(probs);
@@ -158,7 +161,7 @@ int main(int argc, char *argv[]) {
             }
         }
         if (batch_id >= PPL_START_ID) {
-            SMART_LOG_INFO("ppl {}: {}", ppl_calculator.n_tokens, ppl_calculator.current_ppl);
+            POWERSERVE_LOG_INFO("ppl {}: {}", ppl_calculator.n_tokens, ppl_calculator.current_ppl);
         }
         batch_id += 1;
     }

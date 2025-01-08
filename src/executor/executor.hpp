@@ -17,7 +17,7 @@
 #include "backend/platform.hpp"
 #include "graph/graph.hpp"
 
-namespace smart {
+namespace powerserve {
 
 struct Executor {
 public:
@@ -62,4 +62,4 @@ private:
     }
 };
 
-} // namespace smart
+} // namespace powerserve

@@ -30,7 +30,7 @@ enum class rope_type {
 static uint32_t get_u32(gguf_context *ctx, const std::string &key, bool required = true, uint32_t default_value = 0) {
     int idx = gguf_find_key(ctx, key.c_str());
     if (idx == -1) {
-        SMART_ASSERT(required == false);
+        POWERSERVE_ASSERT(required == false);
         return default_value;
     }
     return gguf_get_val_u32(ctx, idx);
@@ -39,7 +39,7 @@ static uint32_t get_u32(gguf_context *ctx, const std::string &key, bool required
 static float get_f32(gguf_context *ctx, const std::string &key, bool required = true, float default_value = 0.0f) {
     int idx = gguf_find_key(ctx, key.c_str());
     if (idx == -1) {
-        SMART_ASSERT(required == false);
+        POWERSERVE_ASSERT(required == false);
         return default_value;
     }
     return gguf_get_val_f32(ctx, idx);
@@ -50,7 +50,7 @@ static std::string get_str(
 ) {
     int idx = gguf_find_key(ctx, key.c_str());
     if (idx == -1) {
-        SMART_ASSERT(required == false);
+        POWERSERVE_ASSERT(required == false);
         return default_value;
     }
     return gguf_get_val_str(ctx, idx);
@@ -84,8 +84,8 @@ int main(int argc, char *argv[]) {
 
     gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
     gguf_ctx                = gguf_init_from_file(file_path.c_str(), params);
-    SMART_ASSERT(gguf_ctx != nullptr);
-    SMART_ASSERT(ggml_ctx != nullptr);
+    POWERSERVE_ASSERT(gguf_ctx != nullptr);
+    POWERSERVE_ASSERT(ggml_ctx != nullptr);
 
     nlohmann::json config;
     config["version"] = VERSION;
@@ -119,7 +119,7 @@ void collect_config(gguf_context *ctx, nlohmann::json &config) {
             config["vocab_size"] = gguf_get_val_u32(ctx, idx);
         } else {
             idx = gguf_find_key(ctx, "tokenizer.ggml.tokens");
-            SMART_ASSERT(idx != -1);
+            POWERSERVE_ASSERT(idx != -1);
             config["vocab_size"] = gguf_get_arr_n(ctx, idx);
         }
     }

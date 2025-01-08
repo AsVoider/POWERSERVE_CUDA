@@ -17,7 +17,7 @@
 #include "core/logger.hpp"
 #include "ggml.h"
 
-namespace smart {
+namespace powerserve {
 
 Tokenizer::Tokenizer(const Path &vocab_path) {
     struct ggml_context *ctx       = nullptr;
@@ -27,14 +27,14 @@ Tokenizer::Tokenizer(const Path &vocab_path) {
     };
 
     struct gguf_context *meta = gguf_init_from_file(vocab_path.c_str(), params);
-    SMART_ASSERT(meta);
+    POWERSERVE_ASSERT(meta);
 
     const int template_key_id = gguf_find_key(meta, "tokenizer.chat_template");
     if (template_key_id != -1) {
         m_template_type = gguf_get_val_str(meta, template_key_id);
     } else {
         m_template_type = "chatml";
-        SMART_LOG_ERROR(
+        POWERSERVE_LOG_ERROR(
             "failed to find kv entry <tokenizer.chat_template>, use chat template `{}` as default.", m_template_type
         );
     }
@@ -333,7 +333,7 @@ static std::string apply_chat_template_internal(
         }
     } else {
         // template not supported
-        SMART_LOG_ERROR("unknown template type: {}", template_type);
+        POWERSERVE_LOG_ERROR("unknown template type: {}", template_type);
         return {};
     }
     return ss.str();
@@ -345,4 +345,4 @@ auto Tokenizer::apply_chat_template(const std::vector<ChatEntry> &chat_history, 
     return apply_chat_template_internal(m_template_type, chat_history, add_ass);
 }
 
-} // namespace smart
+} // namespace powerserve

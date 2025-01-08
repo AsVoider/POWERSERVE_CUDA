@@ -10,7 +10,7 @@ import logging
 import os
 import shutil
 
-# gloabl config
+# global config
 HYPER_PARAMS_FILENAME_KEY = "hparams_config"
 MAIN_MODEL_KEY = "model_main"
 DRAFT_MODEL_KEY = "model_draft"
@@ -21,7 +21,7 @@ MODEL_CONFIG_FILENAME = "model.json"
 QNN_LIB_DIR_NAME = "qnn_libs"
 
 logging.basicConfig(
-    filename=f'smartserving_{datetime.today().strftime("%Y_%m_%d")}.log',
+    filename=f'powerserve_{datetime.today().strftime("%Y_%m_%d")}.log',
     level=logging.INFO,
     format="[%(asctime)s] - [%(levelname)s] - %(funcName)s - %(message)s",
     datefmt="%Y-%m-%d-%H:%M:%S",
@@ -34,7 +34,6 @@ logging.info(f"current root: {root_folder}")
 default_hparams = {
     "n_threads": 4,
     "batch_size": 1024,
-
     # Default to greedy sampling (top_k = 1) without repeat penalty (penalty_repeat = 1).
     "sampler": {
         "seed": 0,
@@ -112,6 +111,8 @@ def prepare_qnn_libs(out_path: Path):
         qnn_libs_folder = qnn_sdk_folder / "lib" / hexagon_version / "unsigned"
         if qnn_libs_folder.exists():
             execute_command(["cp", "-r", f"{qnn_libs_folder}/libQnnHtpV*", qnn_libs_path, "| true"])
+        if "79" in hexagon_version:
+            execute_command(["cp", f"{qnn_libs_folder}/libQnnHexagonSkel_dspApp.so", qnn_libs_path, "| true"])
 
     universal_libs = ["libQnnHtp.so", "libQnnSystem.so"]
     android_libs_path = Path(qnn_sdk_folder) / "lib" / "aarch64-android"
@@ -120,7 +121,7 @@ def prepare_qnn_libs(out_path: Path):
     execute_command(["cp", "-r", f"{android_libs_path}/libQnnHtpV*Stub.so", qnn_libs_path, "| true"])
 
 
-def smart_create(args):
+def powerserve_create(args):
     out_path: Path = args.out_path
     main_model_path: Path = args.main_model
     draft_model_path: Path = args.draft_model
@@ -163,21 +164,29 @@ def smart_create(args):
     else:
         artifact_config[DRAFT_MODEL_KEY] = ""
 
+    if args.other_models:
+        for other_model_path in args.other_models:
+            other_model_abspath = out_path / str(other_model_path.name)
+            if not other_model_abspath.exists():
+                other_model_abspath.mkdir(parents=True, exist_ok=True)
+            execute_command(["cp", "-r", other_model_path / "*", other_model_abspath])
+
     write_json(out_path / ARTIFACT_CONFIG_FILENAME, artifact_config)
 
     prepare_qnn_libs(out_path)
 
 
 def command():
-    parser = argparse.ArgumentParser(prog="SmartServing", description="SmartServing CommandLine Tool")
+    parser = argparse.ArgumentParser(prog="PowerServe", description="PowerServe CommandLine Tool")
     subparser = parser.add_subparsers()
     # ============== Create ==============
     create_parser = subparser.add_parser("create")
     create_parser.add_argument("-m", "--main-model", type=Path, required=True, help="Main model path")
     create_parser.add_argument("-d", "--draft-model", type=Path, help="Draft model path", default=None)
+    create_parser.add_argument("--other-models", type=Path, help="other models path", nargs="+")
     create_parser.add_argument("-o", "--out-path", type=Path, default=Path("./proj/"), help="Output path")
     create_parser.add_argument("--exe-path", type=Path, required=True, default=None)
-    create_parser.set_defaults(func=smart_create)
+    create_parser.set_defaults(func=powerserve_create)
 
     args = parser.parse_args()
 

@@ -16,7 +16,7 @@
 
 #include <chrono>
 
-namespace smart {
+namespace powerserve {
 
 auto timestamp_ns() -> int64_t;
 auto timestamp_us() -> int64_t;
@@ -45,4 +45,4 @@ private:
     auto tick_impl(Clock::time_point *out_time_point) const -> int64_t;
 };
 
-} // namespace smart
+} // namespace powerserve

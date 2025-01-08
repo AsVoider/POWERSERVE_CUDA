@@ -38,7 +38,7 @@
 #include <thread>
 #include <unordered_map>
 
-using ModelChatHistroyEntry = smart::ChatEntry;
+using ModelChatHistroyEntry = powerserve::ChatEntry;
 
 struct ModelInput {
 
@@ -135,7 +135,7 @@ public:
 public:
     void init(std::function<void()> &&thread_func) {
         if (m_session_thread_ptr) {
-            SMART_LOG_ERROR("trying to init a session twice");
+            POWERSERVE_LOG_ERROR("trying to init a session twice");
         } else {
             m_session_thread_ptr = std::make_unique<std::thread>(std::move(thread_func));
         }
@@ -166,17 +166,17 @@ public:
 
 struct ModelContext {
 public:
-    std::shared_ptr<smart::Config> m_config_ptr;
-    std::shared_ptr<smart::Model> m_model_ptr;
-    std::unique_ptr<smart::Tokenizer> m_tokenizer_ptr;
+    std::unique_ptr<powerserve::Config> m_config_ptr;
+    std::shared_ptr<powerserve::Model> m_model_ptr;
+    std::unique_ptr<powerserve::Tokenizer> m_tokenizer_ptr;
 
 public:
     ModelContext() = default;
 
     ModelContext(
-        std::shared_ptr<smart::Config> &&config_ptr,
-        std::shared_ptr<smart::Model> &&model_ptr,
-        std::unique_ptr<smart::Tokenizer> &&tokenizer_ptr
+        std::unique_ptr<powerserve::Config> &&config_ptr,
+        std::shared_ptr<powerserve::Model> &&model_ptr,
+        std::unique_ptr<powerserve::Tokenizer> &&tokenizer_ptr
     ) :
         m_config_ptr(std::move(config_ptr)),
         m_model_ptr(std::move(model_ptr)),
@@ -195,7 +195,7 @@ public:
 
 struct ServerContext {
 private:
-    std::filesystem::path m_model_folder;
+    std::filesystem::path m_work_folder;
 
     std::filesystem::path m_lib_folder;
 
@@ -206,14 +206,14 @@ private:
     std::map<ServerSessionId, ServerSession> m_session_map;
 
 public:
-    ServerContext(const std::filesystem::path &model_folder, const std::filesystem::path &lib_folder) :
-        m_model_folder(model_folder),
+    ServerContext(const std::filesystem::path &work_folder, const std::filesystem::path &lib_folder) :
+        m_work_folder(work_folder),
         m_lib_folder(lib_folder) {
-        if (!std::filesystem::exists(model_folder)) {
-            SMART_LOG_WARN("model base folder does not exist: {}", m_model_folder);
+        if (!std::filesystem::exists(m_work_folder)) {
+            POWERSERVE_LOG_WARN("model base folder does not exist: {}", m_work_folder);
         }
-        if (!std::filesystem::is_directory(model_folder)) {
-            SMART_LOG_WARN("model base folder is not directory: {}", m_model_folder);
+        if (!std::filesystem::is_directory(m_work_folder)) {
+            POWERSERVE_LOG_WARN("model base folder is not directory: {}", m_work_folder);
         }
     }
 
@@ -223,46 +223,55 @@ public:
     ModelContext &setup_model(const std::string &model_name) {
         std::lock_guard<std::mutex> lock_guard(m_lock);
 
-        const std::string workspace_model_folder = m_model_folder / model_name;
-        std::string work_folder;
-
-        if (std::filesystem::exists(workspace_model_folder) && std::filesystem::is_directory(workspace_model_folder)) {
-            work_folder = workspace_model_folder;
+        const std::filesystem::path inner_model_folder = m_work_folder / model_name;
+        std::filesystem::path model_folder;
+        if (!std::filesystem::exists(inner_model_folder) && !std::filesystem::is_directory(inner_model_folder)) {
+            model_folder = inner_model_folder;
         } else if (std::filesystem::exists(model_name) && std::filesystem::is_directory(model_name)) {
-            work_folder = model_name;
+            model_folder = model_name;
         } else {
             throw std::invalid_argument("model folder does not exist: " + model_name);
         }
-        SMART_LOG_INFO("found model folder: {}", work_folder);
+        POWERSERVE_LOG_INFO("found model folder: {}", model_folder);
 
-        if (m_context_slot_map.contains(work_folder)) {
-            return m_context_slot_map.at(work_folder);
+        if (m_context_slot_map.contains(model_name)) {
+            return m_context_slot_map.at(model_name);
         }
 
-        std::shared_ptr<smart::Config> config_ptr = std::make_shared<smart::Config>(work_folder);
-        std::shared_ptr<smart::Model> model_ptr =
-            smart::load_model(config_ptr->main_model_dir, config_ptr->main_model_config);
+        std::unique_ptr<powerserve::Config> config_ptr = std::make_unique<powerserve::Config>(
+            m_work_folder, powerserve::Path(m_work_folder) / powerserve::WORKSPACE_CONFIG_FILENAME
+        );
+        std::shared_ptr<powerserve::Model> model_ptr =
+            powerserve::load_model(config_ptr->main_model_dir, config_ptr->main_model_config);
 
-        model_ptr->m_platform = std::make_shared<smart::Platform>();
+        model_ptr->m_platform = std::make_shared<powerserve::Platform>();
         model_ptr->m_platform->init_ggml_backend(model_ptr->m_config, config_ptr->hyper_params);
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
         auto &qnn_backend = model_ptr->m_platform->qnn_backend;
-        model_ptr->m_platform->init_qnn_backend(m_lib_folder);
-        qnn_backend->load_model(config_ptr->main_model_dir / smart::qnn::QNN_WORKSPACE_DIR_NAME, model_ptr->m_config);
+        if (m_lib_folder.empty()) {
+            model_ptr->m_platform->init_qnn_backend(
+                powerserve::Path(m_work_folder) / powerserve::qnn::QNN_LIB_DIR_NAME
+            );
+        } else {
+            model_ptr->m_platform->init_qnn_backend(m_lib_folder);
+        }
+        qnn_backend->load_model(
+            powerserve::Path(model_folder) / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, model_ptr->m_config
+        );
 #endif
 
-        model_ptr->m_attn = std::make_shared<smart::NormAttention>(model_ptr->m_config->llm, model_ptr->m_weights);
-        SMART_LOG_INFO("after attn init: {}", smart::perf_get_mem_result());
+        model_ptr->m_attn = std::make_shared<powerserve::NormAttention>(model_ptr->m_config->llm, model_ptr->m_weights);
+        POWERSERVE_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
 
-        std::string tokenizer_path                      = config_ptr->main_model_dir / smart::MODEL_VOCAB_FILENAME;
-        std::unique_ptr<smart::Tokenizer> tokenizer_ptr = std::make_unique<smart::Tokenizer>(tokenizer_path);
-        SMART_LOG_INFO("after tokenizer init: {}", smart::perf_get_mem_result());
+        std::string tokenizer_path = config_ptr->main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
+        std::unique_ptr<powerserve::Tokenizer> tokenizer_ptr = std::make_unique<powerserve::Tokenizer>(tokenizer_path);
+        POWERSERVE_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
         ModelContext context(std::move(config_ptr), std::move(model_ptr), std::move(tokenizer_ptr));
-        m_context_slot_map[work_folder] = std::move(context);
+        m_context_slot_map[model_name] = std::move(context);
 
-        return m_context_slot_map.at(work_folder);
+        return m_context_slot_map.at(model_name);
     }
 
     void destroy_model(const std::string &work_folder) {
@@ -272,15 +281,22 @@ public:
     }
 
     std::vector<std::string> list_models() const {
-        if (!std::filesystem::exists(m_model_folder) && !std::filesystem::is_directory(m_model_folder)) {
-            SMART_LOG_ERROR("model base folder does not exist: {}", m_model_folder);
+        if (!std::filesystem::exists(m_work_folder) && !std::filesystem::is_directory(m_work_folder)) {
+            POWERSERVE_LOG_ERROR("model base folder does not exist: {}", m_work_folder);
             return {};
         }
 
         std::vector<std::string> model_list;
-        for (const auto &entry : std::filesystem::directory_iterator(m_model_folder)) {
+        for (const auto &entry : std::filesystem::directory_iterator(m_work_folder)) {
+            const std::string dir_name = entry.path().filename();
+
+            // TODO: no hardcoded string
+            if (dir_name == "bin" || dir_name == "qnn_libs") {
+                continue;
+            }
+
             if (!entry.is_directory()) {
-                SMART_LOG_ERROR("model folder is not directory: {}", m_model_folder);
+                POWERSERVE_LOG_ERROR("model folder is not directory: {}", m_work_folder);
                 continue;
             }
             model_list.emplace_back(entry.path().filename());
@@ -300,7 +316,7 @@ public:
             }
             m_session_map[new_id] = ServerSession(input);
 
-            SMART_LOG_INFO("set up session: {}", new_id);
+            POWERSERVE_LOG_INFO("set up session: {}", new_id);
             return new_id;
         }
     }
@@ -314,12 +330,12 @@ public:
         {
             std::lock_guard<std::mutex> lock_guard(m_lock);
             if (!m_session_map.contains(session_id)) {
-                SMART_LOG_WARN("cannot destroy sesssion with session id: {}", session_id);
+                POWERSERVE_LOG_WARN("cannot destroy session with session id: {}", session_id);
                 return;
             }
             m_session_map.erase(session_id);
         }
-        SMART_LOG_INFO("destroy session: {}", session_id);
+        POWERSERVE_LOG_INFO("destroy session: {}", session_id);
     }
 };
 
@@ -353,6 +369,7 @@ inline bool is_utf8_string_incomplete(const std::string &output_string) {
 }
 
 #pragma optimize("", off)
+
 inline std::string &remove_incomplete_utf8_char(std::string &output_string) {
     for (unsigned i = 1; i < 5 && i <= output_string.size(); ++i) {
         unsigned char c = output_string[output_string.size() - i];
@@ -382,14 +399,14 @@ inline std::string &remove_incomplete_utf8_char(std::string &output_string) {
         // else 1-byte character or invalid byte
         break;
     }
-    SMART_LOG_INFO("The output string is completed");
+    POWERSERVE_LOG_INFO("The output string is completed");
     return output_string;
 }
 
 #pragma optimize("", on)
 
 inline void stream_inference(const ModelContext &context, ServerSession &session, const std::string &input_prompt) {
-    using namespace smart;
+    using namespace powerserve;
 
     const ModelInput &input = session.m_input;
 
@@ -405,7 +422,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
     sampler_config.penalty_repeat  = input.m_repeat_penalty;
     sampler_config.top_p           = input.m_top_p;
     sampler_config.temperature     = input.m_temperature;
-    smart::SamplerChain sampler{sampler_config, tokenizer};
+    powerserve::SamplerChain sampler{sampler_config, tokenizer};
 
     /* Inference */
     ModelOutput output;
@@ -420,9 +437,9 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
     std::string stop_reason = "length";
     size_t step             = 0;
 
-    SMART_LOG_DEBUG("Model input     : {}", smart::abbreviation(input_prompt, 50));
-    SMART_LOG_DEBUG("Model max token : {}", max_num_token);
-    SMART_LOG_DEBUG("Model batch size: {}", batch_size);
+    POWERSERVE_LOG_DEBUG("Model input     : {}", powerserve::abbreviation(input_prompt, 50));
+    POWERSERVE_LOG_DEBUG("Model max token : {}", max_num_token);
+    POWERSERVE_LOG_DEBUG("Model batch size: {}", batch_size);
 
     /*
      * Prefill
@@ -436,7 +453,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
         step++;
         if (step == 1) {
             const size_t prefill_time_ms = timer.elapsed_time_ms();
-            SMART_LOG_INFO(
+            POWERSERVE_LOG_INFO(
                 "prefill step: {}, prefill time: {}ms ({} token/s)",
                 num_prefill_token,
                 prefill_time_ms,
@@ -444,7 +461,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
             );
             timer.reset();
             continue;
-        } // Avoid outputing the last token
+        } // Avoid outputting the last token
 
         if (token == tokenizer.bos_token()) {
             continue;
@@ -477,7 +494,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
     );
 
     const size_t decode_time_ms = timer.elapsed_time_ms();
-    SMART_LOG_INFO(
+    POWERSERVE_LOG_INFO(
         "decode  step: {}, decode  time: {}ms ({} token/s)", step, decode_time_ms, step * 1000.f / decode_time_ms
     );
 }
@@ -485,7 +502,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
 inline ModelOutput blocking_inference(
     const ModelContext &context, const ModelInput &input, const std::string &input_prompt
 ) {
-    using namespace smart;
+    using namespace powerserve;
 
     auto &config    = *context.m_config_ptr;
     auto &model     = *context.m_model_ptr;
@@ -499,7 +516,7 @@ inline ModelOutput blocking_inference(
     sampler_config.penalty_repeat  = input.m_repeat_penalty;
     sampler_config.top_p           = input.m_top_p;
     sampler_config.temperature     = input.m_temperature;
-    smart::SamplerChain sampler{sampler_config, tokenizer};
+    powerserve::SamplerChain sampler{sampler_config, tokenizer};
 
     /* Inference */
     ModelOutput output;
@@ -515,9 +532,9 @@ inline ModelOutput blocking_inference(
     std::string stop_reason = "length";
     size_t step             = 0;
 
-    SMART_LOG_DEBUG("Model input     : {}", smart::abbreviation(input_prompt, 20));
-    SMART_LOG_DEBUG("Model max token : {}", max_num_token);
-    SMART_LOG_DEBUG("Model batch size: {}", batch_size);
+    POWERSERVE_LOG_DEBUG("Model input     : {}", powerserve::abbreviation(input_prompt, 20));
+    POWERSERVE_LOG_DEBUG("Model max token : {}", max_num_token);
+    POWERSERVE_LOG_DEBUG("Model batch size: {}", batch_size);
 
     /*
      * Prefill
@@ -529,7 +546,7 @@ inline ModelOutput blocking_inference(
         step++;
         if (step == 1) {
             const size_t prefill_time_ms = timer.elapsed_time_ms();
-            SMART_LOG_INFO(
+            POWERSERVE_LOG_INFO(
                 "prefill step: {}, prefill time: {}ms ({} token/s)",
                 num_prefill_token,
                 prefill_time_ms,
@@ -537,7 +554,7 @@ inline ModelOutput blocking_inference(
             );
             timer.reset();
             continue;
-        } // Avoid outputing the last token
+        } // Avoid outputting the last token
 
         if (token == tokenizer.bos_token()) {
             continue;
@@ -556,10 +573,10 @@ inline ModelOutput blocking_inference(
     output_text += end_of_text ? "[end of text]" : "";
 
     const size_t decode_time_ms = timer.elapsed_time_ms();
-    SMART_LOG_INFO(
+    POWERSERVE_LOG_INFO(
         "decode  step: {}, decode  time: {}ms ({} token/s)", step, decode_time_ms, step * 1000.f / decode_time_ms
     );
-    SMART_LOG_DEBUG("Model output token: {}", output_text);
+    POWERSERVE_LOG_DEBUG("Model output token: {}", output_text);
 
     return {
         .m_text             = output_text,
@@ -575,7 +592,7 @@ inline ModelOutput blocking_inference(
  * @todo Streamly generation
  */
 inline ModelOutput completion(ServerContext &server_context, const ModelInput &input) {
-    using namespace smart;
+    using namespace powerserve;
     /* Parse and concat user inputs */
     const ModelContext &context = server_context.setup_model(input.m_model);
     const Tokenizer &tokenizer  = *context.m_tokenizer_ptr;
@@ -584,7 +601,7 @@ inline ModelOutput completion(ServerContext &server_context, const ModelInput &i
 }
 
 inline void completion(ServerContext &server_context, ServerSession &session) {
-    using namespace smart;
+    using namespace powerserve;
     /* Parse and concat user inputs */
     const ModelInput &input     = session.m_input;
     const ModelContext &context = server_context.setup_model(input.m_model);
@@ -594,7 +611,7 @@ inline void completion(ServerContext &server_context, ServerSession &session) {
 }
 
 inline ModelOutput chat(ServerContext &server_context, const ModelInput &input) {
-    using namespace smart;
+    using namespace powerserve;
     /* Parse and concat user inputs */
     const ModelContext &context    = server_context.setup_model(input.m_model);
     const Tokenizer &tokenizer     = *context.m_tokenizer_ptr;
@@ -604,7 +621,7 @@ inline ModelOutput chat(ServerContext &server_context, const ModelInput &input) 
 }
 
 inline void chat(ServerContext &server_context, ServerSession &session) {
-    using namespace smart;
+    using namespace powerserve;
     /* Parse and concat user inputs */
     const ModelInput &input        = session.m_input;
     const ModelContext &context    = server_context.setup_model(input.m_model);

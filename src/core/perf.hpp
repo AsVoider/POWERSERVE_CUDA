@@ -20,7 +20,7 @@
 #include <chrono>
 #include <cstddef>
 
-namespace smart {
+namespace powerserve {
 
 struct CPUPerfResult {
     size_t total_user_time;
@@ -105,28 +105,28 @@ IOPerfResult perf_get_io_result();
 
 MemPerfResult perf_get_mem_result();
 
-} // namespace smart
+} // namespace powerserve
 
 template <>
-struct fmt::formatter<smart::CPUPerfResult> : fmt::formatter<std::string> {
+struct fmt::formatter<powerserve::CPUPerfResult> : fmt::formatter<std::string> {
     template <typename FormatContext>
-    auto format(const smart::CPUPerfResult &data, FormatContext &ctx) const {
+    auto format(const powerserve::CPUPerfResult &data, FormatContext &ctx) const {
         return formatter<std::string>::format(data.to_string(), ctx);
     }
 };
 
 template <>
-struct fmt::formatter<smart::IOPerfResult> : fmt::formatter<std::string> {
+struct fmt::formatter<powerserve::IOPerfResult> : fmt::formatter<std::string> {
     template <typename FormatContext>
-    auto format(const smart::IOPerfResult &data, FormatContext &ctx) const {
+    auto format(const powerserve::IOPerfResult &data, FormatContext &ctx) const {
         return formatter<std::string>::format(data.to_string(), ctx);
     }
 };
 
 template <>
-struct fmt::formatter<smart::MemPerfResult> : fmt::formatter<std::string> {
+struct fmt::formatter<powerserve::MemPerfResult> : fmt::formatter<std::string> {
     template <typename FormatContext>
-    auto format(const smart::MemPerfResult &data, FormatContext &ctx) const {
+    auto format(const powerserve::MemPerfResult &data, FormatContext &ctx) const {
         return formatter<std::string>::format(data.to_string(), ctx);
     }
 };

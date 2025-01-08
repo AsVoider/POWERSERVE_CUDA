@@ -24,7 +24,7 @@
 #include <fstream>
 #include <string>
 
-namespace smart {
+namespace powerserve {
 
 HyperParams::HyperParams(const Path &params_file) {
     nlohmann::json j;
@@ -55,14 +55,14 @@ HyperParams::HyperParams(const Path &params_file) {
             sampler_config.ignore_eos      = sampler_j.value("ignore_eos", sampler_config.ignore_eos);
         }
     } catch (const std::exception &err) {
-        SMART_LOG_ERROR("failed parsing hyper param config file {}: {}", params_file, err.what());
+        POWERSERVE_LOG_ERROR("failed parsing hyper param config file {}: {}", params_file, err.what());
     }
 }
 
 ModelConfig::ModelConfig(const Path &model_config_file) {
     nlohmann::json j;
     std::ifstream file(model_config_file);
-    SMART_ASSERT(file.good(), "failed to open model config file: {}", model_config_file);
+    POWERSERVE_ASSERT(file.good(), "failed to open model config file: {}", model_config_file);
     file >> j;
 
     try {
@@ -106,16 +106,15 @@ ModelConfig::ModelConfig(const Path &model_config_file) {
             }
         }
     } catch (const std::exception &err) {
-        SMART_LOG_ERROR("failed parsing model config file {}: {}", model_config_file, err.what());
+        POWERSERVE_LOG_ERROR("failed parsing model config file {}: {}", model_config_file, err.what());
     }
 }
 
-Config::Config(const Path &work_folder) {
-    SMART_ASSERT(std::filesystem::is_directory(work_folder));
+Config::Config(const Path &work_folder, const Path &workspace_config_path) {
+    POWERSERVE_ASSERT(std::filesystem::is_directory(work_folder));
     nlohmann::json j;
-    const Path artifact_config_path = work_folder / WORKSPACE_CONFIG_FILENAME;
-    std::ifstream file(artifact_config_path);
-    SMART_ASSERT(file.good(), "failed to open artifact config file {}", artifact_config_path);
+    std::ifstream file(workspace_config_path);
+    POWERSERVE_ASSERT(file.good(), "failed to open workspace config file {}", workspace_config_path);
 
     try {
         file >> j;
@@ -135,7 +134,7 @@ Config::Config(const Path &work_folder) {
             draft_model_dir = work_folder / j[DRAFT_MODEL_KEY].get<std::string>();
         }
     } catch (const std::exception &err) {
-        SMART_LOG_ERROR("failed parsing artifact config file {}: {}", artifact_config_path, err.what());
+        POWERSERVE_LOG_ERROR("failed parsing artifact config file {}: {}", workspace_config_path, err.what());
     }
 }
-} // namespace smart
+} // namespace powerserve

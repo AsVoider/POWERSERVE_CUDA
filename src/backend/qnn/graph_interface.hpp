@@ -22,7 +22,7 @@
 
 // #define QNN_TIMER 0
 
-namespace smart::qnn {
+namespace powerserve::qnn {
 
 struct CausalLM;
 
@@ -91,4 +91,4 @@ struct Vision : GraphInterface {
     void setup_tensors() override;
     void setup_buffers() override;
 };
-} // namespace smart::qnn
+} // namespace powerserve::qnn

@@ -27,20 +27,20 @@
 #include <string>
 #include <vector>
 
-namespace smart {
+namespace powerserve {
 
 LlamaModel::LlamaModel(const std::string &filename, const std::shared_ptr<ModelConfig> &config) : Model(filename) {
     {
         gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
         gguf_ctx                = gguf_init_from_file(filename.c_str(), params);
-        SMART_ASSERT(gguf_ctx != nullptr);
-        SMART_ASSERT(ggml_ctx != nullptr);
+        POWERSERVE_ASSERT(gguf_ctx != nullptr);
+        POWERSERVE_ASSERT(ggml_ctx != nullptr);
     }
     m_config  = config;
     lazy_load = ggml_get_tensor(ggml_ctx, "output_norm.weight") == nullptr ? true : false;
     m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->llm.n_layers, lazy_load);
     if (lazy_load) {
-        SMART_LOG_WARN("only the embedding table was loaded");
+        POWERSERVE_LOG_WARN("only the embedding table was loaded");
     }
     m_ffn = std::make_shared<FFN>(m_config->llm, m_weights);
 }
@@ -51,7 +51,7 @@ LlamaModel::~LlamaModel() {
 
 auto LlamaModel::forward(
     const std::vector<int> &tokens, const std::vector<int> &pos, const CausalAttentionMask &mask, bool lm_head
-) -> std::vector<std::vector<float>> {
+) -> LogitsVector {
     Graph g(m_config->model_id);
     // input embedding
     size_t batch_size  = tokens.size();
@@ -61,7 +61,7 @@ auto LlamaModel::forward(
 
     auto &llm_config = m_config->llm;
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     if (m_platform->qnn_backend) {
         auto size            = llm_config.dim;
         bool use_qnn_lm_head = m_platform->qnn_backend->m_models[m_config->model_id]->m_config.lm_heads.size() > 0;
@@ -102,25 +102,18 @@ auto LlamaModel::forward(
     executor.allocate_buffers();
 
     executor.run();
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     if (!m_platform->qnn_backend)
 #endif
     {
         m_platform->ggml_backends[m_config->model_id]->m_kv->advance(batch_size);
     }
 
-    auto res = std::vector<std::vector<float>>();
-    if (lm_head) {
-        SMART_ASSERT(logits != nullptr);
-        float *logits_data = static_cast<float *>(logits->get<CPUBuffer>().m_data);
-        for (size_t i = 0; i < batch_size; i++) {
-            res.emplace_back(std::vector<float>(
-                logits_data + i * llm_config.vocab_size, logits_data + (i + 1) * llm_config.vocab_size
-            ));
-        }
+    if (!lm_head) {
+        return LogitsVector();
     }
 
-    return res;
+    return LogitsVector(logits->m_data, m_config->llm.vocab_size, batch_size);
 }
 
 auto LlamaModel::decode(Sampler &sampler, const std::vector<Token> tokens, const std::vector<int> pos, bool lm_head)
@@ -128,7 +121,7 @@ auto LlamaModel::decode(Sampler &sampler, const std::vector<Token> tokens, const
     auto mask = CausalAttentionMask(tokens.size());
     auto ret  = forward(tokens, pos, mask, lm_head);
     std::vector<Token> toks;
-    for (auto logits : ret) {
+    for (auto logits : ret.logits_vector) {
         auto probs = ProbArray(logits);
         sampler.apply(probs);
         auto next = probs.greedy_sample().token;
@@ -144,4 +137,4 @@ auto LlamaModel::generate(
     return Model::TokenGenerator(*this, tokenizer, sampler, prompt, steps, batch_size);
 }
 
-} // namespace smart
+} // namespace powerserve

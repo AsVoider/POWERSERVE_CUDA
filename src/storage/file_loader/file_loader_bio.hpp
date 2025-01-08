@@ -24,7 +24,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-namespace smart::storage {
+namespace powerserve::storage {
 
 class FileLoaderBIO final : public FileLoader {
 private:
@@ -61,14 +61,14 @@ public:
 public:
     void load() override {
         if (!m_buffer.empty()) {
-            SMART_LOG_WARN("trying to load a buffer twice");
+            POWERSERVE_LOG_WARN("trying to load a buffer twice");
             unload();
         }
 
         struct stat file_stat;
         {
             const int ret = fstat(m_file_handle.m_fd, &file_stat);
-            SMART_ASSERT(ret == 0, "failed to fstat file {}", m_file_path);
+            POWERSERVE_ASSERT(ret == 0, "failed to fstat file {}", m_file_path);
         }
 
         /*
@@ -83,9 +83,9 @@ public:
              */
         {
             const ssize_t ret = pread(m_file_handle.m_fd, buffer_ptr, file_size, 0);
-            SMART_ASSERT(
+            POWERSERVE_ASSERT(
                 ret == static_cast<ssize_t>(file_size),
-                "faild to read {} bytes from file {} (ret = {})",
+                "failed to read {} bytes from file {} (ret = {})",
                 file_size,
                 m_file_path,
                 ret
@@ -112,4 +112,4 @@ public:
     }
 };
 
-} // namespace smart::storage
+} // namespace powerserve::storage

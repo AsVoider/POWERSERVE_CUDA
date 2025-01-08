@@ -14,7 +14,7 @@
 
 #include "graph/node.hpp"
 
-namespace smart {
+namespace powerserve {
 
 auto Node::tensor() -> Tensor * {
     return dynamic_cast<Tensor *>(this);
@@ -28,4 +28,4 @@ auto Node::op() -> OpNode * {
     return dynamic_cast<OpNode *>(this);
 }
 
-} // namespace smart
+} // namespace powerserve

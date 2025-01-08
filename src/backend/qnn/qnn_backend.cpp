@@ -18,13 +18,13 @@
 #include "core/logger.hpp"
 #include "core/perfetto_trace.hpp"
 
-namespace smart::qnn {
+namespace powerserve::qnn {
 
 QNNBackend::QNNBackend(Path libs_path) : m_session(libs_path) {}
 
 void QNNBackend::load_model(const Path &path, const std::shared_ptr<ModelConfig> &model_config) {
     auto &model_id = model_config->model_id;
-    SMART_LOG_INFO("Load model {} from {}", model_id, path);
+    POWERSERVE_LOG_INFO("Load model {} from {}", model_id, path);
     if (model_config->vision.num_tokens_per_patch) {
         m_models.insert({model_id, std::make_unique<CausalVLM>(path, model_config, m_session)});
     } else {
@@ -65,7 +65,7 @@ void QNNBackend::forward(
                 out_buf = (float *)batch.lm_head->output_buffer();
                 size    = batch_size * vocab_size * sizeof(float);
             }
-
+            //TODO: Eliminate memcpy
             PerfettoTrace::begin("qnn_forward_memcpy");
             memcpy(dst_data_ptr, out_buf, size);
             PerfettoTrace::end();
@@ -136,7 +136,7 @@ void QNNBackend::forward(
         }
     }
 
-    SMART_LOG_INFO("\nvit time:{} s", v_time / 1000.0);
+    POWERSERVE_LOG_INFO("\nvit time:{} s", v_time / 1000.0);
 
     auto main_batches = model.split_batch(token_embeddings, pos_size_t, mask);
     float *dst_data_ptr{};
@@ -169,4 +169,4 @@ void QNNBackend::forward(
     }
 }
 
-} // namespace smart::qnn
+} // namespace powerserve::qnn

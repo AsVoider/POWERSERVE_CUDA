@@ -30,20 +30,20 @@
 #include <string>
 #include <vector>
 
-namespace smart {
+namespace powerserve {
 
 InternVL::InternVL(const std::string &filename, const std::shared_ptr<ModelConfig> &config) : Model(filename) {
     {
         gguf_init_params params = {.no_alloc = false, .ctx = &ggml_ctx};
         gguf_ctx                = gguf_init_from_file(filename.c_str(), params);
-        SMART_ASSERT(gguf_ctx != nullptr);
-        SMART_ASSERT(ggml_ctx != nullptr);
+        POWERSERVE_ASSERT(gguf_ctx != nullptr);
+        POWERSERVE_ASSERT(ggml_ctx != nullptr);
     }
     m_config  = config;
     lazy_load = ggml_get_tensor(ggml_ctx, "output.weight") == nullptr ? true : false;
     m_weights = std::make_shared<InternVLWeight>(ggml_ctx, m_config->llm.n_layers, lazy_load);
     if (lazy_load) {
-        SMART_LOG_WARN("only the embedding table was loaded");
+        POWERSERVE_LOG_WARN("only the embedding table was loaded");
     }
     m_ffn = std::make_shared<FFN>(m_config->llm, m_weights);
 }
@@ -86,7 +86,7 @@ auto InternVL::preprocess(const std::vector<Path> &img_paths, const std::string 
 
 auto InternVL::forward(
     const std::vector<int> &tokens, const std::vector<int> &pos, const CausalAttentionMask &mask, bool lm_head
-) -> std::vector<std::vector<float>> {
+) -> LogitsVector {
     Graph g(m_config->model_id);
     // prompt embedding
     size_t batch_size = tokens.size();
@@ -100,7 +100,7 @@ auto InternVL::forward(
         }
     }
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     if (m_platform->qnn_backend) {
         if (pixel_values_list.empty()) {
             logits = g.qnn_forward(x, pos, mask, m_config->llm.vocab_size, lm_head);
@@ -112,28 +112,23 @@ auto InternVL::forward(
 #endif
 
     {
-        SMART_UNUSED(lm_head);
-        SMART_UNUSED(pos);
-        SMART_UNUSED(x);
-        SMART_UNUSED(mask);
-        SMART_ASSERT(false, "Internvl Model not support in cpu");
+        POWERSERVE_UNUSED(lm_head);
+        POWERSERVE_UNUSED(pos);
+        POWERSERVE_UNUSED(x);
+        POWERSERVE_UNUSED(mask);
+        POWERSERVE_ASSERT(false, "Internvl Model not support in cpu");
     }
 
     Executor executor(*m_platform, g);
     executor.allocate_buffers();
 
     executor.run();
-    float *logits_data = static_cast<float *>(logits->get<CPUBuffer>().m_data);
-    auto res           = std::vector<std::vector<float>>();
-    if (lm_head) {
-        for (size_t i = 0; i < batch_size; i++) {
-            res.emplace_back(std::vector<float>(
-                logits_data + i * m_config->llm.vocab_size, logits_data + (i + 1) * m_config->llm.vocab_size
-            ));
-        }
+
+    if (!lm_head) {
+        return LogitsVector();
     }
 
-    return res;
+    return LogitsVector(logits->m_data, m_config->llm.vocab_size, batch_size);
 }
 
 auto InternVL::decode(Sampler &sampler, const std::vector<Token> tokens, const std::vector<int> pos, bool lm_head)
@@ -141,7 +136,7 @@ auto InternVL::decode(Sampler &sampler, const std::vector<Token> tokens, const s
     auto mask = CausalAttentionMask(tokens.size());
     auto ret  = forward(tokens, pos, mask, lm_head);
     std::vector<Token> toks;
-    for (auto logits : ret) {
+    for (auto logits : ret.logits_vector) {
         auto probs = ProbArray(logits);
         sampler.apply(probs);
         auto next = probs.greedy_sample().token;
@@ -182,4 +177,4 @@ auto InternVL::generate(
     return Model::TokenGenerator(*this, tokenizer, sampler, processed_prompt, steps, batch_size);
 }
 
-} // namespace smart
+} // namespace powerserve

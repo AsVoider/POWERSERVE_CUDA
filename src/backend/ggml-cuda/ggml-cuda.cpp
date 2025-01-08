@@ -6,7 +6,7 @@
 #include "ggml.h"
 #include "ggml-quants.h"
 
-namespace smart::ggml_cuda {
+namespace powerserve::ggml_cuda {
 
 void GGML_CUDABackend::get_embedding(Tensor *dst, const Tensor *weight, const std::vector<int> &tokens) const {
     auto weight_buffer{weight->get<Buffer_CUDA>()};
@@ -15,19 +15,19 @@ void GGML_CUDABackend::get_embedding(Tensor *dst, const Tensor *weight, const st
     auto embedding_table{static_cast<char *>(weight_buffer.m_data_host)};
     auto dst_table{static_cast<float *>(dst_buffer.m_data_host)};
 
-    SMART_ASSERT(embedding_table not_eq nullptr and dst_table not_eq nullptr);
+    POWERSERVE_ASSERT(embedding_table not_eq nullptr and dst_table not_eq nullptr);
 
     auto dim{dst->m_shape[0]};
     auto batch_size{tokens.size()};
 
-    SMART_ASSERT(batch_size == dst->m_shape[1]);
+    POWERSERVE_ASSERT(batch_size == dst->m_shape[1]);
     auto weight_strip{weight_buffer.m_stride};
 
     for (decltype(batch_size) i{0}; i < batch_size; ++i) {
         auto token{tokens[i]};
         auto src{embedding_table + weight_strip[1] * token};
 
-        SMART_ASSERT(src < embedding_table + weight_strip[2]);
+        POWERSERVE_ASSERT(src < embedding_table + weight_strip[2]);
 
         switch (weight->m_dtype) {
         case DataType::FP32: {
@@ -43,12 +43,12 @@ void GGML_CUDABackend::get_embedding(Tensor *dst, const Tensor *weight, const st
         } break;
 
         default: {
-            SMART_ASSERT(false);
+            POWERSERVE_ASSERT(false);
         }
         }
     }
 
-    SMART_ASSERT(dst_buffer.m_data_cuda not_eq nullptr and dst_buffer.m_size >= batch_size * dim * sizeof(float));
+    POWERSERVE_ASSERT(dst_buffer.m_data_cuda not_eq nullptr and dst_buffer.m_size >= batch_size * dim * sizeof(float));
     cuda_context_warp::copy_memory_async<1>(dst_buffer.m_data_cuda, dst_buffer.m_data_host, 
         batch_size * dim * sizeof(float), warp->ctx);
     
@@ -70,7 +70,7 @@ void GGML_CUDABackend::matmul(Tensor *dst, const Tensor *src0, const Tensor *src
 
 void GGML_CUDABackend::rmsnorm(Tensor *o, const Tensor *x, const Tensor *weight, float eps) const {
     auto ggml_tensor_o{convert_to_ggml_tensor(o)};
-    SMART_ASSERT(ggml_tensor_o->data not_eq nullptr);
+    POWERSERVE_ASSERT(ggml_tensor_o->data not_eq nullptr);
     memcpy(&ggml_tensor_o->op_params[0], &eps, sizeof(float));
 
     auto ggml_tensor_x{convert_to_ggml_tensor(x)};
@@ -104,7 +104,7 @@ void GGML_CUDABackend::rope(Tensor *out, const Tensor *src, const Tensor *pos, c
     auto out_buffer{out->get<Buffer_CUDA>()};
     auto src_buffer{src->get<Buffer_CUDA>()};
     auto pos_buffer{pos->get<Buffer_CUDA>()};
-    SMART_ASSERT(out_buffer.m_data_cuda and src_buffer.m_data_cuda and pos_buffer.m_data_cuda);
+    POWERSERVE_ASSERT(out_buffer.m_data_cuda and src_buffer.m_data_cuda and pos_buffer.m_data_cuda);
 
     ggml_tensor_out->src[0] = ggml_tensor_src.get();
     ggml_tensor_out->src[1] = ggml_tensor_pos.get();
@@ -136,7 +136,7 @@ void GGML_CUDABackend::add(Tensor *dst, const Tensor *src0, const Tensor *src1) 
     auto ggml_tensor_src0{convert_to_ggml_tensor(src0)};
     auto ggml_tensor_src1{convert_to_ggml_tensor(src1)};
 
-    // SMART_ASSERT();
+    // POWERSERVE_ASSERT();
 
     ggml_tensor_dst->src[0] = ggml_tensor_src0.get();
     ggml_tensor_dst->src[1] = ggml_tensor_src1.get();
@@ -145,7 +145,7 @@ void GGML_CUDABackend::add(Tensor *dst, const Tensor *src0, const Tensor *src1) 
 }
 
 bool GGML_CUDABackend::is_contiguous(const Tensor *tensor, int n) const {
-    SMART_ASSERT(n >= 0 and n <= 2);
+    POWERSERVE_ASSERT(n >= 0 and n <= 2);
     if (n == 0) {
         return ggml_is_contiguous_0(convert_to_ggml_tensor(tensor).get());
     } else if (n == 1) {
@@ -185,7 +185,7 @@ void GGML_CUDABackend::copy(Tensor *out, const Tensor *src) const {
 
 void GGML_CUDABackend::print(const Tensor *x, size_t rows) const {
     // SMART_UNUSED(size);
-    SMART_ASSERT((rows and 0xFFFF'8000) == 0); // for safe convert
+    POWERSERVE_ASSERT((rows and 0xFFFF'8000) == 0); // for safe convert
     auto ggml_tensor_to_print{convert_to_ggml_tensor(x)};
     ggml_tensor_to_print->op_params[0] = static_cast<int>(rows);
     op_interfaces::op_print(*warp, ggml_tensor_to_print.get());

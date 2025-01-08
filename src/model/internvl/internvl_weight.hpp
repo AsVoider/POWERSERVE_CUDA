@@ -16,7 +16,7 @@
 
 #include "model/common/weights.hpp"
 
-namespace smart {
+namespace powerserve {
 
 struct InternVLLayerWeights : LayerWeights {
 
@@ -50,4 +50,4 @@ public:
     ~InternVLWeight() override = default;
 };
 
-} // namespace smart
+} // namespace powerserve

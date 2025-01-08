@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.16)
-project("SmartServing" C CXX CUDA)
+project("PowerServe" C CXX CUDA)
 
-option(SMART_ENABLE_ASAN "Enable address santizer" OFF)
-option(SMART_ENABLE_UBSAN "Enable undefined santizer" OFF)
-option(SMART_ENABLE_LTO "Enable link-time optimization" OFF)
-option(SMART_ENABLE_WERROR "Enable -Werror" OFF)
+option(POWERSERVE_ENABLE_ASAN "Enable address sanitizer" OFF)
+option(POWERSERVE_ENABLE_UBSAN "Enable undefined sanitizer" OFF)
+option(POWERSERVE_ENABLE_LTO "Enable link-time optimization" OFF)
+option(POWERSERVE_ENABLE_WERROR "Enable -Werror" OFF)
 
-option(SMART_WITH_QNN "Enable QNN backend" OFF)
-option(SMART_WITH_CUDA "Enable CUDA backend" OFF)
-option(SMART_WITH_PERFETTO "Enable Perfetto tracing" OFF)
+option(POWERSERVE_WITH_CUDA "Enable CUDA backend" OFF)
+option(POWERSERVE_WITH_QNN "Enable QNN backend" OFF)
+option(POWERSERVE_WITH_PERFETTO "Enable Perfetto tracing" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -29,7 +29,7 @@ string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWI
 
 set(BUILD_SHARED_LIBS OFF)
 
-if (SMART_ENABLE_ASAN)
+if (POWERSERVE_ENABLE_ASAN)
     if (ANDROID)
         add_compile_options(-fsanitize=hwaddress -fno-omit-frame-pointer)
         link_libraries(-fsanitize=hwaddress)
@@ -39,7 +39,7 @@ if (SMART_ENABLE_ASAN)
     endif()
 endif()
 
-if (SMART_ENABLE_UBSAN)
+if (POWERSERVE_ENABLE_UBSAN)
     if (ANDROID)
         add_compile_options(-fsanitize=undefined,bounds -static-libsan)
         link_libraries(-fsanitize=undefined,bounds -static-libsan)
@@ -49,7 +49,7 @@ if (SMART_ENABLE_UBSAN)
     endif()
 endif()
 
-if (SMART_ENABLE_LTO)
+if (POWERSERVE_ENABLE_LTO)
     if (${CMAKE_C_COMPILER_ID} MATCHES "Clang")
         add_compile_options(-flto=thin)
     else()
@@ -62,12 +62,12 @@ add_custom_target(
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/out
 )
 
-function(smart_add_artifact target_name)
+function(powerserve_add_artifact target_name)
     add_custom_command(
         TARGET ${target_name} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
                 $<TARGET_FILE:${target_name}>
-                ${CMAKE_BINARY_DIR}/out/smart-${target_name}
+                ${CMAKE_BINARY_DIR}/out/powerserve-${target_name}
     )
 endfunction()
 

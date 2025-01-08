@@ -66,10 +66,10 @@ cmake -B build \
     -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
     -DANDROID_ABI=arm64-v8a \
     -DANDROID_PLATFORM=android-35 \
-    -DSMART_WITH_QNN=ON
-    # -DSMART_ENABLE_ASAN=OFF \
-    # -DSMART_ENABLE_UBSAN=ON
-    # -DSMART_WITH_PERFETTO=ON
+    -DPOWERSERVE_WITH_QNN=ON
+    # -DPOWERSERVE_ENABLE_ASAN=OFF \
+    # -DPOWERSERVE_ENABLE_UBSAN=ON
+    # -DPOWERSERVE_WITH_PERFETTO=ON
 time cmake --build build
 ```
 
@@ -78,7 +78,7 @@ time cmake --build build
 单独运行3B模型：
 
 ```bash
-./smartserving create \
+./powerserve create \
     -m /data/smallthinker_3b \
     -o /data/smallthinker \
     --exe-path build/out
@@ -87,7 +87,7 @@ time cmake --build build
 单独运行0.5B模型：
 
 ```bash
-./smartserving create \
+./powerserve create \
     -m /data/smallthinker_500m \
     -o /data/smallthinker \
     --exe-path build/out
@@ -96,7 +96,7 @@ time cmake --build build
 投机推理：
 
 ```bash
-./smartserving create \
+./powerserve create \
     -m /data/smallthinker_3b \
     -d /data/smallthinker_500m \
     -o /data/smallthinker \
@@ -118,11 +118,11 @@ export ASAN_OPTIONS=abort_on_error=1
 export UBSAN_OPTIONS=print_stacktrace=1
 export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64
 
-sudo cp smallthinker/bin/smart-{run,speculative} .
+sudo cp smallthinker/bin/powerserve-{run,speculative} .
 
 # 不开投机推理
-sudo ./smart-run --work-folder smallthinker --prompt-file strawberry_qwen2.txt -n 1536
+sudo ./powerserve-run --work-folder smallthinker --prompt-file strawberry_qwen2.txt -n 1536
 
 # 开投机推理
-sudo ./smart-speculative --work-folder smallthinker --prompt-file strawberry_qwen2.txt -n 1536
+sudo ./powerserve-speculative --work-folder smallthinker --prompt-file strawberry_qwen2.txt -n 1536
 ```

@@ -20,7 +20,7 @@
 
 #include <string>
 
-namespace smart {
+namespace powerserve {
 
 struct TreeSpeculative {
     TreeSpeculative(const ModelPtr &target_model, const ModelPtr &draft_model);
@@ -40,4 +40,4 @@ private:
     void generate_tokens(const Tokenizer &tokenizer, Sampler &sampler, Token last_token);
 };
 
-} // namespace smart
+} // namespace powerserve

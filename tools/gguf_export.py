@@ -14,7 +14,7 @@ from typing import Dict, List, Literal, Set
 today = datetime.today().strftime("%Y_%m_%d")
 
 logging.basicConfig(
-    filename=f"smartserving_{today}.log",
+    filename=f"powerserve_{today}.log",
     level=logging.INFO,
     format="[%(asctime)s] - [%(levelname)s] - %(funcName)s - %(message)s",
     datefmt="%Y-%m-%d-%H:%M:%S",
@@ -77,7 +77,7 @@ def export_executable(out_path: Path, plats: Set[support_plat_l]) -> Path:
                 "-DANDROID_PLATFORM=android-34",
                 "-DBUILD_SHARED_LIBS=OFF",
                 "-DGGML_OPENMP=OFF",
-                "-DSMART_WITH_QNN=ON",
+                "-DPOWERSERVE_WITH_QNN=ON",
                 "-S",
                 root_folder,
                 "-B",
@@ -87,7 +87,7 @@ def export_executable(out_path: Path, plats: Set[support_plat_l]) -> Path:
             execute_command([
                 "cmake",
                 "-DCMAKE_BUILD_TYPE=Release",
-                "-DSMART_WITH_QNN=OFF",
+                "-DPOWERSERVE_WITH_QNN=OFF",
                 "-S",
                 root_folder,
                 "-B",
@@ -145,7 +145,7 @@ def export_gguf(
 
     print(f">>>>>>>>>> generate config file <<<<<<<<<<")
     # TODO: use python tools replace cpp tools
-    tool_path = out_path / f"bin/{current_platform}/smart-config-generator"
+    tool_path = out_path / f"bin/{current_platform}/powerserve-config-generator"
     params_file_name = "model.json"
     execute_command([
         tool_path,
@@ -196,7 +196,7 @@ def export_gguf(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog="SmartServing", description="SmartServing CommandLine Tool (GGUF Exporter)")
+    parser = argparse.ArgumentParser(prog="PowerServe", description="PowerServe CommandLine Tool (GGUF Exporter)")
     parser.add_argument("-m", "--model-path", type=Path, required=True, help="Model path")
     parser.add_argument("-o", "--out-path", type=Path, default=Path(f"./model-{today}/"), help="Output path")
     parser.add_argument("-t", "--out-type", type=str, choices=support_type, default="q8_0")

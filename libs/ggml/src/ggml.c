@@ -9516,7 +9516,7 @@ static void ggml_compute_forward_dup(
     }
 }
 
-void smart_compute_forward_dup(
+void powerserve_compute_forward_dup(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0
@@ -10039,7 +10039,7 @@ static void ggml_compute_forward_add(
 }
 
 
-static void smart_compute_forward_add_f32(
+static void powerserve_compute_forward_add_f32(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0, // weight
@@ -10118,11 +10118,11 @@ int get_cache_line_size(void) {
     return CACHE_LINE_SIZE;
 }
 
-enum ggml_type smart_get_vec_dot_type(struct ggml_tensor * tensor) {
+enum ggml_type powerserve_get_vec_dot_type(struct ggml_tensor * tensor) {
     return type_traits[tensor->type].vec_dot_type;
 }
 
-void smart_compute_forward_add(
+void powerserve_compute_forward_add(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0, // weight
@@ -10133,7 +10133,7 @@ void smart_compute_forward_add(
         case GGML_TYPE_F32:
             {
                 if (src1->type == GGML_TYPE_F32) {
-                    smart_compute_forward_add_f32(params, dst, src0, src1);
+                    powerserve_compute_forward_add_f32(params, dst, src0, src1);
                 }
                 else {
                     GGML_ABORT("fatal error");
@@ -12664,7 +12664,7 @@ static void ggml_compute_forward_rms_norm(
 }
 
 
-static void smart_compute_forward_rms_norm_f32(
+static void powerserve_compute_forward_rms_norm_f32(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0,
@@ -12720,7 +12720,7 @@ static void smart_compute_forward_rms_norm_f32(
 }
 
 // NOTE: Different with ggml rmsnorm
-void smart_compute_forward_rms_norm(
+void powerserve_compute_forward_rms_norm(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0,
@@ -12730,7 +12730,7 @@ void smart_compute_forward_rms_norm(
     switch (src0->type) {
         case GGML_TYPE_F32:
             {
-                smart_compute_forward_rms_norm_f32(params, dst, src0, src1, eps);
+                powerserve_compute_forward_rms_norm_f32(params, dst, src0, src1, eps);
             } break;
         default:
             {
@@ -13341,7 +13341,7 @@ UseGgmlGemm2:;
     }
 }
 
-static void smart_compute_forward_mul_mat_one_chunk(
+static void powerserve_compute_forward_mul_mat_one_chunk(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0, // weight
@@ -13431,7 +13431,7 @@ static void smart_compute_forward_mul_mat_one_chunk(
     }
 }
 
-void smart_compute_forward_mul_mat(
+void powerserve_compute_forward_mul_mat(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0, // weight
@@ -13637,7 +13637,7 @@ UseGgmlGemm2:;
         const int64_t ir1_start = dr1 * ith1;
         const int64_t ir1_end = MIN(ir1_start + dr1, nr1);
 
-        smart_compute_forward_mul_mat_one_chunk(params, dst, src0, src1, num_rows_per_vec_dot, ir0_start, ir0_end, ir1_start, ir1_end);
+        powerserve_compute_forward_mul_mat_one_chunk(params, dst, src0, src1, num_rows_per_vec_dot, ir0_start, ir0_end, ir1_start, ir1_end);
 
         if (nth >= nchunk0 * nchunk1) {
             break;
@@ -14960,7 +14960,7 @@ static void ggml_compute_forward_soft_max(
 }
 
 
-static void smart_compute_forward_soft_max_f32(
+static void powerserve_compute_forward_soft_max_f32(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0,
@@ -15057,7 +15057,7 @@ static void smart_compute_forward_soft_max_f32(
     }
 }
 
-void smart_compute_forward_soft_max(
+void powerserve_compute_forward_soft_max(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0
@@ -15079,7 +15079,7 @@ void smart_compute_forward_soft_max(
         case GGML_TYPE_F32:
             {
                 ggml_compute_forward_soft_max_f32(&ggml_params, dst);
-                // smart_compute_forward_soft_max_f32(params, dst, src0, NULL);
+                // powerserve_compute_forward_soft_max_f32(params, dst, src0, NULL);
             } break;
         default:
             {
@@ -15088,7 +15088,7 @@ void smart_compute_forward_soft_max(
     }
 }
 
-void smart_compute_forward_softmax_ext(
+void powerserve_compute_forward_softmax_ext(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0,
@@ -15637,7 +15637,7 @@ static void ggml_compute_forward_rope(
     }
 }
 // FIXME: src0 need reshape
-static void smart_compute_forward_rope_f32(
+static void powerserve_compute_forward_rope_f32(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0,
@@ -15789,7 +15789,7 @@ static void smart_compute_forward_rope_f32(
     }
 }
 
-void smart_compute_forward_rope(
+void powerserve_compute_forward_rope(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
     struct ggml_tensor * src0,
@@ -15827,7 +15827,7 @@ void smart_compute_forward_rope(
             {
 
                 ggml_compute_forward_rope_f32(&ggml_params, dst, true);
-                // smart_compute_forward_rope_f32(params, dst, src0, src1, src2, rope_params, true);
+                // powerserve_compute_forward_rope_f32(params, dst, src0, src1, src2, rope_params, true);
             } break;
         default:
             {

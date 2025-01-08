@@ -20,7 +20,7 @@
 #include <map>
 #include <span>
 
-namespace smart::qnn {
+namespace powerserve::qnn {
 
 struct CausalLM {
     static constexpr const char *m_config_file_name = "config.json";
@@ -63,7 +63,7 @@ struct CausalLM {
         ALWAYS_INLINE auto get_key(KVPosition token_pos) const -> KVView {
             auto &chunk  = chunks.get_chunk(token_pos.layer_id);
             auto &buffer = *chunk.m_buffers.at(fmt::format("layer_{}_key_{}", token_pos.layer_id, token_pos.head_id));
-            SMART_ASSERT(token_pos.index < chunk.m_config.batch_size);
+            POWERSERVE_ASSERT(token_pos.index < chunk.m_config.batch_size);
 
             return {
                 .n_elements   = chunk.m_model_config.llm.head_size,
@@ -77,7 +77,7 @@ struct CausalLM {
         ALWAYS_INLINE auto get_value(KVPosition token_pos) const -> KVView {
             auto &chunk  = chunks.get_chunk(token_pos.layer_id);
             auto &buffer = *chunk.m_buffers.at(fmt::format("layer_{}_value_{}", token_pos.layer_id, token_pos.head_id));
-            SMART_ASSERT(token_pos.index < chunk.m_config.batch_size);
+            POWERSERVE_ASSERT(token_pos.index < chunk.m_config.batch_size);
 
             return {
                 .n_elements   = chunk.m_model_config.llm.head_size,
@@ -92,7 +92,7 @@ struct CausalLM {
             auto &chunk = chunks.get_chunk(cache_pos.layer_id);
             auto &buffer =
                 *chunk.m_buffers.at(fmt::format("layer_{}_key_t_cache_{}", cache_pos.layer_id, cache_pos.head_id));
-            SMART_ASSERT(cache_pos.index < chunk.m_config.cache_size);
+            POWERSERVE_ASSERT(cache_pos.index < chunk.m_config.cache_size);
 
             return {
                 .n_elements   = chunk.m_model_config.llm.head_size,
@@ -106,7 +106,7 @@ struct CausalLM {
             auto &chunk = chunks.get_chunk(cache_pos.layer_id);
             auto &buffer =
                 *chunk.m_buffers.at(fmt::format("layer_{}_value_cache_{}", cache_pos.layer_id, cache_pos.head_id));
-            SMART_ASSERT(cache_pos.index < chunk.m_config.cache_size);
+            POWERSERVE_ASSERT(cache_pos.index < chunk.m_config.cache_size);
 
             return {
                 .n_elements   = chunk.m_model_config.llm.head_size,
@@ -119,7 +119,7 @@ struct CausalLM {
 
         ALWAYS_INLINE void set_mask(size_t cache_index, bool mask) {
             __fp16 fill_value = mask ? parent.m_config.attention_mask_value : 0;
-            SMART_ASSERT(cache_index < chunks[0]->m_config.cache_size);
+            POWERSERVE_ASSERT(cache_index < chunks[0]->m_config.cache_size);
 
             for (auto &chunk : chunks) {
                 for (size_t i = 0; i < chunk->m_config.batch_size; i++) {
@@ -181,4 +181,4 @@ struct CausalVLM : CausalLM {
     virtual ~CausalVLM() override = default;
 };
 
-} // namespace smart::qnn
+} // namespace powerserve::qnn

@@ -18,7 +18,7 @@
 #include "model/llama/llama_model.hpp"
 #include "model/qwen2/qwen2_model.hpp"
 
-namespace smart {
+namespace powerserve {
 
 auto load_model(const Path &model_dir, std::shared_ptr<ModelConfig> &out_config) -> std::shared_ptr<Model> {
     std::shared_ptr<Model> out_model;
@@ -33,11 +33,11 @@ auto load_model(const Path &model_dir, std::shared_ptr<ModelConfig> &out_config)
     } else if (arch == "internvl") {
         out_model = std::make_shared<InternVL>(weight_path, out_config);
     } else {
-        SMART_ABORT("unknown model type: {}", arch);
+        POWERSERVE_ABORT("unknown model type: {}", arch);
     }
 
-    SMART_LOG_INFO("Load model {} ...", arch);
+    POWERSERVE_LOG_INFO("Load model {} ...", arch);
     return out_model;
 }
 
-} // namespace smart
+} // namespace powerserve

@@ -20,7 +20,7 @@
 
 #include <fstream>
 
-namespace smart::qnn {
+namespace powerserve::qnn {
 
 const std::string QNN_WORKSPACE_DIR_NAME = "qnn";
 const std::string QNN_LIB_DIR_NAME       = "qnn_libs";
@@ -75,7 +75,7 @@ struct QNNConfig {
 
         {
             auto data_array = json.at("graphs");
-            SMART_ASSERT(data_array.is_array());
+            POWERSERVE_ASSERT(data_array.is_array());
 
             chunks.reserve(data_array.size());
             for (auto data : data_array) {
@@ -124,4 +124,4 @@ struct QNNConfig {
     }
 };
 
-} // namespace smart::qnn
+} // namespace powerserve::qnn

@@ -762,29 +762,29 @@ extern "C" {
     GGML_API           size_t  ggml_nbytes_pad  (const struct ggml_tensor * tensor); // same as ggml_nbytes() but padded to GGML_MEM_ALIGN
 
     GGML_API GGML_CALL int get_cache_line_size(void);
-    GGML_API GGML_CALL enum ggml_type smart_get_vec_dot_type(struct ggml_tensor * tensor);
+    GGML_API GGML_CALL enum ggml_type powerserve_get_vec_dot_type(struct ggml_tensor * tensor);
 
-    GGML_API GGML_CALL void smart_compute_forward_mul_mat(
+    GGML_API GGML_CALL void powerserve_compute_forward_mul_mat(
         struct op_compute_params * params,
         struct ggml_tensor * dst,
         struct ggml_tensor * src0, // weight
         struct ggml_tensor * src1  // activation
     );
 
-    GGML_API GGML_CALL void smart_compute_forward_add(
+    GGML_API GGML_CALL void powerserve_compute_forward_add(
         struct op_compute_params * params,
         struct ggml_tensor * dst,
         struct ggml_tensor * src0, // weight
         struct ggml_tensor * src1
     );
 
-    GGML_API GGML_CALL void smart_compute_forward_soft_max(
+    GGML_API GGML_CALL void powerserve_compute_forward_soft_max(
         struct op_compute_params * params,
         struct ggml_tensor * dst,
         struct ggml_tensor * src0
     );
 
-    GGML_API GGML_CALL void smart_compute_forward_rms_norm(
+    GGML_API GGML_CALL void powerserve_compute_forward_rms_norm(
         struct op_compute_params * params,
         struct ggml_tensor * dst,
         struct ggml_tensor * src0,
@@ -792,7 +792,7 @@ extern "C" {
         float eps
     );
 
-    GGML_API GGML_CALL void smart_compute_forward_rope(
+    GGML_API GGML_CALL void powerserve_compute_forward_rope(
         struct op_compute_params * params,
         struct ggml_tensor * dst,
         struct ggml_tensor * src0,
@@ -801,13 +801,13 @@ extern "C" {
         struct rope_compute_params *rope_params
     );
 
-    GGML_API GGML_CALL void smart_compute_forward_dup(
+    GGML_API GGML_CALL void powerserve_compute_forward_dup(
         struct op_compute_params * params,
         struct ggml_tensor * dst,
         struct ggml_tensor * src0
     );
 
-    GGML_API GGML_CALL void smart_compute_forward_softmax_ext(
+    GGML_API GGML_CALL void powerserve_compute_forward_softmax_ext(
         struct op_compute_params * params,
         struct ggml_tensor * dst,
         struct ggml_tensor * src0,

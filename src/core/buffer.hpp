@@ -16,7 +16,7 @@
 
 #include <memory>
 
-namespace smart {
+namespace powerserve {
 
 enum class usage : int {
     UNKNOWN = -1,
@@ -44,4 +44,4 @@ public:
 
 using BufferPtr = std::shared_ptr<BaseBuffer>;
 
-} // namespace smart
+} // namespace powerserve

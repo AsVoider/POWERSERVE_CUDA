@@ -19,20 +19,20 @@
 
 #include <map>
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
 #include "backend/qnn/qnn_backend.hpp"
 #endif
 
-#ifdef SMART_WITH_CUDA
+#ifdef POWERSERVE_WITH_CUDA
 #include "backend/ggml-cuda/ggml-cuda.cuh"
 #endif
 
-namespace smart {
+namespace powerserve {
 
 struct Platform {
     std::map<std::string, std::unique_ptr<ggml::GGMLBackend>> ggml_backends;
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     std::unique_ptr<qnn::QNNBackend> qnn_backend = nullptr;
 #endif
 #ifdef SMART_WITH_CUDA
@@ -48,7 +48,7 @@ public:
     // TODO: No need trans config
     void init_ggml_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams);
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     void init_qnn_backend(const Path &qnn_path);
 #endif
 
@@ -61,4 +61,4 @@ public:
 #endif
 };
 
-} // namespace smart
+} // namespace powerserve

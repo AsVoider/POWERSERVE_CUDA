@@ -33,10 +33,8 @@ def format_example(df, idx, include_answer=True):
 
 def gen_prompt(train_df, subject, k=-1):
     if k == 1:
-        prompt = (
-            "The following is an example of multiple choice question on {}:\n\n".format(
-                format_subject(subject=subject).strip()
-            )
+        prompt = "The following is an example of multiple choice question on {}:\n\n".format(
+            format_subject(subject=subject).strip()
         )
     else:
         prompt = "The following are {} examples of multiple choice questions on {}:\n\n".format(
@@ -55,9 +53,7 @@ def gen_prompt(train_df, subject, k=-1):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, required=True)
-    parser.add_argument(
-        "--dataset", type=Path, default=Path(__file__).parent.absolute()
-    )
+    parser.add_argument("--dataset", type=Path, default=Path(__file__).parent.absolute())
     parser.add_argument("--host", type=str, default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("-s", "--scale-factor", type=int, default=10)
@@ -92,12 +88,8 @@ if __name__ == "__main__":
         # if 'high_school_biology' not in subject:
         #    continue
 
-        data_df = pd.read_csv(
-            os.path.join(test_dataset, subject + "_test.csv"), header=None
-        )
-        dev_df = pd.read_csv(
-            os.path.join(dev_dataset, subject + "_dev.csv"), header=None
-        )[:K_SHOT]
+        data_df = pd.read_csv(os.path.join(test_dataset, subject + "_test.csv"), header=None)
+        dev_df = pd.read_csv(os.path.join(dev_dataset, subject + "_dev.csv"), header=None)[:K_SHOT]
 
         answers = CHOICES[: data_df.shape[1] - 2]
 
@@ -107,11 +99,7 @@ if __name__ == "__main__":
             for i in range(args.scale_factor):
                 # for i in range(data_df.shape[0]):
                 # get prompt and make sure it fits
-                print(
-                    "===========================Qustion "
-                    + str(i)
-                    + "======================================="
-                )
+                print("===========================Question " + str(i) + "=======================================")
                 prompt_end = format_example(data_df, i, include_answer=False)
 
                 train_prompt = gen_prompt(dev_df, subject, K_SHOT)

@@ -15,7 +15,7 @@
 #include "ggml-quants.h"
 #include "ggml.hpp"
 
-namespace smart::ggml {
+namespace powerserve::ggml {
 
 void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
     auto dst_tensor  = convert_to_ggml(dst);
@@ -35,7 +35,7 @@ void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *sr
         };
         params.current_chunk = (atomic_int *)&m_current_chunk;
 
-        smart_compute_forward_mul_mat(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get());
+        powerserve_compute_forward_mul_mat(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get());
     });
 }
 
@@ -50,7 +50,7 @@ void GGMLBackend::rmsnorm(const Tensor *out, const Tensor *x, const Tensor *weig
         params.ith = thread_id;
         params.nth = m_thread_pool->size();
 
-        smart_compute_forward_rms_norm(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get(), eps);
+        powerserve_compute_forward_rms_norm(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get(), eps);
     });
 }
 
@@ -64,7 +64,7 @@ void GGMLBackend::softmax(const Tensor *out, const Tensor *x) const {
         params.ith = thread_id;
         params.nth = m_thread_pool->size();
 
-        smart_compute_forward_soft_max(&params, dst_tensor.get(), src0_tensor.get());
+        powerserve_compute_forward_soft_max(&params, dst_tensor.get(), src0_tensor.get());
     });
 }
 
@@ -101,7 +101,7 @@ void GGMLBackend::rope(
         params.ith = thread_id;
         params.nth = m_thread_pool->size();
 
-        smart_compute_forward_rope(
+        powerserve_compute_forward_rope(
             &params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get(), nullptr, &rope_params
         );
     });
@@ -118,7 +118,7 @@ void GGMLBackend::add(const Tensor *dst, const Tensor *src0, const Tensor *src1)
         params.ith = thread_id;
         params.nth = m_thread_pool->size();
 
-        smart_compute_forward_add(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get());
+        powerserve_compute_forward_add(&params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get());
     });
 }
 
@@ -142,7 +142,7 @@ void GGMLBackend::cont(const Tensor *out, const Tensor *x) const {
         params.ith = thread_id;
         params.nth = m_thread_pool->size();
 
-        smart_compute_forward_dup(&params, dst_tensor.get(), src0_tensor.get());
+        powerserve_compute_forward_dup(&params, dst_tensor.get(), src0_tensor.get());
     });
 }
 
@@ -156,7 +156,7 @@ void GGMLBackend::copy(const Tensor *dst, const Tensor *src) const {
         params.ith = thread_id;
         params.nth = m_thread_pool->size();
 
-        smart_compute_forward_dup(&params, dst_tensor.get(), src0_tensor.get());
+        powerserve_compute_forward_dup(&params, dst_tensor.get(), src0_tensor.get());
     });
 }
 
@@ -172,7 +172,7 @@ void GGMLBackend::softmax_ext(const Tensor *out, const Tensor *x, const Tensor *
         params.ith = thread_id;
         params.nth = m_thread_pool->size();
 
-        smart_compute_forward_softmax_ext(
+        powerserve_compute_forward_softmax_ext(
             &params, dst_tensor.get(), src0_tensor.get(), src1_tensor.get(), scale, max_bias
         );
     });
@@ -184,13 +184,13 @@ void GGMLBackend::get_embedding(const Tensor *dst, const Tensor *weight, const s
 
     auto dim        = dst->m_shape[0];
     auto batch_size = tokens.size();
-    SMART_ASSERT(batch_size == dst->m_shape[1]);
+    POWERSERVE_ASSERT(batch_size == dst->m_shape[1]);
     auto weight_strip = weight->get<CPUBuffer>().m_stride;
 
     for (size_t i = 0; i < batch_size; i++) {
         auto token = tokens[i];
         auto src   = embd_tb + weight_strip[1] * token;
-        SMART_ASSERT(src < embd_tb + weight_strip[2]);
+        POWERSERVE_ASSERT(src < embd_tb + weight_strip[2]);
         switch (weight->m_dtype) {
         case DataType::FP32: {
             memcpy(dst_tb + i * dim, src, dim * sizeof(float));
@@ -205,13 +205,13 @@ void GGMLBackend::get_embedding(const Tensor *dst, const Tensor *weight, const s
         } break;
 
         default:
-            SMART_ASSERT(false);
+            POWERSERVE_ASSERT(false);
         }
     }
 }
 
 bool GGMLBackend::is_contiguous(const Tensor *tensor, int n) const {
-    SMART_ASSERT(n >= 0 && n <= 2);
+    POWERSERVE_ASSERT(n >= 0 && n <= 2);
     if (n == 0) {
         return ggml_is_contiguous_0(convert_to_ggml(tensor).get());
     } else if (n == 1) {
@@ -256,7 +256,7 @@ int GGMLBackend::get_n_tasks(std::shared_ptr<OpNode> op) {
         n_tasks = std::min((int64_t)num_threads, op->prev[0]->tensor()->nrows());
     } break;
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     case OpType::QNN_FORWARD: {
         n_tasks = 1;
     } break;
@@ -267,7 +267,7 @@ int GGMLBackend::get_n_tasks(std::shared_ptr<OpNode> op) {
 
     default: {
         fmt::println("op not implemented: {}", int(op->op));
-        SMART_ASSERT(false);
+        POWERSERVE_ASSERT(false);
     }
     }
 
@@ -276,7 +276,7 @@ int GGMLBackend::get_n_tasks(std::shared_ptr<OpNode> op) {
 
 ggml_type GGMLBackend::get_vec_dot_type(const Tensor *tensor) {
     auto t = convert_to_ggml(tensor);
-    return smart_get_vec_dot_type(t.get());
+    return powerserve_get_vec_dot_type(t.get());
 }
 
-} // namespace smart::ggml
+} // namespace powerserve::ggml

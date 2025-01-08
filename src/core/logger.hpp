@@ -23,53 +23,53 @@
 #include <string>
 #include <string_view>
 
-// #define SMART_NO_ASSERT
+// #define POWERSERVE_NO_ASSERT
 
-#define SMART_LOG_DEBUG(...) fmt::println(stdout, "[DEBUG] " __VA_ARGS__)
+#define POWERSERVE_LOG_DEBUG(...) fmt::println(stdout, "[DEBUG] " __VA_ARGS__)
 
-#define SMART_LOG_INFO(...) fmt::println(stdout, "[INFO ] " __VA_ARGS__)
+#define POWERSERVE_LOG_INFO(...) fmt::println(stdout, "[INFO ] " __VA_ARGS__)
 
-#define SMART_LOG_WARN(...) fmt::println(stderr, "[WARN ] " __VA_ARGS__)
+#define POWERSERVE_LOG_WARN(...) fmt::println(stderr, "[WARN ] " __VA_ARGS__)
 
-#define SMART_LOG_ERROR(...) fmt::println(stderr, "[ERROR] " __VA_ARGS__)
+#define POWERSERVE_LOG_ERROR(...) fmt::println(stderr, "[ERROR] " __VA_ARGS__)
 
-#define SMART_LOG_EMPTY_LINE()                                                                                         \
+#define POWERSERVE_LOG_EMPTY_LINE()                                                                                    \
     {                                                                                                                  \
         fflush(stdout);                                                                                                \
         fflush(stderr);                                                                                                \
         fmt::println(stdout, "");                                                                                      \
     }
 
-#define SMART_ABORT(...)                                                                                               \
+#define POWERSERVE_ABORT(...)                                                                                          \
     do {                                                                                                               \
         fflush(stdout);                                                                                                \
         fflush(stderr);                                                                                                \
-        SMART_LOG_ERROR("{}:{}: {}: Abort", __FILE__, __LINE__, __func__);                                             \
-        SMART_LOG_ERROR("" __VA_ARGS__);                                                                               \
-        SMART_LOG_ERROR("System error: {}", ::smart::get_system_error());                                              \
+        POWERSERVE_LOG_ERROR("{}:{}: {}: Abort", __FILE__, __LINE__, __func__);                                        \
+        POWERSERVE_LOG_ERROR("" __VA_ARGS__);                                                                          \
+        POWERSERVE_LOG_ERROR("System error: {}", ::powerserve::get_system_error());                                    \
         abort();                                                                                                       \
     } while (0)
 
-#if defined(SMART_NO_ASSERT)
-#define SMART_ASSERT(expr) SMART_UNUSED(expr)
+#if defined(POWERSERVE_NO_ASSERT)
+#define POWERSERVE_ASSERT(expr) POWERSERVE_UNUSED(expr)
 #else
-#define SMART_ASSERT(expr, ...)                                                                                        \
+#define POWERSERVE_ASSERT(expr, ...)                                                                                   \
     do {                                                                                                               \
         if (!(expr)) [[unlikely]] {                                                                                    \
             fflush(stdout);                                                                                            \
             fflush(stderr);                                                                                            \
-            SMART_LOG_ERROR("{}:{}: {}: Assertion failed: {}", __FILE__, __LINE__, __func__, #expr);                   \
-            SMART_LOG_ERROR("System error: {}", ::smart::get_system_error());                                          \
-            SMART_LOG_ERROR("" __VA_ARGS__);                                                                           \
+            POWERSERVE_LOG_ERROR("{}:{}: {}: Assertion failed: {}", __FILE__, __LINE__, __func__, #expr);              \
+            POWERSERVE_LOG_ERROR("System error: {}", ::powerserve::get_system_error());                                \
+            POWERSERVE_LOG_ERROR("" __VA_ARGS__);                                                                      \
             abort();                                                                                                   \
         }                                                                                                              \
     } while (0)
 #endif
 
-namespace smart {
+namespace powerserve {
 
 inline void print_timestamp() {
-    SMART_LOG_INFO("Compiled on: {} at {}", __DATE__, __TIME__);
+    POWERSERVE_LOG_INFO("Compiled on: {} at {}", __DATE__, __TIME__);
 }
 
 inline std::string get_system_error() {
@@ -118,4 +118,4 @@ inline std::string trim(const std::string &str) {
     return str.substr(start, end - start);
 }
 
-} // namespace smart
+} // namespace powerserve

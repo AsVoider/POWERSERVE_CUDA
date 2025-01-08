@@ -16,12 +16,13 @@
 
 #include "core/getenv.hpp"
 #include "core/perfetto_trace.hpp"
+#include "nlohmann/json.hpp"
 
 #include <fstream>
 
 namespace {
 
-using smart::getenv;
+using powerserve::getenv;
 
 static auto dump_file_path = getenv<std::string>("dump_file", "");
 
@@ -39,7 +40,7 @@ static struct {
 
 } // namespace
 
-namespace smart {
+namespace powerserve {
 
 TokenTree::TokenTree() {
     draft_sampler.append<TopKSampler>(draft_params.top_k);
@@ -58,7 +59,7 @@ TokenTree::~TokenTree() {
         };
 
         std::ofstream dump_file(dump_file_path);
-        SMART_ASSERT(dump_file.is_open());
+        POWERSERVE_ASSERT(dump_file.is_open());
         dump_file << json.dump() << std::endl;
     }
 }
@@ -153,16 +154,15 @@ void TokenTree::draft(const ModelPtr &draft_model, const Tokenizer &tokenizer, s
         node.cache_index = draft_model->kv_cache->position;
 
         PerfettoTrace::begin("draft_model_forward");
-        auto logits = draft_model->forward({node.token}, {node.position}, CausalAttentionMask(1));
+        auto ret = draft_model->forward({node.token}, {node.position}, CausalAttentionMask(1));
         PerfettoTrace::end();
 
         n_saved_tokens++;
         last_parent = u;
-
-        ProbArray probs(logits[0]);
+        ProbArray probs(ret.logits_vector[0]);
         draft_sampler.apply(probs);
-        SMART_ASSERT(probs.m_is_normalized);
-        SMART_ASSERT(probs.m_is_sorted);
+        POWERSERVE_ASSERT(probs.m_is_normalized);
+        POWERSERVE_ASSERT(probs.m_is_sorted);
 
         float min_prob = probs[0].prob * draft_params.p_base;
         for (size_t i = 0; auto &item : probs) {
@@ -188,11 +188,10 @@ void TokenTree::verify(
     const ModelPtr &target_model,
     const ModelPtr &draft_model,
     Sampler &sampler,
-    const std::vector<std::vector<float>> &logits,
+    std::vector<std::span<const float>> &logits,
     const EnqueueTokenFn &enqueue_token
 ) {
-    SMART_ASSERT(target_model->kv_cache->position == draft_model->kv_cache->position);
-
+    POWERSERVE_ASSERT(target_model->kv_cache->position == draft_model->kv_cache->position);
     stat.n_iterations += 1;
 
     int u = 0;
@@ -200,8 +199,8 @@ void TokenTree::verify(
         auto &node    = nodes[u];
         node.accepted = true;
 
-        SMART_ASSERT((int)draft_model->kv_cache->position == node.position);
-        SMART_ASSERT((int)target_model->kv_cache->position == node.position);
+        POWERSERVE_ASSERT((int)draft_model->kv_cache->position == node.position);
+        POWERSERVE_ASSERT((int)target_model->kv_cache->position == node.position);
 
         target_model->kv_cache->copy(node.position, u);
         target_model->kv_cache->advance_tokens(1);
@@ -212,7 +211,7 @@ void TokenTree::verify(
             draft_model->forward({node.token}, {node.position}, CausalAttentionMask(1), false);
             PerfettoTrace::end();
         } else {
-            SMART_ASSERT(node.cache_index >= node.position);
+            POWERSERVE_ASSERT(node.cache_index >= node.position);
             draft_model->kv_cache->move(node.position, node.cache_index);
             draft_model->kv_cache->advance_tokens(1);
         }
@@ -304,16 +303,16 @@ void TokenTree::switch_parent(const ModelPtr &draft_model, int old_parent, int n
     int p = lca(old_parent, new_parent);
 
     while (old_parent != p) {
-        SMART_ASSERT(nodes[old_parent].cache_index != Node::not_in_cache);
+        POWERSERVE_ASSERT(nodes[old_parent].cache_index != Node::not_in_cache);
         draft_model->kv_cache->mask(nodes[old_parent].cache_index);
         old_parent = nodes[old_parent].parent;
     }
 
     while (new_parent != p) {
-        SMART_ASSERT(nodes[new_parent].cache_index != Node::not_in_cache);
+        POWERSERVE_ASSERT(nodes[new_parent].cache_index != Node::not_in_cache);
         draft_model->kv_cache->unmask(nodes[new_parent].cache_index);
         new_parent = nodes[new_parent].parent;
     }
 }
 
-} // namespace smart
+} // namespace powerserve

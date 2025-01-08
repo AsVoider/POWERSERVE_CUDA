@@ -14,7 +14,7 @@
 
 #pragma once
 
-namespace smart {
+namespace powerserve {
 
 enum class OpType {
     NONE = 0,
@@ -27,7 +27,7 @@ enum class OpType {
     SOFTMAX,
     COPY,
 
-#if defined(SMART_WITH_QNN)
+#if defined(POWERSERVE_WITH_QNN)
     QNN_FORWARD,
     QNN_FORWARD_VL,
 #endif
@@ -44,4 +44,4 @@ enum class OpType {
     INSERT_IMG_EMBEDDIGN,
 };
 
-} // namespace smart
+} // namespace powerserve

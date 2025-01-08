@@ -22,7 +22,7 @@
 #include <cstddef>
 #include <numeric>
 
-namespace smart {
+namespace powerserve {
 
 struct Tensor {
 public:
@@ -36,7 +36,7 @@ public:
     Tensor &operator=(const Tensor &) = default;
 
     Tensor(DataType dtype, const Shape &shape) : m_dtype(dtype) {
-        SMART_ASSERT(shape.size() <= max_n_dims);
+        POWERSERVE_ASSERT(shape.size() <= max_n_dims);
         for (size_t i = 0; i < shape.size(); i++) {
             m_shape[i] = std::max(shape[i], size_t(1));
         }
@@ -89,7 +89,7 @@ public:
     }
 
     size_t row_size(int64_t ne) const {
-        SMART_ASSERT(ne % get_block_size(m_dtype) == 0);
+        POWERSERVE_ASSERT(ne % get_block_size(m_dtype) == 0);
         return element_size() * ne / get_block_size(m_dtype);
     }
 };
@@ -105,4 +105,4 @@ static bool tensor_can_repeat(const Tensor *t0, const Tensor *t1) {
                                 (t1->m_shape[2] % t0->m_shape[2] == 0) && (t1->m_shape[3] % t0->m_shape[3] == 0);
 }
 
-} // namespace smart
+} // namespace powerserve

@@ -18,7 +18,7 @@
 #include "graph/node.hpp"
 #include "model/common/weights.hpp"
 
-namespace smart {
+namespace powerserve {
 
 struct Attention {
 
@@ -46,4 +46,4 @@ public:
     ) = 0;
 };
 
-} // namespace smart
+} // namespace powerserve

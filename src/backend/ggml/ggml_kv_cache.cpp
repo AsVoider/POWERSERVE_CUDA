@@ -16,7 +16,7 @@
 
 #include "backend/cpu_buffer.hpp"
 
-namespace smart::ggml {
+namespace powerserve::ggml {
 
 GGMLKV::GGMLKV(const ModelConfig::LLMConfig &config) :
     m_kv_dim(config.kv_dim),
@@ -68,4 +68,4 @@ void GGMLKV::prepare_model_chunk() {
     attn_bias.reserve(m_batch_size * m_n_ctx);
 }
 
-} // namespace smart::ggml
+} // namespace powerserve::ggml

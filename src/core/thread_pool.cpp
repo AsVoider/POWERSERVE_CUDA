@@ -18,7 +18,7 @@
 
 #include <cstring>
 
-namespace smart {
+namespace powerserve {
 
 static int set_thread_affinity(uv_thread_t *thread, const std::vector<size_t> &cpu_ids) {
     int mask_size = uv_cpumask_size();
@@ -29,7 +29,7 @@ static int set_thread_affinity(uv_thread_t *thread, const std::vector<size_t> &c
     auto mask = std::make_unique<bool[]>(mask_size);
     memset(mask.get(), 0, mask_size);
     for (auto id : cpu_ids) {
-        SMART_ASSERT(id < (size_t)mask_size);
+        POWERSERVE_ASSERT(id < (size_t)mask_size);
         mask[id] = true;
     }
 
@@ -37,7 +37,7 @@ static int set_thread_affinity(uv_thread_t *thread, const std::vector<size_t> &c
 }
 
 ThreadPool::ThreadPool(const std::vector<ThreadConfig> &configs) : m_configs(configs) {
-    SMART_ASSERT(configs.size() > 0);
+    POWERSERVE_ASSERT(configs.size() > 0);
 
     uv_barrier_init(&m_run_barrier, 1 + size()); // 1 for main thread, size() for other threads
     uv_barrier_init(&m_sync_barrier, size());
@@ -70,13 +70,13 @@ void ThreadPool::run(TaskFn task) { // main thread entry point
 }
 
 void ThreadPool::async_run(TaskFn task) {
-    SMART_ASSERT(m_current_task == nullptr);
+    POWERSERVE_ASSERT(m_current_task == nullptr);
     m_current_task = task;
     uv_barrier_wait(&m_run_barrier); // kick off all threads in thread_main
 }
 
 void ThreadPool::wait() {
-    SMART_ASSERT(m_current_task != nullptr);
+    POWERSERVE_ASSERT(m_current_task != nullptr);
     uv_barrier_wait(&m_run_barrier);
     m_current_task = nullptr;
 }
@@ -86,7 +86,7 @@ void ThreadPool::thread_main(size_t thread_id) {
 
     if (!config.cpu_ids.empty()) {
         auto self = uv_thread_self();
-        SMART_ASSERT(set_thread_affinity(&self, config.cpu_ids) == 0);
+        POWERSERVE_ASSERT(set_thread_affinity(&self, config.cpu_ids) == 0);
     }
 
     while (!m_exited) {
@@ -99,4 +99,4 @@ void ThreadPool::thread_main(size_t thread_id) {
     }
 }
 
-} // namespace smart
+} // namespace powerserve

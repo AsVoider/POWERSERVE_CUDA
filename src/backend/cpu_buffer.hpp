@@ -18,7 +18,7 @@
 #include "core/logger.hpp"
 #include "core/typedefs.hpp"
 
-namespace smart {
+namespace powerserve {
 
 struct CPUBuffer : BaseBuffer {
 public:
@@ -57,11 +57,11 @@ public:
         for (size_t i = 1; i < shape.size(); i++) {
             stride[i] = stride[i - 1] * shape[i - 1];
         }
-        SMART_ASSERT(parent.m_data != nullptr, "paraent buffer is nullptr");
+        POWERSERVE_ASSERT(parent.m_data != nullptr, "paraent buffer is nullptr");
         auto b    = std::make_shared<CPUBuffer>(stride, nullptr, false);
         b->m_data = parent.m_data;
         return b;
     }
 };
 
-} // namespace smart
+} // namespace powerserve

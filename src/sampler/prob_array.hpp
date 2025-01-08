@@ -18,8 +18,9 @@
 #include "core/typedefs.hpp"
 
 #include <random>
+#include <span>
 
-namespace smart {
+namespace powerserve {
 
 struct ProbIndex {
     float prob  = 0.0f;
@@ -39,7 +40,7 @@ struct ProbArray {
     bool m_is_sorted     = false; // Is sorted in descending order?
     bool m_is_normalized = false; // Does the sum of probs equal to 1?
 
-    ProbArray(const std::vector<float> &logits) {
+    ProbArray(std::span<const float> logits) {
         m_probs.resize(logits.size());
         for (size_t i = 0; i < logits.size(); i++) {
             m_probs[i].token = i;
@@ -66,7 +67,7 @@ struct ProbArray {
 
     template <typename RandomEngine>
     auto stochastic_sample(RandomEngine &&gen) -> ProbIndex & {
-        SMART_ASSERT(m_is_normalized);
+        POWERSERVE_ASSERT(m_is_normalized);
 
         size_t index = std::discrete_distribution(m_probs.size(), 0, m_probs.size(), [&](double x) {
             // https://en.cppreference.com/w/cpp/numeric/random/discrete_distribution/discrete_distribution
@@ -80,4 +81,4 @@ struct ProbArray {
     auto greedy_sample() -> ProbIndex &;
 };
 
-} // namespace smart
+} // namespace powerserve

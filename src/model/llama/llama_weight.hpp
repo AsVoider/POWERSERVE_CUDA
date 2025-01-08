@@ -16,7 +16,7 @@
 
 #include "model/common/weights.hpp"
 
-namespace smart {
+namespace powerserve {
 
 struct LlamaLayerWeights : LayerWeights {
 
@@ -50,4 +50,4 @@ public:
     ~LlamaWeight() override = default;
 };
 
-} // namespace smart
+} // namespace powerserve
