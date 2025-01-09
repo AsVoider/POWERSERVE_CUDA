@@ -65,6 +65,8 @@ CommandLineArgument parse_command_line(const std::string_view program_name, int 
     app.add_option("--draft-model", args.draft_model, "Set the model name or path to the draft model directory.");
 #if defined(POWERSERVE_WITH_QNN)
     app.add_flag("--use-spec", args.use_spec, "Use QNN speculative decode.");
+#endif
+
     auto &speculative_config = args.speculative_config;
     app.add_option("--draft-batch-size", speculative_config.draft_batch_size)->capture_default_str();
     app.add_option("--draft-sampler-top-k", speculative_config.draft_sampler.top_k)->capture_default_str();
@@ -73,7 +75,6 @@ CommandLineArgument parse_command_line(const std::string_view program_name, int 
     app.add_option("--token-tree-max-fan-out", speculative_config.token_tree.max_fan_out)->capture_default_str();
     app.add_option("--token-tree-min-prob", speculative_config.token_tree.min_prob)->capture_default_str();
     app.add_option("--token-tree-early-stop", speculative_config.token_tree.early_stop)->capture_default_str();
-#endif
     /*
      * Input Configuration
      */

@@ -290,16 +290,20 @@ public:
         POWERSERVE_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
         std::shared_ptr<powerserve::Model> main_model = init_model(main_model_path, workspace_config.hyper_params);
+#if defined(POWERSERVE_WITH_QNN)
         main_model->kv_cache =
             main_model->m_platform->qnn_backend->m_models[main_model->m_config->model_id]->kv_cache.get();
+#endif
         if (draft_model_path.empty()) {
             m_context_slot_map[model_name] =
                 ModelContext(workspace_config, std::move(main_model), std::move(tokenizer_ptr));
         } else {
             std::shared_ptr<powerserve::Model> draft_model =
                 init_model(draft_model_path, workspace_config.hyper_params);
+#if defined(POWERSERVE_WITH_QNN)
             draft_model->kv_cache =
                 draft_model->m_platform->qnn_backend->m_models[draft_model->m_config->model_id]->kv_cache.get();
+#endif
             m_context_slot_map[model_name] =
                 ModelContext(workspace_config, std::move(main_model), std::move(draft_model), std::move(tokenizer_ptr));
         }
