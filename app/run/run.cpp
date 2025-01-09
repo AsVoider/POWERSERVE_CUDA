@@ -27,7 +27,7 @@
 int main(int argc, char *argv[]) {
     powerserve::print_timestamp();
 
-    std::string work_folder = "/home/zwb/SS/powerserve/";
+    std::string work_folder;
     std::string prompt      = "One day,";
     std::string prompt_file = "";
     int n_predicts          = 128;

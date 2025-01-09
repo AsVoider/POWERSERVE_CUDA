@@ -108,7 +108,6 @@ time cmake --build build
 上传模型到手机：
 
 ```bash
-rsync -avzP ipads:/ssd/smallthinker/ ~/Downloads/smallthinker/
 rsync -avzP ~/Downloads/smallthinker/ 8gen4:~/smallthinker/
 rsync -avzP assets/prompts/*.txt 8gen4:~/
 ```
