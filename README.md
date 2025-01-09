@@ -28,7 +28,6 @@ No matter what operating systems you are using, you can follow the instructions 
 Details please refer to [End to End Deployment](./docs/end_to_end.md)
 
 
-
 ## Prerequisites
 
 ```bash

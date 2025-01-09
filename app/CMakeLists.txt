@@ -11,8 +11,8 @@ endfunction()
 
 add_subdirectory(run)
 add_subdirectory(perplexity)
-add_subdirectory(server)
+# add_subdirectory(server)
 
 if (POWERSERVE_WITH_QNN)
-    add_subdirectory(speculative)
+    # add_subdirectory(speculative)
 endif()
