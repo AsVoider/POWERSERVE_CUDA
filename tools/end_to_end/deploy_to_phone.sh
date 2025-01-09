@@ -1,34 +1,36 @@
 echo "Deploying to phone"
 
-# checking adb is installed
 if ! command -v adb &> /dev/null
 then
     echo "adb could not be found"
     exit
 fi
 
-# checking adb devices has output other than "List of devices attached"
 if [ "$(adb devices)" == "List of devices attached" ]
 then
     echo "No devices found"
     exit
 fi
 
-# 定义目标路径变量
+# 如果./proj里面有两个名称含PowerServe的文件夹，那么就是投机执行
+# 如果./proj里面有一个名称含PowerServe的文件夹，那么就是正常执行
+lines=$(ls ./proj | grep "PowerServe" | wc -l)
+if [ $lines -eq 2 ]
+then
+    echo "Speculation enabled"
+    speculation_flag="-s"
+fi
+
 TARGET_PATH="/data/local/tmp/powerserve"
 
-# 如果TARGET_PATH不存在，则创建
 adb shell mkdir -p $TARGET_PATH
 
 adb push ./proj $TARGET_PATH/
 
-# 如果adb shell "su -c "echo 123""的结果是123说明有root
-if [ "$(adb shell "su -c \"echo 123\"")" == "123" ]
-then
-    echo "Device is rooted"
-    adb shell "su -c \"$TARGET_PATH/proj/bin/powerserve-run -d $TARGET_PATH/proj\""
-else
-    echo "Device is not rooted"
+# TODO: add speculation flag
+# If speculation is not enabled, then we powerserve-run, else powerserve-speculate
+if [ "$speculation_flag" == "-s" ]
     adb shell "$TARGET_PATH/proj/bin/powerserve-run -d $TARGET_PATH/proj"
-    exit
+else
+    adb shell "$TARGET_PATH/proj/bin/powerserve-speculate -d $TARGET_PATH/proj"
 fi
