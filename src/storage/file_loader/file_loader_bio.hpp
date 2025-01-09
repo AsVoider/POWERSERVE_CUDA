@@ -72,15 +72,15 @@ public:
         }
 
         /*
-             * Allocate buffer
-             */
+         * Allocate buffer
+         */
         const size_t file_size = file_stat.st_size;
         std::byte *buffer_ptr  = new std::byte[file_size];
         m_buffer               = {buffer_ptr, file_size};
 
         /*
-             * Read the whole file into the buffer
-             */
+         * Read the whole file into the buffer
+         */
         {
             const ssize_t ret = pread(m_file_handle.m_fd, buffer_ptr, file_size, 0);
             POWERSERVE_ASSERT(

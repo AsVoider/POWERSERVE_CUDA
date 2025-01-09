@@ -77,15 +77,15 @@ public:
 public:
     void load() override {
         /*
-             * Prefetch the whole file into Page Cache
-             */
+         * Prefetch the whole file into Page Cache
+         */
         madvise(m_mmap_space.data(), m_mmap_space.size(), MADV_WILLNEED);
     }
 
     void unload() override {
         /*
-             * Unload the whole file from Page Cache
-             */
+         * Unload the whole file from Page Cache
+         */
         madvise(m_mmap_space.data(), m_mmap_space.size(), MADV_DONTNEED);
     }
 

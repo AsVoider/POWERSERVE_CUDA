@@ -113,7 +113,8 @@ static std::string apply_chat_template_internal(
                 if (support_system_message) {
                     ss << fmt::format("<<SYS>>\n{}\n<</SYS>>\n\n", content);
                 } else {
-                    // if the model does not support system message, we still include it in the first message, but without <<SYS>>
+                    // if the model does not support system message, we still include it in the first message, but
+                    // without <<SYS>>
                     ss << content << "\n";
                 }
             } else if (role == "user") {

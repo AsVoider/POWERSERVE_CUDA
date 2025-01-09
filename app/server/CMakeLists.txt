@@ -17,7 +17,7 @@ target_link_libraries(server.local PUBLIC
 add_executable(server server.cpp)
 target_link_libraries(server PRIVATE
     powerserve
-    CLI11::CLI11
+    app.common
     server.simple
 )
 

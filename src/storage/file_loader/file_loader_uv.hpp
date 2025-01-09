@@ -76,8 +76,8 @@ public:
         uv_fs_req_cleanup(&m_request);
 
         /*
-             * Allocate buffer
-             */
+         * Allocate buffer
+         */
         std::byte *buffer_ptr = new std::byte[file_size];
         m_buffer              = {buffer_ptr, file_size};
 
@@ -90,8 +90,8 @@ public:
         uv_fs_req_cleanup(&m_request);
 
         /*
-             * Read the whole file into the buffer
-             */
+         * Read the whole file into the buffer
+         */
         {
             const ssize_t ret = pread(m_file_handle.m_fd, buffer_ptr, file_size, 0);
             POWERSERVE_ASSERT(

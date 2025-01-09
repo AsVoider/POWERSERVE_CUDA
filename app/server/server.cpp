@@ -12,45 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "CLI/CLI.hpp"
-#include "core/logger.hpp"
+#include "cmdline.hpp"
 #include "simple_server.hpp"
 
-#ifdef POWERSERVE_WITH_QNN
-#include "backend/qnn/config.hpp"
-#endif // POWERSERVE_WITH_QNN
-
 #include <cstdlib>
-#include <string>
-
-// TODO:
-// 1. signal handler & exception handle
-// 2. completely support OpenAI API
 
 int main(int argc, char *argv[]) {
-    powerserve::print_timestamp();
-
     // 0. load config
-    std::string model_folder;
-    std::string qnn_lib_folder;
-    std::string host = "127.0.0.1";
-    int port         = 8080;
+    const powerserve::CommandLineArgument args = powerserve::parse_command_line("PowerServe CLI", argc, argv);
 
-    CLI::App app("Server program");
-
-    app.add_option("--model-folder", model_folder);
-    app.add_option("--lib-folder", qnn_lib_folder);
-    app.add_option("--host", host);
-    app.add_option("--port", port);
-
-    CLI11_PARSE(app, argc, argv);
-
-#ifdef POWERSERVE_WITH_QNN
-    if (qnn_lib_folder.empty()) {
-        qnn_lib_folder = std::filesystem::path(model_folder) / powerserve::qnn::QNN_LIB_DIR_NAME;
-    }
-#endif // POWERSERVE_WITH_QNN
-    simple_server_handler(model_folder, qnn_lib_folder, host, port);
+    simple_server_handler(args.work_folder, args.qnn_lib_folder, args.host, args.port);
 
     return 0;
 }

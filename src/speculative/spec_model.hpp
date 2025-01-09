@@ -49,6 +49,8 @@ public:
         const size_t n_prompt_tokens = prompt_tokens.size();
         POWERSERVE_ASSERT(n_prompt_tokens >= 1);
 
+        target_model->m_platform->reset_kv_position(target_model->m_config->model_id);
+        draft_model->m_platform->reset_kv_position(draft_model->m_config->model_id);
         POWERSERVE_ASSERT(target_model->kv_cache->position == draft_model->kv_cache->position);
         size_t position = target_model->kv_cache->position;
 

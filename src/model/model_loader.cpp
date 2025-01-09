@@ -20,9 +20,9 @@
 
 namespace powerserve {
 
-auto load_model(const Path &model_dir, std::shared_ptr<ModelConfig> &out_config) -> std::shared_ptr<Model> {
+auto load_model(const Path &model_dir) -> std::shared_ptr<Model> {
     std::shared_ptr<Model> out_model;
-    out_config = std::make_shared<ModelConfig>(model_dir / MODEL_CONFIG_FILENAME);
+    auto out_config = std::make_shared<ModelConfig>(model_dir / MODEL_CONFIG_FILENAME);
 
     auto arch        = out_config->arch;
     auto weight_path = model_dir / MODEL_WEIGHTS_DIR / MODEL_WEIGHTS_FILENAME;
