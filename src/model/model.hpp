@@ -122,7 +122,7 @@ public:
         }
 
         bool operator!=(const TokenIterator &other) const {
-            // sample unequal
+            // simple unequal
             return m_prompt != other.m_prompt || n_reset != other.n_reset;
         }
 

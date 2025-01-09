@@ -288,7 +288,7 @@ HTPDevice::HTPDevice(uint32_t device_id, uint32_t core_id) : m_device_id(device_
 
 HTPDevice::~HTPDevice() {
     auto ret = m_perf_infra.destroyPowerConfigId(m_power_config_id);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to destroy powerinfer config id");
+    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to destroy powerserve config id");
 }
 
 void HTPDevice::set_memory_grow_size(size_t size) {

@@ -15,6 +15,7 @@
 #pragma once
 
 #include "model/model.hpp"
+#include "speculative/speculative_config.hpp"
 #include "speculative/token_tree.hpp"
 #include "tokenizer/tokenizer.hpp"
 
@@ -23,7 +24,7 @@
 namespace powerserve {
 
 struct TreeSpeculative {
-    TreeSpeculative(const ModelPtr &target_model, const ModelPtr &draft_model);
+    TreeSpeculative(const ModelPtr &target_model, const ModelPtr &draft_model, const SpeculativeConfig &config);
 
     void generate(const Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps);
     void print_stat();
@@ -31,6 +32,8 @@ struct TreeSpeculative {
 private:
     ModelPtr target_model;
     ModelPtr draft_model;
+    SpeculativeConfig config;
+
     TokenTree token_tree;
 
     // Speculative decoding generates multiple tokens in one iteration.

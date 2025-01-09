@@ -14,8 +14,10 @@
 
 #pragma once
 
+#include "core/perfetto_trace.hpp"
 #include "model/model.hpp"
 #include "sampler/sampler_chain.hpp"
+#include "speculative/speculative_config.hpp"
 
 #include <functional>
 #include <queue>
@@ -25,7 +27,7 @@ namespace powerserve {
 struct TokenTree {
     using EnqueueTokenFn = std::function<void(Token token)>;
 
-    TokenTree();
+    TokenTree(const SpeculativeConfig &config);
     ~TokenTree();
 
     auto tokens() const -> std::vector<Token>;
@@ -46,6 +48,7 @@ struct TokenTree {
     void print_stat();
 
 private:
+    SpeculativeConfig config;
     SamplerChain draft_sampler;
 
     struct Node {
@@ -87,6 +90,8 @@ private:
         size_t n_iterations       = 0;
         size_t n_generated_tokens = 0;
     } stat;
+
+    PerfettoTrace::CounterTimePoint counter;
 
     void reset(size_t batch_size);
 

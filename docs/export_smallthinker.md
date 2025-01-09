@@ -10,7 +10,7 @@ time python converter.py \
     --model-name smallthinker_3b \
     --system-prompt-file ../../assets/system_prompts/qwen2.txt \
     --prompt-file ../../assets/calibration_data/strawberry_qwen2.txt \
-    --batch-size 16 128 \
+    --batch-size 12 \
     --artifact-name smallthinker_3b \
     --n-model-chunks 2 \
     --max-n-tokens 896 \
@@ -40,7 +40,7 @@ time python converter.py \
     --model-name smallthinker_500m \
     --system-prompt-file ../../assets/system_prompts/qwen2.txt \
     --prompt-file ../../assets/calibration_data/strawberry_qwen2.txt \
-    --batch-size 1 128 \
+    --batch-size 1 \
     --artifact-name smallthinker_500m \
     --n-model-chunks 1 \
     --max-n-tokens 896 \
@@ -108,21 +108,18 @@ time cmake --build build
 上传模型到手机：
 
 ```bash
-rsync -avzP ipads:/ssd/smallthinker/ ~/Downloads/smallthinker/
 rsync -avzP ~/Downloads/smallthinker/ 8gen4:~/smallthinker/
 rsync -avzP assets/prompts/*.txt 8gen4:~/
 ```
 
 ```bash
-export ASAN_OPTIONS=abort_on_error=1
-export UBSAN_OPTIONS=print_stacktrace=1
+# export ASAN_OPTIONS=abort_on_error=1
+# export UBSAN_OPTIONS=print_stacktrace=1
 export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64
 
-sudo cp smallthinker/bin/powerserve-{run,speculative} .
-
 # 不开投机推理
-sudo ./powerserve-run --work-folder smallthinker --prompt-file strawberry_qwen2.txt -n 1536
+./smallthinker/bin/powerserve-run --work-folder smallthinker --prompt-file comparison_qwen2.txt -n 1200
 
 # 开投机推理
-sudo ./powerserve-speculative --work-folder smallthinker --prompt-file strawberry_qwen2.txt -n 1536
+./smallthinker/bin/powerserve-speculative --work-folder smallthinker --prompt-file comparison_qwen2.txt -n 1200
 ```

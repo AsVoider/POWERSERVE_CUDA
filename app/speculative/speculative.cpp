@@ -16,10 +16,11 @@
 #include "core/logger.hpp"
 #include "core/perf.hpp"
 #include "core/perfetto_trace.hpp"
+#include "core/timer.hpp"
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
 #include "sampler/sampler_chain.hpp"
-#include "speculative/tree_speculative.hpp"
+#include "speculative/spec_model.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cstdlib>
@@ -28,17 +29,26 @@
 
 int main(int argc, char *argv[]) {
     // 0. load config
-    std::string work_folder = "/home/zwb/SS/powerserve/";
+    std::string work_folder;
     std::string prompt      = "One day,";
     std::string prompt_file = "";
     int n_predicts          = 128;
     bool no_qnn             = false;
+    powerserve::SpeculativeConfig speculative_config;
 
     CLI::App app("Demo program for LLM");
 
     app.add_option("-d,--work-folder", work_folder, "Set the working folder (required).")->required();
     app.add_option("-n,--n_predicts", n_predicts, "Specify the number of predictions to make.");
     app.add_flag("--no-qnn", no_qnn, "Disable QNN processing.");
+
+    app.add_option("--draft-batch-size", speculative_config.draft_batch_size)->capture_default_str();
+    app.add_option("--draft-sampler-top-k", speculative_config.draft_sampler.top_k)->capture_default_str();
+    app.add_option("--draft-sampler-temperature", speculative_config.draft_sampler.temperature)->capture_default_str();
+    app.add_option("--draft-sampler-p-base", speculative_config.draft_sampler.p_base)->capture_default_str();
+    app.add_option("--token-tree-max-fan-out", speculative_config.token_tree.max_fan_out)->capture_default_str();
+    app.add_option("--token-tree-min-prob", speculative_config.token_tree.min_prob)->capture_default_str();
+    app.add_option("--token-tree-early-stop", speculative_config.token_tree.early_stop)->capture_default_str();
 
     CLI::Option_group *prompt_group =
         app.add_option_group("Prompt Options", "Choose either prompt or prompt-file, not both.");
@@ -102,15 +112,67 @@ int main(int argc, char *argv[]) {
     POWERSERVE_LOG_INFO("after sampler init: {}", powerserve::perf_get_mem_result());
 
     {
-        POWERSERVE_LOG_INFO("prompt      : {}", powerserve::abbreviation(prompt, 50));
+        POWERSERVE_LOG_INFO("prompt      : {:?}", powerserve::abbreviation(prompt, 50));
         POWERSERVE_LOG_INFO("vocab_path  : {}", tokenizer_path);
         POWERSERVE_LOG_INFO("n_predicts  : {}", n_predicts);
         POWERSERVE_LOG_INFO("n_threads   : {}", n_threads);
     }
 
     powerserve::PerfettoTrace::instance().start_tracing(32 * 1024);
-    powerserve::TreeSpeculative spec(main_model, draft_model);
-    spec.generate(tokenizer, sampler, prompt, n_predicts);
-    spec.print_stat();
+    // powerserve::TreeSpeculative spec(main_model, draft_model);
+    // spec.generate(tokenizer, sampler, prompt, n_predicts);
+    // spec.print_stat();
+    long prefill_start = 0;
+    long prefill_end   = 0;
+    long decode_end    = 0;
+    bool start         = false;
+    int actual_predict = 0;
+
+    for (auto prompt_token : tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos)) {
+        fmt::print("{}", tokenizer.to_string(prompt_token, false));
+    }
+    fflush(stdout);
+    prefill_start = powerserve::timestamp_ms();
+    powerserve::SpeculativeModel model(main_model, draft_model, speculative_config);
+    for (auto next : model.generate(tokenizer, sampler, prompt, n_predicts, batch_size)) {
+        if (!start) {
+            prefill_end = powerserve::timestamp_ms();
+            start       = true;
+            continue;
+        }
+        actual_predict += 1;
+        if (next == tokenizer.bos_token()) {
+            break;
+        }
+        if (tokenizer.should_stop(next)) {
+            fmt::print("[end of text]");
+            break;
+        }
+        fmt::print("{}", tokenizer.to_string(next, false));
+        fflush(stdout);
+    }
+    fmt::println("");
+
+    if (start) {
+        decode_end     = powerserve::timestamp_ms();
+        auto n_prefill = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
+        POWERSERVE_LOG_INFO("prefill time: {} s", (double)(prefill_end - prefill_start) / 1000);
+        POWERSERVE_LOG_INFO(
+            "prefill speed ({} tokens): {} tokens/s",
+            n_prefill,
+            n_prefill / (double)(prefill_end - prefill_start) * 1000
+        );
+        POWERSERVE_LOG_INFO(
+            "decode speed ({} tokens): {} tokens/s",
+            actual_predict,
+            actual_predict / (double)(decode_end - prefill_end) * 1000
+        );
+        POWERSERVE_LOG_INFO(
+            "total speed: {} tokens/s", (n_prefill + actual_predict) / (double)(decode_end - prefill_start) * 1000
+        );
+    }
+
+    model.print_stat();
+
     powerserve::PerfettoTrace::instance().stop_tracing();
 }

@@ -26,25 +26,13 @@ using powerserve::getenv;
 
 static auto dump_file_path = getenv<std::string>("dump_file", "");
 
-static struct {
-    size_t top_k      = getenv<size_t>("draft_top_k", 15);
-    float temperature = getenv<float>("draft_temperature", 1.2f);
-    float p_base      = getenv<float>("draft_p_base", 0.6f);
-} draft_params;
-
-static struct {
-    size_t max_fan_out = getenv<size_t>("tree_max_fan_out", 3);
-    float min_prob     = getenv<float>("tree_min_prob", 0.25f);
-    bool early_stop    = getenv<bool>("tree_early_stop", true);
-} tree_params;
-
 } // namespace
 
 namespace powerserve {
 
-TokenTree::TokenTree() {
-    draft_sampler.append<TopKSampler>(draft_params.top_k);
-    draft_sampler.append<TemperatureSampler>(draft_params.temperature);
+TokenTree::TokenTree(const SpeculativeConfig &config) : config(config) {
+    draft_sampler.append<TopKSampler>(config.draft_sampler.top_k);
+    draft_sampler.append<TemperatureSampler>(config.draft_sampler.temperature);
     draft_sampler.append<SoftmaxSampler>();
 }
 
@@ -102,6 +90,8 @@ auto TokenTree::attention_mask() const -> std::vector<std::vector<bool>> {
 }
 
 void TokenTree::draft(const ModelPtr &draft_model, const Tokenizer &tokenizer, size_t batch_size, Token root_token) {
+    counter = PerfettoTrace::counter();
+
     reset(batch_size);
 
     main_heap.push(Candidate{
@@ -142,8 +132,8 @@ void TokenTree::draft(const ModelPtr &draft_model, const Tokenizer &tokenizer, s
 
         // Early terminate
         if (is_leaf || tokenizer.should_stop(node.token) ||
-            n_nodes + (tree_params.early_stop ? main_heap.size() / 2 : 0) >= batch_size ||
-            cumulative_prob < tree_params.min_prob) {
+            n_nodes + (config.token_tree.early_stop ? main_heap.size() / 2 : 0) >= batch_size ||
+            cumulative_prob < config.token_tree.min_prob) {
             continue;
         }
 
@@ -164,9 +154,9 @@ void TokenTree::draft(const ModelPtr &draft_model, const Tokenizer &tokenizer, s
         POWERSERVE_ASSERT(probs.m_is_normalized);
         POWERSERVE_ASSERT(probs.m_is_sorted);
 
-        float min_prob = probs[0].prob * draft_params.p_base;
+        float min_prob = probs[0].prob * config.draft_sampler.p_base;
         for (size_t i = 0; auto &item : probs) {
-            bool leaf_only = (i >= tree_params.max_fan_out || item.prob < min_prob);
+            bool leaf_only = (i >= config.token_tree.max_fan_out || item.prob < min_prob);
             i++;
 
             auto &heap = leaf_only ? leaf_heap : main_heap;
@@ -194,7 +184,8 @@ void TokenTree::verify(
     POWERSERVE_ASSERT(target_model->kv_cache->position == draft_model->kv_cache->position);
     stat.n_iterations += 1;
 
-    int u = 0;
+    int u                     = 0;
+    size_t n_generated_tokens = 0;
     while (true) {
         auto &node    = nodes[u];
         node.accepted = true;
@@ -220,7 +211,7 @@ void TokenTree::verify(
         sampler.apply(probs);
         auto next_token = probs.greedy_sample().token;
         enqueue_token(next_token);
-        stat.n_generated_tokens += 1;
+        n_generated_tokens += 1;
 
         auto it = std::find_if(node.children.begin(), node.children.end(), [next_token, this](int v) {
             return nodes[v].token == next_token;
@@ -233,6 +224,9 @@ void TokenTree::verify(
             stat.n_accepted_tokens += 1;
         }
     }
+
+    stat.n_generated_tokens += n_generated_tokens;
+    counter.set_value("#generated-token", n_generated_tokens);
 }
 
 void TokenTree::print_tree(const Tokenizer &tokenizer, int u) {
@@ -251,6 +245,7 @@ void TokenTree::print_stat() {
     fmt::println("- {:.3f} tokens/iteration", 1.0 * stat.n_generated_tokens / stat.n_iterations);
     fmt::println("- {:.3f} draft-forwards/iteration", 1.0 * stat.n_draft_times / stat.n_iterations);
     fmt::println("- Accept ratio: {:.3f}%", 100.0 * stat.n_accepted_tokens / stat.n_draft_tokens);
+    fmt::println("- Draft effective ratio: {:.3f}%", 100.0 * stat.n_accepted_tokens / stat.n_draft_times);
 }
 
 void TokenTree::Node::reset() {

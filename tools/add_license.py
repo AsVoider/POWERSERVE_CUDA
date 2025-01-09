@@ -17,6 +17,7 @@ license = """// Copyright 2024-2025 PowerServe Authors
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 """
 
 license_py = """# Copyright 2024-2025 PowerServe Authors
@@ -32,6 +33,7 @@ license_py = """# Copyright 2024-2025 PowerServe Authors
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """
 
 root_folder = Path(".").absolute()

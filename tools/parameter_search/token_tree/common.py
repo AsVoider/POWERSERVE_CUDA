@@ -74,7 +74,7 @@ def run(params: tuple) -> dict:
         f"dump_file={dump_file_path}",
         format_params(params),
         "LD_LIBRARY_PATH=/system/lib64:/vendor/lib64",
-        "sudo -E ./powerserve-speculative --work-folder smallthinker --prompt-file strawberry_qwen2.txt -n 300",
+        "sudo -E ./powerserve-speculative --work-folder smallthinker --prompt-file comparison_qwen2.txt -n 1024",
     ])
 
     print(f"> {command}")
