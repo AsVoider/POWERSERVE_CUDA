@@ -2,6 +2,7 @@
 #include "backend/ggml-cuda/cuda-ops/rms_norm.cuh"
 #include "backend/ggml-cuda/cuda-ops/mat_mul.cuh"
 
+#include "cuda-ops/activation.cuh"
 #include "common.cuh"
 #include "cpy.cuh"
 #include "softmax.cuh"
@@ -320,7 +321,15 @@ op_interface op_interfaces::op_print = [] (cuda_context_warp &ctx, ggml_tensor *
 };
 
 op_interface op_interfaces::op_silu_and_mul = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
+    if (ctx.ctx == nullptr) [[unlikely]] {
+        exit(1);
+    }
 
+    auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
+
+    GGML_ASSERT(dst->op_params[0] == GGML_UNARY_OP_SILU);
+
+    activate_with_mul(cuda_context_ptr[0], dst);
 };
 
 } // namespace smart::ggml_cuda

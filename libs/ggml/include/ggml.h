@@ -620,6 +620,31 @@ extern "C" {
         char padding[8];
     };
 
+    struct op_compute_params {
+        // ith = thread index, nth = number of threads
+        int ith, nth;
+
+        // work buffer for all threads
+        size_t wsize;
+        void * wdata;
+
+        void *thread_pool;
+        void (*barrier_fn)(void *thread_pool);
+        std::atomic_int *current_chunk;
+    };
+
+    struct rope_compute_params {
+        int n_dims;
+        int n_ctx_orig;
+        float freq_base;
+        float freq_scale;
+        float ext_factor;
+        float attn_factor;
+        float beta_fast;
+        float beta_slow;
+        int mode; // rope_type
+    };
+
     static const size_t GGML_TENSOR_SIZE = sizeof(struct ggml_tensor);
 
     // Abort callback
@@ -749,6 +774,16 @@ extern "C" {
             int64_t ne1,
             int64_t ne2,
             int64_t ne3);
+
+    GGML_API enum ggml_type powerserve_get_vec_dot_type(struct ggml_tensor * tensor);
+    GGML_API int get_cache_line_size(void);
+    GGML_API void powerserve_compute_forward_dup(struct op_compute_params * params, struct ggml_tensor * dst, struct ggml_tensor * src0);
+    GGML_API void powerserve_compute_forward_add(struct op_compute_params * params, struct ggml_tensor * dst, struct ggml_tensor * src0, struct ggml_tensor * src1);
+    GGML_API void powerserve_compute_forward_rms_norm(struct op_compute_params * params, struct ggml_tensor * dst, struct ggml_tensor * src0, struct ggml_tensor * src1, float eps);
+    GGML_API void powerserve_compute_forward_mul_mat(struct op_compute_params * params, struct ggml_tensor * dst, struct ggml_tensor * src0, struct ggml_tensor * src1);
+    GGML_API void powerserve_compute_forward_soft_max(struct op_compute_params * params, struct ggml_tensor * dst, struct ggml_tensor * src0);
+    GGML_API void powerserve_compute_forward_softmax_ext(struct op_compute_params * params, struct ggml_tensor * dst, struct ggml_tensor * src0, struct ggml_tensor * src1, float scale, float max_bias);
+    GGML_API void powerserve_compute_forward_rope(struct op_compute_params * params, struct ggml_tensor * dst, struct ggml_tensor * src0, struct ggml_tensor * src1, struct ggml_tensor * src2, struct rope_compute_params *rope_params);
 
     GGML_API void * ggml_new_buffer(struct ggml_context * ctx, size_t nbytes);
 

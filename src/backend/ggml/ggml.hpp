@@ -35,19 +35,6 @@
 
 namespace powerserve::ggml {
 
-struct op_compute_params {
-        // ith = thread index, nth = number of threads
-        int ith, nth;
-
-        // work buffer for all threads
-        size_t wsize;
-        void * wdata;
-
-        void *thread_pool;
-        void (*barrier_fn)(void *thread_pool);
-        std::atomic_int *current_chunk;
-};
-
 static ggml_type convert_datatype_to_ggml(DataType dtp) {
     switch (dtp) {
     case DataType::FP32:
