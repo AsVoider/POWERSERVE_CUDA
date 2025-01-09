@@ -199,6 +199,8 @@ class LlamaModelChunk(ExportableModule, KVCache):
                     ffn_neuron_ids = json.load(f)
                     ffn_neuron_ids = ffn_neuron_ids[:cur_n_fp16_neurons]
             else:
+                if 0 < cur_n_fp16_heads < n_heads or 0 < cur_n_fp16_neurons < ffn_hidden_dim:
+                    print(f'WARN: "{stat_folder}" does not exist.')
                 attn_head_ids = list(range(cur_n_fp16_heads))
                 ffn_neuron_ids = list(range(cur_n_fp16_neurons))
 
@@ -1017,6 +1019,33 @@ def dump_quant_debug_info(attr_name: str):
 dump_quant_debug_info("top_input_norms")
 dump_quant_debug_info("top_output_norms")
 dump_quant_debug_info("quant_cos_sim")
+
+
+def dump_activation_stat():
+    assert len(model_chunks) == 1
+
+    model_chunk = model_chunks[0]
+
+    n_layers = len(model_chunk.layers)
+
+    def attn_stat(attn_module: LlamaAttention):
+        head_dim = attn_module.head_dim
+        act_abs_sum = attn_module.out_act_abs_sum.reshape(-1, head_dim).sum(dim=-1)
+        return act_abs_sum.argsort(descending=True).tolist()
+
+    def ffn_stat(ffn_module: LlamaFeedForwardChunk):
+        return ffn_module.down_act_abs_sum.argsort(descending=True).tolist()
+
+    stat_output_folder.mkdir(parents=True, exist_ok=True)
+    for i in range(n_layers):
+        with open(stat_output_folder / f"attn_{i}_stat.json", "w") as f:
+            json.dump(attn_stat(model_chunk.layers[i].attn), f)
+        with open(stat_output_folder / f"ffn_{i}_stat.json", "w") as f:
+            json.dump(ffn_stat(model_chunk.layers[i].ffn.int4_chunk), f)
+
+
+if stat_output_folder is not None:
+    dump_activation_stat()
 
 if args.output_folder is None:
     exit(0)
