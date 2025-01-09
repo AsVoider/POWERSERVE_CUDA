@@ -115,8 +115,7 @@ int main(int argc, char *argv[]) {
         if (next == tokenizer.bos_token()) {
             break;
         }
-        if (next == tokenizer.m_vocab.special_eos_id || next == tokenizer.m_vocab.special_eom_id ||
-            next == tokenizer.m_vocab.special_eot_id) {
+        if (tokenizer.should_stop(next)) {
             fmt::print("[end of text]");
             break;
         }

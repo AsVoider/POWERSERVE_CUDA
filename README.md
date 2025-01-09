@@ -138,6 +138,8 @@ cmake --build build
 ```
 
 ### Build for Android qnn
+- ❗️ Because the llama3.1-8b model is too large, qnn needs to open multiple sessions when loading. Now it is known that on a mobile phone with one plus 12, opening additional sessions requires root privileges. If you run this model in non-root mode, the program will cause an error.
+
 ```shell
 # Under the root directory of PowerServe
 cmake -B build                                                      \
