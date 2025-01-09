@@ -32,5 +32,5 @@ adb push ./proj $TARGET_PATH/
 if [ "$speculation_flag" == "-s" ]
     adb shell "$TARGET_PATH/proj/bin/powerserve-run -d $TARGET_PATH/proj"
 else
-    adb shell "$TARGET_PATH/proj/bin/powerserve-speculate -d $TARGET_PATH/proj"
+    adb shell "$TARGET_PATH/proj/bin/powerserve-run -d $TARGET_PATH/proj --use-spec"
 fi
