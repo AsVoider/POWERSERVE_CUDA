@@ -90,6 +90,10 @@ class LinearWithQuantizationDebugger(nn.Linear):
 linear_class = nn.Linear  # Disable quantization debug
 # linear_class = LinearWithQuantizationDebugger
 
+stat_output_folder = None
+# Uncomment the following line to enable activation stat profiling
+# stat_output_folder = Path("./smallthinker_3b_stat")
+
 
 class LlamaRoPE(nn.Module):
     def __init__(self) -> None:
@@ -285,6 +289,9 @@ class LlamaAttention(nn.Module):
                 embed_dim=embed_dim, head_dim=self.head_dim, n_heads=len(self.int4_head_ids), device=device
             )
 
+        if stat_output_folder is not None:
+            self.out_act_abs_sum = torch.zeros((embed_dim,), dtype=torch.float32)
+
     def load_weights(self, loader: ModelLoader):
         loader.load(self.norm, f"model.layers.{self.layer_id}.input_layernorm.weight")
 
@@ -351,6 +358,11 @@ class LlamaAttention(nn.Module):
         fp16_inputs = [head_outs[i] for i in self.fp16_head_ids]
         int4_inputs = [head_outs[i] for i in self.int4_head_ids]
 
+        if hasattr(self, "out_act_abs_sum"):
+            assert len(fp16_inputs) == 0, "Set n_fp16_heads to zero first"
+            out = torch.cat(int4_inputs, dim=-1)
+            self.out_act_abs_sum += out.abs().sum(dim=0)
+
         outs = [x]
         if len(fp16_inputs) > 0:
             outs.append(self.fp16_o_proj(fp16_inputs))
@@ -395,6 +407,9 @@ class LlamaFeedForwardChunk(nn.Module):
             device=device,
         )
 
+        if stat_output_folder is not None:
+            self.down_act_abs_sum = torch.zeros((ffn_hidden_dim,), dtype=torch.float32)
+
     def forward(self, x: Tensor) -> Tensor:
         gate = self.gate_proj(x)
         if self.use_drelu:
@@ -407,6 +422,9 @@ class LlamaFeedForwardChunk(nn.Module):
             up = self.relu(up)
 
         out = gate * up
+
+        if hasattr(self, "down_act_abs_sum"):
+            self.down_act_abs_sum += out.abs().sum(dim=0)
 
         return self.down_proj(out)
 
@@ -442,6 +460,9 @@ class LlamaFeedForward(nn.Module):
             self.int4_chunk = LlamaFeedForwardChunk(
                 embed_dim=embed_dim, ffn_hidden_dim=len(self.int4_neuron_ids), use_drelu=use_drelu, device=device
             )
+
+        if stat_output_folder is not None:
+            assert len(self.fp16_neuron_ids) == 0, "Set n_fp16_neurons to zero first"
 
     def load_weights(self, loader: ModelLoader):
         loader.load(self.norm, f"model.layers.{self.layer_id}.post_attention_layernorm.weight")

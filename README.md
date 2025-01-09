@@ -6,18 +6,27 @@
 | LLaMA 3.1 🦙🦙🦙  | ✔️    | ✔️    |    |
 | LLaMA 3.2 🦙🦙🦙  | ✔️    | ✔️    |   |
 | Qwen2  | ✔️[Need test]    | ✔️    |    |
-| Phi3  | ✔️[Need test]    |     |    |
-| InternVL2 (1B, 2B, 8B) |     |✔️    |    |
+| Smallthinker |✔️    |✔️    |    |
 
 
 ## Table of Contents
 
-1. [Prerequisites](#prerequisites)
-2. [Model Preparation](#model-preparation)
-3. [Compile PowerServe](#compile-powerserve)
-4. [Prepare PowerServe Workspace](#prepare-powerserve-workspace)
-5. [Execution](#execution)
-6. [Known Issues](#known-issues)
+1. [End to end deployment](#end-to-end)
+2. [Prerequisites](#prerequisites)
+3. [Model Preparation](#model-preparation)
+4. [Compile PowerServe](#compile-powerserve)
+5. [Prepare PowerServe Workspace](#prepare-powerserve-workspace)
+6. [Execution](#execution)
+7. [Known Issues](#known-issues)
+
+## End to End Deployment
+
+We provide nearly one-click end to end deployment document(./docs/end_to_end.md), including model downloading, compiling, deploying, and running.
+
+No matter what operating systems you are using, you can follow the instructions in the document to use Powerserve to run support models on your phone.
+
+Details please refer to [End to End Deployment](./docs/end_to_end.md)
+
 
 
 ## Prerequisites
