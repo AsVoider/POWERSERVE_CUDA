@@ -18,6 +18,7 @@
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
 #include "sampler/sampler_chain.hpp"
+#include "speculative/spec_model.hpp"
 #include "tokenizer/tokenizer.hpp"
 
 #include <cstdlib>
@@ -32,12 +33,25 @@ int main(int argc, char *argv[]) {
     std::string prompt_file = "";
     int n_predicts          = 128;
     bool no_qnn             = false;
+    bool use_spec           = false;
+    powerserve::SpeculativeConfig speculative_config;
 
     CLI::App app("Demo program for LLM");
 
     app.add_option("-d,--work-folder", work_folder, "Set the working folder (required).")->required();
     app.add_option("-n,--n_predicts", n_predicts, "Specify the number of predictions to make.");
     app.add_flag("--no-qnn", no_qnn, "Disable QNN processing.");
+#if defined(POWERSERVE_WITH_QNN)
+    app.add_flag("--use-spec", use_spec, "Use QNN speculative decode.");
+
+    app.add_option("--draft-batch-size", speculative_config.draft_batch_size)->capture_default_str();
+    app.add_option("--draft-sampler-top-k", speculative_config.draft_sampler.top_k)->capture_default_str();
+    app.add_option("--draft-sampler-temperature", speculative_config.draft_sampler.temperature)->capture_default_str();
+    app.add_option("--draft-sampler-p-base", speculative_config.draft_sampler.p_base)->capture_default_str();
+    app.add_option("--token-tree-max-fan-out", speculative_config.token_tree.max_fan_out)->capture_default_str();
+    app.add_option("--token-tree-min-prob", speculative_config.token_tree.min_prob)->capture_default_str();
+    app.add_option("--token-tree-early-stop", speculative_config.token_tree.early_stop)->capture_default_str();
+#endif
 
     CLI::Option_group *prompt_group =
         app.add_option_group("Prompt Options", "Choose either prompt or prompt-file, not both.");
@@ -62,28 +76,46 @@ int main(int argc, char *argv[]) {
     auto config = std::make_shared<powerserve::Config>(
         work_folder, powerserve::Path(work_folder) / powerserve::WORKSPACE_CONFIG_FILENAME
     );
-    std::shared_ptr<powerserve::Model> model =
+    std::shared_ptr<powerserve::Model> main_model =
         powerserve::load_model(config->main_model_dir, config->main_model_config);
+    std::shared_ptr<powerserve::Model> draft_model = nullptr;
+    if (use_spec) {
+        draft_model = powerserve::load_model(config->draft_model_dir, config->draft_model_config);
+    }
     POWERSERVE_LOG_INFO("after model init: {}", powerserve::perf_get_mem_result());
 
     auto [sampler_config, n_threads, batch_size] = config->hyper_params;
-    model->m_platform                            = std::make_shared<powerserve::Platform>();
-    model->m_platform->init_ggml_backend(model->m_config, config->hyper_params);
+    main_model->m_platform                       = std::make_shared<powerserve::Platform>();
+    auto &platform                               = main_model->m_platform;
+    platform->init_ggml_backend(main_model->m_config, config->hyper_params);
 
-#ifdef POWERSERVE_WITH_CUDA
-    model->m_platform->init_cuda_backend(model->m_config, config->hyper_params);
-#endif
+    if (use_spec) {
+        draft_model->m_platform = platform;
+        platform->init_ggml_backend(draft_model->m_config, config->hyper_params);
+    }
 
 #if defined(POWERSERVE_WITH_QNN)
     if (!no_qnn) {
-        auto &qnn_backend = model->m_platform->qnn_backend;
-        model->m_platform->init_qnn_backend(powerserve::Path(work_folder) / powerserve::qnn::QNN_LIB_DIR_NAME);
-        qnn_backend->load_model(config->main_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, model->m_config);
+        main_model->m_platform->init_qnn_backend(powerserve::Path(work_folder) / powerserve::qnn::QNN_LIB_DIR_NAME);
+        auto &qnn_backend = main_model->m_platform->qnn_backend;
+        qnn_backend->load_model(config->main_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, main_model->m_config);
+        main_model->kv_cache = platform->qnn_backend->m_models[main_model->m_config->model_id]->kv_cache.get();
+
+        if (use_spec) {
+            qnn_backend->load_model(
+                config->draft_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, draft_model->m_config
+            );
+            draft_model->kv_cache = platform->qnn_backend->m_models[draft_model->m_config->model_id]->kv_cache.get();
+        }
     }
 #endif
     POWERSERVE_LOG_INFO("after platform init: {}", powerserve::perf_get_mem_result());
 
-    model->m_attn = std::make_shared<powerserve::NormAttention>(model->m_config->llm, model->m_weights);
+    main_model->m_attn = std::make_shared<powerserve::NormAttention>(main_model->m_config->llm, main_model->m_weights);
+    if (use_spec) {
+        draft_model->m_attn =
+            std::make_shared<powerserve::NormAttention>(draft_model->m_config->llm, draft_model->m_weights);
+    }
     POWERSERVE_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
 
     std::string tokenizer_path = config->main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
@@ -110,7 +142,21 @@ int main(int argc, char *argv[]) {
         fmt::print("{}", tokenizer.to_string(prompt_token, false));
     }
     prefill_start = powerserve::timestamp_ms();
-    for (auto next : model->generate(tokenizer, sampler, prompt, n_predicts, batch_size)) {
+
+    std::shared_ptr<powerserve::TokenIterator> iter = nullptr;
+#if defined(POWERSERVE_WITH_QNN)
+    std::shared_ptr<powerserve::SpeculativeModel> spec_model = nullptr;
+    if (use_spec) {
+        spec_model = std::make_shared<powerserve::SpeculativeModel>(main_model, draft_model, speculative_config);
+        iter       = spec_model->generate(tokenizer, sampler, prompt, n_predicts, batch_size);
+    } else
+#endif
+    {
+        iter = main_model->generate(tokenizer, sampler, prompt, n_predicts, batch_size);
+    }
+
+    while (!iter->end()) {
+        auto next = iter->next();
         if (!start) {
             prefill_end = powerserve::timestamp_ms();
             start       = true;
@@ -147,4 +193,9 @@ int main(int argc, char *argv[]) {
             "total speed: {} tokens/s", (n_prefill + actual_predict) / (double)(decode_end - prefill_start) * 1000
         );
     }
+#if defined(POWERSERVE_WITH_QNN)
+    if (use_spec) {
+        spec_model->print_stat();
+    }
+#endif
 }

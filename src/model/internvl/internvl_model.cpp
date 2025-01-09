@@ -148,7 +148,7 @@ auto InternVL::decode(Sampler &sampler, const std::vector<Token> tokens, const s
 
 auto InternVL::generate(
     const Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
-) -> Model::TokenGenerator {
+) -> std::shared_ptr<TokenIterator> {
     std::vector<Path> imgs;
     size_t start_pos = 0, end_pos = 0;
     std::string start_tag   = "<img>";
@@ -174,7 +174,7 @@ auto InternVL::generate(
     if (!imgs.empty()) {
         processed_prompt = preprocess(imgs, instruction);
     }
-    return Model::TokenGenerator(*this, tokenizer, sampler, processed_prompt, steps, batch_size);
+    return std::make_shared<ModelTokenIterator>(*this, tokenizer, sampler, processed_prompt, steps, batch_size);
 }
 
 } // namespace powerserve

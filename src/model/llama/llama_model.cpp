@@ -133,8 +133,8 @@ auto LlamaModel::decode(Sampler &sampler, const std::vector<Token> tokens, const
 
 auto LlamaModel::generate(
     const Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps, size_t batch_size
-) -> Model::TokenGenerator {
-    return Model::TokenGenerator(*this, tokenizer, sampler, prompt, steps, batch_size);
+) -> std::shared_ptr<TokenIterator> {
+    return std::make_shared<ModelTokenIterator>(*this, tokenizer, sampler, prompt, steps, batch_size);
 }
 
 } // namespace powerserve

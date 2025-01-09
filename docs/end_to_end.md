@@ -16,6 +16,6 @@ You need to choose your model chip and the model you want to run during the proc
 
 5. press `ctrl+d` to quit the docker container. `pwd` should tell you that you are in the powerserve directory.
 
-6. Please ensure that your phone has connected to your computer and adb is all installed. Then: 
+6. Please ensure that your phone has connected to your computer and adb is all installed. Then:
 - for **Linux & MacOS** : run `./tools/end_to_end/deploy_to_phone.sh`
 - for **Windows** : run `./tools/end_to_end/deploy_to_phone.bat`
