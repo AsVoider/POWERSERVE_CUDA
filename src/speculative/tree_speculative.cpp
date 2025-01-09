@@ -17,13 +17,15 @@
 #include "core/perfetto_trace.hpp"
 #include "core/timer.hpp"
 
-constexpr bool debug_token_tree = false;
-
 namespace powerserve {
 
-TreeSpeculative::TreeSpeculative(const ModelPtr &target_model, const ModelPtr &draft_model) :
+TreeSpeculative::TreeSpeculative(
+    const ModelPtr &target_model, const ModelPtr &draft_model, const SpeculativeConfig &config
+) :
     target_model(target_model),
-    draft_model(draft_model) {}
+    draft_model(draft_model),
+    config(config),
+    token_tree(config) {}
 
 void TreeSpeculative::generate(const Tokenizer &tokenizer, Sampler &sampler, const std::string &prompt, int steps) {
     auto prompt_tokens           = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos);
@@ -96,23 +98,21 @@ void TreeSpeculative::generate(const Tokenizer &tokenizer, Sampler &sampler, con
 }
 
 void TreeSpeculative::generate_tokens(const Tokenizer &tokenizer, Sampler &sampler, Token last_token) {
-    constexpr size_t draft_batch_size = 16;
+    token_tree.draft(draft_model, tokenizer, config.draft_batch_size, last_token);
 
-    token_tree.draft(draft_model, tokenizer, draft_batch_size, last_token);
-
-    CausalAttentionMask mask(draft_batch_size, token_tree.attention_mask());
+    CausalAttentionMask mask(config.draft_batch_size, token_tree.attention_mask());
 
     PerfettoTrace::begin("target_model_forward");
     auto ret = target_model->forward(token_tree.tokens(), token_tree.positions(), mask);
     PerfettoTrace::end();
 
-    target_model->kv_cache->rollback_tokens(draft_batch_size);
+    target_model->kv_cache->rollback_tokens(config.draft_batch_size);
 
     token_tree.verify(target_model, draft_model, sampler, ret.logits_vector, [this](Token token) {
         token_queue.push_back(token);
     });
 
-    if constexpr (debug_token_tree) {
+    if (config.token_tree.debug) {
         fmt::print("\n");
         token_tree.print_tree(tokenizer);
     }

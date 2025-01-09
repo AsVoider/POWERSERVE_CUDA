@@ -10,7 +10,7 @@ time python converter.py \
     --model-name smallthinker_3b \
     --system-prompt-file ../../assets/system_prompts/qwen2.txt \
     --prompt-file ../../assets/calibration_data/strawberry_qwen2.txt \
-    --batch-size 16 \
+    --batch-size 12 \
     --artifact-name smallthinker_3b \
     --n-model-chunks 2 \
     --max-n-tokens 896 \

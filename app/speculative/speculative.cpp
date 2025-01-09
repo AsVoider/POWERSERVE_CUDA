@@ -33,12 +33,21 @@ int main(int argc, char *argv[]) {
     std::string prompt_file = "";
     int n_predicts          = 128;
     bool no_qnn             = false;
+    powerserve::SpeculativeConfig speculative_config;
 
     CLI::App app("Demo program for LLM");
 
     app.add_option("-d,--work-folder", work_folder, "Set the working folder (required).")->required();
     app.add_option("-n,--n_predicts", n_predicts, "Specify the number of predictions to make.");
     app.add_flag("--no-qnn", no_qnn, "Disable QNN processing.");
+
+    app.add_option("--draft-batch-size", speculative_config.draft_batch_size);
+    app.add_option("--draft-sampler-top-k", speculative_config.draft_sampler.top_k);
+    app.add_option("--draft-sampler-temperature", speculative_config.draft_sampler.temperature);
+    app.add_option("--draft-sampler-p-base", speculative_config.draft_sampler.p_base);
+    app.add_option("--token-tree-max-fan-out", speculative_config.token_tree.max_fan_out);
+    app.add_option("--token-tree-min-prob", speculative_config.token_tree.min_prob);
+    app.add_option("--token-tree-early-stop", speculative_config.token_tree.early_stop);
 
     CLI::Option_group *prompt_group =
         app.add_option_group("Prompt Options", "Choose either prompt or prompt-file, not both.");
@@ -109,7 +118,7 @@ int main(int argc, char *argv[]) {
     }
 
     powerserve::PerfettoTrace::instance().start_tracing(32 * 1024);
-    powerserve::TreeSpeculative spec(main_model, draft_model);
+    powerserve::TreeSpeculative spec(main_model, draft_model, speculative_config);
     spec.generate(tokenizer, sampler, prompt, n_predicts);
     spec.print_stat();
     powerserve::PerfettoTrace::instance().stop_tracing();

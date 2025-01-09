@@ -26,25 +26,13 @@ using powerserve::getenv;
 
 static auto dump_file_path = getenv<std::string>("dump_file", "");
 
-static struct {
-    size_t top_k      = getenv<size_t>("draft_top_k", 15);
-    float temperature = getenv<float>("draft_temperature", 1.5f);
-    float p_base      = getenv<float>("draft_p_base", 0.9f);
-} draft_params;
-
-static struct {
-    size_t max_fan_out = getenv<size_t>("tree_max_fan_out", 3);
-    float min_prob     = getenv<float>("tree_min_prob", 0.2f);
-    bool early_stop    = getenv<bool>("tree_early_stop", true);
-} tree_params;
-
 } // namespace
 
 namespace powerserve {
 
-TokenTree::TokenTree() {
-    draft_sampler.append<TopKSampler>(draft_params.top_k);
-    draft_sampler.append<TemperatureSampler>(draft_params.temperature);
+TokenTree::TokenTree(const SpeculativeConfig &config) : config(config) {
+    draft_sampler.append<TopKSampler>(config.draft_sampler.top_k);
+    draft_sampler.append<TemperatureSampler>(config.draft_sampler.temperature);
     draft_sampler.append<SoftmaxSampler>();
 }
 
@@ -144,8 +132,8 @@ void TokenTree::draft(const ModelPtr &draft_model, const Tokenizer &tokenizer, s
 
         // Early terminate
         if (is_leaf || tokenizer.should_stop(node.token) ||
-            n_nodes + (tree_params.early_stop ? main_heap.size() / 2 : 0) >= batch_size ||
-            cumulative_prob < tree_params.min_prob) {
+            n_nodes + (config.token_tree.early_stop ? main_heap.size() / 2 : 0) >= batch_size ||
+            cumulative_prob < config.token_tree.min_prob) {
             continue;
         }
 
@@ -166,9 +154,9 @@ void TokenTree::draft(const ModelPtr &draft_model, const Tokenizer &tokenizer, s
         POWERSERVE_ASSERT(probs.m_is_normalized);
         POWERSERVE_ASSERT(probs.m_is_sorted);
 
-        float min_prob = probs[0].prob * draft_params.p_base;
+        float min_prob = probs[0].prob * config.draft_sampler.p_base;
         for (size_t i = 0; auto &item : probs) {
-            bool leaf_only = (i >= tree_params.max_fan_out || item.prob < min_prob);
+            bool leaf_only = (i >= config.token_tree.max_fan_out || item.prob < min_prob);
             i++;
 
             auto &heap = leaf_only ? leaf_heap : main_heap;
