@@ -17,11 +17,14 @@
 
 #include <cstdlib>
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) try {
     // 0. load config
     const powerserve::CommandLineArgument args = powerserve::parse_command_line("PowerServe CLI", argc, argv);
 
     simple_server_handler(args.work_folder, args.qnn_lib_folder, args.host, args.port);
 
     return 0;
+} catch (...) {
+
+    return 1;
 }

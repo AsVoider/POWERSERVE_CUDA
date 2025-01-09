@@ -26,7 +26,7 @@
 #include <memory>
 #include <string>
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) try {
     const powerserve::CommandLineArgument args = powerserve::parse_command_line("PowerServe CLI", argc, argv);
     const powerserve::Config config            = powerserve::get_config_from_argument(args);
 
@@ -152,4 +152,9 @@ int main(int argc, char *argv[]) {
         spec_model->print_stat();
     }
 #endif
+
+    return 0;
+} catch (...) {
+
+    return 1;
 }

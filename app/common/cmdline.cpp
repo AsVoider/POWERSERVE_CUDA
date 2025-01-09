@@ -14,6 +14,8 @@
 
 #include "cmdline.hpp"
 
+#include <exception>
+
 #ifdef POWERSERVE_WITH_QNN
 #include "backend/qnn/config.hpp"
 #endif // POWERSERVE_WITH_QNN
@@ -125,7 +127,7 @@ CommandLineArgument parse_command_line(const std::string_view program_name, int 
         app.parse(argc, argv);
     } catch (const CLI::ParseError &err) {
         app.exit(err);
-        throw std::invalid_argument("Failed to parse command line");
+        throw;
     }
 
     /*

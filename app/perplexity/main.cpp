@@ -60,7 +60,7 @@ void PerplexityCalculator::accept(powerserve::Token token) {
     current_ppl = std::exp(-m_logit_sum / n_tokens);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) try {
     // 0. load config
     const powerserve::CommandLineArgument args = powerserve::parse_command_line("PowerServe Speculative", argc, argv);
     powerserve::Config config                  = powerserve::get_config_from_argument(args);
@@ -134,4 +134,9 @@ int main(int argc, char *argv[]) {
         }
         batch_id += 1;
     }
+
+    return 0;
+} catch (...) {
+
+    return 1;
 }
