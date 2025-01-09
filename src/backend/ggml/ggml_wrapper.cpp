@@ -17,6 +17,8 @@
 
 namespace powerserve::ggml {
 
+using std::atomic_int;
+
 void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const {
     auto dst_tensor  = convert_to_ggml(dst);
     auto src0_tensor = convert_to_ggml(src0);

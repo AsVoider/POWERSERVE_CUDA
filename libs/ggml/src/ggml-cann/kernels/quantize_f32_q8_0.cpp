@@ -1,20 +1,14 @@
-// Copyright 2024-2025 PowerServe Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 #include "kernel_operator.h"
 
 using namespace AscendC;
+#ifdef ASCEND_310P // 310P not support f32->8bit quantization
+    extern "C" __global__ __aicore__ void ascendc_quantize_f32_q8_0(
+        GM_ADDR input_gm, GM_ADDR output_gm, GM_ADDR input_ne_gm,
+        GM_ADDR input_nb_gm, GM_ADDR output_ne_gm) {
+        // let following test cases can continue run, here just print error information. Of Cource the test case that call this operator is failed.
+        printf("Ascend310P not support f32->8bit quantization.\n");
+    }
+#else
 
 #define BUFFER_NUM 2
 #define QK8_0 32
@@ -218,3 +212,5 @@ extern "C" __global__ __aicore__ void ascendc_quantize_f32_q8_0(
     op.init(input_gm, output_gm, input_ne_ub, input_nb_ub, output_ne_ub);
     op.calculate();
 }
+
+#endif // #ifdef ASCEND_310P

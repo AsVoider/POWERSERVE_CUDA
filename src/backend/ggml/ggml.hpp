@@ -23,6 +23,8 @@
 #include "core/tensor.hpp"
 #include "core/thread_pool.hpp"
 #include "ggml.h"
+#include "ggml-cpu.h"
+#include "ggml-cpu-impl.h"
 #include "graph/node.hpp"
 
 #include <atomic>
@@ -32,6 +34,19 @@
 #include <vector>
 
 namespace powerserve::ggml {
+
+struct op_compute_params {
+        // ith = thread index, nth = number of threads
+        int ith, nth;
+
+        // work buffer for all threads
+        size_t wsize;
+        void * wdata;
+
+        void *thread_pool;
+        void (*barrier_fn)(void *thread_pool);
+        std::atomic_int *current_chunk;
+};
 
 static ggml_type convert_datatype_to_ggml(DataType dtp) {
     switch (dtp) {
@@ -172,7 +187,7 @@ static void debug_system_info(void) {
     s += "FP16_VA = " + std::to_string(ggml_cpu_has_fp16_va()) + " | ";
     s += "RISCV_VECT = " + std::to_string(ggml_cpu_has_riscv_v()) + " | ";
     s += "WASM_SIMD = " + std::to_string(ggml_cpu_has_wasm_simd()) + " | ";
-    s += "BLAS = " + std::to_string(ggml_cpu_has_blas()) + " | ";
+    // s += "BLAS = " + std::to_string(ggml_cpu_has_blas()) + " | ";
     s += "SSE3 = " + std::to_string(ggml_cpu_has_sse3()) + " | ";
     s += "SSSE3 = " + std::to_string(ggml_cpu_has_ssse3()) + " | ";
     s += "VSX = " + std::to_string(ggml_cpu_has_vsx()) + " | ";

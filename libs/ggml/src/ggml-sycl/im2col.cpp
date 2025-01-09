@@ -1,17 +1,3 @@
-// Copyright 2024-2025 PowerServe Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 //
 // MIT license
 // Copyright (C) 2024 Intel Corporation
@@ -134,6 +120,7 @@ void ggml_sycl_op_im2col(
         im2col_sycl(src1_dd, (float *)dst_dd, IW, IH, OW, OH, KW, KH, IC, batch, batch_offset, delta_offset, s0, s1, p0, p1, d0, d1, main_stream);
     }
 
-    (void) src0;
-    (void) src0_dd;
+    GGML_UNUSED(src0);
+    GGML_UNUSED(src0_dd);
+    GGML_UNUSED(ctx);
 }

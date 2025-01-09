@@ -1,17 +1,3 @@
-// Copyright 2024-2025 PowerServe Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 //
 // MIT license
 // Copyright (C) 2024 Intel Corporation
@@ -61,7 +47,7 @@ static void concat_f32_dim1(const float *x, const float *y, float *dst,
   // operation
   int offset_dst = nidx + item_ct1.get_group(1) * ne0 +
                    item_ct1.get_group(0) * ne0 * item_ct1.get_group_range(1);
-  if (item_ct1.get_group(1) < ne01) { // src0
+  if (item_ct1.get_group(1) < (size_t) ne01) { // src0
     int offset_src =
         nidx + item_ct1.get_group(1) * ne0 + item_ct1.get_group(0) * ne0 * ne01;
     dst[offset_dst] = x[offset_src];
@@ -84,7 +70,7 @@ static void concat_f32_dim2(const float *x, const float *y, float *dst,
   // operation
   int offset_dst = nidx + item_ct1.get_group(1) * ne0 +
                    item_ct1.get_group(0) * ne0 * item_ct1.get_group_range(1);
-  if (item_ct1.get_group(0) < ne02) { // src0
+  if (item_ct1.get_group(0) < (size_t) ne02) { // src0
     int offset_src = nidx + item_ct1.get_group(1) * ne0 +
                      item_ct1.get_group(0) * ne0 * item_ct1.get_group_range(1);
     dst[offset_dst] = x[offset_src];
@@ -120,6 +106,7 @@ static void concat_f32_sycl(const float *x, const float *y, float *dst,
           concat_f32_dim1(x, y, dst, ne0, ne01, item_ct1);
         });
     break;
+  // dim >=2 will be dispatched to the default path
   default:
     stream->parallel_for(
         sycl::nd_range<3>(gridDim *

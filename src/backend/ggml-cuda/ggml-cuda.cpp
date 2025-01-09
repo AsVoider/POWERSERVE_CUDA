@@ -63,7 +63,7 @@ void GGML_CUDABackend::matmul(Tensor *dst, const Tensor *src0, const Tensor *src
     ggml_tensor_dst->src[0] = ggml_tensor_src0.get();
     ggml_tensor_dst->src[1] = ggml_tensor_src1.get();
 
-    ggml_tensor_dst->op_params[15] = split ? 1 : 0;
+    ggml_tensor_dst->op_params[15] = split ? 1 : 0; // 16th param: split or not?
 
     op_interfaces::op_mat_mul(*warp, ggml_tensor_dst.get());
 }
@@ -172,6 +172,7 @@ void GGML_CUDABackend::silu_and_mul(Tensor *out, const Tensor *gate, const Tenso
 
     ggml_tensor_out->src[0] = ggml_tensor_gate.get();
     ggml_tensor_out->src[1] = ggml_tensor_up.get();
+    ggml_tensor_out->op_params[0] = 10; // first param: act method
 
     op_interfaces::op_silu_and_mul(*warp, ggml_tensor_out.get());
 }

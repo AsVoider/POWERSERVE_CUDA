@@ -1,17 +1,3 @@
-// Copyright 2024-2025 PowerServe Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 //
 // MIT license
 // Copyright (C) 2024 Intel Corporation
@@ -65,8 +51,8 @@ public:
         const auto a_in_md = dnnl::memory::desc(a_dims, at, a_trans ? tag::ba : tag::ab);
         const auto b_in_md = dnnl::memory::desc(b_dims, bt, b_trans ? tag::ba : tag::ab);
         const auto c_md = dnnl::memory::desc(c_dims, ct, tag::ab);
-        auto a_mem = dnnl::memory(a_in_md, eng, (void*)a);
-        auto b_mem = dnnl::memory(b_in_md, eng, (void*)b);
+        auto a_mem = dnnl::memory(a_in_md, eng, const_cast<void*>(a));
+        auto b_mem = dnnl::memory(b_in_md, eng, const_cast<void*>(b));
         auto matmul_pd = dnnl::matmul::primitive_desc(eng, a_in_md, b_in_md, c_md);
         auto c_mem = dnnl::memory(matmul_pd.dst_desc(), eng, c);
 
@@ -93,8 +79,8 @@ public:
         const auto a_in_md = dnnl::memory::desc(a_dims, at, a_trans ? tag::ba : tag::ab);
         const auto b_in_md = dnnl::memory::desc(b_dims, bt, b_trans ? tag::ba : tag::ab);
         const auto c_md = dnnl::memory::desc(c_dims, ct, tag::ab);
-        auto a_mem = dnnl::memory(a_in_md, eng, (void*)a);
-        auto b_mem = dnnl::memory(b_in_md, eng, (void*)b);
+        auto a_mem = dnnl::memory(a_in_md, eng, const_cast<void*>(a));
+        auto b_mem = dnnl::memory(b_in_md, eng, const_cast<void*>(b));
         auto matmul_pd = dnnl::matmul::primitive_desc(eng, a_in_md, b_in_md, c_md);
         auto c_mem = dnnl::memory(matmul_pd.dst_desc(), eng, c);
 

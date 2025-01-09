@@ -8,7 +8,7 @@ if (POWERSERVE_WITH_QNN)
     add_subdirectory(qnn)
 endif()
 
-if (SMART_WITH_CUDA)
+if (POWERSERVE_WITH_CUDA)
     unset(GGML_EXTRA_LIBS_PRIVATE)
     message("here cuda\n")
     find_package(CUDAToolkit)
@@ -114,7 +114,7 @@ if (SMART_WITH_CUDA)
     # add_subdirectory(ggml-cuda)
 endif()
 
-if (SMART_WITH_CUDA)
+if (POWERSERVE_WITH_CUDA)
     set(CUDA_FLAGS -use_fast_math)
 
     if (GGML_FATAL_WARNINGS)
@@ -160,7 +160,7 @@ if (SMART_WITH_CUDA)
     endif()
 endif()
 
-if (SMART_WITH_CUDA)
+if (POWERSERVE_WITH_CUDA)
     list(APPEND CUDA_CXX_FLAGS ${ARCH_FLAGS})
     list(JOIN   CUDA_CXX_FLAGS " " CUDA_CXX_FLAGS_JOINED)  # pass host compiler flags as a single argument
 
@@ -171,7 +171,7 @@ if (SMART_WITH_CUDA)
     add_compile_options("$<$<COMPILE_LANGUAGE:CUDA>:${CUDA_FLAGS}>")
 endif()
 
-if (SMART_WITH_CUDA) 
+if (POWERSERVE_WITH_CUDA) 
     target_include_directories(smart_serving PRIVATE ${PROJECT_SOURCE_DIR}/libs/ggml/src/ggml-cuda/)
     target_sources(smart_serving PRIVATE ${GGML_SOURCES_CUDA} ${GGML_HEADERS_CUDA})
     target_link_libraries(smart_serving PRIVATE ${GGML_EXTRA_LIBS_PRIVATE})

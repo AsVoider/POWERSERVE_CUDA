@@ -54,8 +54,6 @@ public:
 
     size_t get_kv_position(std::string &model_id) const;
     void reset_kv_position(std::string &model_id);
-    size_t get_kv_position() const;
-    void reset_kv_position();
 #ifdef SMART_WITH_CUDA
     void init_cuda_backend(const std::shared_ptr<LLMConfig> &config, const HyperParams &hparams);
 #endif

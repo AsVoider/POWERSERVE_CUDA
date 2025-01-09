@@ -1,17 +1,3 @@
-// Copyright 2024-2025 PowerServe Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 /*
  * Copyright (c) 2023-2024 The ggml authors
  *
@@ -225,22 +211,26 @@ struct ggml_cann_pool_alloc {
 struct ggml_backend_cann_context {
     int32_t device;                  /**< Device ID. */
     std::string name;                /**< Name of the device. */
+    std::string description;         /**< Description of the device. */
     aclrtEvent copy_event = nullptr; /**< Event for managing copy operations. */
 
-    aclrtStream streams[GGML_CANN_MAX_STREAMS] = {
-        {nullptr}}; /**< Array of streams for the device. */
+    aclrtStream streams[GGML_CANN_MAX_STREAMS] = {nullptr}; /**< Array of streams for the device. */
 
     /**
      * @brief Constructor for initializing the context with a given device.
      * @param device Device ID.
      */
     explicit ggml_backend_cann_context(int device)
-        : device(device), name("CANN" + std::to_string(device)) {}
+        : device(device), name("CANN" + std::to_string(device)) {
+        ggml_cann_set_device(device);
+        description = aclrtGetSocName();
+    }
 
     /**
      * @brief Destructor for cleaning up resources.
      */
     ~ggml_backend_cann_context() {
+        ggml_cann_set_device(device);
         if (copy_event != nullptr) {
             ACL_CHECK(aclrtDestroyEvent(copy_event));
         }

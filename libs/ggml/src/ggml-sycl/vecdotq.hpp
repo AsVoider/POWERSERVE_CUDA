@@ -1,17 +1,3 @@
-// Copyright 2024-2025 PowerServe Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 //
 // MIT license
 // Copyright (C) 2024 Intel Corporation
@@ -982,8 +968,8 @@ vec_dot_iq3_xxs_q8_1(const void *__restrict__ vbq,
             grid1[0] ^ signs[0], signs[0], std::minus<>());
         const int grid_h = dpct::vectorized_binary<sycl::uchar4>(
             grid2[0] ^ signs[1], signs[1], std::minus<>());
-        sumi = dpct::dp4a(grid_l, *((int *)q8 + 0), sumi);
-        sumi = dpct::dp4a(grid_h, *((int *)q8 + 1), sumi);
+        sumi = dpct::dp4a(grid_l, *((const int *)q8 + 0), sumi);
+        sumi = dpct::dp4a(grid_h, *((const int *)q8 + 1), sumi);
         q8 += 8;
         aux32 >>= 7;
     }
@@ -1023,8 +1009,8 @@ vec_dot_iq3_s_q8_1(const void *__restrict__ vbq,
             grid1[0] ^ signs0, signs0, std::minus<>());
         const int grid_h = dpct::vectorized_binary<sycl::uchar4>(
             grid2[0] ^ signs1, signs1, std::minus<>());
-        sumi = dpct::dp4a(grid_l, *((int *)q8 + 0), sumi);
-        sumi = dpct::dp4a(grid_h, *((int *)q8 + 1), sumi);
+        sumi = dpct::dp4a(grid_l, *((const int *)q8 + 0), sumi);
+        sumi = dpct::dp4a(grid_h, *((const int *)q8 + 1), sumi);
         q8 += 8;
     }
     const float d =

@@ -1,17 +1,3 @@
-// Copyright 2024-2025 PowerServe Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 #include "norm.hpp"
 
 template <bool vals_smem, int ncols_template, int block_size_template>
@@ -30,7 +16,7 @@ static void soft_max_f32(const float * x, const float * mask, float * dst, const
     const int lane_id = item_ct1.get_local_id(2) % WARP_SIZE;
     const int nthreads = block_size;
     const int nwarps = nthreads / WARP_SIZE;
-    int nreduce = nwarps / WARP_SIZE;
+    size_t nreduce = nwarps / WARP_SIZE;
     float slope = 1.0f;
 
     // ALiBi
@@ -67,8 +53,9 @@ static void soft_max_f32(const float * x, const float * mask, float * dst, const
     if (block_size > WARP_SIZE) {
         if (warp_id == 0) {
             buf[lane_id] = -INFINITY;
-            for (size_t i = 1; i < nreduce; i += 1)
+            for (size_t i = 1; i < nreduce; i += 1) {
                 buf[lane_id + i * WARP_SIZE] = -INFINITY;
+            }
         }
         item_ct1.barrier(sycl::access::fence_space::local_space);
 
@@ -77,8 +64,7 @@ static void soft_max_f32(const float * x, const float * mask, float * dst, const
         }
         item_ct1.barrier(sycl::access::fence_space::local_space);
         max_val = buf[lane_id];
-        for (size_t i = 1; i < nreduce; i += 1)
-        {
+        for (size_t i = 1; i < nreduce; i += 1) {
             max_val = std::max(max_val, buf[lane_id + i * WARP_SIZE]);
         }
         max_val = warp_reduce_max(max_val, item_ct1);
@@ -103,8 +89,9 @@ static void soft_max_f32(const float * x, const float * mask, float * dst, const
         item_ct1.barrier(sycl::access::fence_space::local_space);
         if (warp_id == 0) {
             buf[lane_id] = 0.f;
-            for (size_t i = 1; i < nreduce; i += 1)
+            for (size_t i = 1; i < nreduce; i += 1) {
                 buf[lane_id + i * WARP_SIZE] = 0.f;
+            }
         }
         item_ct1.barrier(sycl::access::fence_space::local_space);
 
@@ -114,8 +101,7 @@ static void soft_max_f32(const float * x, const float * mask, float * dst, const
         item_ct1.barrier(sycl::access::fence_space::local_space);
 
         tmp = buf[lane_id];
-        for (size_t i = 1; i < nreduce; i += 1)
-        {
+        for (size_t i = 1; i < nreduce; i += 1) {
             tmp += buf[lane_id + i * WARP_SIZE];
         }
         tmp = warp_reduce_sum(tmp, item_ct1);

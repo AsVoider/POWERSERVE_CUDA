@@ -1,17 +1,3 @@
-// Copyright 2024-2025 PowerServe Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 #include "convert.hpp"
 #include "dequantize.hpp"
 #include "presets.hpp"
@@ -438,7 +424,7 @@ static void convert_unary(const void * __restrict__ vx, dst_t * __restrict__ y, 
     const int64_t global_id = item_ct1.get_local_id(2) + work_group_size * item_ct1.get_group(2);
 
     // make each work-item deal with more elements since sycl global range can not exceed max int
-    const src_t * x = (src_t *) vx;
+    const src_t * x = (const src_t *) vx;
     for (int64_t i = global_id; i < k; i += work_group_size * item_ct1.get_group_range(2)) {
         y[i] = x[i];
     }
