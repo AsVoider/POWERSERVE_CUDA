@@ -108,12 +108,12 @@ int main(int argc, char *argv[]) {
     {
         iter = main_model->generate(tokenizer, sampler, args.prompt, args.num_predict, batch_size);
     }
+    prefill_end = powerserve::timestamp_ms();
 
     while (!iter->end()) {
         auto next = iter->next();
         if (!start) {
-            prefill_end = powerserve::timestamp_ms();
-            start       = true;
+            start = true;
             continue;
         }
         actual_predict += 1;

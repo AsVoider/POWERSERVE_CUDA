@@ -542,12 +542,12 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
     {
         iter = model.generate(tokenizer, sampler, input_prompt, max_num_token, batch_size);
     }
+    const size_t prefill_time_ms = timer.elapsed_time_ms();
 
     while (!iter->end()) {
         auto token = iter->next();
         step++;
         if (step == 1) {
-            const size_t prefill_time_ms = timer.elapsed_time_ms();
             POWERSERVE_LOG_INFO(
                 "prefill step: {}, prefill time: {}ms ({} token/s)",
                 num_prefill_token,
@@ -651,12 +651,12 @@ inline ModelOutput blocking_inference(
     {
         iter = model.generate(tokenizer, sampler, input_prompt, max_num_token, batch_size);
     }
+    const size_t prefill_time_ms = timer.elapsed_time_ms();
 
     while (!iter->end()) {
         auto token = iter->next();
         step++;
         if (step == 1) {
-            const size_t prefill_time_ms = timer.elapsed_time_ms();
             POWERSERVE_LOG_INFO(
                 "prefill step: {}, prefill time: {}ms ({} token/s)",
                 num_prefill_token,

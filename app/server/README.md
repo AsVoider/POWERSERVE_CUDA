@@ -3,7 +3,7 @@
 ## Usage
 
 Start a server:
-- `--model-folder`(optional): The folder of model workspace. When receiving a request specifying the model, it search firstly in this directory. For example, when I specify `--model-folder model`, it will search models in the directory **./model** if it exists. When I specify the model folder with such a request:
+- `--work-folder`(optional): The folder of model workspace. When receiving a request specifying the model, it search firstly in this directory. For example, when I specify `--work-folder model`, it will search models in the directory **./model** if it exists. When I specify the model folder with such a request:
     ```json
     {
         "model": "llama3.1-8b-instruct",
@@ -15,7 +15,7 @@ Start a server:
 - `--host`(optional): The IP address the server listen
 - `--port`(optional): The IP port the server listen
 ```shell
-./build/bin/server --model-folder model --host 127.0.0.1 --port 8080
+./build/bin/server --work-folder model --host 127.0.0.1 --port 8080
 ```
 
 Test the server simply:
@@ -39,6 +39,13 @@ Test the server simply:
         --url http://localhost:8080/v1/chat/completions \
         --header "Content-Type: application/json" \
         --data '{"stream": true, "messages": [{"role":"user", "content":"Once upon a time"}], "model": "llama3.1-8b-q8"}'
+    ```
+- Speculative chat: If you want server use speculative, please use '+' to connect 2 models.
+    ```shell
+    curl --request POST \
+        --url http://localhost:8080/v1/chat/completions \
+        --header "Content-Type: application/json" \
+        --data '{"stream": true, "messages": [{"role":"user", "content":"Once upon a time"}], "model": "llama3.1-8b+llama3.2-1b"}'
     ```
 
 ## OpenAI API

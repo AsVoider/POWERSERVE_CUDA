@@ -52,7 +52,7 @@ struct CommandLineArgument {
     /// Input prompt string
     std::string prompt = "Once upon a time";
 
-    /// The maximum lenght of output token list
+    /// The maximum length of output token list
     uint32_t num_predict = 16;
 
     /// The maximum number of tokens processed in one iteration
@@ -69,7 +69,7 @@ struct CommandLineArgument {
     SpeculativeConfig speculative_config;
 
     /*
-     * Server Configuratoin
+     * Server Configuration
      */
 
     /// The ip address the server to listen on
