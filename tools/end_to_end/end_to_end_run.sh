@@ -38,7 +38,7 @@ if [ "$speculation_enabled" == "yes" ]; then
             model2="Llama-3.2-1B-PowerServe-QNN29-${soc_name}"
             ;;
         2)
-            model1="SmallThinker-3B-PowerServe-Speculate-QNN29-${soc_name}"
+            model1="SmallThinker-3B-PowerServe-QNN29-${soc_name}"
             model2="SmallThinker-0.5B-PowerServe-QNN29-${soc_name}"
             ;;
         *)
@@ -77,20 +77,19 @@ fi
 echo "Debug checking: soc_name=$soc_name, speculation_enabled=$speculation_enabled, model1=$model1, model2=$model2, model=$model"
 
 # Check if the model exists
-# TODO: after open_sourced, remove this check.
-OPEN_SOURCE="NO"
+OPEN_SOURCE="YES"
 
 if [ "$OPEN_SOURCE" == "YES" ]; then
     if [ "$speculation_enabled" == "yes" ]; then
         for model in "$model1" "$model2"; do
-            link="https://huggingface.co/PowerInfer/${model}"
+            link="https://huggingface.co/PowerServe/${model}"
             if ! curl --output /dev/null --silent --head --fail "$link"; then
                 echo "Model $model does not exist"
                 exit 1
             fi
         done
     else
-        link="https://huggingface.co/PowerInfer/${model}"
+        link="https://huggingface.co/PowerServe/${model}"
         if ! curl --output /dev/null --silent --head --fail "$link"; then
             echo "Model $model does not exist"
             exit 1
@@ -112,14 +111,14 @@ if [ "$speculation_enabled" == "yes" ]; then
         if [ -d "/models/${model}" ]; then
             rm -rf "/models/${model}"
         fi
-        git clone "https://huggingface.co/PowerInfer/${model}"
+        git clone "https://huggingface.co/PowerServe/${model}"
     done
 else
     echo "Downloading model $model"
     if [ -d "/models/${model}" ]; then
         rm -rf "/models/${model}"
     fi
-    git clone "https://huggingface.co/PowerInfer/${model}"
+    git clone "https://huggingface.co/PowerServe/${model}"
 fi
 
 echo "Setting up NDK environment variable"
