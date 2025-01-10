@@ -95,6 +95,14 @@ auto cuda_context_warp::copy_memory_device_to_device_async(void *dst, void *src,
     } 
 }
 
+auto cuda_context_warp::device_memset(void *dst, int value, size_t size) -> int {
+    return static_cast<int>(cudaMemset(dst, value, size));
+}
+
+auto cuda_context_warp::device_memset_async(void *dst, int value, size_t size, void *stream_ptr) -> int {
+    return static_cast<int>(cudaMemsetAsync(dst, value, size, static_cast<cudaStream_t>(stream_ptr)));
+}
+
 op_interface op_interfaces::op_get_embedding = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
     if (ctx.ctx == nullptr) [[unlikely]] {
         exit(1);
@@ -332,4 +340,4 @@ op_interface op_interfaces::op_silu_and_mul = [] (cuda_context_warp &ctx, ggml_t
     activate_with_mul(cuda_context_ptr[0], dst);
 };
 
-} // namespace smart::ggml_cuda
+} // namespace powerserve::ggml_cuda

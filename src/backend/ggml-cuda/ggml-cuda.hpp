@@ -1,7 +1,6 @@
 #include "backend/backend.hpp"
 #include "backend/ggml-cuda/buffer.hpp"
-#include "core/config.hpp"
-#include "core/tensor.hpp"
+#include "backend/ggml-cuda/ggml-cuda_kv_cache.hpp"
 #include "ggml.h"
 
 #include <memory>
@@ -11,39 +10,7 @@
 
 namespace powerserve::ggml_cuda {
 
-static ggml_type convert_datatype_to_ggml(DataType dtp) {
-    switch (dtp) {
-    case DataType::FP32:
-        return GGML_TYPE_F32;
-    case DataType::FP16:
-        return GGML_TYPE_F16;
-    case DataType::GGML_Q4_0:
-        return GGML_TYPE_Q4_0;
-    case DataType::GGML_Q8_0:
-        return GGML_TYPE_Q8_0;
-    case DataType::INT32:
-        return GGML_TYPE_I32;
-    default:
-        POWERSERVE_ASSERT(false);
-    }
-}
-
-static DataType convert_datatype_from_ggml(ggml_type tp) {
-    switch (tp) {
-    case GGML_TYPE_F32:
-        return DataType::FP32;
-    case GGML_TYPE_F16:
-        return DataType::FP16;
-    case GGML_TYPE_Q4_0:
-        return DataType::GGML_Q4_0;
-    case GGML_TYPE_Q8_0:
-        return DataType::GGML_Q8_0;
-    default:
-        POWERSERVE_ASSERT(false);
-    }
-}
-
-static Tensor convert_from_ggml_with_data_copied(ggml_tensor *t) {
+Tensor convert_from_ggml_with_data_copied(ggml_tensor *t) {
     POWERSERVE_ASSERT(t != nullptr);
     Shape tensor_shape{static_cast<size_t>(t->ne[0]), static_cast<size_t>(t->ne[1]), static_cast<size_t>(t->ne[2]), static_cast<size_t>(t->ne[3])};
     Stride tensor_stride{t->nb[0], t->nb[1], t->nb[2], t->nb[3]};
@@ -57,7 +24,7 @@ static Tensor convert_from_ggml_with_data_copied(ggml_tensor *t) {
     return tensor;
 }
 
-static std::unique_ptr<ggml_tensor> convert_to_ggml_tensor(const Tensor *t) {
+std::unique_ptr<ggml_tensor> convert_to_ggml_tensor(const Tensor *t) {
     if (t == nullptr) {
         return nullptr;
     }
@@ -84,6 +51,7 @@ static std::unique_ptr<ggml_tensor> convert_to_ggml_tensor(const Tensor *t) {
 class GGML_CUDABackend : Backend {
 public:
     // op_compute_params m_params;
+    std::unique_ptr<GGML_CUDAKV> m_kv;
     cuda_context_warp *warp;
 
     explicit GGML_CUDABackend(const std::shared_ptr<ModelConfig::LLMConfig> &config, const HyperParams &hparams) : warp{new cuda_context_warp()} { }
@@ -177,4 +145,4 @@ public: // ! Mem Ops
     }
 };
 
-} // namespace smart::ggml-cuda
+} // namespace powerserve::ggml-cuda

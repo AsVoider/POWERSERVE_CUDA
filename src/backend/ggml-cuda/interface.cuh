@@ -22,6 +22,8 @@ public:
     // static inline auto malloc_host_buffer(void **ptr, size_t size) -> void const;
     // static inline auto free_host_buffer(void *ptr);
     static inline auto device_sync() -> int;
+    static auto device_memset(void *dst, int value, size_t size) -> int;
+    static auto device_memset_async(void *dst, int value, size_t size, void *stream_ptr) -> int;
 
     template <int type>
     static inline auto copy_memory(void *dst, void *src, size_t size) -> int {
@@ -79,4 +81,4 @@ public:
     static op_interface op_silu_and_mul;
 };
 
-} // namespace smart::ggml_cuda
+} // namespace powerserve::ggml_cuda

@@ -95,9 +95,9 @@ struct ModelConfig {
 
         uint32_t dim        = 0; // n_embd
         uint32_t hidden_dim = 0;
-        uint32_t n_layers   = 0;
-        uint32_t n_heads    = 0;
-        uint32_t n_kv_heads = 0;
+        uint32_t n_layers   = 0; //
+        uint32_t n_heads    = 0; //
+        uint32_t n_kv_heads = 0; // 
         uint32_t seq_len    = 0; // n_ctx_orig in rope
         uint32_t vocab_size = 0;
         uint32_t kv_dim     = 0; // head_size * n_kv_heads

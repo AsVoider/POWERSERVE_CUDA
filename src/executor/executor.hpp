@@ -58,7 +58,7 @@ private:
     }
 
     void convert_backend_buffer(Tensor &tensor) {
-        SMART_UNUSED(tensor);
+        POWERSERVE_UNUSED(tensor);
     }
 };
 

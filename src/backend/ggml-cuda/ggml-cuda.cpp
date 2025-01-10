@@ -1,7 +1,6 @@
 #include "ggml-cuda.hpp"
 
 #include "backend/ggml-cuda/buffer.hpp"
-#include "core/defines.hpp"
 
 #include "ggml.h"
 #include "ggml-quants.h"
@@ -205,4 +204,4 @@ void GGML_CUDABackend::transpose(Tensor *out, const Tensor *x) const {
     buffer_out.m_size = buffer_x.m_size;
 }
 
-} // namespace smart::ggml_cuda
+} // namespace powerserve::ggml_cuda

@@ -23,6 +23,7 @@
 
 namespace powerserve {
 
+// TODO: Modify this graph
 TensorNode *NormAttention::build(
     Graph &g,
     TensorNode *x, // {embd_dim, bs, 1, 1}

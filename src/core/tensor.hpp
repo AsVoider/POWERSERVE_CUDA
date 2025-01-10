@@ -43,7 +43,7 @@ public:
     }
 
     Tensor(DataType dtype, Shape &&shape) : m_dtype(dtype), m_shape(std::move(shape)) {
-        SMART_ASSERT(shape.size() <= max_n_dims);
+        POWERSERVE_ASSERT(shape.size() <= max_n_dims);
     }
 
 public:
