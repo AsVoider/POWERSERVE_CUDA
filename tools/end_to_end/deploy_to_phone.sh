@@ -12,8 +12,6 @@ then
     exit
 fi
 
-# 如果./proj里面有两个名称含PowerServe的文件夹，那么就是投机执行
-# 如果./proj里面有一个名称含PowerServe的文件夹，那么就是正常执行
 lines=$(ls ./proj | grep "PowerServe" | wc -l)
 if [ $lines -eq 2 ]
 then
@@ -30,7 +28,7 @@ adb push ./proj $TARGET_PATH/
 # TODO: add speculation flag
 # If speculation is not enabled, then we powerserve-run, else powerserve-speculate
 if [ "$speculation_flag" == "-s" ]
-    adb shell "$TARGET_PATH/proj/bin/powerserve-run -d $TARGET_PATH/proj"
+    adb shell "$TARGET_PATH/proj/bin/powerserve-run -d $TARGET_PATH/proj -n 100"
 else
-    adb shell "$TARGET_PATH/proj/bin/powerserve-run -d $TARGET_PATH/proj --use-spec"
+    adb shell "$TARGET_PATH/proj/bin/powerserve-run -d $TARGET_PATH/proj -n 100 --use-spec"
 fi

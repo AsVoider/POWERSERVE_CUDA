@@ -74,7 +74,7 @@ else
     esac
 fi
 
-echo "Debug checking: soc_name=$soc_name, speculation_enabled=$speculation_enabled, model1=$model1, model2=$model2, model=$model"
+# echo "Debug checking: soc_name=$soc_name, speculation_enabled=$speculation_enabled, model1=$model1, model2=$model2, model=$model"
 
 # Check if the model exists
 OPEN_SOURCE="YES"
@@ -84,14 +84,14 @@ if [ "$OPEN_SOURCE" == "YES" ]; then
         for model in "$model1" "$model2"; do
             link="https://huggingface.co/PowerServe/${model}"
             if ! curl --output /dev/null --silent --head --fail "$link"; then
-                echo "Model $model does not exist"
+                echo "Your connection with huggingface is not okay, or Model $model does not exist. (You may need a proxy?)"
                 exit 1
             fi
         done
     else
         link="https://huggingface.co/PowerServe/${model}"
         if ! curl --output /dev/null --silent --head --fail "$link"; then
-            echo "Model $model does not exist"
+            echo "Your connection with huggingface is not okay, or Model $model does not exist. (You may need a proxy?)"
             exit 1
         fi
     fi
@@ -103,7 +103,8 @@ mkdir -p /models
 cd /models
 
 echo "Now we are downloading the models from huggingface"
-echo "You may have to wait for a while, about 1 to 10 minutes according to your network speed"
+echo "You may have to wait for a while, about 2 to 10 minutes according to your network speed."
+echo "Wait patiently. :)"
 
 if [ "$speculation_enabled" == "yes" ]; then
     for model in "$model1" "$model2"; do
