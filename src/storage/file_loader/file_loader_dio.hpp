@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "core/exception.hpp"
 #include "core/logger.hpp"
 #include "fmt/core.h"
 #include "storage/file_loader.hpp"
@@ -75,7 +76,9 @@ public:
         struct stat file_stat;
         {
             const int ret = fstat(m_file_handle.m_fd, &file_stat);
-            POWERSERVE_ASSERT(ret == 0, "failed to fstat file {}", m_file_path);
+            if (ret != 0) [[unlikely]] {
+                throw EnvironmentException("FileLoaderDIO", fmt::format("failed to fstat file {}", m_file_path));
+            }
         }
 
         const size_t file_size = file_stat.st_size;
@@ -85,7 +88,11 @@ public:
          */
         const size_t aligned_file_size = align_ceil(file_size);
         std::byte *buffer_ptr          = new (std::align_val_t{BUFFER_ALIGNMENT}) std::byte[aligned_file_size];
-        POWERSERVE_ASSERT(buffer_ptr != nullptr, "failed to allocate buffer of size {}", aligned_file_size);
+        if (buffer_ptr == nullptr) [[unlikely]] {
+            throw EnvironmentException(
+                "FileLoaderDIO", fmt::format("failed to allocate buffer of size {}", aligned_file_size)
+            );
+        }
         m_buffer = {buffer_ptr, file_size};
 
         /*
@@ -93,13 +100,12 @@ public:
          */
         {
             const ssize_t ret = pread(m_file_handle.m_fd, buffer_ptr, aligned_file_size, 0);
-            POWERSERVE_ASSERT(
-                ret == static_cast<ssize_t>(file_size),
-                "failed to read {} bytes from file {} (ret = {})",
-                file_size,
-                m_file_path,
-                ret
-            );
+            if (ret != static_cast<ssize_t>(file_size)) [[unlikely]] {
+                throw EnvironmentException(
+                    "FileLoaderDIO",
+                    fmt::format("failed to read {} bytes from file {} (ret = {})", file_size, m_file_path, ret)
+                );
+            }
         }
     }
 

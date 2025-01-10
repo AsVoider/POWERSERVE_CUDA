@@ -14,7 +14,7 @@
 
 #include "core/config.hpp"
 
-#include "core/logger.hpp"
+#include "core/exception.hpp"
 #include "core/typedefs.hpp"
 #include "nlohmann/json.hpp"
 #include "uv.h"
@@ -29,6 +29,7 @@ namespace powerserve {
 HyperParams::HyperParams(const Path &params_file) {
     nlohmann::json j;
     std::ifstream file(params_file);
+    POWERSERVE_ASSERT_CONFIG(file.good(), "HyperConfig", "failed to open hparams config file {}", params_file);
 
     try {
         file >> j;
@@ -55,17 +56,20 @@ HyperParams::HyperParams(const Path &params_file) {
             sampler_config.ignore_eos      = sampler_j.value("ignore_eos", sampler_config.ignore_eos);
         }
     } catch (const std::exception &err) {
-        POWERSERVE_LOG_ERROR("failed parsing hyper param config file {}: {}", params_file, err.what());
+        throw ConfigException(
+            "HyperParams", fmt::format("failed parsing hyper param config file {}:\n{}", params_file, err.what())
+        );
     }
 }
 
 ModelConfig::ModelConfig(const Path &model_config_file) {
     nlohmann::json j;
     std::ifstream file(model_config_file);
-    POWERSERVE_ASSERT(file.good(), "failed to open model config file: {}", model_config_file);
-    file >> j;
+    POWERSERVE_ASSERT_CONFIG(file.good(), "ModelConfig", "failed to open model config file {}", model_config_file);
 
     try {
+        file >> j;
+
         j["version"].get_to(version);
         j["model_arch"].get_to(arch);
         j["model_id"].get_to(model_id);
@@ -106,16 +110,20 @@ ModelConfig::ModelConfig(const Path &model_config_file) {
             }
         }
     } catch (const std::exception &err) {
-        POWERSERVE_LOG_ERROR("failed parsing model config file {}: {}", model_config_file, err.what());
+        throw ConfigException(
+            "ModelConfig", fmt::format("failed parsing model config file {}:\n{}", model_config_file, err.what())
+        );
     }
 }
 
 Config::Config(const Path &work_folder, const Path &workspace_config_path) {
-    POWERSERVE_ASSERT(std::filesystem::is_directory(work_folder));
-    nlohmann::json j;
+    POWERSERVE_ASSERT_CONFIG(
+        std::filesystem::is_directory(work_folder), "Config", "work folder {} is not a directory", work_folder
+    );
     std::ifstream file(workspace_config_path);
-    POWERSERVE_ASSERT(file.good(), "failed to open workspace config file {}", workspace_config_path);
+    POWERSERVE_ASSERT_CONFIG(file.good(), "Config", "failed to open workspace config file {}", workspace_config_path);
 
+    nlohmann::json j;
     try {
         file >> j;
         if (j.contains(HYPER_PARAMS_FILENAME_KEY)) {
@@ -134,7 +142,9 @@ Config::Config(const Path &work_folder, const Path &workspace_config_path) {
             draft_model_dir = work_folder / j[DRAFT_MODEL_KEY].get<std::string>();
         }
     } catch (const std::exception &err) {
-        POWERSERVE_LOG_ERROR("failed parsing artifact config file {}: {}", workspace_config_path, err.what());
+        throw ConfigException(
+            "Config", fmt::format("failed parsing artifact config file {}:\n{}", workspace_config_path, err.what())
+        );
     }
 }
 } // namespace powerserve

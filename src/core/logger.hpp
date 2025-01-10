@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "exception.hpp"
 #include "fmt/base.h"
 #include "fmt/ranges.h"
 #include "fmt/std.h"
@@ -25,21 +26,32 @@
 
 // #define POWERSERVE_NO_ASSERT
 
+#ifndef POWERSERVE_LOG_DEBUG
 #define POWERSERVE_LOG_DEBUG(...) fmt::println(stdout, "[DEBUG] " __VA_ARGS__)
+#endif // POWERSERVE_LOG_DEBUG
 
+#ifndef POWERSERVE_LOG_INFO
 #define POWERSERVE_LOG_INFO(...) fmt::println(stdout, "[INFO ] " __VA_ARGS__)
+#endif // POWERSERVE_LOG_INFO
 
+#ifndef POWERSERVE_LOG_WARN
 #define POWERSERVE_LOG_WARN(...) fmt::println(stderr, "[WARN ] " __VA_ARGS__)
+#endif // POWERSERVE_LOG_WARN
 
+#ifndef POWERSERVE_LOG_ERROR
 #define POWERSERVE_LOG_ERROR(...) fmt::println(stderr, "[ERROR] " __VA_ARGS__)
+#endif // POWERSERVE_LOG_ERROR
 
+#ifndef POWERSERVE_LOG_EMPTY_LINE
 #define POWERSERVE_LOG_EMPTY_LINE()                                                                                    \
     {                                                                                                                  \
         fflush(stdout);                                                                                                \
         fflush(stderr);                                                                                                \
         fmt::println(stdout, "");                                                                                      \
     }
+#endif // POWERSERVE_LOG_EMPTY_LINE
 
+#ifndef POWERSERVE_ABORT
 #define POWERSERVE_ABORT(...)                                                                                          \
     do {                                                                                                               \
         fflush(stdout);                                                                                                \
@@ -49,10 +61,11 @@
         POWERSERVE_LOG_ERROR("System error: {}", ::powerserve::get_system_error());                                    \
         abort();                                                                                                       \
     } while (0)
+#endif // POWERSERVE_ABORT
 
 #if defined(POWERSERVE_NO_ASSERT)
 #define POWERSERVE_ASSERT(expr) POWERSERVE_UNUSED(expr)
-#else
+#elif !defined(POWERSERVE_ASSERT)
 #define POWERSERVE_ASSERT(expr, ...)                                                                                   \
     do {                                                                                                               \
         if (!(expr)) [[unlikely]] {                                                                                    \
@@ -64,37 +77,12 @@
             abort();                                                                                                   \
         }                                                                                                              \
     } while (0)
-#endif
+#endif // POWERSERVE_ASSERT
 
 namespace powerserve {
 
 inline void print_timestamp() {
     POWERSERVE_LOG_INFO("Compiled on: {} at {}", __DATE__, __TIME__);
-}
-
-inline std::string get_system_error() {
-#ifdef _WIN32
-    // TODO: include windows headers
-    const DWORD error = getLastError();
-    LPSTR buf;
-    size_t size = FormatMessageA(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-        NULL,
-        err,
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (LPSTR)&buf,
-        0,
-        NULL
-    );
-    if (!size) {
-        return "FormatMessageA failed";
-    }
-    std::string ret(buf, size);
-    LocalFree(buf);
-    return ret;
-#else
-    return {strerror(errno)};
-#endif
 }
 
 inline std::string abbreviation(std::string text, size_t limit) {

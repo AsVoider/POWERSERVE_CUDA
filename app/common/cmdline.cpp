@@ -126,8 +126,8 @@ CommandLineArgument parse_command_line(const std::string_view program_name, int 
     try {
         app.parse(argc, argv);
     } catch (const CLI::ParseError &err) {
-        app.exit(err);
-        throw;
+        const int ret = app.exit(err);
+        exit(ret);
     }
 
     /*

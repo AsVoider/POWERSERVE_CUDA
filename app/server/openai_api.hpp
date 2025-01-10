@@ -288,7 +288,20 @@ inline void handler_completion(ServerContext &server_context, const T_Request &r
 
                 // fetch result from queue
                 ServerSession &session = server_context.get_session(session_id);
-                session.init([&] { completion(server_context, session); });
+                session.init([&] {
+                    try {
+                        completion(server_context, session);
+                    } catch (const std::exception &err) {
+                        // Enqueue error message
+                        const std::string reason = err.what();
+                        session.m_result_queue.enqueue(
+                            {.m_text             = reason,
+                             .m_input_num_token  = 0,
+                             .m_output_num_token = 0,
+                             .m_stop_reason      = "exception"}
+                        );
+                    }
+                });
 
                 while (true) {
                     const auto result = session.fetch_result();
@@ -365,7 +378,20 @@ inline void handler_chat(ServerContext &server_context, const T_Request &request
 
                 // fetch result from queue
                 ServerSession &session = server_context.get_session(session_id);
-                session.init([&] { chat(server_context, session); });
+                session.init([&] {
+                    try {
+                        chat(server_context, session);
+                    } catch (const std::exception &err) {
+                        // Enqueue error message
+                        const std::string reason = err.what();
+                        session.m_result_queue.enqueue(
+                            {.m_text             = reason,
+                             .m_input_num_token  = 0,
+                             .m_output_num_token = 0,
+                             .m_stop_reason      = "exception"}
+                        );
+                    }
+                });
 
                 while (true) {
                     const auto result = session.fetch_result();
