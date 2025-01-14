@@ -3,6 +3,7 @@
 #include "backend/ggml-cuda/cuda-ops/mat_mul.cuh"
 
 #include "cuda-ops/activation.cuh"
+#include "cuda-ops/copy_ext.cuh"
 #include "common.cuh"
 #include "cpy.cuh"
 #include "softmax.cuh"
@@ -346,6 +347,8 @@ op_interface op_interfaces::op_append_v_cache = [] (cuda_context_warp &ctx, ggml
     }
 
     auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
-}
+
+    copy_permuted_v_cache(cuda_context_ptr[0], dst);
+};
 
 } // namespace powerserve::ggml_cuda

@@ -1703,6 +1703,37 @@ inline static void ggml_vec_scale_f32(const int n, float * y, const float   v) {
 #endif
 }
 
+inline static void ggml_vec_scale_f32_weight(const int n, float * y, const float * w, const float v) {
+// #if defined(GGML_USE_ACCELERATE)
+//     vDSP_vsmul(y, 1, &v, y, 1, n);
+// #elif defined(GGML_SIMD)
+//     const int np = (n & ~(GGML_F32_STEP - 1));
+
+//     GGML_F32_VEC vx = GGML_F32_VEC_SET1(v);
+
+//     GGML_F32_VEC ay[GGML_F32_ARR];
+
+//     for (int i = 0; i < np; i += GGML_F32_STEP) {
+//         for (int j = 0; j < GGML_F32_ARR; j++) {
+//             ay[j] = GGML_F32_VEC_LOAD(y + i + j*GGML_F32_EPR);
+//             ay[j] = GGML_F32_VEC_MUL(ay[j], vx);
+
+//             GGML_F32_VEC_STORE(y + i + j*GGML_F32_EPR, ay[j]);
+//         }
+//     }
+
+//     // leftovers
+//     for (int i = np; i < n; ++i) {
+//         y[i] *= v;
+//     }
+// #else
+    // scalar
+    for (int i = 0; i < n; ++i) {
+        y[i] *= (w[i] * v);
+    }
+// #endif
+}
+
 inline static void ggml_vec_scale_f16(const int n, ggml_fp16_t * y, const float v) {
 #if defined(GGML_SIMD)
     const int np = (n & ~(GGML_F16_STEP - 1));
