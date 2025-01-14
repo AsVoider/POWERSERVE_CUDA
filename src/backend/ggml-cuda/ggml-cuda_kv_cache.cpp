@@ -49,20 +49,20 @@ auto GGML_CUDAKV::clear_cache(size_t trunc_idx) -> void {
     }
 }
 
-auto GGML_CUDAKV::append_k_cache(const void *k_data, size_t layer_id, size_t token_nums) -> void {
+auto GGML_CUDAKV::append_k_cache(const Tensor *k_tensor, size_t layer_id, size_t token_nums) -> void {
     const size_t target_size{kv_shape.get_k_size(token_nums)};
     auto dst_ptr{reinterpret_cast<void *>(k_cache[layer_id].cache_data_ptr + k_cache[layer_id].next_position)};
-    auto src_ptr{const_cast<void *>(k_data)};
+    auto src_ptr{const_cast<void *>(k_tensor->get<Buffer_CUDA>().m_data_cuda)};
     cuda_context_warp::copy_memory<3>(dst_ptr, src_ptr, target_size);
     k_cache[layer_id].next_position += target_size;
     k_cache[layer_id].valid_idx += token_nums;
 }
 
-auto GGML_CUDAKV::append_v_cache(const void *v_data, size_t layer_id, size_t token_nums) -> void {
+auto GGML_CUDAKV::append_v_cache(const Tensor *v_tensor, size_t layer_id, size_t token_nums) -> void {
     if (kv_shape.flash_attn == true) {
         const size_t target_size{kv_shape.get_v_size(token_nums)};
         auto dst_ptr{reinterpret_cast<void *>(v_cache[layer_id].cache_data_ptr + v_cache[layer_id].next_position)};
-        auto src_ptr{const_cast<void *>(v_data)};
+        auto src_ptr{const_cast<void *>(v_tensor->get<Buffer_CUDA>().m_data_cuda)};
         cuda_context_warp::copy_memory<3>(dst_ptr, src_ptr, target_size);
         v_cache[layer_id].next_position += target_size;
         v_cache[layer_id].valid_idx += token_nums;

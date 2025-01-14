@@ -41,8 +41,8 @@ public:
 public:
     auto get_cache(size_t layer_id) -> std::pair<Tensor *, Tensor *>;
     auto clear_cache(size_t trunc_idx) -> void;
-    auto append_k_cache(const void *k_data, size_t layer_id, size_t token_nums) -> void;
-    auto append_v_cache(const void *v_data, size_t layer_id, size_t token_nums) -> void;
+    auto append_k_cache(const Tensor *k_tensor, size_t layer_id, size_t token_nums) -> void;
+    auto append_v_cache(const Tensor *v_tensor, size_t layer_id, size_t token_nums) -> void;
     auto get_k_cache_tensor(size_t layer_id) -> Tensor *;
     auto get_v_cache_tensor(size_t layer_id) -> Tensor *;
 
