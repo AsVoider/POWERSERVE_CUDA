@@ -239,7 +239,7 @@ public:
 /// @note  Most of the time, we cannot handle this exception and have to abort the program.
 /// However, in some scenary, there may be some application laid on this framework. Therefore,
 /// we still need to inform these apps with detailed information to aid fixing the error manually
-/// (e.g. assign more priviledge) instead of printing meaningless assert.
+/// (e.g. assign more privilege) instead of printing meaningless assert.
 ///
 class EnvironmentException final : public BasicException {
 public:

@@ -203,12 +203,10 @@ public:
             .current_chunk = nullptr,
         };
 
-        std::vector<ThreadConfig> thread_configs;
         for (int i = 0; i < num_threads; i++) {
-            thread_configs.emplace_back(ThreadConfig{.cpu_ids = {(size_t)i}});
+            m_thread_config.emplace_back(ThreadConfig{});
         }
-        m_thread_pool = std::make_unique<ThreadPool>(thread_configs);
-        m_kv          = std::make_unique<GGMLKV>(config);
+        m_kv = std::make_unique<GGMLKV>(config);
     }
 
     ~GGMLBackend() override = default;
@@ -242,8 +240,11 @@ public:
 public:
     void plan(std::vector<std::shared_ptr<OpNode>> &ops);
     void setup_work_data(size_t work_size);
+    void setup_threadpool();
+    void reset_threadpool();
 
 private:
+    std::vector<ThreadConfig> m_thread_config;
     std::unique_ptr<ThreadPool> m_thread_pool;
     std::atomic<int> m_current_chunk = 0;
 };

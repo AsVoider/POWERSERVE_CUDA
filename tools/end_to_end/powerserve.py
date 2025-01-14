@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import argparse
-import subprocess
 import os
+import subprocess
 import sys
+from subprocess import DEVNULL
+
 import requests
 from huggingface_hub import snapshot_download
 from subprocess import DEVNULL
@@ -31,6 +33,7 @@ SPECULATION_MAP = {
 
 SUPPORTED_MODELS = list(MODEL_MAP.keys())
 MODELS_WITH_SPECULATION = list(SPECULATION_MAP.keys())
+
 
 def check_network_connectivity(url):
     try:
