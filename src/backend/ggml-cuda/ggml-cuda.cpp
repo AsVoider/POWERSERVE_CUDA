@@ -185,10 +185,21 @@ void GGML_CUDABackend::copy(Tensor *out, const Tensor *src) const {
 
 void GGML_CUDABackend::print(const Tensor *x, size_t rows) const {
     // SMART_UNUSED(size);
-    POWERSERVE_ASSERT((rows and 0xFFFF'8000) == 0); // for safe convert
+    POWERSERVE_ASSERT((rows & 0xFFFF'8000) == 0); // for safe convert
     auto ggml_tensor_to_print{convert_to_ggml_tensor(x)};
     ggml_tensor_to_print->op_params[0] = static_cast<int>(rows);
     op_interfaces::op_print(*warp, ggml_tensor_to_print.get());
+}
+
+void GGML_CUDABackend::append_kv_cache(const Tensor *src, const size_t layer_id, const size_t token_num, bool is_k_cache) {
+    POWERSERVE_ASSERT(src->m_dtype == DataType::FP32);
+
+    auto data_ptr{src->get<Buffer_CUDA>().m_data_cuda};
+    if (is_k_cache) {
+        m_kv->append_k_cache(data_ptr, layer_id, token_num);
+    } else {
+        m_kv->append_v_cache(data_ptr, layer_id, token_num);
+    }
 }
 
 void GGML_CUDABackend::transpose(Tensor *out, const Tensor *x) const {

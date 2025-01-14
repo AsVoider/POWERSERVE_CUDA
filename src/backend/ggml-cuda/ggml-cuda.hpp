@@ -54,7 +54,9 @@ public:
     std::unique_ptr<GGML_CUDAKV> m_kv;
     cuda_context_warp *warp;
 
-    explicit GGML_CUDABackend(const std::shared_ptr<ModelConfig::LLMConfig> &config, const HyperParams &hparams) : warp{new cuda_context_warp()} { }
+    explicit GGML_CUDABackend(const std::shared_ptr<ModelConfig::LLMConfig> &config, const HyperParams &hparams) : warp{new cuda_context_warp()} {
+        m_kv = std::make_unique<GGML_CUDAKV>(config);
+    }
 
     ~GGML_CUDABackend() override = default;
 
@@ -72,7 +74,7 @@ public: // ! Math Ops
     void copy(Tensor *out, const Tensor *src) const;    
     void print(const Tensor *x, size_t size = 0UL) const;
     // void reset_kv_batch_size(const size_t batch_size) const;
-    // void add_cache(const Tensor *src, size_t L, const std::vector<int> &pos, size_t head_id, bool is_k);
+    void append_kv_cache(const Tensor *src, const size_t layer_id, const size_t token_num, bool is_k_cache);
     void transpose(Tensor *out, const Tensor *x) const;
 
 public: // ! Mem Ops
@@ -113,17 +115,7 @@ public: // ! Mem Ops
         }
 
         if constexpr (D_Type == DataType::FP16) {
-            // half *mem_buffer = new half[n_rows * x.m_shape[0]];
-            // cudaMemcpy(mem_buffer, x.get<Buffer_CUDA>().m_data_cuda, n_rows * x.m_shape[0] * sizeof(half), cudaMemcpyDeviceToHost);
             
-            // for (size_t i{0UL}; i < n_rows; ++i) {
-            //     for (size_t j{0UL}; j < x.m_shape[0]; ++j) {
-            //         auto num_to_print{static_cast<float>(mem_buffer[j + i * x.m_shape[0]])};
-            //         printf("%f ", num_to_print);
-            //     }
-            //     printf("\n");
-            // }
-            // printf("\n\n");
         } else if constexpr (D_Type == DataType::FP32) {
             float *mem_buffer = new float[n_rows * x.m_shape[0]];
             // cudaMemcpy(mem_buffer, x.get<Buffer_CUDA>().m_data_cuda, n_rows * x.m_shape[0] * sizeof(float), cudaMemcpyDeviceToHost);

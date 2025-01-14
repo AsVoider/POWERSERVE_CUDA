@@ -39,16 +39,17 @@ public:
     ~GGML_CUDAKV() = default;
 
 public:
-    auto get_k_cache_tensor(size_t layer_id) -> Tensor *;
-    auto get_v_cache_tensor(size_t layer_id) -> Tensor *;
-    auto init_cache() -> void;
+    auto get_cache(size_t layer_id) -> std::pair<Tensor *, Tensor *>;
     auto clear_cache(size_t trunc_idx) -> void;
-
-private:
-    auto get_k_cache(size_t layer_id) -> uint8_t *;
-    auto get_v_cache(size_t layer_id) -> uint8_t *;
     auto append_k_cache(const void *k_data, size_t layer_id, size_t token_nums) -> void;
     auto append_v_cache(const void *v_data, size_t layer_id, size_t token_nums) -> void;
+    auto get_k_cache_tensor(size_t layer_id) -> Tensor *;
+    auto get_v_cache_tensor(size_t layer_id) -> Tensor *;
+
+private:
+    auto init_cache() -> void;
+    auto get_k_cache(size_t layer_id) -> uint8_t *;
+    auto get_v_cache(size_t layer_id) -> uint8_t *;
 };
 
 } // namespace powerinfer::ggml_cuda
