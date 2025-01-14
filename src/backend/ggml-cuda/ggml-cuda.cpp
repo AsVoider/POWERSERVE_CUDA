@@ -194,11 +194,23 @@ void GGML_CUDABackend::print(const Tensor *x, size_t rows) const {
 void GGML_CUDABackend::append_kv_cache(const Tensor *src, const size_t layer_id, const size_t token_num, bool is_k_cache) {
     POWERSERVE_ASSERT(src->m_dtype == DataType::FP32);
 
-    auto data_ptr{src->get<Buffer_CUDA>().m_data_cuda};
     if (is_k_cache) {
-        m_kv->append_k_cache(data_ptr, layer_id, token_num);
+        m_kv->append_k_cache(src, layer_id, token_num);
     } else {
-        m_kv->append_v_cache(data_ptr, layer_id, token_num);
+        if (m_kv->kv_shape.flash_attn) {
+            m_kv->append_v_cache(src, layer_id, token_num);
+        } else {
+            auto ggml_tensor_dst{new ggml_tensor()}, ggml_tensor_src{new ggml_tensor()};
+            ggml_tensor_dst->data = m_kv->v_cache[layer_id].cache_data_ptr;
+            ggml_tensor_src->data = src->get<Buffer_CUDA>().m_data_cuda;
+
+            ggml_tensor_dst->op_params[0] = static_cast<int32_t>(m_kv->kv_shape.n_ctx);
+            ggml_tensor_dst->op_params[1] = static_cast<int32_t>(m_kv->v_cache[layer_id].valid_idx);
+            ggml_tensor_dst->op_params[2] = static_cast<int32_t>(m_kv->kv_shape.kv_dim);
+            ggml_tensor_dst->op_params[3] = static_cast<int32_t>(token_num);
+            ggml_tensor_dst->src[0] = ggml_tensor_src;
+            op_interfaces::op_append_v_cache(*warp, ggml_tensor_dst);
+        }
     }
 }
 

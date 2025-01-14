@@ -340,4 +340,12 @@ op_interface op_interfaces::op_silu_and_mul = [] (cuda_context_warp &ctx, ggml_t
     activate_with_mul(cuda_context_ptr[0], dst);
 };
 
+op_interface op_interfaces::op_append_v_cache = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
+    if (ctx.ctx == nullptr) [[unlikely]] {
+        exit(1);
+    }
+
+    auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
+}
+
 } // namespace powerserve::ggml_cuda

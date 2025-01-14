@@ -79,6 +79,7 @@ public:
     static op_interface op_copy;
     static op_interface op_print;
     static op_interface op_silu_and_mul;
+    static op_interface op_append_v_cache;
 };
 
 } // namespace powerserve::ggml_cuda
