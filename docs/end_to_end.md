@@ -1,9 +1,8 @@
-1. `git clone --recurse-submodules https://ipads.se.sjtu.edu.cn:1312/smartserving/smartserving.git`
-<!-- TODO: change this link to github -->
+1. `git clone --recurse-submodules https://github.com/powerserve-project/PowerServe`
+
 If you have cloned the repository without `--recurse-submodules`, you can run `git submodule update --init --recursive` to get the submodules.
 
-2. `cd smartserving`
-<!-- TODO: change this to powerserve -->
+2. `cd PowerServe`
 Please make sure you locates in the powerserve directory.
 
 3. `sudo docker run -v "$(pwd):/code" -w /code -it santoxin/mobile-build:v1.1 /bin/bash`

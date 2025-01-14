@@ -17,7 +17,6 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   IMAGE_NAME: ubuntu:22.04
   CONTAINER_NAME: ndk
-  HF_TOKEN: "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"
   BUILD_ROOT: "/root"
   QNN_SDK_26_ROOT: "/opt/qcom/aistack/qairt/2.26.0.240828"
   QNN_SDK_27_ROOT: "/opt/qcom/aistack/qairt/2.27.7.241014"

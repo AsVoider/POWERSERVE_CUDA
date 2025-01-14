@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "CLI/CLI.hpp"
+#include "cmdline.hpp"
 #include "core/logger.hpp"
 #include "core/timer.hpp"
 #include "model/model_loader.hpp"
@@ -21,89 +21,43 @@
 #include "speculative/spec_model.hpp"
 #include "tokenizer/tokenizer.hpp"
 
+#include <cstddef>
 #include <cstdlib>
 #include <memory>
 #include <string>
 
 int main(int argc, char *argv[]) {
-    powerserve::print_timestamp();
+    const powerserve::CommandLineArgument args = powerserve::parse_command_line("PowerServe CLI", argc, argv);
+    const powerserve::Config config            = powerserve::get_config_from_argument(args);
 
-    std::string work_folder;
-    std::string prompt      = "One day,";
-    std::string prompt_file = "";
-    int n_predicts          = 128;
-    bool no_qnn             = false;
-    bool use_spec           = false;
-    powerserve::SpeculativeConfig speculative_config;
-
-    CLI::App app("Demo program for LLM");
-
-    app.add_option("-d,--work-folder", work_folder, "Set the working folder (required).")->required();
-    app.add_option("-n,--n_predicts", n_predicts, "Specify the number of predictions to make.");
-    app.add_flag("--no-qnn", no_qnn, "Disable QNN processing.");
-#if defined(POWERSERVE_WITH_QNN)
-    app.add_flag("--use-spec", use_spec, "Use QNN speculative decode.");
-
-    app.add_option("--draft-batch-size", speculative_config.draft_batch_size)->capture_default_str();
-    app.add_option("--draft-sampler-top-k", speculative_config.draft_sampler.top_k)->capture_default_str();
-    app.add_option("--draft-sampler-temperature", speculative_config.draft_sampler.temperature)->capture_default_str();
-    app.add_option("--draft-sampler-p-base", speculative_config.draft_sampler.p_base)->capture_default_str();
-    app.add_option("--token-tree-max-fan-out", speculative_config.token_tree.max_fan_out)->capture_default_str();
-    app.add_option("--token-tree-min-prob", speculative_config.token_tree.min_prob)->capture_default_str();
-    app.add_option("--token-tree-early-stop", speculative_config.token_tree.early_stop)->capture_default_str();
-#endif
-
-    CLI::Option_group *prompt_group =
-        app.add_option_group("Prompt Options", "Choose either prompt or prompt-file, not both.");
-    auto prompt_opt      = prompt_group->add_option("-p,--prompt", prompt);
-    auto prompt_file_opt = prompt_group->add_option("-f,--prompt-file", prompt_file);
-    prompt_group->require_option(0, 1);
-
-    CLI11_PARSE(app, argc, argv);
-
-    if (prompt_file != "") {
-        std::ifstream f(prompt_file);
-        if (f.is_open()) {
-            std::ostringstream oss;
-            oss << f.rdbuf();
-            prompt = oss.str();
-            f.close();
-        } else {
-            POWERSERVE_ASSERT(false, "failed to open prompt file: {}", prompt_file);
-        }
-    }
-
-    auto config = std::make_shared<powerserve::Config>(
-        work_folder, powerserve::Path(work_folder) / powerserve::WORKSPACE_CONFIG_FILENAME
-    );
-    std::shared_ptr<powerserve::Model> main_model =
-        powerserve::load_model(config->main_model_dir, config->main_model_config);
+    std::shared_ptr<powerserve::Model> main_model  = powerserve::load_model(config.main_model_dir);
     std::shared_ptr<powerserve::Model> draft_model = nullptr;
-    if (use_spec) {
-        draft_model = powerserve::load_model(config->draft_model_dir, config->draft_model_config);
+    if (args.use_spec) {
+        draft_model = powerserve::load_model(config.draft_model_dir);
     }
     POWERSERVE_LOG_INFO("after model init: {}", powerserve::perf_get_mem_result());
 
-    auto [sampler_config, n_threads, batch_size] = config->hyper_params;
-    main_model->m_platform                       = std::make_shared<powerserve::Platform>();
-    auto &platform                               = main_model->m_platform;
-    platform->init_ggml_backend(main_model->m_config, config->hyper_params);
+    const auto [sampler_config, n_threads, batch_size] = config.hyper_params;
+    main_model->m_platform                             = std::make_shared<powerserve::Platform>();
+    auto &platform                                     = main_model->m_platform;
 
-    if (use_spec) {
+    platform->init_ggml_backend(main_model->m_config, config.hyper_params);
+
+    if (args.use_spec) {
         draft_model->m_platform = platform;
-        platform->init_ggml_backend(draft_model->m_config, config->hyper_params);
+        platform->init_ggml_backend(draft_model->m_config, config.hyper_params);
     }
 
 #if defined(POWERSERVE_WITH_QNN)
-    if (!no_qnn) {
-        main_model->m_platform->init_qnn_backend(powerserve::Path(work_folder) / powerserve::qnn::QNN_LIB_DIR_NAME);
+    if (!args.no_qnn) {
         auto &qnn_backend = main_model->m_platform->qnn_backend;
-        qnn_backend->load_model(config->main_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, main_model->m_config);
+        main_model->m_platform->init_qnn_backend(args.qnn_lib_folder);
+        qnn_backend->load_model(config.main_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, main_model->m_config);
         main_model->kv_cache = platform->qnn_backend->m_models[main_model->m_config->model_id]->kv_cache.get();
 
-        if (use_spec) {
+        if (args.use_spec) {
             qnn_backend->load_model(
-                config->draft_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, draft_model->m_config
+                config.draft_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, draft_model->m_config
             );
             draft_model->kv_cache = platform->qnn_backend->m_models[draft_model->m_config->model_id]->kv_cache.get();
         }
@@ -112,13 +66,13 @@ int main(int argc, char *argv[]) {
     POWERSERVE_LOG_INFO("after platform init: {}", powerserve::perf_get_mem_result());
 
     main_model->m_attn = std::make_shared<powerserve::NormAttention>(main_model->m_config->llm, main_model->m_weights);
-    if (use_spec) {
+    if (args.use_spec) {
         draft_model->m_attn =
             std::make_shared<powerserve::NormAttention>(draft_model->m_config->llm, draft_model->m_weights);
     }
     POWERSERVE_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
 
-    std::string tokenizer_path = config->main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
+    const std::string tokenizer_path = config.main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
     powerserve::Tokenizer tokenizer(tokenizer_path);
     POWERSERVE_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
@@ -126,9 +80,9 @@ int main(int argc, char *argv[]) {
     POWERSERVE_LOG_INFO("after sampler init: {}", powerserve::perf_get_mem_result());
 
     {
-        POWERSERVE_LOG_INFO("prompt      : {:?}", powerserve::abbreviation(prompt, 50));
-        POWERSERVE_LOG_INFO("n_predicts       : {}", n_predicts);
-        POWERSERVE_LOG_INFO("model arch  : {}", config->main_model_config->arch);
+        POWERSERVE_LOG_INFO("prompt      : {:?}", powerserve::abbreviation(args.prompt, 50));
+        POWERSERVE_LOG_INFO("n_predicts  : {}", args.num_predict);
+        POWERSERVE_LOG_INFO("model arch  : {}", main_model->m_config->arch);
         POWERSERVE_LOG_INFO("n_threads   : {}", n_threads);
     }
 
@@ -138,7 +92,7 @@ int main(int argc, char *argv[]) {
     long decode_end    = 0;
     bool start         = false;
     int actual_predict = 0;
-    for (auto prompt_token : tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos)) {
+    for (const powerserve::Token prompt_token : tokenizer.tokenize(args.prompt, tokenizer.m_vocab.tokenizer_add_bos)) {
         fmt::print("{}", tokenizer.to_string(prompt_token, false));
     }
     prefill_start = powerserve::timestamp_ms();
@@ -146,20 +100,20 @@ int main(int argc, char *argv[]) {
     std::shared_ptr<powerserve::TokenIterator> iter = nullptr;
 #if defined(POWERSERVE_WITH_QNN)
     std::shared_ptr<powerserve::SpeculativeModel> spec_model = nullptr;
-    if (use_spec) {
-        spec_model = std::make_shared<powerserve::SpeculativeModel>(main_model, draft_model, speculative_config);
-        iter       = spec_model->generate(tokenizer, sampler, prompt, n_predicts, batch_size);
+    if (args.use_spec) {
+        spec_model = std::make_shared<powerserve::SpeculativeModel>(main_model, draft_model, args.speculative_config);
+        iter       = spec_model->generate(tokenizer, sampler, args.prompt, args.num_predict, batch_size);
     } else
 #endif
     {
-        iter = main_model->generate(tokenizer, sampler, prompt, n_predicts, batch_size);
+        iter = main_model->generate(tokenizer, sampler, args.prompt, args.num_predict, batch_size);
     }
+    prefill_end = powerserve::timestamp_ms();
 
     while (!iter->end()) {
         auto next = iter->next();
         if (!start) {
-            prefill_end = powerserve::timestamp_ms();
-            start       = true;
+            start = true;
             continue;
         }
         actual_predict += 1;
@@ -176,13 +130,13 @@ int main(int argc, char *argv[]) {
     fmt::println("");
 
     if (start) {
-        decode_end     = powerserve::timestamp_ms();
-        auto n_prefill = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
+        decode_end               = powerserve::timestamp_ms();
+        const size_t num_prefill = tokenizer.tokenize(args.prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
         POWERSERVE_LOG_INFO("prefill time: {} s", (double)(prefill_end - prefill_start) / 1000);
         POWERSERVE_LOG_INFO(
             "prefill speed ({} tokens): {} tokens/s",
-            n_prefill,
-            n_prefill / (double)(prefill_end - prefill_start) * 1000
+            num_prefill,
+            num_prefill / (double)(prefill_end - prefill_start) * 1000
         );
         POWERSERVE_LOG_INFO(
             "decode speed ({} tokens): {} tokens/s",
@@ -190,12 +144,14 @@ int main(int argc, char *argv[]) {
             actual_predict / (double)(decode_end - prefill_end) * 1000
         );
         POWERSERVE_LOG_INFO(
-            "total speed: {} tokens/s", (n_prefill + actual_predict) / (double)(decode_end - prefill_start) * 1000
+            "total speed: {} tokens/s", (num_prefill + actual_predict) / (double)(decode_end - prefill_start) * 1000
         );
     }
 #if defined(POWERSERVE_WITH_QNN)
-    if (use_spec) {
+    if (args.use_spec) {
         spec_model->print_stat();
     }
 #endif
+
+    return 0;
 }

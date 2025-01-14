@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "core/exception.hpp"
 #include "core/logger.hpp"
 #include "storage/file_loader.hpp"
 
@@ -68,28 +69,29 @@ public:
         struct stat file_stat;
         {
             const int ret = fstat(m_file_handle.m_fd, &file_stat);
-            POWERSERVE_ASSERT(ret == 0, "failed to fstat file {}", m_file_path);
+            if (ret != 0) [[unlikely]] {
+                throw EnvironmentException("FileLoaderBIO", fmt::format("failed to fstat file {}", m_file_path));
+            }
         }
 
         /*
-             * Allocate buffer
-             */
+         * Allocate buffer
+         */
         const size_t file_size = file_stat.st_size;
         std::byte *buffer_ptr  = new std::byte[file_size];
         m_buffer               = {buffer_ptr, file_size};
 
         /*
-             * Read the whole file into the buffer
-             */
+         * Read the whole file into the buffer
+         */
         {
             const ssize_t ret = pread(m_file_handle.m_fd, buffer_ptr, file_size, 0);
-            POWERSERVE_ASSERT(
-                ret == static_cast<ssize_t>(file_size),
-                "failed to read {} bytes from file {} (ret = {})",
-                file_size,
-                m_file_path,
-                ret
-            );
+            if (ret != static_cast<ssize_t>(file_size)) [[unlikely]] {
+                throw EnvironmentException(
+                    "FileLoaderUV",
+                    fmt::format("failed to read {} bytes from file {} (ret = {})", file_size, m_file_path, ret)
+                );
+            }
         }
     }
 

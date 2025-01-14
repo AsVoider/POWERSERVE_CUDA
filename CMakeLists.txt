@@ -9,6 +9,7 @@ option(POWERSERVE_ENABLE_WERROR "Enable -Werror" OFF)
 option(POWERSERVE_WITH_CUDA "Enable CUDA backend" OFF)
 option(POWERSERVE_WITH_QNN "Enable QNN backend" OFF)
 option(POWERSERVE_WITH_PERFETTO "Enable Perfetto tracing" OFF)
+option(POWERSERVE_EXCEPTION_ABORT "Replace underlying abort/assert with raising exception" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

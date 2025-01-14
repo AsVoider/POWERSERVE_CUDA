@@ -38,7 +38,7 @@ if [ "$speculation_enabled" == "yes" ]; then
             model2="Llama-3.2-1B-PowerServe-QNN29-${soc_name}"
             ;;
         2)
-            model1="SmallThinker-3B-PowerServe-Speculate-QNN29-${soc_name}"
+            model1="SmallThinker-3B-PowerServe-QNN29-${soc_name}"
             model2="SmallThinker-0.5B-PowerServe-QNN29-${soc_name}"
             ;;
         *)
@@ -74,25 +74,24 @@ else
     esac
 fi
 
-echo "Debug checking: soc_name=$soc_name, speculation_enabled=$speculation_enabled, model1=$model1, model2=$model2, model=$model"
+# echo "Debug checking: soc_name=$soc_name, speculation_enabled=$speculation_enabled, model1=$model1, model2=$model2, model=$model"
 
 # Check if the model exists
-# TODO: after open_sourced, remove this check.
-OPEN_SOURCE="NO"
+OPEN_SOURCE="YES"
 
 if [ "$OPEN_SOURCE" == "YES" ]; then
     if [ "$speculation_enabled" == "yes" ]; then
         for model in "$model1" "$model2"; do
-            link="https://huggingface.co/PowerInfer/${model}"
+            link="https://huggingface.co/PowerServe/${model}"
             if ! curl --output /dev/null --silent --head --fail "$link"; then
-                echo "Model $model does not exist"
+                echo "Your connection with huggingface is not okay, or Model $model does not exist. (You may need a proxy?)"
                 exit 1
             fi
         done
     else
-        link="https://huggingface.co/PowerInfer/${model}"
+        link="https://huggingface.co/PowerServe/${model}"
         if ! curl --output /dev/null --silent --head --fail "$link"; then
-            echo "Model $model does not exist"
+            echo "Your connection with huggingface is not okay, or Model $model does not exist. (You may need a proxy?)"
             exit 1
         fi
     fi
@@ -104,7 +103,8 @@ mkdir -p /models
 cd /models
 
 echo "Now we are downloading the models from huggingface"
-echo "You may have to wait for a while, about 1 to 10 minutes according to your network speed"
+echo "You may have to wait for a while, about 2 to 10 minutes according to your network speed."
+echo "Wait patiently. :)"
 
 if [ "$speculation_enabled" == "yes" ]; then
     for model in "$model1" "$model2"; do
@@ -112,14 +112,14 @@ if [ "$speculation_enabled" == "yes" ]; then
         if [ -d "/models/${model}" ]; then
             rm -rf "/models/${model}"
         fi
-        git clone "https://huggingface.co/PowerInfer/${model}"
+        git clone "https://huggingface.co/PowerServe/${model}"
     done
 else
     echo "Downloading model $model"
     if [ -d "/models/${model}" ]; then
         rm -rf "/models/${model}"
     fi
-    git clone "https://huggingface.co/PowerInfer/${model}"
+    git clone "https://huggingface.co/PowerServe/${model}"
 fi
 
 echo "Setting up NDK environment variable"

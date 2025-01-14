@@ -13,11 +13,12 @@
 
 1. [End to end deployment](#end-to-end)
 2. [Prerequisites](#prerequisites)
-3. [Model Preparation](#model-preparation)
-4. [Compile PowerServe](#compile-powerserve)
-5. [Prepare PowerServe Workspace](#prepare-powerserve-workspace)
-6. [Execution](#execution)
-7. [Known Issues](#known-issues)
+3. [Directory Structure](#directory-structure)
+4. [Model Preparation](#model-preparation)
+5. [Compile PowerServe](#compile-powerserve)
+6. [Prepare PowerServe Workspace](#prepare-powerserve-workspace)
+7. [Execution](#execution)
+8. [Known Issues](#known-issues)
 
 ## End to End Deployment
 
@@ -41,7 +42,48 @@ To deploy on aarch64 with Qualcomm NPU using QNN, [**NDK**](https://developer.an
 export NDK=<path-to-ndk>
 export QNN_SDK_ROOT=<path-to-QNN>
 ```
-
+## directory-structure
+```
+powerserve
+├── app
+├── assets               # Prompt files.
+├── CMakeLists.txt
+├── docs
+├── libs                 # External dependencies.
+├── LICENSE
+├── powerserve           # Python script to create work directory.
+├── pyproject.toml
+├── README.md
+├── requirements.txt
+├── src
+│   ├── backend          # Backend implementations, include ggml and qnn.
+│   ├── CMakeLists.txt
+│   ├── core             # Core structures used across all levels of the runtime, like type definition, config, tensor and buffer.
+│   ├── executor         # Tensor execution.
+│   ├── graph            # Computing Graph.
+│   ├── model            # Various model implementations.
+│   ├── sampler          # Token sampler.
+│   ├── speculative      # Speculative decoding.
+│   ├── storage          # File loader.
+│   └── tokenizer
+├── tests
+└── tools
+    ├── add_license.py
+    ├── CMakeLists.txt
+    ├── convert_hf_to_gguf   # Convert huggingface to gguf, based on llama.cpp
+    ├── cos_sim.py
+    ├── end_to_end
+    ├── extract_embd_from_vl
+    ├── format.py
+    ├── gen_flame_graph.sh
+    ├── gguf_config_to_json  # Export config.json from gguf.
+    ├── gguf_export.py
+    ├── mmlu
+    ├── mmmu_test
+    ├── parameter_search
+    ├── qnn_converter
+    └── simple_qnn_test
+```
 
 ## Model Preparation
 
@@ -115,9 +157,12 @@ python converter.py                                 \
 ```
 Convert GGUF models and integrate them with QNN models
 
+Note: this scripts can only create fp32 and q8_0 in ./llama3.1-8b-instruct-model/ggml/weights.gguf,
+if you want to use q4_0, please use llama-quantize in llama.cpp like: `./build/bin/llama-quantize --pure /<path>/llama3.1-fp32.gguf Q4_0`, then replace weight file: `cp /<path>/ggml-model-Q4_0.gguf ./llama3.1-8b-instruct-model/ggml/weights.gguf`
+
 ```shell
 # Under the root directory of PowerServe
-python ./tools/gguf_export.py -m <hf-model> --qnn-path tools/qnn_converter/llama3.1-8b-QNN -o ./llama3.1-8b-instruct-model
+python ./tools/gguf_export.py -m <hf-llama3.1-model> --qnn-path tools/qnn_converter/llama3.1-8b-QNN -o ./llama3.1-8b-instruct-model
 ```
 
 ## Compile PowerServe
@@ -146,7 +191,7 @@ cmake --build build
 ```
 
 ### Build for Android qnn
-- ❗️ Because the llama3.1-8b model is too large, qnn needs to open multiple sessions when loading. Now it is known that on a mobile phone with one plus 12, opening additional sessions requires root privileges. If you run this model in non-root mode, the program will cause an error.
+- ❗️ Because the llama3.1-8b model is too large, qnn needs to open multiple sessions when loading. We conducted tests on 4 mobile phones. Among them, one plus 12, one plus 13 and Xiaomi 14 need to be updated to android 15 to apply for additional sessions in non-root mode, while honor Magic6 updates to android 15 to run in non-root mode will cause an error.
 
 ```shell
 # Under the root directory of PowerServe
@@ -192,40 +237,8 @@ export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64 && ./models/llama3.1-8b-instr
 More details please refer to [Server App](./app/server/README.md)
 ```shell
 # Under the root directory of PowerServe
-export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64 && ./models/llama3.1-8b-instruct/bin/powerserve-server --model-folder ./models --host <ip-addr> --port <port>
+export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64 && ./models/llama3.1-8b-instruct/bin/powerserve-server --work-folder ./models --host <ip-addr> --port <port>
 ```
-
-
-## Performance
-- QNN: 8gen3 phone + n_predicts = 256 + n_prompts = 1652
-- CPU: n_threads = 8 + n_predicts = 128 + n_prompts = 95
-
-| Model    | CPU(Prefill / Decode)     | NPU(Prefill / Decode)      |Note      |
-|----------|----------|----------|----------|
-| LLaMA3.1-8b-q4_0  | 19.88 / 6.75 tokens/s    | 559.81 / 11.21 tokens/s    |  |
-| LLaMA3.2-1b-q4_0  | 127.86 / 38.04 tokens/s   | 1764.96 / 57.53 tokens/s    |  |
-| Qwen2-7b-q4_0  | 21.35 / 7.20 tokens/s   | 654.94 / 12.11 tokens/s    | The output is normal  |
-| Qwen2-0.5b-q4_0  | 293.45 / 73.33 tokens/s   | 3495.78 / 19.16 tokens/s  | ❗️ The output of batch size=128 + cpu lm_head is normal, and the output of batch size=1+128 + cpu lm_head is chaotic |
-
-## Speculative Performance
-- gsm8k_1
-```text
-Mark has a garden with flowers. He planted plants of three different colors in it. Ten of them are yellow, and there are 80% more of those in purple. There are only 25% as many green flowers as there are yellow and purple flowers. How many flowers does Mark have in his garden?
-```
-- gsm8k_2
-```text
-Alexis is applying for a new job and bought a new set of business clothes to wear to the interview. She went to a department store with a budget of $200 and spent $30 on a button-up shirt, $46 on suit pants, $38 on a suit coat, $11 on socks, and $18 on a belt. She also purchased a pair of shoes, but lost the receipt for them. She has $16 left from her budget. How much did Alexis pay for the shoes?
-```
-- math
-```text
-Mia is planning a camping trip in the Canadian Rockies and has a budget of $800 for equipment. She buys a tent for $120, which is 15% off the original price. She then purchases a sleeping bag for $80, which is 20% off. If she also needs to buy a backpack and a portable stove, and the total cost of these two items is $180, what percentage of her budget will she have left after all the purchases?
-```
-
-| Main model    | Draft model     | NPU(Prefill / Decode)  | Accept Rate % | dataset     |Note      |
-|----------|----------|----------|----------|----------|----------|
-| LLaMA3.1-8b-q4_0  | LLaMA3.2-1b-q4_0   | 263.35 / 21.27 tokens/s    | 71.43 | gsm8k_1 | ❗️ Without system prompt, one sentence will be repeated over and over again |
-| LLaMA3.1-8b-q4_0  | LLaMA3.2-1b-q4_0   | 368.06 / 19.08 tokens/s    | 73.2 | math | |
-| LLaMA3.1-8b-q4_0  | LLaMA3.2-1b-q4_0   | 392.98 / 12.45 tokens/s    | 43.65 | gsm8k_2 | |
 
 ## Known Issues
 

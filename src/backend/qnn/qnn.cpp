@@ -60,7 +60,7 @@ void Library::initialize(const Path &lib_backend_path, const Path &lib_system_pa
 
 void Library::open_qnn_backend_library(const Path &lib_backend_path) {
     int ret = uv_dlopen(lib_backend_path.c_str(), &m_lib_backend);
-    POWERSERVE_ASSERT(ret == 0, "failed to open lib {}: {}", lib_backend_path, m_lib_backend.errmsg);
+    POWERSERVE_ASSERT_QNN_ENV(ret == 0, "failed to open lib {}: {}", lib_backend_path, m_lib_backend.errmsg);
 
     typedef Qnn_ErrorHandle_t (*QnnInterfaceGetProvidersFn_t)(
         const QnnInterface_t ***providerList, uint32_t *numProviders
@@ -69,7 +69,7 @@ void Library::open_qnn_backend_library(const Path &lib_backend_path) {
     QnnInterfaceGetProvidersFn_t get_interface_providers;
     const char *interface_providers_name = "QnnInterface_getProviders";
     ret = uv_dlsym(&m_lib_backend, interface_providers_name, (void **)&get_interface_providers);
-    POWERSERVE_ASSERT(
+    POWERSERVE_ASSERT_QNN_ENV(
         ret == 0,
         "failed to get symbol {} from lib {}: {}",
         interface_providers_name,
@@ -80,8 +80,8 @@ void Library::open_qnn_backend_library(const Path &lib_backend_path) {
     const QnnInterface_t **interface_providers;
     uint32_t n_providers = 0;
     ret                  = get_interface_providers(&interface_providers, &n_providers);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to get interface providers");
-    POWERSERVE_ASSERT(n_providers > 0, "no interface provider was found");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to get interface providers");
+    POWERSERVE_ASSERT_QNN_ENV(n_providers > 0, "no interface provider was found");
 
     bool found = false;
     for (size_t i = 0; i < n_providers; i++) {
@@ -92,18 +92,18 @@ void Library::open_qnn_backend_library(const Path &lib_backend_path) {
             break;
         }
     }
-    POWERSERVE_ASSERT(found);
+    POWERSERVE_ASSERT_QNN_ENV(found);
 
     Qnn_ApiVersion_t api_version;
     ret = m_qnn_backend.backendGetApiVersion(&api_version);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to get the version of QNN API");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to get the version of QNN API");
     POWERSERVE_LOG_INFO("QNN core API version: {}", format_qnn_version(api_version.coreApiVersion));
     POWERSERVE_LOG_INFO("QNN backend API version: {}", format_qnn_version(api_version.backendApiVersion));
 }
 
 void Library::open_qnn_system_library(const Path &lib_system_path) {
     int ret = uv_dlopen(lib_system_path.c_str(), &m_lib_system);
-    POWERSERVE_ASSERT(ret == 0, "failed to open lib {}: {}", lib_system_path, m_lib_system.errmsg);
+    POWERSERVE_ASSERT_QNN_ENV(ret == 0, "failed to open lib {}: {}", lib_system_path, m_lib_system.errmsg);
 
     typedef Qnn_ErrorHandle_t (*QnnSystemInterfaceGetProvidersFn_t)(
         const QnnSystemInterface_t ***providerList, uint32_t *numProviders
@@ -112,7 +112,7 @@ void Library::open_qnn_system_library(const Path &lib_system_path) {
     QnnSystemInterfaceGetProvidersFn_t get_system_inferface_providers;
     const char *sysmte_interface_providers = "QnnSystemInterface_getProviders";
     ret = uv_dlsym(&m_lib_system, sysmte_interface_providers, (void **)&get_system_inferface_providers);
-    POWERSERVE_ASSERT(
+    POWERSERVE_ASSERT_QNN_ENV(
         ret == 0,
         "failed to get symbol {} from lib {}: {}",
         sysmte_interface_providers,
@@ -123,8 +123,8 @@ void Library::open_qnn_system_library(const Path &lib_system_path) {
     const QnnSystemInterface_t **system_interface_providers;
     uint32_t n_providers = 0;
     ret                  = get_system_inferface_providers(&system_interface_providers, &n_providers);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to get system interface providers");
-    POWERSERVE_ASSERT(n_providers > 0, "no system interface provider was found");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to get system interface providers");
+    POWERSERVE_ASSERT_QNN_ENV(n_providers > 0, "no system interface provider was found");
 
     bool found = false;
     for (size_t i = 0; i < n_providers; i++) {
@@ -136,28 +136,28 @@ void Library::open_qnn_system_library(const Path &lib_system_path) {
             break;
         }
     }
-    POWERSERVE_ASSERT(found, "no system API providers was found");
+    POWERSERVE_ASSERT_QNN_ENV(found, "no system API providers was found");
 }
 
 void Library::open_rpc_library(const Path &lib_rpc_path) {
     int ret = uv_dlopen(lib_rpc_path.c_str(), &m_lib_rpc);
-    POWERSERVE_ASSERT(ret == 0, "failed to open lib {}: {}", lib_rpc_path, m_lib_rpc.errmsg);
+    POWERSERVE_ASSERT_QNN_ENV(ret == 0, "failed to open lib {}: {}", lib_rpc_path, m_lib_rpc.errmsg);
 
     const char *rpc_mem_alloc_name = "rpcmem_alloc";
     ret                            = uv_dlsym(&m_lib_rpc, rpc_mem_alloc_name, (void **)&m_rpc.rpcmem_alloc);
-    POWERSERVE_ASSERT(
+    POWERSERVE_ASSERT_QNN_ENV(
         ret == 0, "failed to get symbol {} from lib {}: {}", rpc_mem_alloc_name, lib_rpc_path, m_lib_rpc.errmsg
     );
 
     const char *rpc_mem_free_name = "rpcmem_free";
     ret                           = uv_dlsym(&m_lib_rpc, rpc_mem_free_name, (void **)&m_rpc.rpcmem_free);
-    POWERSERVE_ASSERT(
+    POWERSERVE_ASSERT_QNN_ENV(
         ret == 0, "failed to get symbol {} from lib {}: {}", rpc_mem_free_name, lib_rpc_path, m_lib_rpc.errmsg
     );
 
     const char *rpc_mem_to_fd_name = "rpcmem_to_fd";
     ret                            = uv_dlsym(&m_lib_rpc, rpc_mem_to_fd_name, (void **)&m_rpc.rpcmem_to_fd);
-    POWERSERVE_ASSERT(
+    POWERSERVE_ASSERT_QNN_ENV(
         ret == 0, "failed to get symbol {} from lib {}: {}", rpc_mem_to_fd_name, lib_rpc_path, m_lib_rpc.errmsg
     );
 }
@@ -194,13 +194,13 @@ void Library::print_info() {
 
 void Library::create_logger() {
     auto ret = m_qnn_backend.logCreate(log_callback, m_log_level, &m_logger);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to create QNN logger");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to create QNN logger");
 }
 
 void Library::destroy_logger() {
     if (m_logger) {
         auto ret = m_qnn_backend.logFree(m_logger);
-        POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to free QNN logger");
+        POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to free QNN logger");
         m_logger = nullptr;
     }
 }
@@ -209,10 +209,10 @@ Library lib;
 
 Backend::Backend() {
     auto ret = lib.m_qnn_backend.backendCreate(lib.m_logger, nullptr, &m_handle);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to create QNN backend");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to create QNN backend");
 
     ret = lib.m_qnn_backend.deviceCreate(lib.m_logger, nullptr, &m_device);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to create QNN device");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to create QNN device");
 }
 
 Backend::~Backend() {
@@ -226,8 +226,8 @@ Backend::~Backend() {
 void Backend::print_info() {
     const QnnDevice_PlatformInfo_t *platform_info_ptr;
     auto ret = lib.m_qnn_backend.deviceGetInfo(m_device, &platform_info_ptr);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to get the QNN device info");
-    POWERSERVE_ASSERT(
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to get the QNN device info");
+    POWERSERVE_ASSERT_QNN_ENV(
         platform_info_ptr->version == QNN_DEVICE_PLATFORM_INFO_VERSION_1,
         "unknown platform info version: {}",
         static_cast<int>(platform_info_ptr->version)
@@ -238,7 +238,7 @@ void Backend::print_info() {
     POWERSERVE_LOG_INFO("Hardware device information:");
     for (size_t i = 0; i < platform_info.numHwDevices; i++) {
         auto &hw_info_struct = platform_info.hwDevices[i];
-        POWERSERVE_ASSERT(hw_info_struct.version == QNN_DEVICE_HARDWARE_DEVICE_INFO_VERSION_1);
+        POWERSERVE_ASSERT_QNN_ENV(hw_info_struct.version == QNN_DEVICE_HARDWARE_DEVICE_INFO_VERSION_1);
 
         auto &hw_info = hw_info_struct.v1;
         POWERSERVE_LOG_INFO(
@@ -252,7 +252,7 @@ void Backend::print_info() {
 
         for (size_t j = 0; j < hw_info.numCores; j++) {
             auto &core_info_struct = hw_info.cores[j];
-            POWERSERVE_ASSERT(core_info_struct.version == QNN_DEVICE_CORE_INFO_VERSION_1);
+            POWERSERVE_ASSERT_QNN_ENV(core_info_struct.version == QNN_DEVICE_CORE_INFO_VERSION_1);
 
             auto &core_info = core_info_struct.v1;
             POWERSERVE_LOG_INFO("[{}] core[{}]: id={}, type={}", i, j, core_info.coreId, core_info.coreType);
@@ -273,17 +273,17 @@ void Backend::print_info() {
     }
 
     ret = lib.m_qnn_backend.deviceFreePlatformInfo(lib.m_logger, platform_info_ptr);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to free QNN platform info");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to free QNN platform info");
 }
 
 HTPDevice::HTPDevice(uint32_t device_id, uint32_t core_id) : m_device_id(device_id), m_core_id(core_id) {
     auto ret = lib.m_qnn_backend.deviceGetInfrastructure(&m_infra);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to get HTP device infrastructure");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to get HTP device infrastructure");
 
     m_htp_infra  = (QnnHtpDevice_Infrastructure_t *)m_infra;
     m_perf_infra = m_htp_infra->perfInfra;
     ret          = m_perf_infra.createPowerConfigId(device_id, core_id, &m_power_config_id);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to get power config id of HTP");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to get power config id of HTP");
 }
 
 HTPDevice::~HTPDevice() {
@@ -302,7 +302,7 @@ void HTPDevice::set_memory_grow_size(size_t size) {
         nullptr,
     };
     auto ret = m_perf_infra.setMemoryConfig(m_device_id, m_core_id, memory_config);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to set HTP memory config");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to set HTP memory config");
 }
 
 void HTPDevice::enter_performance_mode() {
@@ -365,7 +365,7 @@ void HTPDevice::enter_performance_mode() {
         nullptr,
     };
     auto ret = m_perf_infra.setPowerConfig(m_power_config_id, power_configs);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to set HTP power config");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to set HTP power config");
 }
 
 ContextGroup::ContextGroup(size_t buffer_size) : m_buffer_size(buffer_size) {}
@@ -389,7 +389,7 @@ void ContextGroup::add_context_handle(Qnn_ContextHandle_t handle) {
 
 Context::Context(Backend &backend, const Path &binary_file_path, ContextGroup *group) :
     m_binary_filename(binary_file_path) {
-    POWERSERVE_ASSERT(
+    POWERSERVE_ASSERT_QNN_ENV(
         std::filesystem::exists(binary_file_path) && std::filesystem::is_regular_file(binary_file_path),
         "could not found regular binary file: {}",
         binary_file_path
@@ -442,20 +442,20 @@ Context::Context(Backend &backend, const Path &binary_file_path, ContextGroup *g
         &m_handle,
         nullptr
     );
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to create QNN context from binary: {}", binary_file_path);
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to create QNN context from binary: {}", binary_file_path);
 
     if (group) {
         group->add_context_handle(m_handle);
     }
 
     ret = lib.m_qnn_system.systemContextCreate(&m_system_context);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to create QNN context");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to create QNN context");
 
     Qnn_ContextBinarySize_t binary_info_size = 0;
     ret                                      = lib.m_qnn_system.systemContextGetBinaryInfo(
         m_system_context, binary_buffer.data(), binary_buffer.size(), &m_binary_info, &binary_info_size
     );
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to get info of QNN context binary");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to get info of QNN context binary");
 
     /* Unload binary caches as possible */
     m_binary_loader->unload();
@@ -470,13 +470,13 @@ Context::~Context() {
 }
 
 void Context::print_info() {
-    POWERSERVE_ASSERT(m_binary_info);
+    POWERSERVE_ASSERT_QNN_ENV(m_binary_info);
     switch (m_binary_info->version) {
     case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_1: {
         auto &info = m_binary_info->contextBinaryInfoV1;
 
         auto hw_blob_info_ptr = (QnnHtpSystemContext_HwBlobInfo_t *)info.hwInfoBlob;
-        POWERSERVE_ASSERT(hw_blob_info_ptr->version == QNN_SYSTEM_CONTEXT_HTP_HW_INFO_BLOB_VERSION_V1);
+        POWERSERVE_ASSERT_QNN_ENV(hw_blob_info_ptr->version == QNN_SYSTEM_CONTEXT_HTP_HW_INFO_BLOB_VERSION_V1);
         auto &hw_blob_info = hw_blob_info_ptr->contextBinaryHwInfoBlobV1_t;
 
         POWERSERVE_LOG_INFO("Context core API version: {}", format_qnn_version(info.coreApiVersion));
@@ -490,7 +490,7 @@ void Context::print_info() {
         auto &info = m_binary_info->contextBinaryInfoV2;
 
         auto hw_blob_info_ptr = (QnnHtpSystemContext_HwBlobInfo_t *)info.hwInfoBlob;
-        POWERSERVE_ASSERT(hw_blob_info_ptr->version == QNN_SYSTEM_CONTEXT_HTP_HW_INFO_BLOB_VERSION_V1);
+        POWERSERVE_ASSERT_QNN_ENV(hw_blob_info_ptr->version == QNN_SYSTEM_CONTEXT_HTP_HW_INFO_BLOB_VERSION_V1);
         auto &hw_blob_info = hw_blob_info_ptr->contextBinaryHwInfoBlobV1_t;
 
         POWERSERVE_LOG_INFO("Context core API version: {}", format_qnn_version(info.coreApiVersion));
@@ -516,7 +516,7 @@ void Context::print_info() {
 void Context::free_system_context() {
     if (m_system_context) {
         auto ret = lib.m_qnn_system.systemContextFree(m_system_context);
-        POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to free QNN system context");
+        POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to free QNN system context");
     }
 
     m_binary_info    = nullptr;
@@ -525,10 +525,10 @@ void Context::free_system_context() {
 
 SharedBufferAllocator::SharedBufferAllocator(size_t _size) : m_size(_size) {
     m_data = lib.m_rpc.rpcmem_alloc(lib.m_rpc.RPCMEM_HEAP_ID_SYSTEM, lib.m_rpc.RPCMEM_DEFAULT_FLAGS, m_size);
-    POWERSERVE_ASSERT(m_data, "failed to allocate RPC memory");
+    POWERSERVE_ASSERT_QNN_ENV(m_data, "failed to allocate RPC memory");
 
     m_fd = lib.m_rpc.rpcmem_to_fd(m_data);
-    POWERSERVE_ASSERT(m_fd != -1, "failed to convert RPC memory into file descriptor");
+    POWERSERVE_ASSERT_QNN_ENV(m_fd != -1, "failed to convert RPC memory into file descriptor");
 }
 
 SharedBufferAllocator::~SharedBufferAllocator() {
@@ -543,7 +543,7 @@ SharedBuffer::SharedBuffer(Context &context, SharedBufferAllocator &allocator, Q
     m_type(type) {
     m_size = type_size(type) * n_elements;
 
-    POWERSERVE_ASSERT(
+    POWERSERVE_ASSERT_QNN_ENV(
         allocator.m_offset + m_size <= allocator.m_size,
         "no free memory in QNN shared buffer allocator (required: {}, avail: {}, total: {})",
         m_size,
@@ -576,7 +576,7 @@ SharedBuffer::SharedBuffer(Context &context, SharedBufferAllocator &allocator, Q
     };
 
     auto ret = lib.m_qnn_backend.memRegister(context.m_handle, &mem_desc, 1, &m_handle);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to register QNN shared buffer");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to register QNN shared buffer");
 
     allocator.m_offset += m_size;
 }
@@ -655,7 +655,7 @@ static void deep_copy_tensor(Qnn_Tensor_t &dst, const Qnn_Tensor_t &src) {
         }
 
         // I think the original code is wrong...
-        POWERSERVE_ASSERT(!QNN_TENSOR_GET_IS_DYNAMIC_DIMENSIONS(src));
+        POWERSERVE_ASSERT_QNN_LOADER(!QNN_TENSOR_GET_IS_DYNAMIC_DIMENSIONS(src));
     }
 
     QNN_TENSOR_SET_SPARSE_PARAMS(dst, QNN_TENSOR_GET_SPARSE_PARAMS(src));
@@ -665,7 +665,7 @@ std::unordered_map<QNNTensor *, void *> buffer_map{};
 
 QNNTensor::QNNTensor(const Qnn_Tensor_t &source) {
     deep_copy_tensor(m_tensor, source);
-    POWERSERVE_ASSERT(QNN_TENSOR_GET_MEM_TYPE(m_tensor) == QNN_TENSORMEMTYPE_UNDEFINED);
+    POWERSERVE_ASSERT_QNN_LOADER(QNN_TENSOR_GET_MEM_TYPE(m_tensor) == QNN_TENSORMEMTYPE_UNDEFINED);
 }
 
 QNNTensor::~QNNTensor() {
@@ -754,8 +754,8 @@ float QNNTensor::quantization_scale() const {
 }
 
 auto QNNTensor::check(const std::vector<size_t> &shape, Qnn_DataType_t datatype) -> QNNTensor * {
-    POWERSERVE_ASSERT(this->shape() == shape);
-    POWERSERVE_ASSERT(this->type() == datatype);
+    POWERSERVE_ASSERT_QNN_LOADER(this->shape() == shape);
+    POWERSERVE_ASSERT_QNN_LOADER(this->type() == datatype);
     return this;
 }
 
@@ -788,14 +788,14 @@ Graph::Graph(Context &context, const std::string &name) : m_name(name) {
         }
 
         auto ret = lib.m_qnn_backend.graphRetrieve(context.m_handle, name.c_str(), &m_handle);
-        POWERSERVE_ASSERT(ret == QNN_SUCCESS);
+        POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS);
     };
     switch (context.m_binary_info->version) {
     case QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_1: {
         auto &info = context.m_binary_info->contextBinaryInfoV1;
         for (size_t i = 0; i < info.numGraphs; i++) {
             const auto *current_graph = &info.graphs[i];
-            POWERSERVE_ASSERT(current_graph->version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_1);
+            POWERSERVE_ASSERT_QNN_ENV(current_graph->version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_1);
             if (current_graph->graphInfoV1.graphName == name) {
                 processGraphInfo(current_graph->graphInfoV1);
                 break;
@@ -806,7 +806,7 @@ Graph::Graph(Context &context, const std::string &name) : m_name(name) {
         auto &info = context.m_binary_info->contextBinaryInfoV2;
         for (size_t i = 0; i < info.numGraphs; i++) {
             const auto *current_graph = &info.graphs[i];
-            POWERSERVE_ASSERT(current_graph->version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_2);
+            POWERSERVE_ASSERT_QNN_ENV(current_graph->version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_2);
             if (current_graph->graphInfoV2.graphName == name) {
                 processGraphInfo(current_graph->graphInfoV2);
                 break;
@@ -818,7 +818,7 @@ Graph::Graph(Context &context, const std::string &name) : m_name(name) {
         auto &info = context.m_binary_info->contextBinaryInfoV3;
         for (size_t i = 0; i < info.numGraphs; i++) {
             const auto *current_graph = &info.graphs[i];
-            POWERSERVE_ASSERT(current_graph->version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_3);
+            POWERSERVE_ASSERT_QNN_ENV(current_graph->version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_3);
             if (current_graph->graphInfoV3.graphName == name) {
                 processGraphInfo(current_graph->graphInfoV3);
                 break;
@@ -869,7 +869,7 @@ void Graph::set_n_hvx_threads(size_t n_threads) {
 
     const QnnGraph_Config_t *graph_configs[] = {&hvx_thread_config, nullptr};
     auto ret                                 = lib.m_qnn_backend.graphSetConfig(m_handle, graph_configs);
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to sett QNN graph config");
+    POWERSERVE_ASSERT_QNN_ENV(ret == QNN_SUCCESS, "failed to sett QNN graph config");
 }
 
 void Graph::execute() {
@@ -882,7 +882,7 @@ void Graph::execute() {
         nullptr,
         nullptr
     );
-    POWERSERVE_ASSERT(ret == QNN_SUCCESS, "failed to execute QNN graph");
+    POWERSERVE_ASSERT_QNN_GRAPH(ret == QNN_SUCCESS, "failed to execute QNN graph");
 }
 
 Session::Session(const Path &libs_folder) {

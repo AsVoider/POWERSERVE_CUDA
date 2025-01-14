@@ -34,7 +34,7 @@ source .gitlab/common.sh
 echo '>>>>>>>>>>>> Test ppl. <<<<<<<<<<<<';
 set -x
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-    export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ${WORK_FOLDER}/bin/powerserve-perplexity-test -d ${WORK_FOLDER} -p ${PROMPT_FILE};
+    ${WORK_FOLDER}/bin/powerserve-perplexity-test -d ${WORK_FOLDER} -p ${PROMPT_FILE};
 "
 set +x
 echo '>>>>>>>>>>>> Test ppl over. <<<<<<<<<<<<';

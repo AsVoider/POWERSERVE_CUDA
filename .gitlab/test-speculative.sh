@@ -47,7 +47,7 @@ ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
 set -x
 if [ "${USE_QNN}" == "1" ]; then
 ssh -o StrictHostKeyChecking=no -p ${DEVICE_PORT} ${DEVICE_URL} "
-        export LD_LIBRARY_PATH=/vendor/lib64 && sudo -E ${WORK_FOLDER}/bin/powerserve-speculative -d ${WORK_FOLDER};
+        export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64 && ${WORK_FOLDER}/bin/powerserve-run -d ${WORK_FOLDER} -n 64 -p \"Please tell a story:\" --use-spec;
     "
 else
     echo "No support"

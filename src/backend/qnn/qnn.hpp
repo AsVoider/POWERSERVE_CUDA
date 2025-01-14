@@ -18,6 +18,7 @@
 #include "HTP/QnnHtpDevice.h"
 #include "QnnInterface.h"
 #include "System/QnnSystemInterface.h"
+#include "core/exception.hpp"
 #include "core/logger.hpp"
 #include "core/typedefs.hpp"
 #include "storage/file_loader.hpp"
@@ -30,6 +31,12 @@
 namespace powerserve::qnn {
 
 using QNNDataType = Qnn_DataType_t;
+
+#define POWERSERVE_ASSERT_QNN_ENV(expr, ...) POWERSERVE_ASSERT_ENV(expr, "QNN", __VA_ARGS__)
+
+#define POWERSERVE_ASSERT_QNN_LOADER(expr, ...) POWERSERVE_ASSERT_MODULE(expr, "QNN", "Loader" __VA_ARGS__)
+
+#define POWERSERVE_ASSERT_QNN_GRAPH(expr, ...) POWERSERVE_ASSERT_MODULE(expr, "QNN", "Graph" __VA_ARGS__)
 
 static constexpr size_t type_size(QNNDataType type) {
     switch (type) {

@@ -9,10 +9,8 @@ function(powerserve_add_binary target_name)
     powerserve_add_artifact(${target_name})
 endfunction()
 
+add_subdirectory(common)
+
 add_subdirectory(run)
 add_subdirectory(perplexity)
-# add_subdirectory(server)
-
-if (POWERSERVE_WITH_QNN)
-    # add_subdirectory(speculative)
-endif()
+add_subdirectory(server)

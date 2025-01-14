@@ -23,10 +23,12 @@
 #include "core/config.hpp"
 #include "core/logger.hpp"
 #include "core/timer.hpp"
+#include "core/typedefs.hpp"
 #include "model/model.hpp"
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
 #include "sampler/sampler_chain.hpp"
+#include "speculative/spec_model.hpp"
 
 #include <cstddef>
 #include <filesystem>
@@ -35,6 +37,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 
@@ -46,9 +49,11 @@ struct ModelInput {
     /// ID of the model to use.
     std::string m_model;
 
-    /// [Only Completion] The prompt(s) to generate completions for, encoded as a string, array of strings, array of tokens, or array of token arrays.
+    /// [Only Completion] The prompt(s) to generate completions for, encoded as a string, array of strings, array of
+    /// tokens, or array of token arrays.
     std::string m_prompt;
-    /// [Only Chat] The prompt(s) to generate completions for, encoded as a string, array of strings, array of tokens, or array of token arrays.
+    /// [Only Chat] The prompt(s) to generate completions for, encoded as a string, array of strings, array of tokens,
+    /// or array of token arrays.
     std::vector<ModelChatHistroyEntry> m_history;
 
     /// The maximum number of tokens that can be generated in the completion.
@@ -57,26 +62,35 @@ struct ModelInput {
 
     /* Sample config */
 
-    /// What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic.
+    /// What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random,
+    /// while lower values like 0.2 will make it more focused and deterministic.
     float m_temperature;
-    /// An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of the tokens with top_p probability mass. So 0.1 means only the tokens comprising the top 10% probability mass are considered.
+    /// An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of
+    /// the tokens with top_p probability mass. So 0.1 means only the tokens comprising the top 10% probability mass are
+    /// considered.
     float m_top_p;
-    /// Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics.
+    /// Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so
+    /// far, increasing the model's likelihood to talk about new topics.
     float m_presence_penalty;
-    /// Number between -2.0 and 2.0. Positive values penalize new tokens based on their existing frequency in the text so far, decreasing the model's likelihood to repeat the same line verbatim.
+    /// Number between -2.0 and 2.0. Positive values penalize new tokens based on their existing frequency in the text
+    /// so far, decreasing the model's likelihood to repeat the same line verbatim.
     float m_frequency_penalty;
 
     /* Generation config */
 
     /// [Only Completion] How many completions to generate for each prompt.
     size_t m_response_n;
-    /// [Only Completion] Generates best_of completions server-side and returns the "best" (the one with the highest log probability per token). Results cannot be streamed.
-    /// When used with n, best_of controls the number of candidate completions and n specifies how many to return – best_of must be greater than n.
+    /// [Only Completion] Generates best_of completions server-side and returns the "best" (the one with the highest log
+    /// probability per token). Results cannot be streamed. When used with n, best_of controls the number of candidate
+    /// completions and n specifies how many to return – best_of must be greater than n.
     size_t m_best_of_n;
-    /// Include the log probabilities on the logprobs most likely output tokens, as well the chosen tokens. For example, if logprobs is 5, the API will return a list of the 5 most likely tokens. The API will always return the logprob of the sampled token, so there may be up to logprobs+1 elements in the response.
-    /// The maximum value for logprobs is 5.
+    /// Include the log probabilities on the logprobs most likely output tokens, as well the chosen tokens. For example,
+    /// if logprobs is 5, the API will return a list of the 5 most likely tokens. The API will always return the logprob
+    /// of the sampled token, so there may be up to logprobs+1 elements in the response. The maximum value for logprobs
+    /// is 5.
     int m_log_probs;
-    /// Whether to stream back partial progress. If set, tokens will be sent as data-only server-sent events as they become available, with the stream terminated by a data: [DONE] message.
+    /// Whether to stream back partial progress. If set, tokens will be sent as data-only server-sent events as they
+    /// become available, with the stream terminated by a data: [DONE] message.
     bool stream;
 
     /* Extension */
@@ -166,20 +180,33 @@ public:
 
 struct ModelContext {
 public:
-    std::unique_ptr<powerserve::Config> m_config_ptr;
+    powerserve::Config m_config;
     std::shared_ptr<powerserve::Model> m_model_ptr;
+    std::shared_ptr<powerserve::Model> m_draft_model_ptr;
     std::unique_ptr<powerserve::Tokenizer> m_tokenizer_ptr;
+    powerserve::SpeculativeConfig speculative_config;
 
 public:
     ModelContext() = default;
 
     ModelContext(
-        std::unique_ptr<powerserve::Config> &&config_ptr,
+        const powerserve::Config &config,
         std::shared_ptr<powerserve::Model> &&model_ptr,
         std::unique_ptr<powerserve::Tokenizer> &&tokenizer_ptr
     ) :
-        m_config_ptr(std::move(config_ptr)),
+        m_config(config),
         m_model_ptr(std::move(model_ptr)),
+        m_tokenizer_ptr(std::move(tokenizer_ptr)) {}
+
+    ModelContext(
+        const powerserve::Config &config,
+        std::shared_ptr<powerserve::Model> &&model_ptr,
+        std::shared_ptr<powerserve::Model> &&draft_model_ptr,
+        std::unique_ptr<powerserve::Tokenizer> &&tokenizer_ptr
+    ) :
+        m_config(config),
+        m_model_ptr(std::move(model_ptr)),
+        m_draft_model_ptr(std::move(draft_model_ptr)),
         m_tokenizer_ptr(std::move(tokenizer_ptr)) {}
 
     ~ModelContext() noexcept = default;
@@ -201,6 +228,10 @@ private:
 
     std::mutex m_lock;
 
+    std::shared_ptr<powerserve::Platform> m_platform_ptr;
+
+    std::unordered_map<std::string, std::shared_ptr<powerserve::Model>> m_model_map;
+
     std::unordered_map<std::string, ModelContext> m_context_slot_map;
 
     std::map<ServerSessionId, ServerSession> m_session_map;
@@ -208,68 +239,74 @@ private:
 public:
     ServerContext(const std::filesystem::path &work_folder, const std::filesystem::path &lib_folder) :
         m_work_folder(work_folder),
-        m_lib_folder(lib_folder) {
+        m_lib_folder(lib_folder),
+        m_platform_ptr(std::make_shared<powerserve::Platform>()) {
         if (!std::filesystem::exists(m_work_folder)) {
             POWERSERVE_LOG_WARN("model base folder does not exist: {}", m_work_folder);
         }
         if (!std::filesystem::is_directory(m_work_folder)) {
             POWERSERVE_LOG_WARN("model base folder is not directory: {}", m_work_folder);
         }
+
+#if defined(POWERSERVE_WITH_QNN)
+        m_platform_ptr->init_qnn_backend(m_lib_folder);
+#endif // POWERSERVE_WITH_QNN
     }
 
     ~ServerContext() = default;
 
 public:
     ModelContext &setup_model(const std::string &model_name) {
+        // Parse model name
+        std::string_view main_model_name;
+        std::string_view draft_model_name;
+        {
+            const auto iter = model_name.find('+');
+            if (iter == std::string::npos) {
+                main_model_name = std::string_view(model_name);
+            } else {
+                main_model_name  = std::string_view(model_name.cbegin(), model_name.cbegin() + iter);
+                draft_model_name = std::string_view(model_name.cbegin() + iter + 1, model_name.cend());
+            }
+        }
+        POWERSERVE_LOG_INFO("main model: {}, draft model: {}", main_model_name, draft_model_name);
+
         std::lock_guard<std::mutex> lock_guard(m_lock);
 
-        const std::filesystem::path inner_model_folder = m_work_folder / model_name;
-        std::filesystem::path model_folder;
-        if (std::filesystem::exists(inner_model_folder) && std::filesystem::is_directory(inner_model_folder)) {
-            model_folder = inner_model_folder;
-        } else if (std::filesystem::exists(model_name) && std::filesystem::is_directory(model_name)) {
-            model_folder = model_name;
-        } else {
-            throw std::invalid_argument("model folder does not exist: " + model_name);
-        }
-        POWERSERVE_LOG_INFO("found model folder: {}", model_folder);
-
         if (m_context_slot_map.contains(model_name)) {
+            POWERSERVE_LOG_INFO("found cached model context: {}", model_name);
             return m_context_slot_map.at(model_name);
         }
 
-        std::unique_ptr<powerserve::Config> config_ptr = std::make_unique<powerserve::Config>(
+        const powerserve::Path main_model_path  = model_name_to_path(main_model_name);
+        const powerserve::Path draft_model_path = draft_model_name.empty() ? "" : model_name_to_path(draft_model_name);
+
+        const powerserve::Config workspace_config(
             m_work_folder, powerserve::Path(m_work_folder) / powerserve::WORKSPACE_CONFIG_FILENAME
         );
-        std::shared_ptr<powerserve::Model> model_ptr =
-            powerserve::load_model(config_ptr->main_model_dir, config_ptr->main_model_config);
 
-        model_ptr->m_platform = std::make_shared<powerserve::Platform>();
-        model_ptr->m_platform->init_ggml_backend(model_ptr->m_config, config_ptr->hyper_params);
-
-#if defined(POWERSERVE_WITH_QNN)
-        auto &qnn_backend = model_ptr->m_platform->qnn_backend;
-        if (m_lib_folder.empty()) {
-            model_ptr->m_platform->init_qnn_backend(
-                powerserve::Path(m_work_folder) / powerserve::qnn::QNN_LIB_DIR_NAME
-            );
-        } else {
-            model_ptr->m_platform->init_qnn_backend(m_lib_folder);
-        }
-        qnn_backend->load_model(
-            powerserve::Path(model_folder) / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, model_ptr->m_config
-        );
-#endif
-
-        model_ptr->m_attn = std::make_shared<powerserve::NormAttention>(model_ptr->m_config->llm, model_ptr->m_weights);
-        POWERSERVE_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
-
-        std::string tokenizer_path = config_ptr->main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
+        const std::string tokenizer_path                     = main_model_path / powerserve::MODEL_VOCAB_FILENAME;
         std::unique_ptr<powerserve::Tokenizer> tokenizer_ptr = std::make_unique<powerserve::Tokenizer>(tokenizer_path);
         POWERSERVE_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
-        ModelContext context(std::move(config_ptr), std::move(model_ptr), std::move(tokenizer_ptr));
-        m_context_slot_map[model_name] = std::move(context);
+        std::shared_ptr<powerserve::Model> main_model = init_model(main_model_path, workspace_config.hyper_params);
+#if defined(POWERSERVE_WITH_QNN)
+        main_model->kv_cache =
+            main_model->m_platform->qnn_backend->m_models[main_model->m_config->model_id]->kv_cache.get();
+#endif
+        if (draft_model_path.empty()) {
+            m_context_slot_map[model_name] =
+                ModelContext(workspace_config, std::move(main_model), std::move(tokenizer_ptr));
+        } else {
+            std::shared_ptr<powerserve::Model> draft_model =
+                init_model(draft_model_path, workspace_config.hyper_params);
+#if defined(POWERSERVE_WITH_QNN)
+            draft_model->kv_cache =
+                draft_model->m_platform->qnn_backend->m_models[draft_model->m_config->model_id]->kv_cache.get();
+#endif
+            m_context_slot_map[model_name] =
+                ModelContext(workspace_config, std::move(main_model), std::move(draft_model), std::move(tokenizer_ptr));
+        }
 
         return m_context_slot_map.at(model_name);
     }
@@ -336,6 +373,47 @@ public:
             m_session_map.erase(session_id);
         }
         POWERSERVE_LOG_INFO("destroy session: {}", session_id);
+    }
+
+private:
+    powerserve::Path model_name_to_path(const std::string_view model_name) const {
+        const powerserve::Path inner_model_folder = m_work_folder / model_name;
+        powerserve::Path model_folder;
+        if (std::filesystem::exists(inner_model_folder) && std::filesystem::is_directory(inner_model_folder)) {
+            model_folder = inner_model_folder;
+        } else if (std::filesystem::exists(model_name) && std::filesystem::is_directory(model_name)) {
+            model_folder = model_name;
+        } else {
+            POWERSERVE_LOG_ERROR("model folder does not exist: {}", model_name);
+            throw std::invalid_argument("model folder does not exist");
+        }
+        POWERSERVE_LOG_INFO("found model folder: {}", model_folder);
+        return model_folder;
+    }
+
+    std::shared_ptr<powerserve::Model> init_model(
+        const powerserve::Path &model_path, const powerserve::HyperParams &hyper_params
+    ) {
+        if (m_model_map.contains(model_path)) {
+            return m_model_map.at(model_path);
+        }
+
+        std::shared_ptr<powerserve::Model> model_ptr = powerserve::load_model(model_path);
+
+        model_ptr->m_platform = m_platform_ptr;
+        m_platform_ptr->init_ggml_backend(model_ptr->m_config, hyper_params);
+
+#if defined(POWERSERVE_WITH_QNN)
+        m_platform_ptr->qnn_backend->load_model(
+            model_path / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, model_ptr->m_config
+        );
+#endif
+
+        model_ptr->m_attn = std::make_shared<powerserve::NormAttention>(model_ptr->m_config->llm, model_ptr->m_weights);
+        POWERSERVE_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
+
+        m_model_map[model_path] = model_ptr;
+        return model_ptr;
     }
 };
 
@@ -410,18 +488,19 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
 
     const ModelInput &input = session.m_input;
 
-    auto &config    = *context.m_config_ptr;
+    auto &config    = context.m_config;
     auto &model     = *context.m_model_ptr;
+    auto &draft     = context.m_draft_model_ptr;
     auto &tokenizer = *context.m_tokenizer_ptr;
 
     // TODO: This sampler config is too argly
-    auto &sampler_config           = config.hyper_params.sampler_config;
-    sampler_config.temperature     = input.m_temperature;
-    sampler_config.penalty_freq    = input.m_frequency_penalty;
-    sampler_config.penalty_present = input.m_presence_penalty;
-    sampler_config.penalty_repeat  = input.m_repeat_penalty;
-    sampler_config.top_p           = input.m_top_p;
-    sampler_config.temperature     = input.m_temperature;
+    HyperParams::SamplerConfig sampler_config = config.hyper_params.sampler_config;
+    sampler_config.temperature                = input.m_temperature;
+    sampler_config.penalty_freq               = input.m_frequency_penalty;
+    sampler_config.penalty_present            = input.m_presence_penalty;
+    sampler_config.penalty_repeat             = input.m_repeat_penalty;
+    sampler_config.top_p                      = input.m_top_p;
+    sampler_config.temperature                = input.m_temperature;
     powerserve::SamplerChain sampler{sampler_config, tokenizer};
 
     /* Inference */
@@ -449,10 +528,26 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
 
     bool end_of_text = false;
     std::string output_buffer;
-    for (const Token token : model.generate(tokenizer, sampler, input_prompt, max_num_token, batch_size)) {
+
+    std::shared_ptr<powerserve::TokenIterator> iter = nullptr;
+#if defined(POWERSERVE_WITH_QNN)
+    std::shared_ptr<powerserve::SpeculativeModel> spec_model = nullptr;
+    if (draft) {
+        spec_model = std::make_shared<powerserve::SpeculativeModel>(
+            context.m_model_ptr, context.m_draft_model_ptr, context.speculative_config
+        );
+        iter = spec_model->generate(tokenizer, sampler, input_prompt, max_num_token, batch_size);
+    } else
+#endif
+    {
+        iter = model.generate(tokenizer, sampler, input_prompt, max_num_token, batch_size);
+    }
+    const size_t prefill_time_ms = timer.elapsed_time_ms();
+
+    while (!iter->end()) {
+        auto token = iter->next();
         step++;
         if (step == 1) {
-            const size_t prefill_time_ms = timer.elapsed_time_ms();
             POWERSERVE_LOG_INFO(
                 "prefill step: {}, prefill time: {}ms ({} token/s)",
                 num_prefill_token,
@@ -467,7 +562,7 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
             continue;
         }
 
-        if (token == eos_token || token == eom_token || token == eot_token) {
+        if (tokenizer.should_stop(token)) {
             end_of_text = true;
             break;
         } else {
@@ -504,12 +599,12 @@ inline ModelOutput blocking_inference(
 ) {
     using namespace powerserve;
 
-    auto &config    = *context.m_config_ptr;
+    auto &config    = context.m_config;
     auto &model     = *context.m_model_ptr;
+    auto &draft     = context.m_draft_model_ptr;
     auto &tokenizer = *context.m_tokenizer_ptr;
 
-    // TODO: This sampler config is too argly
-    auto &sampler_config           = config.hyper_params.sampler_config;
+    auto sampler_config            = config.hyper_params.sampler_config;
     sampler_config.temperature     = input.m_temperature;
     sampler_config.penalty_freq    = input.m_frequency_penalty;
     sampler_config.penalty_present = input.m_presence_penalty;
@@ -542,10 +637,26 @@ inline ModelOutput blocking_inference(
     Timer timer;
     const size_t num_prefill_token = tokenizer.tokenize(input_prompt, tokenizer.m_vocab.tokenizer_add_bos).size() - 1;
     bool end_of_text               = false;
-    for (const Token token : model.generate(tokenizer, sampler, input_prompt, max_num_token, batch_size)) {
+
+    std::shared_ptr<powerserve::TokenIterator> iter = nullptr;
+#if defined(POWERSERVE_WITH_QNN)
+    std::shared_ptr<powerserve::SpeculativeModel> spec_model = nullptr;
+    if (draft) {
+        spec_model = std::make_shared<powerserve::SpeculativeModel>(
+            context.m_model_ptr, context.m_draft_model_ptr, context.speculative_config
+        );
+        iter = spec_model->generate(tokenizer, sampler, input_prompt, max_num_token, batch_size);
+    } else
+#endif
+    {
+        iter = model.generate(tokenizer, sampler, input_prompt, max_num_token, batch_size);
+    }
+    const size_t prefill_time_ms = timer.elapsed_time_ms();
+
+    while (!iter->end()) {
+        auto token = iter->next();
         step++;
         if (step == 1) {
-            const size_t prefill_time_ms = timer.elapsed_time_ms();
             POWERSERVE_LOG_INFO(
                 "prefill step: {}, prefill time: {}ms ({} token/s)",
                 num_prefill_token,

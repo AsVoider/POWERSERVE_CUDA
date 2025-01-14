@@ -52,7 +52,7 @@ struct HyperParams {
     HyperParams() = default;
     HyperParams(const Path &params_file);
 
-    ~HyperParams() = default;
+    ~HyperParams() noexcept = default;
 };
 
 struct SamplerConfig {
@@ -70,9 +70,12 @@ struct SamplerConfig {
     bool ignore_eos       = false;
 
     SamplerConfig() = default;
+
+    ~SamplerConfig() noexcept = default;
+
     SamplerConfig(const Path &sampler_config_file);
 
-    virtual ~SamplerConfig() = default;
+    SamplerConfig(const SamplerConfig &other) = default;
 };
 
 struct ModelConfig {
@@ -125,7 +128,7 @@ struct ModelConfig {
     ModelConfig() = default;
     ModelConfig(const Path &model_config_file);
 
-    virtual ~ModelConfig() = default;
+    ~ModelConfig() noexcept = default;
 };
 
 struct Config {
@@ -135,13 +138,12 @@ public:
 
     HyperParams hyper_params;
 
-    std::shared_ptr<ModelConfig> main_model_config;
-    std::shared_ptr<ModelConfig> draft_model_config;
-
 public:
+    Config() = default;
+
     Config(const Path &work_folder, const Path &workspace_config_path);
 
-    virtual ~Config() = default;
+    ~Config() noexcept = default;
 };
 
 } // namespace powerserve

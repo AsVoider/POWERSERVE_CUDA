@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "CLI/CLI.hpp"
 #include "backend/platform.hpp"
+#include "cmdline.hpp"
 #include "core/config.hpp"
 #include "core/logger.hpp"
 #include "model/model_loader.hpp"
@@ -21,6 +21,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 
 constexpr int PPL_START_ID = 18;
@@ -61,52 +62,20 @@ void PerplexityCalculator::accept(powerserve::Token token) {
 
 int main(int argc, char *argv[]) {
     // 0. load config
-    std::string work_folder;
-    std::string prompt_file;
-    std::string prompt;
-    size_t batch_size = 32;
-    bool no_qnn       = false;
+    const powerserve::CommandLineArgument args = powerserve::parse_command_line("PowerServe Speculative", argc, argv);
+    powerserve::Config config                  = powerserve::get_config_from_argument(args);
 
-    CLI::App app("Perplexity");
-
-    app.add_option("-d,--work-folder", work_folder, "Set the working folder (required).")->required();
-    app.add_option("-b,--batch-size", batch_size);
-    app.add_flag("--no-qnn", no_qnn, "Disable QNN processing.");
-
-    CLI::Option_group *prompt_group =
-        app.add_option_group("Prompt Options", "Choose either prompt or prompt-file, not both.");
-    prompt_group->add_option("-p,--prompt", prompt);
-    prompt_group->add_option("-f,--prompt-file", prompt_file);
-    prompt_group->require_option(1, 1);
-
-    CLI11_PARSE(app, argc, argv);
-
-    if (!prompt_file.empty()) {
-        std::ifstream f(prompt_file);
-        if (f.is_open()) {
-            std::ostringstream oss;
-            oss << f.rdbuf();
-            prompt = oss.str();
-            f.close();
-        } else {
-            POWERSERVE_ASSERT(false, "failed to open prompt file: {}", prompt_file);
-        }
-    }
-    auto config = std::make_shared<powerserve::Config>(
-        work_folder, powerserve::Path(work_folder) / powerserve::WORKSPACE_CONFIG_FILENAME
-    );
-    std::shared_ptr<powerserve::Model> model =
-        powerserve::load_model(config->main_model_dir, config->main_model_config);
-    auto [sampler_config, n_threads, prefill_batch_size] = config->hyper_params;
+    std::shared_ptr<powerserve::Model> model                   = powerserve::load_model(config.main_model_dir);
+    const auto [sampler_config, n_threads, prefill_batch_size] = config.hyper_params;
     POWERSERVE_UNUSED(prefill_batch_size);
 
     model->m_platform = std::make_shared<powerserve::Platform>();
-    model->m_platform->init_ggml_backend(model->m_config, config->hyper_params);
+    model->m_platform->init_ggml_backend(model->m_config, config.hyper_params);
 #if defined(POWERSERVE_WITH_QNN)
-    if (!no_qnn) {
+    if (!args.no_qnn) {
         auto &qnn_backend = model->m_platform->qnn_backend;
-        model->m_platform->init_qnn_backend(powerserve::Path(work_folder) / powerserve::qnn::QNN_LIB_DIR_NAME);
-        qnn_backend->load_model(config->main_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, model->m_config);
+        model->m_platform->init_qnn_backend(args.qnn_lib_folder);
+        qnn_backend->load_model(config.main_model_dir / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, model->m_config);
     }
 #endif
 
@@ -114,17 +83,17 @@ int main(int argc, char *argv[]) {
     POWERSERVE_LOG_INFO("after attention module init: {}", powerserve::perf_get_mem_result());
 
     // load tokenizer
-    const std::string tokenizer_path = config->main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
+    const std::string tokenizer_path = config.main_model_dir / powerserve::MODEL_VOCAB_FILENAME;
     const powerserve::Tokenizer tokenizer(tokenizer_path);
     POWERSERVE_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
-    const auto prompt_tokens = tokenizer.tokenize(prompt, tokenizer.m_vocab.tokenizer_add_bos);
+    const auto prompt_tokens = tokenizer.tokenize(args.prompt, tokenizer.m_vocab.tokenizer_add_bos);
     const size_t n_tokens    = prompt_tokens.size();
     POWERSERVE_LOG_INFO("dataset: {} tokens", n_tokens);
 
     // ppl
     PerplexityCalculator ppl_calculator(model->m_config->llm.vocab_size);
-
+    size_t batch_size = config.hyper_params.batch_size;
     if (batch_size > n_tokens) {
         batch_size = n_tokens;
     }
@@ -165,4 +134,6 @@ int main(int argc, char *argv[]) {
         }
         batch_id += 1;
     }
+
+    return 0;
 }

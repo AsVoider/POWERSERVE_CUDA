@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "core/logger.hpp"
+#include "core/exception.hpp"
 #include "storage/file_loader.hpp"
 
 #include <filesystem>
@@ -38,11 +38,15 @@ public:
 
         struct stat file_stat;
         const int ret = fstat(m_file_handle.m_fd, &file_stat);
-        POWERSERVE_ASSERT(ret == 0, "failed to fstat file {}", m_file_path);
+        if (ret != 0) [[unlikely]] {
+            throw EnvironmentException("FileLoaderMMap", fmt::format("failed to fstat file {}", m_file_path));
+        }
 
         const size_t file_size = file_stat.st_size;
         void *mmap_ret         = mmap(nullptr, file_size, PROT_READ, MAP_SHARED, m_file_handle.m_fd, 0);
-        POWERSERVE_ASSERT(mmap_ret != MAP_FAILED, "failed to mmap file {}", m_file_path);
+        if (mmap_ret == MAP_FAILED) [[unlikely]] {
+            throw EnvironmentException("FileLoaderMMap", fmt::format("failed to mmap file {}", m_file_path));
+        }
 
         m_mmap_space = {static_cast<std::byte *>(mmap_ret), file_size};
     }
@@ -77,15 +81,15 @@ public:
 public:
     void load() override {
         /*
-             * Prefetch the whole file into Page Cache
-             */
+         * Prefetch the whole file into Page Cache
+         */
         madvise(m_mmap_space.data(), m_mmap_space.size(), MADV_WILLNEED);
     }
 
     void unload() override {
         /*
-             * Unload the whole file from Page Cache
-             */
+         * Unload the whole file from Page Cache
+         */
         madvise(m_mmap_space.data(), m_mmap_space.size(), MADV_DONTNEED);
     }
 

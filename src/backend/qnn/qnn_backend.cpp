@@ -65,7 +65,7 @@ void QNNBackend::forward(
                 out_buf = (float *)batch.lm_head->output_buffer();
                 size    = batch_size * vocab_size * sizeof(float);
             }
-            //TODO: Eliminate memcpy
+            // TODO: Eliminate memcpy
             PerfettoTrace::begin("qnn_forward_memcpy");
             memcpy(dst_data_ptr, out_buf, size);
             PerfettoTrace::end();
@@ -98,7 +98,7 @@ void QNNBackend::forward(
     auto &vision          = model.m_vision;
     auto token_embeddings = std::span<float>((float *)src->get<CPUBuffer>().m_data, src->n_elements());
     auto pos_size_t       = std::vector<size_t>(pos.size());
-    if (pos.size() > 2750) //for mmmu test
+    if (pos.size() > 2750) // for mmmu test
     {
         if (dst->n_elements() > 1) {
             memset(dst->get<CPUBuffer>().m_data, 0, dst->n_elements() * get_type_size(dst->m_dtype));

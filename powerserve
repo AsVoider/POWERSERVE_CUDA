@@ -33,7 +33,7 @@ logging.info(f"current root: {root_folder}")
 
 default_hparams = {
     "n_threads": 4,
-    "batch_size": 1024,
+    "batch_size": 128,
     # Default to greedy sampling (top_k = 1) without repeat penalty (penalty_repeat = 1).
     "sampler": {
         "seed": 0,
@@ -98,7 +98,9 @@ def get_files(path: Path):
 
 def prepare_qnn_libs(out_path: Path):
     qnn_sdk_folder = os.getenv("QNN_SDK_ROOT")
-    assert qnn_sdk_folder, "QNN_SDK_ROOT is not set"
+    if qnn_sdk_folder is None:
+        print("QNN_SDK_ROOT is not set")
+        return
     qnn_sdk_folder = Path(qnn_sdk_folder)
 
     qnn_libs_path = out_path / QNN_LIB_DIR_NAME
@@ -185,7 +187,7 @@ def command():
     create_parser.add_argument("-d", "--draft-model", type=Path, help="Draft model path", default=None)
     create_parser.add_argument("--other-models", type=Path, help="other models path", nargs="+")
     create_parser.add_argument("-o", "--out-path", type=Path, default=Path("./proj/"), help="Output path")
-    create_parser.add_argument("--exe-path", type=Path, required=True, default=None)
+    create_parser.add_argument("--exe-path", type=Path, required=False, default=None)
     create_parser.set_defaults(func=powerserve_create)
 
     args = parser.parse_args()

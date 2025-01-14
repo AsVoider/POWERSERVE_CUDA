@@ -62,22 +62,22 @@ public:
 
 public: /* Buffer Operation */
     /*!
-         * @brief Load the whole file into buffer
-         * @note This may incurs large memory allocation
-         */
+     * @brief Load the whole file into buffer
+     * @note This may incurs large memory allocation
+     */
     virtual void load() = 0;
 
     /*!
-         * @brief Release file buffer while keeping the file handle
-         */
+     * @brief Release file buffer while keeping the file handle
+     */
     virtual void unload() = 0;
 
 public: /* Getter */
     /*!
-         * @brief Get the file buffer
-         * @param[in] implicit_load Read the file into the buffer if it hasn't been loaded.
-         * @note Getting a buffer without pre-load operation or implicit load flag leads to undefined behaviour.
-         */
+     * @brief Get the file buffer
+     * @param[in] implicit_load Read the file into the buffer if it hasn't been loaded.
+     * @note Getting a buffer without pre-load operation or implicit load flag leads to undefined behaviour.
+     */
     virtual std::span<std::byte> get_buffer(bool implicit_load = true) = 0;
 
     template <class T>
@@ -89,14 +89,14 @@ public: /* Getter */
     }
 
     /*!
-         * @brief Get the underlying implementation method of FileLoader
-         */
+     * @brief Get the underlying implementation method of FileLoader
+     */
     virtual FileLoaderMethod get_method() const = 0;
 };
 
 /*!
-     * @brief Factory Function: Build up a file loader
-     */
+ * @brief Factory Function: Build up a file loader
+ */
 std::unique_ptr<FileLoader> build_file_loader(const std::filesystem::path &file_path, FileLoaderMethod method);
 
 } // namespace powerserve::storage

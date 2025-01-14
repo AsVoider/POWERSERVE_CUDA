@@ -148,8 +148,9 @@ void RepeatPenaltySampler::apply(ProbArray &probs) {
 
         const int count = token_iter->second;
 
-        // The academic publication that described this technique actually just only divided, but that would cause tokens with negative logits to become more likely, which is obviously wrong.
-        // This is common fix for this problem, which is to multiply by the penalty instead of dividing.
+        // The academic publication that described this technique actually just only divided, but that would cause
+        // tokens with negative logits to become more likely, which is obviously wrong. This is common fix for this
+        // problem, which is to multiply by the penalty instead of dividing.
         if (probs.m_probs[i].prob <= 0) {
             probs.m_probs[i].prob *= m_penalty_repeat;
         } else {
