@@ -10,6 +10,7 @@ import requests
 from huggingface_hub import snapshot_download
 
 
+# fmt: off
 # Define model mappings and speculation support
 MODEL_MAP = {
     "smallthinker-3b": "PowerServe/SmallThinker-3B-PowerServe-QNN29-{soc_name}",
@@ -226,6 +227,9 @@ def run_model(args):
 
 def deploy_to_phone(args, models):
     target_path = "/data/local/tmp"
+    # mkdir proj/
+    if not check_dir_on_phone(f"{target_path}/proj"):
+        subprocess.run(["adb", "shell", f"mkdir -p {target_path}/proj"], check=True)
 
     for model_repo in models:
         model_name = model_repo.split("/")[-1]
@@ -330,3 +334,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+# fmt: on
