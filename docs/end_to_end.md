@@ -19,18 +19,29 @@ These prerequisites are necessary for the end-to-end script to run successfully,
 
 ## Linux or MacOS or WSL(Windows Subsystem for Linux)
 
+Table of supported models:
+| Model Name | Huggingface Link | Speculation Support |
+| ---------- | ----------- | ------------------- |
+| smallthinker-3b | [SmallThinker-3B](https://huggingface.co/PowerServe/SmallThinker-3B-PowerServe-QNN29-{soc_name}) | Yes |
+| llama-3.1-8b | [Llama-3.1-8B](https://huggingface.co/PowerServe/Llama-3.1-8B-PowerServe-QNN29-{soc_name}) | Yes |
+| llama-3.2-1b | [Llama-3.2-1B](https://huggingface.co/PowerServe/Llama-3.2-1B-PowerServe-QNN29-{soc_name}) | No |
+| qwen-2.5-3b | [Qwen-2.5-3B](https://huggingface.co/PowerServe/Qwen-2.5-3B-PowerServe-QNN29-{soc_name}) | No |
+| qwen-2-0.5b | [Qwen-2-0.5B](https://huggingface.co/PowerServe/Qwen-2-0.5B-PowerServe-QNN29-{soc_name}) | No |
+
+
 ```
 PowerServe End-to-End Script
 
 positional arguments:
-  {compile,run}
-    compile      Compile the binary using Docker
-    run          Run the model on the phone
-                 Supported models: smallthinker-3b, llama-3.1-8b, llama-3.2-1b
-                 Models supporting speculation: smallthinker-3b, llama-3.1-8b
+  {compile,run,clean}
+    compile            Compile the binary using Docker
+    run                Run the model on the phone
+                       Supported models: smallthinker-3b, llama-3.1-8b, llama-3.2-1b, qwen-2.5-3b, qwen-2-0.5b
+                       Models supporting speculation: smallthinker-3b, llama-3.1-8b
+    clean              Clean all environment(local and phone)
 
 options:
-  -h, --help     show this help message and exit
+  -h, --help           show this help message and exit
 ```
 
 The above is the help message of the end-to-end script. You can run the script with the following steps:

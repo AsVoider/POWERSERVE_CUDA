@@ -34,3 +34,18 @@ cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -D
 echo -e "\033[32mBuilding project for Android\033[0m"
 cmake --build build_android --config RelWithDebInfo --parallel 12 --target all
 
+tempmodel1="/tempA"
+tempmodel2="/tempB"
+mkdir -p "${tempmodel1}"
+mkdir -p "${tempmodel2}"
+touch "${tempmodel1}/model.json"
+touch "${tempmodel2}/model.json"
+
+./powerserve create --only-extract-qnn -m "${tempmodel1}" -d "${tempmodel2}" --exe-path /code/build_android/out
+
+rm -rf "${tempmodel1}" || true
+rm -rf "${tempmodel2}" || true
+
+chmod -R 777 /code/proj
+chmod -R 777 /code/build_android
+chmod 777 /models

@@ -258,3 +258,11 @@ export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64 && ./models/llama3.1-8b-instr
     > Use `export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64` before executing the program.
     >
     > Because `libcdsprpc.so` depends on `/system/lib64/libbinder.so` instead of `/vendor/lib64/libbinder.so`. If the linker searches the `/vendor/lib64` at first, it may find and links `/vendor/lib64/libbinder.so` which does not contain corresponding function definitions.
+
+2. **Some mobile phones cannot run large models**: Some mobile phones cannot run larger models due to different security policies.
+
+    **Some of known models and phones are listed below:**
+    
+    | Phone    | Models can't be run |
+    |----------|---------------------|
+    | All brands of HONOR | parameters larger than 3B |
