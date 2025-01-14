@@ -5,6 +5,9 @@ target_link_libraries(server.simple PUBLIC
     nlohmann_json::nlohmann_json
     concurrentqueue
 )
+if (POWERSERVE_SERVER_MULTIMODEL)
+    target_compile_definitions(server.simple PUBLIC POWERSERVE_SERVER_MULTIMODEL)
+endif ()
 
 add_library(server.local STATIC local_server.cpp)
 target_link_libraries(server.local PUBLIC
@@ -13,6 +16,9 @@ target_link_libraries(server.local PUBLIC
     nlohmann_json::nlohmann_json
     concurrentqueue
 )
+if (POWERSERVE_SERVER_MULTIMODEL)
+    target_compile_definitions(server.local PUBLIC POWERSERVE_SERVER_MULTIMODEL)
+endif ()
 
 add_executable(server server.cpp)
 target_link_libraries(server PRIVATE

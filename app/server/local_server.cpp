@@ -68,14 +68,14 @@ public: /* Client interface */
 
 struct LocalResponse {
 public:
-    int status;
+    int status = 200;
     LocalDataSink m_data_sink;
 
     std::function<void(LocalResponse &)> m_func;
 
 public:
     template <class T>
-    LocalResponse(T &&func) : m_func(std::move(func)) {}
+    LocalResponse(T &&func) : m_func(std::forward<T>(func)) {}
 
     ~LocalResponse() noexcept = default;
 

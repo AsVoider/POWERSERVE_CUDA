@@ -6,12 +6,21 @@ target_link_libraries(powerserve PUBLIC
     ggml
     llama_tokenizer
     nlohmann_json::nlohmann_json
-    uv_a
 )
+
+if (NOT OHOS)
+    message(STATUS "Introduce uv a")
+    target_link_libraries(powerserve PUBLIC uv_a)
+endif()
 
 if (POWERSERVE_WITH_PERFETTO)
     target_link_libraries(powerserve PRIVATE perfetto)
 endif()
+
+if (POWERSERVE_ANDROID_LOG)
+    add_compile_definitions(POWERSERVE_ANDROID_LOG)
+    target_link_libraries(powerserve PUBLIC log)
+endif ()
 
 if (NOT MSVC)
     target_compile_options(powerserve PRIVATE

@@ -32,12 +32,24 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#ifdef POWERSERVE_ANDROID_LOG
+#include <android/log.h>
+#endif // POWERSERVE_ANDROID_LOG
+
 namespace powerserve::qnn {
 
 static void log_callback(const char *fmt, QnnLog_Level_t level, uint64_t timestamp, va_list args) {
     POWERSERVE_UNUSED(level);
     POWERSERVE_UNUSED(timestamp);
-    vprintf(fmt, args);
+
+    [[maybe_unused]]
+    const int length = vprintf(fmt, args);
+
+#ifdef POWERSERVE_ANDROID_LOG
+    std::string message(length, '\0');
+    vsnprintf(message.data(), length, fmt, args);
+    __android_log_write(ANDROID_LOG_INFO, "PowerServe", message.c_str());
+#endif // POWERSERVE_ANDROID_LOG
 }
 
 static auto format_qnn_version(Qnn_Version_t version) -> std::string {

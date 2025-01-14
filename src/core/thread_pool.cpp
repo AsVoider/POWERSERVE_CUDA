@@ -20,22 +20,6 @@
 
 namespace powerserve {
 
-static int set_thread_affinity(uv_thread_t *thread, const std::vector<size_t> &cpu_ids) {
-    int mask_size = uv_cpumask_size();
-    if (mask_size == UV_ENOTSUP) {
-        return -ENOTSUP;
-    }
-
-    auto mask = std::make_unique<bool[]>(mask_size);
-    memset(mask.get(), 0, mask_size);
-    for (auto id : cpu_ids) {
-        POWERSERVE_ASSERT(id < (size_t)mask_size);
-        mask[id] = true;
-    }
-
-    return uv_thread_setaffinity(thread, (char *)mask.get(), nullptr, mask_size);
-}
-
 ThreadPool::ThreadPool(const std::vector<ThreadConfig> &configs) : m_configs(configs) {
     POWERSERVE_ASSERT(configs.size() > 0);
 
@@ -87,13 +71,6 @@ void ThreadPool::wait() {
 }
 
 void ThreadPool::thread_main(size_t thread_id) {
-    auto &config = m_configs[thread_id];
-
-    if (!config.cpu_ids.empty()) {
-        auto self = uv_thread_self();
-        POWERSERVE_ASSERT(set_thread_affinity(&self, config.cpu_ids) == 0);
-    }
-
     while (!m_exited) {
         // uv_barrier_wait(&m_run_barrier); // when main thread runs, it will wait for all threads to reach this barrier
         spin_barrier_wait(&m_run_barrier); // when main thread runs, it will wait for all threads to reach this barrier

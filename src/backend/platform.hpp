@@ -40,6 +40,7 @@ public:
 public:
     // TODO: No need trans config
     void init_ggml_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams);
+    void destroy_ggml_backend(const std::shared_ptr<ModelConfig> &config);
 
 #if defined(POWERSERVE_WITH_QNN)
     void init_qnn_backend(const Path &qnn_path);

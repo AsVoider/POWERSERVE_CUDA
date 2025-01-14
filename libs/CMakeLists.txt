@@ -15,14 +15,16 @@ endif()
 # json
 add_subdirectory(json)
 
-# libuv
-set(LIBUV_BUILD_SHARED OFF CACHE BOOL "Build shared lib")
-add_subdirectory(libuv)
+if (NOT OHOS)
+    # libuv
+    set(LIBUV_BUILD_SHARED OFF CACHE BOOL "Build shared lib")
+    add_subdirectory(libuv)
 
-if (CMAKE_C_COMPILER_ID MATCHES "Clang")
-    target_compile_options(uv_a PRIVATE -Wno-missing-prototypes -Wno-unreachable-code-return -Wno-shadow)
-elseif (CMAKE_C_COMPILER_ID MATCHES "GNU")
-    target_compile_options(uv_a PRIVATE -Wno-cast-qual -Wno-missing-prototypes -Wno-shadow)
+    if (CMAKE_C_COMPILER_ID MATCHES "Clang")
+        target_compile_options(uv_a PRIVATE -Wno-missing-prototypes -Wno-unreachable-code-return -Wno-shadow)
+    elseif (CMAKE_C_COMPILER_ID MATCHES "GNU")
+        target_compile_options(uv_a PRIVATE -Wno-cast-qual -Wno-missing-prototypes -Wno-shadow)
+    endif()
 endif()
 
 # llama_tokenizer

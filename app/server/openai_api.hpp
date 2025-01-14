@@ -21,7 +21,6 @@
 #include "server_handler.hpp"
 
 #include <chrono>
-#include <cmath>
 #include <cstddef>
 #include <thread>
 

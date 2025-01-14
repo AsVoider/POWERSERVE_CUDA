@@ -14,6 +14,10 @@
 
 #pragma once
 
+#ifdef POWERSERVE_ANDROID_LOG
+#include "android_logger.hpp"
+#endif // POWERSERVE_ANDROID_LOG
+
 #include "exception.hpp"
 #include "fmt/base.h"
 #include "fmt/ranges.h"
@@ -23,8 +27,6 @@
 #include <cstdio>
 #include <string>
 #include <string_view>
-
-// #define POWERSERVE_NO_ASSERT
 
 #ifndef POWERSERVE_LOG_DEBUG
 #define POWERSERVE_LOG_DEBUG(...) fmt::println(stdout, "[DEBUG] " __VA_ARGS__)

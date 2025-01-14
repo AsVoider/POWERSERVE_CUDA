@@ -15,7 +15,6 @@
 #pragma once
 
 #include "core/spin_barrier.h"
-#include "uv.h"
 
 #include <atomic>
 #include <functional>
