@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 from subprocess import DEVNULL
 
 import requests
 from huggingface_hub import snapshot_download
-from subprocess import DEVNULL
-import shutil
+
 
 # Define model mappings and speculation support
 MODEL_MAP = {
@@ -73,6 +73,7 @@ def get_soc():
     print(f"\033[36mDetermining SoC\033[0m \033[32m[OK]\033[0m")
     print(f"\033[32mSoC: {soc_name}\033[0m")
     return soc_name
+
 
 def compile_binary():
     if not check_network_connectivity("https://github.com"):
