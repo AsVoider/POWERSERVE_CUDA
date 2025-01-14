@@ -10,6 +10,7 @@ public:
     struct GGML_CUDACHUNK {
         uint8_t *cache_data_ptr{nullptr};
         size_t next_position{0};
+        size_t valid_idx{0};
     };
 
     struct KVCacheShape {
