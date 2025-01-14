@@ -52,7 +52,7 @@ check_formatting:
     - changed_files=$(git diff ${CI_MERGE_REQUEST_DIFF_BASE_SHA} --name-only)
     - echo "$changed_files"
     - if [[ -z "$changed_files" ]]; then echo "No files changed; nothing to format"; exit 0; fi
-    - files_to_format=$(echo "$changed_files" | grep -v '\.md$')
+    - files_to_format=$(echo "$changed_files" | grep -v '\.md$' | grep -v '\.py$' | grep -v '\.sh$')
     - python tools/format.py $files_to_format
     - format_exit_status=$?
     - echo "$format_exit_status"

@@ -50,6 +50,25 @@ default_hparams = {
     },
 }
 
+smallthinker_hparams = {
+    "n_threads": 4,
+    "batch_size": 128,
+    # Default to greedy sampling (top_k = 1) without repeat penalty (penalty_repeat = 1).
+    "sampler": {
+        "seed": 0,
+        "temperature": 0.5,
+        "top_p": 1.0,
+        "top_k": 20,
+        "min_keep": 0,
+        "penalty_last_n": 64,
+        "penalty_repeat": 1.15,
+        "penalty_freq": 0,
+        "penalty_present": 0,
+        "penalize_nl": False,
+        "ignore_eos": False,
+    },
+}
+
 
 def execute_command(cmd_args):
     cmd = " ".join(map(str, cmd_args))
@@ -144,22 +163,28 @@ def powerserve_create(args):
         execute_command(["cp", "-r", exe_path / "*", bin_path])
 
     artifact_config[HYPER_PARAMS_FILENAME_KEY] = "hparams.json"
-    write_json(out_path / artifact_config[HYPER_PARAMS_FILENAME_KEY], default_hparams)
+    hparams_config = default_hparams
+    if "smallthinker" in main_model_path.name:
+        hparams_config = smallthinker_hparams
+    write_json(out_path / artifact_config[HYPER_PARAMS_FILENAME_KEY], hparams_config)
 
     artifact_config[MAIN_MODEL_KEY] = str(main_model_path.name)
     main_model_abspath = out_path / artifact_config[MAIN_MODEL_KEY]
-    if not main_model_abspath.exists():
-        main_model_abspath.mkdir(parents=True, exist_ok=True)
-    execute_command(["cp", "-r", main_model_path / "*", main_model_abspath])
+
+    if not args.config_only:
+        if not main_model_abspath.exists():
+            main_model_abspath.mkdir(parents=True, exist_ok=True)
+        execute_command(["cp", "-r", main_model_path / "*", main_model_abspath])
 
     main_config = read_json(out_path / artifact_config[MAIN_MODEL_KEY] / MODEL_CONFIG_FILENAME)
 
     if draft_model_path:
         artifact_config[DRAFT_MODEL_KEY] = str(draft_model_path.name)
         draft_model_abspath = out_path / artifact_config[DRAFT_MODEL_KEY]
-        if not draft_model_abspath.exists():
-            draft_model_abspath.mkdir(parents=True, exist_ok=True)
-        execute_command(["cp", "-r", draft_model_path / "*", draft_model_abspath])
+        if not args.config_only:
+            if not draft_model_abspath.exists():
+                draft_model_abspath.mkdir(parents=True, exist_ok=True)
+            execute_command(["cp", "-r", draft_model_path / "*", draft_model_abspath])
 
         draft_config = read_json(out_path / artifact_config[DRAFT_MODEL_KEY] / MODEL_CONFIG_FILENAME)
         assert main_config["model_id"] != draft_config["model_id"]
@@ -169,9 +194,10 @@ def powerserve_create(args):
     if args.other_models:
         for other_model_path in args.other_models:
             other_model_abspath = out_path / str(other_model_path.name)
-            if not other_model_abspath.exists():
-                other_model_abspath.mkdir(parents=True, exist_ok=True)
-            execute_command(["cp", "-r", other_model_path / "*", other_model_abspath])
+            if not args.config_only:
+                if not other_model_abspath.exists():
+                    other_model_abspath.mkdir(parents=True, exist_ok=True)
+                execute_command(["cp", "-r", other_model_path / "*", other_model_abspath])
 
     write_json(out_path / ARTIFACT_CONFIG_FILENAME, artifact_config)
 
@@ -188,6 +214,7 @@ def command():
     create_parser.add_argument("--other-models", type=Path, help="other models path", nargs="+")
     create_parser.add_argument("-o", "--out-path", type=Path, default=Path("./proj/"), help="Output path")
     create_parser.add_argument("--exe-path", type=Path, required=False, default=None)
+    create_parser.add_argument("--config-only", type=Path, required=False, default=None)
     create_parser.set_defaults(func=powerserve_create)
 
     args = parser.parse_args()
