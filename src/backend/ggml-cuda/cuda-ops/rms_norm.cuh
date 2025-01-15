@@ -64,7 +64,7 @@ void rms_norm_with_weight(ggml_backend_cuda_context &ctx, ggml_tensor *dst) {
     const auto n_cols{dst->ne[0]};
     const auto n_rows{ggml_nrows(dst)};
 
-    float eps{0.f};
+    float eps{0.0f};
     memcpy(&eps, dst->op_params, sizeof(float));
 
     rms_norm_f32_with_weight_cuda(src0_data, src1_data, dst_data, n_cols, n_rows, eps, stream);

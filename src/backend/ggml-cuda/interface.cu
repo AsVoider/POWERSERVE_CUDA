@@ -183,6 +183,7 @@ op_interface op_interfaces::op_rms_norm = [] (cuda_context_warp &ctx, ggml_tenso
         ggml_cuda_op_rms_norm(cuda_context_ptr[0], dst);
     } else {
         // TODO:
+        rms_norm_with_weight(cuda_context_ptr[0], dst);
     }
 };
 
