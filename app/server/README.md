@@ -6,11 +6,11 @@ Start a server:
 - `--work-folder`(optional): The folder of model workspace. When receiving a request specifying the model, it search firstly in this directory. For example, when I specify `--work-folder model`, it will search models in the directory **./model** if it exists. When I specify the model folder with such a request:
     ```json
     {
-        "model": "llama3.1-8b-instruct",
+        "model": "SmallThinker-3B-PowerServe-QNN29-8Gen4",
         "prompt": "Hello"
     }
     ```
-    it will search the directory **./model/llama3.1-8b-instruct** at first and then **llama3.1-8b-instruct** if the former one does not exist.
+    it will search the directory **./model/SmallThinker-3B-PowerServe-QNN29-8Gen4** at first and then **SmallThinker-3B-PowerServe-QNN29-8Gen4** if the former one does not exist.
 - `--lib-folder`(optional): The folder containing QNN libraries. If not specified, it will be assigned with `model-folder/qnn_libs` by default.
 - `--host`(optional): The IP address the server listen
 - `--port`(optional): The IP port the server listen
@@ -24,28 +24,28 @@ Test the server simply:
     curl --request POST \
         --url http://localhost:8080/completion \
         --header "Content-Type: application/json" \
-        --data '{"prompt": "Once upon a time", "max_tokens": 128, "model": "model"}'
+        --data '{"prompt": "Once upon a time", "max_tokens": 128, "model": "SmallThinker-3B-PowerServe-QNN29-8Gen4"}'
     ```
 - Chat
     ```shell
     curl --request POST \
         --url http://localhost:8080/v1/chat/completions \
         --header "Content-Type: application/json" \
-        --data '{"messages": [{"role":"user", "content":"Once upon a time"}], "model": "llama3.1-8b-q8"}'
+        --data '{"messages": [{"role":"user", "content":"Once upon a time"}], "model": "SmallThinker-3B-PowerServe-QNN29-8Gen4"}'
     ```
 - Streamly chat
     ```shell
     curl --request POST \
         --url http://localhost:8080/v1/chat/completions \
         --header "Content-Type: application/json" \
-        --data '{"stream": true, "messages": [{"role":"user", "content":"Once upon a time"}], "model": "llama3.1-8b-q8"}'
+        --data '{"stream": true, "messages": [{"role":"user", "content":"Once upon a time"}], "model": "SmallThinker-3B-PowerServe-QNN29-8Gen4"}'
     ```
 - Speculative chat: If you want server use speculative, please use '+' to connect 2 models.
     ```shell
     curl --request POST \
         --url http://localhost:8080/v1/chat/completions \
         --header "Content-Type: application/json" \
-        --data '{"stream": true, "messages": [{"role":"user", "content":"Once upon a time"}], "model": "llama3.1-8b+llama3.2-1b"}'
+        --data '{"stream": true, "messages": [{"role":"user", "content":"Once upon a time"}], "model": "SmallThinker-3B-PowerServe-QNN29-8Gen4+SmallThinker-0.5B-PowerServe-QNN29-8Gen4"}'
     ```
 
 ## OpenAI API

@@ -18,9 +18,9 @@
 #include "fmt/format.h"
 #include "fmt/std.h"
 
+#include <cerrno>
 #include <cstdint>
 #include <exception>
-#include <source_location>
 #include <string>
 #include <string_view>
 
@@ -32,6 +32,8 @@
 #elif defined(__linux__) && defined(__GLIBC__)
 #include <execinfo.h>
 #include <sys/wait.h>
+#else
+#include <unistd.h>
 #endif
 
 namespace powerserve {
@@ -111,7 +113,7 @@ inline void print_backtrace_symbols() {
 }
 #endif
 
-#if defined(__linux__) || defined(__ANDROID__)
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(__OHOS__)
 inline void print_backtrace() {
     char attach[32];
     snprintf(attach, sizeof(attach), "attach %d", getpid());
@@ -193,16 +195,12 @@ public:
     AbortException(
         const std::string_view tag,
         const std::string_view message,
-        const std::source_location code_location = std::source_location::current()
+        const std::string_view file_name,
+        const std::string_view line,
+        const std::string_view func_name
     ) :
         BasicException(tag, "AbortException") {
-        m_content += fmt::format(
-            "\n[Exception][{}] Source {}: {}: {}",
-            tag,
-            code_location.file_name(),
-            code_location.line(),
-            code_location.function_name()
-        );
+        m_content += fmt::format("\n[Exception][{}] Source {}: {}: {}", tag, file_name, line, func_name);
         m_content += fmt::format("\n[Exception][{}] AbortException: {}", tag, message);
         m_content += fmt::format("\n[Exception][{}] System error: {}", tag, get_system_error());
     }
@@ -275,7 +273,7 @@ public:
     POWERSERVE_EXP_ASSERT(expr, ::powerserve::ModuleException, tag, module, fmt::format("" __VA_ARGS__))
 
 #ifdef POWERSERVE_EXCEPTION_ABORT
-#define POWERSERVE_ABORT(...)        throw AbortException(__func__, fmt::format("" __VA_ARGS__))
+#define POWERSERVE_ABORT(...)        throw AbortException(__func__, fmt::format("" __VA_ARGS__), __FILE__, __LINE__, __func__)
 #define POWERSERVE_ASSERT(expr, ...) throw AssertException(__func__, fmt::format("Assert(" #expr ") " __VA_ARGS__))
 #endif // POWERSERVE_EXCEPTION_ABORT
 

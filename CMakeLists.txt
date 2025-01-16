@@ -9,7 +9,9 @@ option(POWERSERVE_ENABLE_WERROR "Enable -Werror" OFF)
 option(POWERSERVE_WITH_CUDA "Enable CUDA backend" OFF)
 option(POWERSERVE_WITH_QNN "Enable QNN backend" OFF)
 option(POWERSERVE_WITH_PERFETTO "Enable Perfetto tracing" OFF)
+option(POWERSERVE_ANDROID_LOG "Replace the underlying interface of logger with android log interface" OFF)
 option(POWERSERVE_EXCEPTION_ABORT "Replace underlying abort/assert with raising exception" OFF)
+option(POWERSERVE_SERVER_MULTIMODEL "Cache all models used in the memory" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -56,6 +58,10 @@ if (POWERSERVE_ENABLE_LTO)
     else()
         add_compile_options(-flto)
     endif()
+endif()
+
+if (OHOS)
+    add_compile_options(-Wno-unused-command-line-argument)
 endif()
 
 add_custom_target(

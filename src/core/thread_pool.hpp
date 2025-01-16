@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "uv.h"
+#include "core/spin_barrier.h"
 
 #include <atomic>
 #include <functional>
@@ -57,8 +57,10 @@ public:
 private:
     std::vector<ThreadConfig> m_configs;
     std::atomic<bool> m_exited = false;
-    uv_barrier_t m_run_barrier;
-    uv_barrier_t m_sync_barrier;
+    // uv_barrier_t m_run_barrier;
+    // uv_barrier_t m_sync_barrier;
+    spin_barrier m_run_barrier;
+    spin_barrier m_sync_barrier;
     std::vector<std::thread> m_threads;
     TaskFn m_current_task = nullptr;
 

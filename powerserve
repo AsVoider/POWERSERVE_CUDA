@@ -30,7 +30,6 @@ logging.basicConfig(
 root_folder = Path(".").absolute()
 logging.info(f"current root: {root_folder}")
 
-
 default_hparams = {
     "n_threads": 4,
     "batch_size": 128,
@@ -50,6 +49,24 @@ default_hparams = {
     },
 }
 
+smallthinker_hparams = {
+    "n_threads": 4,
+    "batch_size": 128,
+    # Default to greedy sampling (top_k = 1) without repeat penalty (penalty_repeat = 1).
+    "sampler": {
+        "seed": 0,
+        "temperature": 0.5,
+        "top_p": 1.0,
+        "top_k": 20,
+        "min_keep": 0,
+        "penalty_last_n": 64,
+        "penalty_repeat": 1.15,
+        "penalty_freq": 0,
+        "penalty_present": 0,
+        "penalize_nl": False,
+        "ignore_eos": False,
+    },
+}
 
 def execute_command(cmd_args):
     cmd = " ".join(map(str, cmd_args))
@@ -62,18 +79,15 @@ def execute_command(cmd_args):
         print(error_info)
     assert p.returncode == 0
 
-
 def read_json(path: Path) -> Dict:
     config = {}
     with open(path, "r") as fp:
         config = json.load(fp)
     return config
 
-
 def write_json(path: Path, config: Dict):
     with open(path, "w") as fp:
         json.dump(config, fp, indent=4)
-
 
 def get_directories(path: Path):
     if not os.path.exists(path):
@@ -85,7 +99,6 @@ def get_directories(path: Path):
 
     return directories
 
-
 def get_files(path: Path):
     if not os.path.exists(path):
         print(f"{path} not exist")
@@ -94,7 +107,6 @@ def get_files(path: Path):
     files = [file for file in file_names if os.path.isfile(os.path.join(path, file))]
 
     return files
-
 
 def prepare_qnn_libs(out_path: Path):
     qnn_sdk_folder = os.getenv("QNN_SDK_ROOT")
@@ -122,12 +134,19 @@ def prepare_qnn_libs(out_path: Path):
         execute_command(["cp", "-r", f"{android_libs_path}/{lib}", qnn_libs_path])
     execute_command(["cp", "-r", f"{android_libs_path}/libQnnHtpV*Stub.so", qnn_libs_path, "| true"])
 
-
 def powerserve_create(args):
     out_path: Path = args.out_path
     main_model_path: Path = args.main_model
     draft_model_path: Path = args.draft_model
     exe_path: Path = args.exe_path
+    
+    if args.only_extract_qnn:
+        prepare_qnn_libs(out_path)
+        return
+
+    if args.only_extract_qnn:
+        prepare_qnn_libs(out_path)
+        return
 
     if not out_path.exists():
         out_path.mkdir(parents=True, exist_ok=True)
@@ -141,13 +160,17 @@ def powerserve_create(args):
         bin_path.mkdir(parents=True, exist_ok=True)
 
     if exe_path:
-        execute_command(["cp", "-r", exe_path / "*", bin_path])
+        execute_command(["cp", exe_path / "*", bin_path])
 
     artifact_config[HYPER_PARAMS_FILENAME_KEY] = "hparams.json"
-    write_json(out_path / artifact_config[HYPER_PARAMS_FILENAME_KEY], default_hparams)
+    hparams_config = default_hparams
+    if "smallthinker" in main_model_path.name:
+        hparams_config = smallthinker_hparams
+    write_json(out_path / artifact_config[HYPER_PARAMS_FILENAME_KEY], hparams_config)
 
     artifact_config[MAIN_MODEL_KEY] = str(main_model_path.name)
     main_model_abspath = out_path / artifact_config[MAIN_MODEL_KEY]
+
     if not main_model_abspath.exists():
         main_model_abspath.mkdir(parents=True, exist_ok=True)
     execute_command(["cp", "-r", main_model_path / "*", main_model_abspath])
@@ -175,8 +198,8 @@ def powerserve_create(args):
 
     write_json(out_path / ARTIFACT_CONFIG_FILENAME, artifact_config)
 
-    prepare_qnn_libs(out_path)
-
+    if not args.no_extract_qnn:
+        prepare_qnn_libs(out_path)
 
 def command():
     parser = argparse.ArgumentParser(prog="PowerServe", description="PowerServe CommandLine Tool")
@@ -188,11 +211,16 @@ def command():
     create_parser.add_argument("--other-models", type=Path, help="other models path", nargs="+")
     create_parser.add_argument("-o", "--out-path", type=Path, default=Path("./proj/"), help="Output path")
     create_parser.add_argument("--exe-path", type=Path, required=False, default=None)
+    create_parser.add_argument(
+        "--only-extract-qnn", action="store_true", required=False, help="Set it to only extract qnn libs"
+    )
+    create_parser.add_argument(
+        "--no-extract-qnn", action="store_true", required=False, help="Set it not to extract qnn libs"
+    )
     create_parser.set_defaults(func=powerserve_create)
 
     args = parser.parse_args()
 
     args.func(args)
-
 
 command()

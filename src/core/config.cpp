@@ -17,12 +17,13 @@
 #include "core/exception.hpp"
 #include "core/typedefs.hpp"
 #include "nlohmann/json.hpp"
-#include "uv.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <thread>
 
 namespace powerserve {
 
@@ -37,8 +38,10 @@ HyperParams::HyperParams(const Path &params_file) {
         n_threads  = j.value("n_threads", n_threads);
         batch_size = j.value("batch_size", batch_size);
 
-        auto n_cpus = uv_available_parallelism();
-        n_threads   = std::min((unsigned int)n_threads, n_cpus);
+        const uint32_t max_concurrency = std::thread::hardware_concurrency();
+        if (max_concurrency != 0) {
+            n_threads = std::min((unsigned int)n_threads, max_concurrency);
+        }
 
         auto sampler_j = j.value("sampler", nlohmann::json::object());
         if (!sampler_j.empty()) {

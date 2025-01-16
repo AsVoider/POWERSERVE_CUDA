@@ -1,13 +1,5 @@
 # PowerServe
 
-## Support models
-| model    | CPU      | NPU      |Note      |
-|----------|----------|----------|----------|
-| LLaMA 3.1 🦙🦙🦙  | ✔️    | ✔️    |    |
-| LLaMA 3.2 🦙🦙🦙  | ✔️    | ✔️    |   |
-| Qwen2  | ✔️[Need test]    | ✔️    |    |
-| Smallthinker |✔️    |✔️    |    |
-
 
 ## Table of Contents
 
@@ -86,6 +78,16 @@ powerserve
 ```
 
 ## Model Preparation
+
+### Support models
+| Model Name | Huggingface Link | Speculation Support |
+| ---------- | ----------- | ------------------- |
+| smallthinker-3b | [SmallThinker-3B](https://huggingface.co/PowerServe/SmallThinker-3B-PowerServe-QNN29-{soc_name}) | Yes |
+| llama-3.1-8b | [Llama-3.1-8B](https://huggingface.co/PowerServe/Llama-3.1-8B-PowerServe-QNN29-{soc_name}) | Yes |
+| llama-3.2-1b | [Llama-3.2-1B](https://huggingface.co/PowerServe/Llama-3.2-1B-PowerServe-QNN29-{soc_name}) | No |
+| qwen-2.5-3b | [Qwen-2.5-3B](https://huggingface.co/PowerServe/Qwen-2.5-3B-PowerServe-QNN29-{soc_name}) | No |
+| qwen-2-0.5b | [Qwen-2-0.5B](https://huggingface.co/PowerServe/Qwen-2-0.5B-PowerServe-QNN29-{soc_name}) | No |
+
 
 For CPU-only execution, only `Models For CPU` is required. For NPU execution, both `Models For CPU` and `Models For NPU` is required.
 
@@ -258,3 +260,11 @@ export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64 && ./models/llama3.1-8b-instr
     > Use `export LD_LIBRARY_PATH=/system/lib64:/vendor/lib64` before executing the program.
     >
     > Because `libcdsprpc.so` depends on `/system/lib64/libbinder.so` instead of `/vendor/lib64/libbinder.so`. If the linker searches the `/vendor/lib64` at first, it may find and links `/vendor/lib64/libbinder.so` which does not contain corresponding function definitions.
+
+2. **Some mobile phones cannot run large models**: Some mobile phones cannot run larger models due to different security policies.
+
+    **Some of known models and phones are listed below:**
+
+    | Phone    | Models can't be run |
+    |----------|---------------------|
+    | All brands of HONOR | parameters larger than 3B |

@@ -166,6 +166,7 @@ public:
         }
 
         ModelOutput output{
+            .m_text             = {},
             .m_input_num_token  = output_array.back().m_input_num_token,
             .m_output_num_token = output_array.back().m_output_num_token,
             .m_stop_reason      = output_array.back().m_stop_reason
@@ -237,9 +238,9 @@ private:
     std::map<ServerSessionId, ServerSession> m_session_map;
 
 public:
-    ServerContext(const std::filesystem::path &work_folder, const std::filesystem::path &lib_folder) :
-        m_work_folder(work_folder),
-        m_lib_folder(lib_folder),
+    ServerContext(powerserve::Path work_folder, powerserve::Path lib_folder) :
+        m_work_folder(std::move(work_folder)),
+        m_lib_folder(std::move(lib_folder)),
         m_platform_ptr(std::make_shared<powerserve::Platform>()) {
         if (!std::filesystem::exists(m_work_folder)) {
             POWERSERVE_LOG_WARN("model base folder does not exist: {}", m_work_folder);
@@ -278,6 +279,10 @@ public:
             return m_context_slot_map.at(model_name);
         }
 
+#ifndef POWERSERVE_SERVER_MULTIMODEL
+        destroy_all_models_unsafe();
+#endif // POWERSERVE_SERVER_MULTIMODEL
+
         const powerserve::Path main_model_path  = model_name_to_path(main_model_name);
         const powerserve::Path draft_model_path = draft_model_name.empty() ? "" : model_name_to_path(draft_model_name);
 
@@ -290,20 +295,12 @@ public:
         POWERSERVE_LOG_INFO("after tokenizer init: {}", powerserve::perf_get_mem_result());
 
         std::shared_ptr<powerserve::Model> main_model = init_model(main_model_path, workspace_config.hyper_params);
-#if defined(POWERSERVE_WITH_QNN)
-        main_model->kv_cache =
-            main_model->m_platform->qnn_backend->m_models[main_model->m_config->model_id]->kv_cache.get();
-#endif
         if (draft_model_path.empty()) {
             m_context_slot_map[model_name] =
                 ModelContext(workspace_config, std::move(main_model), std::move(tokenizer_ptr));
         } else {
             std::shared_ptr<powerserve::Model> draft_model =
                 init_model(draft_model_path, workspace_config.hyper_params);
-#if defined(POWERSERVE_WITH_QNN)
-            draft_model->kv_cache =
-                draft_model->m_platform->qnn_backend->m_models[draft_model->m_config->model_id]->kv_cache.get();
-#endif
             m_context_slot_map[model_name] =
                 ModelContext(workspace_config, std::move(main_model), std::move(draft_model), std::move(tokenizer_ptr));
         }
@@ -311,10 +308,28 @@ public:
         return m_context_slot_map.at(model_name);
     }
 
-    void destroy_model(const std::string &work_folder) {
+    void destroy_model(const std::string &model_name) {
         std::lock_guard<std::mutex> lock_guard(m_lock);
+        if (!m_model_map.contains(model_name)) {
+            return;
+        }
 
-        m_context_slot_map.erase(work_folder);
+        // Unload model from backends
+        const auto &model = m_model_map[model_name];
+        m_platform_ptr->destroy_ggml_backend(model->m_config);
+
+#if defined(POWERSERVE_WITH_QNN)
+        m_platform_ptr->qnn_backend->unload_model(model->m_config);
+#endif // POWERSERVE_WITH_QNN
+
+        // Erase model and model context
+        m_context_slot_map.erase(model_name);
+        m_model_map.erase(model_name);
+    }
+
+    void destroy_all_models() {
+        std::lock_guard<std::mutex> lock_guard(m_lock);
+        destroy_all_models_unsafe();
     }
 
     std::vector<std::string> list_models() const {
@@ -403,17 +418,32 @@ private:
         model_ptr->m_platform = m_platform_ptr;
         m_platform_ptr->init_ggml_backend(model_ptr->m_config, hyper_params);
 
+        model_ptr->m_attn = std::make_shared<powerserve::NormAttention>(model_ptr->m_config->llm, model_ptr->m_weights);
+        POWERSERVE_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
+
 #if defined(POWERSERVE_WITH_QNN)
         m_platform_ptr->qnn_backend->load_model(
             model_path / powerserve::qnn::QNN_WORKSPACE_DIR_NAME, model_ptr->m_config
         );
-#endif
-
-        model_ptr->m_attn = std::make_shared<powerserve::NormAttention>(model_ptr->m_config->llm, model_ptr->m_weights);
-        POWERSERVE_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
+        model_ptr->kv_cache =
+            model_ptr->m_platform->qnn_backend->m_models[model_ptr->m_config->model_id]->kv_cache.get();
+#endif // POWERSERVE_WITH_QNN
 
         m_model_map[model_path] = model_ptr;
         return model_ptr;
+    }
+
+    void destroy_all_models_unsafe() {
+        POWERSERVE_LOG_INFO("Destory all models in memory");
+        for (const auto &[_, model] : m_model_map) {
+            m_platform_ptr->destroy_ggml_backend(model->m_config);
+#if defined(POWERSERVE_WITH_QNN)
+            m_platform_ptr->qnn_backend->unload_model(model->m_config);
+#endif // POWERSERVE_WITH_QNN
+        }
+
+        m_context_slot_map.clear();
+        m_model_map.clear();
     }
 };
 
@@ -445,8 +475,6 @@ inline bool is_utf8_string_incomplete(const std::string &output_string) {
     }
     return incomplete;
 }
-
-#pragma optimize("", off)
 
 inline std::string &remove_incomplete_utf8_char(std::string &output_string) {
     for (unsigned i = 1; i < 5 && i <= output_string.size(); ++i) {
@@ -481,8 +509,6 @@ inline std::string &remove_incomplete_utf8_char(std::string &output_string) {
     return output_string;
 }
 
-#pragma optimize("", on)
-
 inline void stream_inference(const ModelContext &context, ServerSession &session, const std::string &input_prompt) {
     using namespace powerserve;
 
@@ -505,10 +531,6 @@ inline void stream_inference(const ModelContext &context, ServerSession &session
 
     /* Inference */
     ModelOutput output;
-
-    const Token eos_token = tokenizer.m_vocab.special_eos_id;
-    const Token eom_token = tokenizer.m_vocab.special_eom_id;
-    const Token eot_token = tokenizer.m_vocab.special_eot_id;
 
     const size_t max_num_token = input.m_max_num_token;
     const size_t batch_size    = config.hyper_params.batch_size;
@@ -616,10 +638,6 @@ inline ModelOutput blocking_inference(
     /* Inference */
     ModelOutput output;
 
-    const Token eos_token = tokenizer.m_vocab.special_eos_id;
-    const Token eom_token = tokenizer.m_vocab.special_eom_id;
-    const Token eot_token = tokenizer.m_vocab.special_eot_id;
-
     const size_t max_num_token = input.m_max_num_token;
     const size_t batch_size    = config.hyper_params.batch_size;
 
@@ -671,7 +689,7 @@ inline ModelOutput blocking_inference(
             continue;
         }
 
-        if (token == eos_token || token == eom_token || token == eot_token) {
+        if (tokenizer.should_stop(token)) {
             end_of_text = true;
             stop_reason = "stop";
             break;

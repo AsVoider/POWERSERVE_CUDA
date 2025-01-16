@@ -176,4 +176,13 @@ void GGMLBackend::transpose(const Tensor *out, const Tensor *x) const {
     out->get<CPUBuffer>().m_stride = stride;
 }
 
+void GGMLBackend::setup_threadpool() {
+    m_thread_pool = std::make_unique<ThreadPool>(m_thread_config);
+}
+
+void GGMLBackend::reset_threadpool() {
+    POWERSERVE_LOG_DEBUG("reset_threadpool");
+    m_thread_pool.reset();
+}
+
 } // namespace powerserve::ggml

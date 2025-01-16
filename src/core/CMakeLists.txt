@@ -4,6 +4,7 @@ target_sources(powerserve PRIVATE
     "perfetto_trace.cpp"
     "thread_pool.cpp"
     "timer.cpp"
+    "spin_barrier.cpp"
 )
 
 if (POWERSERVE_WITH_PERFETTO)

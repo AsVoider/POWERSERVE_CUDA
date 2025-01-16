@@ -3,7 +3,7 @@
 ## Quick Start
 
 To get started right away, run the following command, making sure to use the correct path for the model you have:
-- [hugging-face](https://huggingface.co/PowerInfer/Llama-3.1-8B-PowerServe-QNN/tree/main)
+- [hugging-face](https://huggingface.co/PowerServe/Llama-3.1-8B-PowerServe-QNN/tree/main)
 
 ```bash
 # compile binary on linux

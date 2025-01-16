@@ -29,9 +29,11 @@ struct QNNBackend : powerserve::Backend {
     std::map<std::string, std::unique_ptr<Vision>> m_visions;
 
     QNNBackend(Path libs_path);
-    virtual ~QNNBackend() override = default;
+    virtual ~QNNBackend() noexcept override = default;
 
     void load_model(const Path &path, const std::shared_ptr<powerserve::ModelConfig> &model_config);
+    void unload_model(const std::shared_ptr<powerserve::ModelConfig> &model_config);
+
     void forward(
         const std::string &model_id,
         const Tensor *dst,

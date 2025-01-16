@@ -20,16 +20,27 @@
 
 namespace powerserve::qnn {
 
-QNNBackend::QNNBackend(Path libs_path) : m_session(libs_path) {}
+QNNBackend::QNNBackend(Path libs_path) : m_session(std::move(libs_path)) {}
 
 void QNNBackend::load_model(const Path &path, const std::shared_ptr<ModelConfig> &model_config) {
-    auto &model_id = model_config->model_id;
+    const std::string &model_id = model_config->model_id;
     POWERSERVE_LOG_INFO("Load model {} from {}", model_id, path);
     if (model_config->vision.num_tokens_per_patch) {
         m_models.insert({model_id, std::make_unique<CausalVLM>(path, model_config, m_session)});
     } else {
         m_models.insert({model_id, std::make_unique<CausalLM>(path, model_config, m_session)});
     }
+}
+
+void QNNBackend::unload_model(const std::shared_ptr<powerserve::ModelConfig> &model_config) {
+    const std::string &model_id = model_config->model_id;
+    if (!m_models.contains(model_id)) {
+        POWERSERVE_LOG_ERROR("Failed to unload model {}: not found.", model_id);
+        return;
+    }
+
+    POWERSERVE_LOG_INFO("Unload model {}", model_id);
+    m_models.erase(model_id);
 }
 
 void QNNBackend::forward(
