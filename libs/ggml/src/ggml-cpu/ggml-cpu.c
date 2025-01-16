@@ -4689,9 +4689,9 @@ void powerserve_compute_forward_add(
         case GGML_TYPE_IQ4_XS:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
-        case GGML_TYPE_Q4_0_4_4:
-        case GGML_TYPE_Q4_0_4_8:
-        case GGML_TYPE_Q4_0_8_8:
+        // case GGML_TYPE_Q4_0_4_4:
+        // case GGML_TYPE_Q4_0_4_8:
+        // case GGML_TYPE_Q4_0_8_8:
             {
                 GGML_ABORT("Not Impl");
                 // ggml_compute_forward_add_q_f32(params, dst);
@@ -7854,6 +7854,15 @@ UseGgmlGemm2:;
     }
 }
 
+
+int get_cache_line_size(void) {
+    return CACHE_LINE_SIZE;
+}
+
+enum ggml_type powerserve_get_vec_dot_type(struct ggml_tensor * tensor) {
+    return type_traits_cpu[tensor->type].vec_dot_type;
+}
+
 static void powerserve_compute_forward_mul_mat_one_chunk(
     struct op_compute_params * params,
     struct ggml_tensor * dst,
@@ -7871,8 +7880,8 @@ static void powerserve_compute_forward_mul_mat_one_chunk(
 
     const bool src1_cont = ggml_is_contiguous(src1);
 
-    ggml_vec_dot_t const vec_dot      = type_traits[type].vec_dot;
-    enum ggml_type const vec_dot_type = type_traits[type].vec_dot_type;
+    ggml_vec_dot_t const vec_dot      = type_traits_cpu[type].vec_dot;
+    enum ggml_type const vec_dot_type = type_traits_cpu[type].vec_dot_type;
 
     // broadcast factors
     const int64_t r2 = ne12 / ne02;
@@ -7951,21 +7960,19 @@ void powerserve_compute_forward_mul_mat(
     struct ggml_tensor * src1  // activation
 ) {
 
+    struct ggml_compute_params pa = {
+        .ith = params->ith,
+        .nth = params->nth,
+    };
+
     GGML_TENSOR_BINARY_OP_LOCALS
 
     const int ith = params->ith;
     const int nth = params->nth;
 
-    const enum ggml_type type = src0->type;
-
-    enum ggml_type           const vec_dot_type         = type_traits[type].vec_dot_type;
-    ggml_from_float_t        const from_float           = type_traits[vec_dot_type].from_float;
-    ggml_from_float_to_mat_t const from_float_to_mat    = type_traits[vec_dot_type].from_float_to_mat;
-    int64_t                  const vec_dot_num_rows     = type_traits[type].nrows;
-    int64_t                  const matmul_num_cols      = type_traits[type].ncols;
-    int64_t                  const blck_size_interleave = type_traits[type].blck_size_interleave;
-    ggml_gemv_t              const gemv                 = type_traits[type].gemv;
-    ggml_gemm_t              const gemm                 = type_traits[type].gemm;
+    enum ggml_type           const vec_dot_type         = type_traits_cpu[src0->type].vec_dot_type;
+    ggml_from_float_t        const from_float           = type_traits_cpu[vec_dot_type].from_float;
+    int64_t                  const vec_dot_num_rows     = type_traits_cpu[src0->type].nrows;
 
     GGML_ASSERT(ne0 == ne01);
     GGML_ASSERT(ne1 == ne11);
@@ -7973,7 +7980,7 @@ void powerserve_compute_forward_mul_mat(
     GGML_ASSERT(ne3 == ne13);
 
     // we don't support permuted src0 or src1
-    GGML_ASSERT(nb00 == ggml_type_size(type));
+    GGML_ASSERT(nb00 == ggml_type_size(src0->type));
     GGML_ASSERT(nb10 == ggml_type_size(src1->type));
 
     // dst cannot be transposed or permuted
@@ -7995,14 +8002,14 @@ void powerserve_compute_forward_mul_mat(
     if (src1_cont) {
         for (int64_t i13 = 0; i13 < ne13; i13++)
             for (int64_t i12 = 0; i12 < ne12; i12++)
-                if (!llamafile_sgemm(ne01, ne11, ne00/ggml_blck_size(src0->type),
+                if (!llamafile_sgemm(pa,
+                                     ne01, ne11, ne00/ggml_blck_size(src0->type),
                                      (const char *)src0->data + i12/r2*nb02 + i13/r3*nb03,
                                      nb01/ggml_type_size(src0->type),
                                      (const char *)src1->data + i12*nb12 + i13*nb13,
                                      nb11/ggml_type_size(src1->type),
                                      (char *)dst->data + i12*nb2 + i13*nb3,
                                      nb1/ggml_type_size(dst->type),
-                                     ith, nth,
                                      src0->type,
                                      src1->type,
                                      dst->type))
@@ -8024,19 +8031,10 @@ UseGgmlGemm1:;
 
         for (int64_t i13 = 0; i13 < ne13; ++i13) {
             for (int64_t i12 = 0; i12 < ne12; ++i12) {
-                int64_t i11_processed = 0;
-                if ((ggml_n_dims(src1) == 2) && from_float_to_mat && gemm) {
-                    for (int64_t i11 = ith * 4; i11 < ne11 - ne11 % 4; i11 += nth * 4) {
-                        from_float_to_mat((float *)((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11),
-                                          (void *)               (wdata + i13*nbw3 + i12*nbw2 + i11*nbw1),
-                                          4, ne10, blck_size_interleave);
-                    }
-                    i11_processed = ne11 - ne11 % 4;
-                }
-                for (int64_t i11 = i11_processed + ith; i11 < ne11; i11 += nth) {
+                for (int64_t i11 = ith; i11 < ne11; i11 += nth) {
                     from_float((float *)((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11),
-                           (void *)               (wdata + i13*nbw3 + i12*nbw2 + i11*nbw1),
-                           ne10);
+                               (void *)               (wdata + i13*nbw3 + i12*nbw2 + i11*nbw1),
+                                ne10);
                 }
             }
         }
@@ -8057,14 +8055,14 @@ UseGgmlGemm1:;
 
         for (int64_t i13 = 0; i13 < ne13; i13++)
             for (int64_t i12 = 0; i12 < ne12; i12++)
-                if (!llamafile_sgemm(ne01, ne11, ne00/ggml_blck_size(src0->type),
+                if (!llamafile_sgemm(pa,
+                                     ne01, ne11, ne00/ggml_blck_size(src0->type),
                                      (const char *)src0->data + i12/r2*nb02 + i13/r3*nb03,
                                      nb01/ggml_type_size(src0->type),
                                      (const char *)wdata + (i12*ne11 + i13*ne12*ne11)*row_size,
                                      row_size/ggml_type_size(vec_dot_type),
                                      (char *)dst->data + i12*nb2 + i13*nb3,
                                      nb1/ggml_type_size(dst->type),
-                                     ith, nth,
                                      src0->type,
                                      vec_dot_type,
                                      dst->type))
@@ -8079,14 +8077,6 @@ UseGgmlGemm2:;
 
     // This is the size of the rest of the dimensions of the result
     const int64_t nr1 = ne1 * ne2 * ne3;
-
-    // dot kernels can handle 1 row and col at a time, but mmla kernels can process 2 rows and cols
-    int64_t num_rows_per_vec_dot = vec_dot_num_rows;
-    // TODO: currently the mmla kernels support only even numbered rows/cols.
-    // this check can be removed once they are extended to support odd numbered rows/cols too
-    if ((nr0 % 2 != 0) || (ne11 % 2 != 0)) {
-        num_rows_per_vec_dot = 1;
-    }
 
     // Now select a reasonable chunk size.
     int chunk_size = 16;
@@ -8115,28 +8105,6 @@ UseGgmlGemm2:;
     const int64_t dr0 = (nr0 + nchunk0 - 1) / nchunk0;
     const int64_t dr1 = (nr1 + nchunk1 - 1) / nchunk1;
 
-    if ((ggml_n_dims(src0) == 2) && gemv) {
-        const void * src1_wdata      = (src1->type == vec_dot_type) ? src1->data : params->wdata;
-        const size_t src1_col_stride = ggml_is_contiguous(src1) || src1->type != vec_dot_type ? ggml_row_size(vec_dot_type, ne10) : nb11;
-        int64_t src0_start = (ith * ne01) / nth;
-        int64_t src0_end   = ((ith + 1) * ne01) / nth;
-        src0_start = (src0_start % matmul_num_cols) ? src0_start + matmul_num_cols - (src0_start % matmul_num_cols): src0_start;
-        src0_end   = (src0_end   % matmul_num_cols) ? src0_end   + matmul_num_cols - (src0_end   % matmul_num_cols): src0_end;
-        if (src0_start >= src0_end) return;
-
-        // If there are more than three rows in src1, use gemm; otherwise, use gemv.
-        if (gemm && (ne11 > 3)) {
-            gemm(ne00, (float *)((char *) dst->data) + src0_start, ne01, (const char *) src0->data + src0_start * nb01,
-                 (const char *) src1_wdata, ne11 - ne11 % 4, src0_end - src0_start);
-        }
-        for (int iter = gemm ? ne11 - ne11 % 4 : 0; iter < ne11; iter++) {
-            gemv(ne00, (float *)((char *) dst->data + (iter * nb1)) + src0_start, ne01,
-                 (const char *) src0->data + src0_start * nb01, (const char *) src1_wdata + (src1_col_stride * iter), 1,
-                 src0_end - src0_start);
-        }
-        return;
-    }
-
     // The first chunk comes from our thread_id, the rest will get auto-assigned.
     int current_chunk = ith;
 
@@ -8149,6 +8117,15 @@ UseGgmlGemm2:;
 
         const int64_t ir1_start = dr1 * ith1;
         const int64_t ir1_end = MIN(ir1_start + dr1, nr1);
+
+        // dot kernels can handle 1 row and col at a time, but mmla kernels can process 2 rows and cols
+        int64_t num_rows_per_vec_dot = vec_dot_num_rows;
+
+        // these checks are needed to avoid crossing dim1 boundaries
+        // can be optimized, but the logic would become more complicated, so keeping it like this for simplicity
+        if ((nr0 % 2 != 0) || (ne11 % 2 != 0) || ((ir0_end - ir0_start) % 2 != 0) || ((ir1_end - ir1_start) % 2 != 0)) {
+            num_rows_per_vec_dot = 1;
+        }
 
         powerserve_compute_forward_mul_mat_one_chunk(params, dst, src0, src1, num_rows_per_vec_dot, ir0_start, ir0_end, ir1_start, ir1_end);
 

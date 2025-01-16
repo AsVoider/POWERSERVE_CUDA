@@ -239,7 +239,7 @@ op_interface op_interfaces::op_copy = [] (cuda_context_warp &ctx, ggml_tensor *d
 };
 
 op_interface op_interfaces::op_print = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
-    if (ctx.ctx = nullptr) [[unlikely]] {
+    if (ctx.ctx == nullptr) [[unlikely]] {
         exit(1);
     }
 

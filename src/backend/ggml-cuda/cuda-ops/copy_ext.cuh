@@ -1,6 +1,6 @@
 #include "common.cuh"
 
-using copy_func = void(*)(const char *, char *, const int);
+using copy_func = void(*)(const char *, char *, const int, const int);
 constexpr int copy_block_size = 64;
 
 static __device__ void copy_func_f32_to_f32(const char *v, char *v_cache, const int token_num, const int src_stride) {
@@ -62,16 +62,16 @@ static void copy_v_cache(const char *v, char *v_cache,
     const int num_blocks{(kv_dim + copy_block_size - 1) / copy_block_size};
 
     if constexpr (TypeDst == GGML_TYPE_F32) {
-        const int dst_offset{next_token * sizeof(float)};
-        const int dst_stride{n_ctx * sizeof(float)};
+        const int dst_offset{next_token * static_cast<int>(sizeof(float))};
+        const int dst_stride{n_ctx * static_cast<int>(sizeof(float))};
         if constexpr (TypeSrc == GGML_TYPE_F32) {
-            const int src_stride{kv_dim * sizeof(float)};
+            const int src_stride{kv_dim * static_cast<int>(sizeof(float))};
             copy_v_cache_kernel<copy_func_f32_to_f32><<<num_blocks, copy_block_size, 0, stream>>>(
                 v, v_cache, dst_offset, dst_stride, sizeof(float), src_stride, kv_dim, token_number
             );
             return;
         } else {
-            const int src_stride{kv_dim * sizeof(half)};
+            const int src_stride{kv_dim * static_cast<int>(sizeof(half))};
             copy_v_cache_kernel<copy_func_f16_to_f32><<<num_blocks, copy_block_size, 0, stream>>>(
                 v, v_cache, dst_offset, dst_stride, sizeof(half), src_stride, kv_dim, token_number
             );
@@ -80,16 +80,16 @@ static void copy_v_cache(const char *v, char *v_cache,
     } 
 
     if constexpr (TypeDst == GGML_TYPE_F16) {
-        const int dst_offset{next_token * sizeof(half)};
-        const int dst_stride{n_ctx * sizeof(half)};
+        const int dst_offset{next_token * static_cast<int>(sizeof(half))};
+        const int dst_stride{n_ctx * static_cast<int>(sizeof(half))};
         if constexpr (TypeSrc == GGML_TYPE_F32) {
-            const int src_stride{kv_dim * sizeof(float)};
+            const int src_stride{kv_dim * static_cast<int>(sizeof(float))};
             copy_v_cache_kernel<copy_func_f32_to_f16><<<num_blocks, copy_block_size, 0, stream>>>(
                 v, v_cache, dst_offset, dst_stride, sizeof(float), src_stride, kv_dim, token_number
             );
             return;
         } else {
-            const int src_stride{kv_dim * sizeof(half)};
+            const int src_stride{kv_dim * static_cast<int>(sizeof(half))};
             copy_v_cache_kernel<copy_func_f16_to_f16><<<num_blocks, copy_block_size, 0, stream>>>(
                 v, v_cache, dst_offset, dst_stride, sizeof(half), src_stride, kv_dim, token_number
             );

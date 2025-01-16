@@ -54,8 +54,9 @@ public:
     std::unique_ptr<GGML_CUDAKV> m_kv;
     cuda_context_warp *warp;
 
-    explicit GGML_CUDABackend(const std::shared_ptr<ModelConfig::LLMConfig> &config, const HyperParams &hparams) : warp{new cuda_context_warp()} {
+    explicit GGML_CUDABackend(const ModelConfig::LLMConfig &config, const HyperParams &hparams) : warp{new cuda_context_warp()} {
         m_kv = std::make_unique<GGML_CUDAKV>(config);
+        POWERSERVE_UNUSED(hparams);
     }
 
     ~GGML_CUDABackend() override = default;

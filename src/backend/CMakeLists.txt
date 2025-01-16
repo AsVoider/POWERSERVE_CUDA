@@ -28,9 +28,13 @@ if (POWERSERVE_WITH_CUDA)
         enable_language(CUDA)
 
         file(GLOB   GGML_HEADERS_CUDA "ggml-cuda/*.cuh")
+        file(GLOB   GGML_HEADERS_CUDA_COMMON "ggml-cuda/cuda-ops/*.cuh")
+        list(APPEND GGML_HEADERS_CUDA ${GGML_HEADERS_CUDA_COMMON})
         # list(APPEND GGML_HEADERS_CUDA "../include/ggml-cuda.h")
 
         file(GLOB   GGML_SOURCES_CUDA "ggml-cuda/*.cu")
+        file(GLOB   GGML_SOURCES_CUDA_COMMON "ggml-cuda/cuda-ops/*.cu")
+        list(APPEND GGML_SOURCES_CUDA ${GGML_SOURCES_CUDA_COMMON})
         list(APPEND GGML_SOURCES_CUDA "ggml-cuda/ggml-cuda.cpp")
         # list(APPEND GGML_SOURCES_CUDA "ggml-cuda.cu")
 
@@ -151,7 +155,7 @@ if (POWERSERVE_WITH_CUDA)
 
         message("-- CUDA host compiler is ${CUDA_CCID} ${CUDA_CCVER}")
 
-        get_flags(${CUDA_CCID} ${CUDA_CCVER})
+        ggml_get_flags(${CUDA_CCID} ${CUDA_CCVER})
         list(APPEND CUDA_CXX_FLAGS ${CXX_FLAGS} ${GF_CXX_FLAGS})  # This is passed to -Xcompiler later
     endif()
 
@@ -172,7 +176,8 @@ if (POWERSERVE_WITH_CUDA)
 endif()
 
 if (POWERSERVE_WITH_CUDA) 
-    target_include_directories(smart_serving PRIVATE ${PROJECT_SOURCE_DIR}/libs/ggml/src/ggml-cuda/)
-    target_sources(smart_serving PRIVATE ${GGML_SOURCES_CUDA} ${GGML_HEADERS_CUDA})
-    target_link_libraries(smart_serving PRIVATE ${GGML_EXTRA_LIBS_PRIVATE})
+    target_include_directories(powerserve PRIVATE ${PROJECT_SOURCE_DIR}/libs/ggml/src/ggml-cuda/)
+    target_include_directories(powerserve PRIVATE ${PROJECT_SOURCE_DIR}/libs/ggml/src)
+    target_sources(powerserve PRIVATE ${GGML_SOURCES_CUDA} ${GGML_HEADERS_CUDA})
+    target_link_libraries(powerserve PRIVATE ${GGML_EXTRA_LIBS_PRIVATE})
 endif()

@@ -24,7 +24,7 @@
 #include "core/thread_pool.hpp"
 #include "ggml.h"
 #include "ggml-cpu.h"
-#include "ggml-cpu-impl.h"
+// #include "ggml-cpu/ggml-cpu-impl.h"
 #include "graph/node.hpp"
 
 #include <atomic>

@@ -26,6 +26,12 @@ void Platform::init_qnn_backend(const Path &qnn_path) {
 }
 #endif
 
+#ifdef SMART_WITH_CUDA
+void Platform::init_cuda_backend(const std::shared_ptr<LLMConfig> &config, const HyperParams &hparams) {
+    ggml_cuda_backend = std::make_unique<ggml_cuda::GGML_CUDABackend>(config, hparams);
+}
+#endif
+
 size_t Platform::get_kv_position(std::string &model_id) const {
     size_t position = ggml_backends.at(model_id)->m_kv->kv_cache->position;
 #if defined(POWERSERVE_WITH_QNN)
@@ -44,10 +50,5 @@ void Platform::reset_kv_position(std::string &model_id) {
     }
 #endif
 }
-#ifdef SMART_WITH_CUDA
-void Platform::init_cuda_backend(const std::shared_ptr<LLMConfig> &config, const HyperParams &hparams) {
-    ggml_cuda_backend = std::make_unique<ggml_cuda::GGML_CUDABackend>(config, hparams);
-}
-#endif
 
 } // namespace powerserve

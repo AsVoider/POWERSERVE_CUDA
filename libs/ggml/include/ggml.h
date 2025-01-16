@@ -209,6 +209,13 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#if defined(__cplusplus)
+#include <atomic>
+typedef std::atomic_int atomic_int;
+#else
+#include <stdatomic.h>
+#endif
+
 #define GGML_FILE_MAGIC   0x67676d6c // "ggml"
 #define GGML_FILE_VERSION 2
 
@@ -630,7 +637,7 @@ extern "C" {
 
         void *thread_pool;
         void (*barrier_fn)(void *thread_pool);
-        std::atomic_int *current_chunk;
+        atomic_int *current_chunk;
     };
 
     struct rope_compute_params {

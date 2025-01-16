@@ -3202,14 +3202,6 @@ struct ggml_tensor * ggml_view_4d(
     return result;
 }
 
-int get_cache_line_size(void) {
-    return CACHE_LINE_SIZE;
-}
-
-enum ggml_type powerserve_get_vec_dot_type(struct ggml_tensor * tensor) {
-    return type_traits[tensor->type].vec_dot_type;
-}
-
 // ggml_permute
 
 struct ggml_tensor * ggml_permute(
