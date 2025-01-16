@@ -4,7 +4,7 @@
 
 namespace powerserve::ggml_cuda {
     
-ggml_type convert_datatype_to_ggml(DataType dtp) {
+static ggml_type convert_datatype_to_ggml(DataType dtp) {
     switch (dtp) {
     case DataType::FP32:
         return GGML_TYPE_F32;
@@ -21,7 +21,7 @@ ggml_type convert_datatype_to_ggml(DataType dtp) {
     }
 }
 
-DataType convert_datatype_from_ggml(ggml_type tp) {
+static DataType convert_datatype_from_ggml(ggml_type tp) {
     switch (tp) {
     case GGML_TYPE_F32:
         return DataType::FP32;

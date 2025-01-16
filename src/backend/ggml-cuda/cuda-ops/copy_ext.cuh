@@ -99,7 +99,6 @@ static void copy_v_cache(const char *v, char *v_cache,
 }
 
 void copy_permuted_v_cache(ggml_backend_cuda_context &ctx, ggml_tensor *dst) {
-    copy_func func_ptr{nullptr};
 
     auto src0{dst->src[0]};
     auto dst_type{dst->type}, src_type{src0->type};

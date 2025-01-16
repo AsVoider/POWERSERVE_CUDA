@@ -30,9 +30,9 @@ void Platform::init_qnn_backend(const Path &qnn_path) {
 }
 #endif
 
-#ifdef SMART_WITH_CUDA
-void Platform::init_cuda_backend(const std::shared_ptr<LLMConfig> &config, const HyperParams &hparams) {
-    ggml_cuda_backend = std::make_unique<ggml_cuda::GGML_CUDABackend>(config, hparams);
+#ifdef POWERSERVE_WITH_CUDA
+void Platform::init_cuda_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams) {
+    ggml_cuda_backend = std::make_unique<ggml_cuda::GGML_CUDABackend>(config->llm, hparams);
 }
 #endif
 

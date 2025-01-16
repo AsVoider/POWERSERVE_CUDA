@@ -24,7 +24,7 @@
 #endif
 
 #ifdef POWERSERVE_WITH_CUDA
-#include "backend/ggml-cuda/ggml-cuda.cuh"
+#include "backend/ggml-cuda/ggml-cuda.hpp"
 #endif
 
 namespace powerserve {
@@ -35,7 +35,7 @@ struct Platform {
 #if defined(POWERSERVE_WITH_QNN)
     std::unique_ptr<qnn::QNNBackend> qnn_backend = nullptr;
 #endif
-#ifdef SMART_WITH_CUDA
+#ifdef POWERSERVE_WITH_CUDA
     std::unique_ptr<ggml_cuda::GGML_CUDABackend> ggml_cuda_backend{nullptr};
 #endif
 
@@ -55,8 +55,8 @@ public:
 
     size_t get_kv_position(std::string &model_id) const;
     void reset_kv_position(std::string &model_id);
-#ifdef SMART_WITH_CUDA
-    void init_cuda_backend(const std::shared_ptr<LLMConfig> &config, const HyperParams &hparams);
+#ifdef POWERSERVE_WITH_CUDA
+    void init_cuda_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams);
 #endif
 };
 

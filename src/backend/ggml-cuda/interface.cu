@@ -112,6 +112,8 @@ op_interface op_interfaces::op_get_embedding = [] (cuda_context_warp &ctx, ggml_
     auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
     // TODO:
     // return 0;
+    GGML_UNUSED(cuda_context_ptr);
+    GGML_UNUSED(dst);
 };
 
 op_interface op_interfaces::op_mat_mul = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
@@ -244,6 +246,7 @@ op_interface op_interfaces::op_print = [] (cuda_context_warp &ctx, ggml_tensor *
     }
 
     auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
+    GGML_UNUSED(cuda_context_ptr);
     // auto file_name{std::string{dst->name}}; TODO:
     auto file_name{std::string{"output.txt"}};
     auto file{fopen(file_name.c_str(), "a+")};

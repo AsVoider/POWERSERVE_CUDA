@@ -1,3 +1,4 @@
+#pragma once
 #include "backend/backend.hpp"
 #include "backend/ggml-cuda/buffer.hpp"
 #include "backend/ggml-cuda/ggml-cuda_kv_cache.hpp"
@@ -10,7 +11,7 @@
 
 namespace powerserve::ggml_cuda {
 
-Tensor convert_from_ggml_with_data_copied(ggml_tensor *t) {
+static Tensor convert_from_ggml_with_data_copied(ggml_tensor *t) {
     POWERSERVE_ASSERT(t != nullptr);
     Shape tensor_shape{static_cast<size_t>(t->ne[0]), static_cast<size_t>(t->ne[1]), static_cast<size_t>(t->ne[2]), static_cast<size_t>(t->ne[3])};
     Stride tensor_stride{t->nb[0], t->nb[1], t->nb[2], t->nb[3]};
@@ -24,7 +25,7 @@ Tensor convert_from_ggml_with_data_copied(ggml_tensor *t) {
     return tensor;
 }
 
-std::unique_ptr<ggml_tensor> convert_to_ggml_tensor(const Tensor *t) {
+static std::unique_ptr<ggml_tensor> convert_to_ggml_tensor(const Tensor *t) {
     if (t == nullptr) {
         return nullptr;
     }
