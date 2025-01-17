@@ -99,8 +99,10 @@ auto LlamaModel::forward(
     }
 
     Executor executor(*m_platform, g);
+    // TODO: allocate backend buffer
     executor.allocate_buffers();
 
+    // TODO: run with backend
     executor.run();
 #if defined(POWERSERVE_WITH_QNN)
     if (!m_platform->qnn_backend)

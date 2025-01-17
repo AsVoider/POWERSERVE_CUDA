@@ -39,6 +39,7 @@ public:
     ~GGML_CUDAKV() = default;
 
 public:
+    auto get_cache_position() -> size_t;
     auto get_cache(size_t layer_id) -> std::pair<Tensor *, Tensor *>;
     auto clear_cache(size_t trunc_idx) -> void;
     auto append_k_cache(const Tensor *k_tensor, size_t layer_id, size_t token_nums) -> void;
