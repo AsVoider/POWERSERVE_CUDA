@@ -54,7 +54,7 @@ void GGML_CUDABackend::get_embedding(Tensor *dst, const Tensor *weight, const st
 }
 
 void GGML_CUDABackend::matmul(Tensor *dst, const Tensor *src0, const Tensor *src1) const {
-    auto split{src0->get<Buffer_CUDA>().m_buffer_type == buffer_type::GGML_GPU_SPLIT};
+    auto split{src0->m_backend == TensorBackend::GGML_GPU_SPLIT};
     auto ggml_tensor_dst{convert_to_ggml_tensor(dst)};
     auto ggml_tensor_src0{convert_to_ggml_tensor(src0)};
     auto ggml_tensor_src1{convert_to_ggml_tensor(src1)};
@@ -94,20 +94,32 @@ void GGML_CUDABackend::softmax(Tensor *out, const Tensor *x, const Tensor *mask,
     op_interfaces::op_softmax(*warp, ggml_tensor_out.get());
 }
 
-void GGML_CUDABackend::rope(Tensor *out, const Tensor *src, const Tensor *pos, const Tensor *freq_factors, const ModelConfig::LLMConfig::RopeConfig &rope_cfg) const {
+void GGML_CUDABackend::rope(Tensor *out, const Tensor *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &rope_cfg) const {
     auto ggml_tensor_out{convert_to_ggml_tensor(out)};
     auto ggml_tensor_src{convert_to_ggml_tensor(src)};
-    auto ggml_tensor_pos{convert_to_ggml_tensor(pos)};
-    auto ggml_tensor_freq_factors{freq_factors ? convert_to_ggml_tensor(freq_factors) : nullptr};
+    // auto ggml_tensor_pos{convert_to_ggml_tensor(pos)};
+    // auto ggml_tensor_freq_factors{freq_factors ? convert_to_ggml_tensor(freq_factors) : nullptr};
+
+    auto ggml_tensor_pos{std::make_unique<ggml_tensor>()};
+    {
+        void *pos_data_ptr{nullptr};
+        void *cpu_data_ptr = static_cast<void *>(const_cast<int *>(pos.data()));
+        cuda_context_warp::malloc_cuda_buffer(&pos_data_ptr, pos.size() * sizeof(int));
+        cuda_context_warp::copy_memory_async<1>(pos_data_ptr, cpu_data_ptr, pos.size() * sizeof(int), nullptr);
+        ggml_tensor_pos->data = pos_data_ptr;
+        ggml_tensor_pos->type = GGML_TYPE_I32;
+        ggml_tensor_pos->ne[0] = pos.size();
+        ggml_tensor_pos->ne[1] = ggml_tensor_pos->ne[2] = ggml_tensor_pos->ne[3] = 1;
+        ggml_tensor_pos->nb[0] = sizeof(int32_t);
+        ggml_tensor_pos->nb[1] = ggml_tensor_pos->nb[2] = ggml_tensor_pos->nb[3] = pos.size() * sizeof(int32_t);
+    }
 
     auto out_buffer{out->get<Buffer_CUDA>()};
     auto src_buffer{src->get<Buffer_CUDA>()};
-    auto pos_buffer{pos->get<Buffer_CUDA>()};
-    POWERSERVE_ASSERT(out_buffer.m_data_cuda and src_buffer.m_data_cuda and pos_buffer.m_data_cuda);
+    POWERSERVE_ASSERT(out_buffer.m_data_cuda and src_buffer.m_data_cuda);
 
     ggml_tensor_out->src[0] = ggml_tensor_src.get();
     ggml_tensor_out->src[1] = ggml_tensor_pos.get();
-    ggml_tensor_out->src[2] = ggml_tensor_freq_factors.get();
 
     int arr_i[5]{0, rope_cfg.n_dims, rope_cfg.rope_type, 0, rope_cfg.n_ctx_orig};
     float arr_f[6]{rope_cfg.freq_base, rope_cfg.freq_scale, rope_cfg.ext_factor, rope_cfg.attn_factor, rope_cfg.beta_fast, rope_cfg.beta_slow};

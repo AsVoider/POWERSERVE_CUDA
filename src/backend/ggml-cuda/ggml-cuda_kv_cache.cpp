@@ -88,7 +88,7 @@ auto GGML_CUDAKV::get_k_cache_tensor(size_t layer_id) -> Tensor * {
     )};
 
     ret->m_data = cuda_buffer_ptr;
-
+    ret->m_backend = TensorBackend::GGML_GPU;
     return ret;
 }
 
@@ -114,7 +114,7 @@ auto GGML_CUDAKV::get_v_cache_tensor(size_t layer_id) -> Tensor * {
     )};
 
     ret->m_data = cuda_buffer_ptr;
-
+    ret->m_backend = TensorBackend::GGML_GPU;
     return ret;
 }
 

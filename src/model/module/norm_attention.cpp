@@ -131,7 +131,7 @@ TensorNode *NormAttention::build(
         auto f_attention_scale = 0.0f;
         float kq_scale         = f_attention_scale == 0.0f ? 1.0f / sqrtf(float(head_size)) : f_attention_scale;
         float f_max_alibi_bias = 0.000000;
-        auto kq_mask           = g.get_mask(mask, {n_kv, batch_32, 1, 1}, pos);
+        auto kq_mask           = g.get_mask(mask, {n_kv, batch_32, 1, 1}, pos, kq);
         kq                     = g.softmax_ext(kq, kq_mask, kq_scale, f_max_alibi_bias);
 
         // split cached v into n_head heads

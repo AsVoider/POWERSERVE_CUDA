@@ -30,6 +30,9 @@ namespace powerserve::ggml {
 void GGMLBackend::plan(std::vector<std::shared_ptr<OpNode>> &ops) {
     size_t max_work_size = 0;
     for (auto op : ops) {
+        if (op->compute_backend != TensorBackend::GGML_CPU) {
+            continue;
+        }
         size_t cur = 0;
 
         const int n_tasks = get_n_tasks(op);

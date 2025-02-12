@@ -25,7 +25,6 @@ public:
         
         m_useage = use;
         m_size = size;
-        m_buffer_type = buffer_type::GGML_GPU;
     }
     
     virtual ~Buffer_CUDA() override {

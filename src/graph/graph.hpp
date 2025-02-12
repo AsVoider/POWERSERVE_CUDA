@@ -68,7 +68,7 @@ public:
     auto permute(TensorNode *x, Shape axes) -> TensorViewNode *;
     auto cont(TensorNode *x, Shape shape) -> TensorNode *;
     auto view(const TensorNode *x, Shape shape, Shape stride, size_t offset = 0) -> TensorViewNode *;
-    auto get_mask(const CausalAttentionMask &mask, Shape shape, const std::vector<int> &pos) -> TensorNode *;
+    auto get_mask(const CausalAttentionMask &mask, Shape shape, const std::vector<int> &pos, TensorNode *kq = nullptr) -> TensorNode *;
     auto transpose(TensorNode *x) -> TensorViewNode *;
 };
 

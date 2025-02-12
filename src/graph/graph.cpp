@@ -47,6 +47,11 @@ auto Graph::get_embedding(TensorNode *weight, const std::vector<int> &tokens) ->
     op->set_inputs({weight});
     op->set_outputs({out});
     op->set_params(GetEmbeddingParams{tokens});
+#if defined(POWERSERVE_WITH_CUDA)
+    out->m_backend = TensorBackend::GGML_GPU;
+#else
+    out->m_backend = TensorBackend::GGML_CPU;
+#endif
     return out;
 }
 
@@ -58,6 +63,10 @@ auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
     op->set_inputs({a, b});
     op->set_outputs({out});
 
+    {
+        POWERSERVE_ASSERT(a->m_backend == b->m_backend);
+        out->m_backend = a->m_backend;        
+    }
     return out;
 }
 
@@ -72,6 +81,10 @@ auto Graph::mat_mul(TensorNode *a, TensorNode *b) -> TensorNode * {
     op->set_inputs({a, b});
     op->set_outputs({out});
 
+    {
+        POWERSERVE_ASSERT(a->m_backend == b->m_backend);
+        out->m_backend = a->m_backend;
+    }
     return out;
 }
 
@@ -86,6 +99,10 @@ auto Graph::rms_norm(TensorNode *x, TensorNode *weight, float eps) -> TensorNode
     op->set_outputs({out});
     op->set_params(RMSNormParams{.eps = eps});
 
+    {
+        out->m_backend = x->m_backend;
+        POWERSERVE_ASSERT(weight == nullptr or weight->m_backend == x->m_backend);
+    }
     return out;
 }
 
@@ -98,6 +115,10 @@ auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
     op->set_inputs({gate, up});
     op->set_outputs({out});
 
+    {
+        POWERSERVE_ASSERT(gate->m_backend == up->m_backend);
+        out->m_backend = gate->m_backend;
+    }
     return out;
 }
 
@@ -110,6 +131,9 @@ auto Graph::rope(TensorNode *src, const std::vector<int> &pos, const ModelConfig
     op->set_outputs({out});
     op->set_params(RopeParams{pos, params});
 
+    {
+        out->m_backend = src->m_backend;
+    }
     return out;
 }
 
@@ -118,6 +142,9 @@ auto Graph::softmax(TensorNode *x) -> TensorNode * {
     auto op  = new_op(OpType::SOFTMAX);
     op->set_inputs({x});
     op->set_outputs({out});
+    {
+        out->m_backend = x->m_backend;
+    }
 
     return out;
 }
@@ -165,6 +192,9 @@ void Graph::copy(TensorNode *dst, TensorNode *src) {
     auto op = new_op(OpType::COPY);
     op->set_inputs({dst, src});
     op->set_params(CopyParams{});
+    {
+        POWERSERVE_ASSERT(dst->m_backend == src->m_backend);
+    }
 }
 
 void Graph::print(TensorNode *x, size_t size) {
@@ -177,6 +207,9 @@ void Graph::add_cache(TensorNode *k, TensorNode *v, size_t L, const std::vector<
     auto op = new_op(OpType::ADD_CACHE);
     op->set_inputs({k, v});
     op->set_params(AddCacheParams{L, pos, head_id});
+    {
+        POWERSERVE_ASSERT(k->m_backend == v->m_backend);
+    }
 }
 
 auto Graph::permute(TensorNode *x, Shape axes) -> TensorViewNode * {
@@ -204,6 +237,9 @@ auto Graph::permute(TensorNode *x, Shape axes) -> TensorViewNode * {
     op->set_outputs({out});
     op->set_params(PermuteParams{.axes = axes});
 
+    {
+        out->m_backend = x->m_backend;
+    }
     return out;
 }
 
@@ -214,6 +250,9 @@ auto Graph::cont(TensorNode *x, Shape shape) -> TensorNode * {
     op->set_outputs({out});
     op->set_params(ContParams({}));
 
+    {
+        out->m_backend = x->m_backend;
+    }
     return out;
 }
 
@@ -224,6 +263,9 @@ auto Graph::view(const TensorNode *x, Shape shape, Shape stride, size_t offset) 
     op->set_outputs({out});
     op->set_params(ViewParams({.stride = stride, .offset = offset}));
 
+    {
+        out->m_backend = x->m_backend;
+    }
     return out;
 }
 
@@ -234,15 +276,22 @@ auto Graph::softmax_ext(TensorNode *x, TensorNode *mask, float scale, float max_
     op->set_outputs({out});
     op->set_params(SoftmaxExtParams({.scale = scale, .max_bias = max_bias}));
 
+    {
+        POWERSERVE_ASSERT(x->m_backend == mask->m_backend);
+        out->m_backend = x->m_backend;
+    }
     return out;
 }
 
-auto Graph::get_mask(const CausalAttentionMask &mask, Shape shape, const std::vector<int> &pos) -> TensorNode * {
+auto Graph::get_mask(const CausalAttentionMask &mask, Shape shape, const std::vector<int> &pos, TensorNode *kq) -> TensorNode * {
     auto out = new_tensor(DataType::FP32, shape);
     auto op  = new_op(OpType::GET_MASK);
     op->set_outputs({out});
     op->set_params(GetMaskParams{.mask = mask, .pos = pos});
 
+    {
+        out->m_backend = kq == nullptr ? TensorBackend::GGML_CPU : kq->m_backend;
+    }
     return out;
 }
 
@@ -256,6 +305,9 @@ auto Graph::transpose(TensorNode *x) -> TensorViewNode * {
     op->set_inputs({x});
     op->set_outputs({out});
 
+    {
+        out->m_backend = x->m_backend;
+    }
     return out;
 }
 

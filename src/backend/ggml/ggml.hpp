@@ -82,6 +82,7 @@ static Tensor convert_from_ggml(ggml_tensor *t) {
     }
     Tensor tensor(convert_datatype_from_ggml(t->type), shape);
     tensor.m_data = std::make_shared<CPUBuffer>(stride, t->data);
+    tensor.m_backend = TensorBackend::GGML_CPU;
     return tensor;
 }
 

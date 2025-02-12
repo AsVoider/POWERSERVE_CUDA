@@ -48,6 +48,10 @@ void Executor::plan() {
     m_platform.ggml_backends[m_graph.m_model_id]->plan(m_graph.ops);
 }
 
+void Executor::shed() {
+    shed_op_to_backend();
+}
+
 void Executor::run() {
     auto &model_id = m_graph.m_model_id;
     plan();

@@ -24,11 +24,19 @@
 
 namespace powerserve {
 
+enum class TensorBackend : int {
+    UNKNOWN = -1,
+    GGML_CPU = 0,
+    GGML_GPU = 1,
+    GGML_GPU_SPLIT = 2,
+};
+
 struct Tensor {
 public:
     DataType m_dtype = DataType::UNKNOWN;
     Shape m_shape    = {0};
     BufferPtr m_data = nullptr;
+    TensorBackend m_backend{TensorBackend::UNKNOWN};
 
 public:
     Tensor()                          = default;

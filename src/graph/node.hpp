@@ -109,6 +109,7 @@ public:
 struct OpNode : Node {
 public:
     OpType op;
+    TensorBackend compute_backend{TensorBackend::UNKNOWN};
     std::unique_ptr<OpParams> params;
 
 private:

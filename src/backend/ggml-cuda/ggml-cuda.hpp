@@ -22,6 +22,7 @@ static Tensor convert_from_ggml_with_data_copied(ggml_tensor *t) {
     cuda_context_warp::copy_memory_async<1>(cuda_ptr, t->data, ggml_nbytes(t));
 
     tensor.m_data = std::make_shared<Buffer_CUDA>(tensor_stride, cuda_ptr, t->data, usage::WEIGHT, ggml_nbytes(t), true, false);
+    tensor.m_backend = TensorBackend::GGML_GPU;
     return tensor;
 }
 
@@ -67,7 +68,7 @@ public: // ! Math Ops
     void get_embedding(Tensor *dst, const Tensor *weight, const std::vector<int> &tokens) const;
     void matmul(Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void rmsnorm(Tensor *o, const Tensor *x, const Tensor *weight, float eps) const;
-    void rope(Tensor *out, const Tensor *src, const Tensor *pos, const Tensor *freq_factors, const ModelConfig::LLMConfig::RopeConfig &rope_cfg) const;
+    void rope(Tensor *out, const Tensor *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &rope_cfg) const;
     void softmax(Tensor *out, const Tensor *x, const Tensor *mask, float scale, float bias) const;
     void permute(Tensor *out, const Tensor *x, Shape axes) const;
     void cont(Tensor *out, const Tensor *x) const;
@@ -81,7 +82,7 @@ public: // ! Math Ops
 
 public: // ! Mem Ops
     template <typename T>
-    auto create_cuda_buffer(Shape shape, usage use = usage::ANY, buffer_type buf_t = buffer_type::GGML_GPU) -> BufferPtr {
+    auto create_cuda_buffer(Shape shape, usage use = usage::ANY) -> BufferPtr {
         Stride stride;
         stride[0] = sizeof(T);
         for (size_t i{1}; i < shape.size(); ++i) {
