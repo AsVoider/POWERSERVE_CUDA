@@ -1,3 +1,4 @@
+#pragma once
 #include "ggml.h"
 
 #include <functional>
@@ -80,6 +81,7 @@ public:
     static op_interface op_print;
     static op_interface op_silu_and_mul;
     static op_interface op_append_v_cache;
+    static op_interface op_get_mask;
 };
 
 } // namespace powerserve::ggml_cuda

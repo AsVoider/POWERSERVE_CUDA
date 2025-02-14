@@ -43,6 +43,10 @@ int main(int argc, char *argv[]) {
 
     platform->init_ggml_backend(main_model->m_config, config.hyper_params);
 
+#if defined(POWERSERVE_WITH_CUDA)
+    platform->init_cuda_backend(main_model->m_config, config.hyper_params);
+#endif
+
     if (args.use_spec) {
         draft_model->m_platform = platform;
         platform->init_ggml_backend(draft_model->m_config, config.hyper_params);

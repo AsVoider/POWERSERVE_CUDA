@@ -27,7 +27,7 @@ if (NOT MSVC)
         -Wall
         -Wextra
 
-        # -Wno-unused-function
+        -Wno-unused-function
     )
 
     if (POWERSERVE_ENABLE_WERROR)

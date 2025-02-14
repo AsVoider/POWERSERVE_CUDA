@@ -49,7 +49,7 @@ protected:
         if (t == nullptr) {
             throw std::runtime_error(fmt::format("Failed to get tensor: {}", tensor_name));
         }
-        printf("loading!\n");
+        // std::cout << fmt::format("loading!, t name is {}\n", t->name);
 #if defined(POWERSERVE_WITH_CUDA)
         return ggml_cuda::convert_from_ggml_with_data_copied(t);
 #else

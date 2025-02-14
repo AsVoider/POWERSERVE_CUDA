@@ -203,6 +203,20 @@ void GGML_CUDABackend::print(const Tensor *x, size_t rows) const {
     op_interfaces::op_print(*warp, ggml_tensor_to_print.get());
 }
 
+void GGML_CUDABackend::get_mask(Tensor *out, const std::vector<int> &pos, size_t kv_number, size_t batch_size) {
+    auto ggml_tensor_out{convert_to_ggml_tensor(out)};
+    POWERSERVE_ASSERT(pos.size() > 0);
+    const auto first_pos{pos[0]};
+    const auto pos_size{pos.size()};
+
+    ggml_tensor_out->op_params[0] = static_cast<int>(first_pos);
+    ggml_tensor_out->op_params[1] = static_cast<int>(pos_size);
+    ggml_tensor_out->op_params[2] = static_cast<int>(kv_number);
+    ggml_tensor_out->op_params[3] = static_cast<int>(batch_size);
+
+    op_interfaces::op_get_mask(*warp, ggml_tensor_out.get());
+}
+
 void GGML_CUDABackend::append_kv_cache(const Tensor *src, const size_t layer_id, const size_t token_num, bool is_k_cache) {
     POWERSERVE_ASSERT(src->m_dtype == DataType::FP32);
 

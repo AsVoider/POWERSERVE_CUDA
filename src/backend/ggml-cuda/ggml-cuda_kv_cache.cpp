@@ -7,7 +7,7 @@ namespace powerserve::ggml_cuda{
 GGML_CUDAKV::GGML_CUDAKV(const ModelConfig::LLMConfig &config) : config{config} {
     kv_shape.kv_dim = config.kv_dim;
     kv_shape.kv_heads = config.n_kv_heads;
-    kv_shape.n_ctx = config.seq_len;
+    kv_shape.n_ctx = config.seq_len > 1024 ? 1024 : config.seq_len;
     kv_shape.n_layers = config.n_layers;
     kv_shape.head_size = config.head_size;
     kv_shape.batch_size = 1UL;
@@ -16,12 +16,17 @@ GGML_CUDAKV::GGML_CUDAKV(const ModelConfig::LLMConfig &config) : config{config} 
     init_cache();
 } 
 
+// TODO: fix this function
+auto GGML_CUDAKV::get_cache_position() -> size_t {
+    return this->k_cache[0].valid_idx;
+}
+
 auto GGML_CUDAKV::get_cache(size_t layer_id) -> std::pair<Tensor *, Tensor *> {
     return {get_k_cache_tensor(layer_id), get_v_cache_tensor(layer_id)};
 }
 
 auto GGML_CUDAKV::clear_cache(size_t trunc_idx) -> void {
-    for (int i{0}; i < kv_shape.n_layers; ++i) {
+    for (size_t i{0}; i < kv_shape.n_layers; ++i) {
         const auto k_cur_size{k_cache[i].next_position};
         const auto v_cur_size{v_cache[i].next_position};
 
@@ -93,7 +98,6 @@ auto GGML_CUDAKV::get_k_cache_tensor(size_t layer_id) -> Tensor * {
 }
 
 auto GGML_CUDAKV::get_v_cache_tensor(size_t layer_id) -> Tensor * {
-    auto ggml_tp{convert_datatype_to_ggml(kv_shape.type)};
     Stride t_stride{
         get_type_size(kv_shape.type),
         kv_shape.n_ctx * get_type_size(kv_shape.type),
@@ -124,7 +128,7 @@ auto GGML_CUDAKV::init_cache() -> void {
 
     auto k_size{kv_shape.get_k_size(kv_shape.n_ctx)};
     auto v_size{kv_shape.get_v_size(kv_shape.n_ctx)};
-
+    printf("k_size is %ld, nctx is %ld\n", k_size, kv_shape.n_ctx);
     for (size_t i{0}; i < kv_shape.n_layers; ++i) {
         cuda_context_warp::malloc_cuda_buffer(reinterpret_cast<void **>(&k_cache[i].cache_data_ptr), k_size);
         cuda_context_warp::malloc_cuda_buffer(reinterpret_cast<void **>(&v_cache[i].cache_data_ptr), v_size);

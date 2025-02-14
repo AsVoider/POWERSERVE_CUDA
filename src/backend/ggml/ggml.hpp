@@ -80,7 +80,7 @@ static Tensor convert_from_ggml(ggml_tensor *t) {
         shape[i]  = t->ne[i];
         stride[i] = t->nb[i];
     }
-    Tensor tensor(convert_datatype_from_ggml(t->type), shape);
+    Tensor tensor(convert_datatype_from_ggml(t->type), shape, t->name);
     tensor.m_data = std::make_shared<CPUBuffer>(stride, t->data);
     tensor.m_backend = TensorBackend::GGML_CPU;
     return tensor;

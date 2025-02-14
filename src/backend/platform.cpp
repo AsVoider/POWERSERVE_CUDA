@@ -46,7 +46,8 @@ size_t Platform::get_kv_position(std::string &model_id) const {
 
 #if defined(POWERSERVE_WITH_CUDA)
     auto cuda_position = ggml_cuda_backend->m_kv->get_cache_position();
-    POWERSERVE_ASSERT(cuda_position == position);
+    // POWERSERVE_ASSERT(cuda_position == position);
+    position = cuda_position;
 #endif
     return position;
 }

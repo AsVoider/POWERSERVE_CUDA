@@ -15,7 +15,7 @@ static Tensor convert_from_ggml_with_data_copied(ggml_tensor *t) {
     POWERSERVE_ASSERT(t != nullptr);
     Shape tensor_shape{static_cast<size_t>(t->ne[0]), static_cast<size_t>(t->ne[1]), static_cast<size_t>(t->ne[2]), static_cast<size_t>(t->ne[3])};
     Stride tensor_stride{t->nb[0], t->nb[1], t->nb[2], t->nb[3]};
-    Tensor tensor{convert_datatype_from_ggml(t->type), std::move(tensor_shape)};
+    Tensor tensor{convert_datatype_from_ggml(t->type), std::move(tensor_shape), t->name};
    
     void *cuda_ptr{nullptr};
     cuda_context_warp::malloc_cuda_buffer(&cuda_ptr, ggml_nbytes(t));
@@ -76,6 +76,7 @@ public: // ! Math Ops
     void silu_and_mul(Tensor *out, const Tensor *gate, const Tensor *up) const;
     void copy(Tensor *out, const Tensor *src) const;    
     void print(const Tensor *x, size_t size = 0UL) const;
+    void get_mask(Tensor *out, const std::vector<int> &pos, size_t kv_number, size_t batch_size);
     // void reset_kv_batch_size(const size_t batch_size) const;
     void append_kv_cache(const Tensor *src, const size_t layer_id, const size_t token_num, bool is_k_cache);
     void transpose(Tensor *out, const Tensor *x) const;

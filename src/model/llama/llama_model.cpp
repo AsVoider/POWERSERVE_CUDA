@@ -83,8 +83,17 @@ auto LlamaModel::forward(
         if (!lazy_load) {
             m_platform->ggml_backends[m_config->model_id]->reset_kv_batch_size(batch_size);
             for (size_t L = 0; L < llm_config.n_layers; L++) {
+#if defined(POWERSERVE_WITH_CUDA)
+                auto [k_ptr, v_ptr] = m_platform->ggml_cuda_backend->m_kv->get_cache(L);
+                auto &k_cache{*k_ptr}, &v_cache{*v_ptr};
+#else
                 auto [k_cache, v_cache] = m_platform->ggml_backends[m_config->model_id]->m_kv->get_cache(L);
-                auto att_o = m_attn->build(g, x, L, g.add_tensor(k_cache), g.add_tensor(v_cache), pos, mask);
+#endif
+                k_cache.m_name = fmt::format("k_cache_{}", L);
+                v_cache.m_name = fmt::format("v_cache_{}", L);
+                auto k_node{g.add_tensor(k_cache)};
+                auto v_node{g.add_tensor(v_cache)};
+                auto att_o = m_attn->build(g, x, L, k_node, v_node, pos, mask);
                 auto ffn_o = m_ffn->build(g, att_o, L);
                 x          = ffn_o;
             }
@@ -98,10 +107,26 @@ auto LlamaModel::forward(
         }
     }
 
-    Executor executor(*m_platform, g);
-    // TODO: allocate backend buffer
-    executor.allocate_buffers();
+    // for (auto t : g.tensors) {
+    //     std::cout << t->m_name << std::endl;
+    // }
 
+    Executor executor(*m_platform, g);
+    // for (auto t : executor.m_graph.tensors) {
+    //     std::cout << t->m_name << std::endl;
+    // }
+
+    executor.shed_op_to_backend();
+    // open a file as ostream to print the graph
+    // allocate backend buffer
+    executor.allocate_buffer_with_backend();
+
+    std::ofstream graph_file("graph_output.log");
+    executor.print_graph(graph_file);
+    graph_file.close();
+
+    int d;
+    scanf("%d", &d);
     // TODO: run with backend
     executor.run();
 #if defined(POWERSERVE_WITH_QNN)

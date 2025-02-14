@@ -175,6 +175,7 @@ if (POWERSERVE_WITH_CUDA)
 endif()
 
 if (POWERSERVE_WITH_CUDA) 
+    add_subdirectory(ggml-cuda)
     target_include_directories(powerserve PRIVATE ${PROJECT_SOURCE_DIR}/libs/ggml/src/ggml-cuda/)
     target_include_directories(powerserve PRIVATE ${PROJECT_SOURCE_DIR}/libs/ggml/src)
     target_sources(powerserve PRIVATE ${GGML_SOURCES_CUDA} ${GGML_HEADERS_CUDA})

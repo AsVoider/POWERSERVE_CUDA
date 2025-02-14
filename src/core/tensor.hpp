@@ -37,21 +37,24 @@ public:
     Shape m_shape    = {0};
     BufferPtr m_data = nullptr;
     TensorBackend m_backend{TensorBackend::UNKNOWN};
+    std::string m_name{""};
 
 public:
     Tensor()                          = default;
     Tensor(const Tensor &)            = default;
     Tensor &operator=(const Tensor &) = default;
 
-    Tensor(DataType dtype, const Shape &shape) : m_dtype(dtype) {
+    Tensor(DataType dtype, const Shape &shape, const std::string &name = "") 
+        : m_dtype(dtype), m_name(name) {
         POWERSERVE_ASSERT(shape.size() <= max_n_dims);
         for (size_t i = 0; i < shape.size(); i++) {
             m_shape[i] = std::max(shape[i], size_t(1));
         }
     }
 
-    Tensor(DataType dtype, Shape &&shape) : m_dtype(dtype), m_shape(std::move(shape)) {
-        POWERSERVE_ASSERT(shape.size() <= max_n_dims);
+    Tensor(DataType dtype, Shape &&shape, const std::string &name = "") 
+        : m_dtype(dtype), m_shape(std::move(shape)), m_name(name) {
+        POWERSERVE_ASSERT(m_shape.size() <= max_n_dims);
     }
 
 public:

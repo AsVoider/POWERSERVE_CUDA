@@ -71,8 +71,10 @@ TensorNode *NormAttention::build(
 
     // (head_size, n_heads, bs, 1)
     auto q_view = g.view_tensor(q, {head_size, n_head, q->m_shape[1], q->m_shape[2]});
+    q_view->m_name = "q_view";
     // (head_size, n_kv_heads, bs, 1)
     auto k_view = g.view_tensor(k, {head_size, n_head_kv, k->m_shape[1], k->m_shape[2]});
+    k_view->m_name = "k_view";
     auto rope_q = g.rope(q_view, pos, m_config.rope_config); // (head_size, n_heads, bs, 1)
     auto rope_k = g.rope(k_view, pos, m_config.rope_config); // (head_size, n_kv_heads, bs, 1)
 
@@ -89,6 +91,7 @@ TensorNode *NormAttention::build(
              k_cache->element_size() * batch_size * kv_gqa},
             k_cache->row_size(kv_gqa) * cur_pos
         );
+        k_cache_view->m_name = "k_cache_view";
         g.copy(k_cache_view, k);
 
         auto v_cache_view = g.view(

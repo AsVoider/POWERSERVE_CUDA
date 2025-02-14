@@ -1,9 +1,10 @@
 #include "backend/ggml-cuda/interface.cuh"
 #include "backend/ggml-cuda/cuda-ops/rms_norm.cuh"
 #include "backend/ggml-cuda/cuda-ops/mat_mul.cuh"
+#include "backend/ggml-cuda/cuda-ops/activation.cuh"
+#include "backend/ggml-cuda/cuda-ops/copy_ext.cuh"
+#include "backend/ggml-cuda/cuda-ops/get_mask.cuh"
 
-#include "cuda-ops/activation.cuh"
-#include "cuda-ops/copy_ext.cuh"
 #include "common.cuh"
 #include "cpy.cuh"
 #include "softmax.cuh"
@@ -109,10 +110,9 @@ op_interface op_interfaces::op_get_embedding = [] (cuda_context_warp &ctx, ggml_
         exit(1);
     }
 
-    auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
+    // auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
     // TODO:
     // return 0;
-    GGML_UNUSED(cuda_context_ptr);
     GGML_UNUSED(dst);
 };
 
@@ -245,8 +245,8 @@ op_interface op_interfaces::op_print = [] (cuda_context_warp &ctx, ggml_tensor *
         exit(1);
     }
 
-    auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
-    GGML_UNUSED(cuda_context_ptr);
+    // auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
+    // GGML_UNUSED(cuda_context_ptr);
     // auto file_name{std::string{dst->name}}; TODO:
     auto file_name{std::string{"output.txt"}};
     auto file{fopen(file_name.c_str(), "a+")};
@@ -353,6 +353,16 @@ op_interface op_interfaces::op_append_v_cache = [] (cuda_context_warp &ctx, ggml
     auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
 
     copy_permuted_v_cache(cuda_context_ptr[0], dst);
+};
+
+op_interface op_interfaces::op_get_mask = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
+    if (ctx.ctx == nullptr) [[unlikely]] {
+        exit(1);
+    }
+
+    auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
+
+    ggml_get_mask(cuda_context_ptr[0], dst);
 };
 
 } // namespace powerserve::ggml_cuda
