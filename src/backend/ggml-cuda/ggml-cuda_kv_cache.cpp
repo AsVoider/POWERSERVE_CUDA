@@ -132,6 +132,7 @@ auto GGML_CUDAKV::init_cache() -> void {
     for (size_t i{0}; i < kv_shape.n_layers; ++i) {
         cuda_context_warp::malloc_cuda_buffer(reinterpret_cast<void **>(&k_cache[i].cache_data_ptr), k_size);
         cuda_context_warp::malloc_cuda_buffer(reinterpret_cast<void **>(&v_cache[i].cache_data_ptr), v_size);
+        printf("layer: %ld, k_cache: %p, v_cache: %p\n", i, k_cache[i].cache_data_ptr, v_cache[i].cache_data_ptr);
     }
 }
 

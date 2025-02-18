@@ -54,9 +54,15 @@ auto LlamaModel::forward(
 ) -> LogitsVector {
     Graph g(m_config->model_id);
     // input embedding
-    size_t batch_size  = tokens.size();
+    // TEST
+    std::vector<int> modified_tokens{128000, 128006, 9125, 128007, 271, 15339, 128009};
+    std::vector<int> modified_pos{0, 1, 2, 3, 4, 5, 6};
+
+    size_t batch_size = modified_tokens.size();
+    // size_t batch_size  = tokens.size();
     auto embd_tb       = g.add_tensor(m_weights->token_embedding_table);
-    auto x             = g.get_embedding(embd_tb, tokens);
+    auto x             = g.get_embedding(embd_tb, modified_tokens);
+    // auto x             = g.get_embedding(embd_tb, tokens);
     TensorNode *logits = nullptr;
 
     auto &llm_config = m_config->llm;
@@ -93,7 +99,8 @@ auto LlamaModel::forward(
                 v_cache.m_name = fmt::format("v_cache_{}", L);
                 auto k_node{g.add_tensor(k_cache)};
                 auto v_node{g.add_tensor(v_cache)};
-                auto att_o = m_attn->build(g, x, L, k_node, v_node, pos, mask);
+                // auto att_o = m_attn->build(g, x, L, k_node, v_node, pos, mask);
+                auto att_o = m_attn->build(g, x, L, k_node, v_node, modified_pos, mask);
                 auto ffn_o = m_ffn->build(g, att_o, L);
                 x          = ffn_o;
             }
@@ -121,14 +128,15 @@ auto LlamaModel::forward(
     // allocate backend buffer
     executor.allocate_buffer_with_backend();
 
-    std::ofstream graph_file("graph_output.log");
-    executor.print_graph(graph_file);
-    graph_file.close();
+    // std::ofstream graph_file("graph_output.log");
+    // executor.print_graph(graph_file);
+    // graph_file.close();
 
-    int d;
-    scanf("%d", &d);
-    // TODO: run with backend
+#ifndef POWERSERVE_WITH_CUDA
     executor.run();
+#else
+    executor.run_with_backend();
+#endif
 #if defined(POWERSERVE_WITH_QNN)
     if (!m_platform->qnn_backend)
 #endif

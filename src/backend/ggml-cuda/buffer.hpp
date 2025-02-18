@@ -29,10 +29,12 @@ public:
     
     virtual ~Buffer_CUDA() override {
         if (m_is_cuda_malloc) {
+            std::cout << "release cuda" << std::endl;
             cuda_context_warp::free_cuda_buffer(m_data_cuda);
         }
 
         if (m_is_host_malloc) {
+            std::cout << "release host" << std::endl;
             free(m_data_host);
         }
     }

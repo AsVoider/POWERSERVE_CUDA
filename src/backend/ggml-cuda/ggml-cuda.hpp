@@ -12,17 +12,38 @@
 namespace powerserve::ggml_cuda {
 
 static Tensor convert_from_ggml_with_data_copied(ggml_tensor *t) {
-    POWERSERVE_ASSERT(t != nullptr);
+
+    if (t == nullptr) [[unlikely]] {
+        std::cout << "t is nullptr\n";
+        return Tensor{};
+    }
+
     Shape tensor_shape{static_cast<size_t>(t->ne[0]), static_cast<size_t>(t->ne[1]), static_cast<size_t>(t->ne[2]), static_cast<size_t>(t->ne[3])};
     Stride tensor_stride{t->nb[0], t->nb[1], t->nb[2], t->nb[3]};
     Tensor tensor{convert_datatype_from_ggml(t->type), std::move(tensor_shape), t->name};
    
     void *cuda_ptr{nullptr};
-    cuda_context_warp::malloc_cuda_buffer(&cuda_ptr, ggml_nbytes(t));
-    cuda_context_warp::copy_memory_async<1>(cuda_ptr, t->data, ggml_nbytes(t));
+    if (cuda_context_warp::malloc_cuda_buffer(&cuda_ptr, ggml_nbytes(t)) != 0) {
+        throw std::runtime_error("Failed to allocate CUDA buffer");
+    }
+
+    if (cuda_context_warp::copy_memory_async<1>(cuda_ptr, t->data, ggml_nbytes(t)) != 0) {
+        throw std::runtime_error("Failed to copy memory to CUDA buffer");
+    }
 
     tensor.m_data = std::make_shared<Buffer_CUDA>(tensor_stride, cuda_ptr, t->data, usage::WEIGHT, ggml_nbytes(t), true, false);
     tensor.m_backend = TensorBackend::GGML_GPU;
+    return tensor;
+}
+
+static Tensor convert_from_ggml_with_data_on_host(ggml_tensor *t) {
+    POWERSERVE_ASSERT(t != nullptr);
+    Shape tensor_shape{static_cast<size_t>(t->ne[0]), static_cast<size_t>(t->ne[1]), static_cast<size_t>(t->ne[2]), static_cast<size_t>(t->ne[3])};
+    Stride tensor_stride{t->nb[0], t->nb[1], t->nb[2], t->nb[3]};
+    Tensor tensor{convert_datatype_from_ggml(t->type), std::move(tensor_shape), t->name};
+   
+    tensor.m_data = std::make_shared<Buffer_CUDA>(tensor_stride, nullptr, t->data, usage::WEIGHT, ggml_nbytes(t), false, false);
+    tensor.m_backend = TensorBackend::GGML_CPU;
     return tensor;
 }
 
@@ -32,7 +53,7 @@ static std::unique_ptr<ggml_tensor> convert_to_ggml_tensor(const Tensor *t) {
     }
 
     auto gt = std::make_unique<ggml_tensor>();
-    auto buffer_t = t->get<Buffer_CUDA>();
+    const auto &buffer_t = t->get<Buffer_CUDA>();
     gt->type = convert_datatype_to_ggml(t->m_dtype);
 
     // Copy if need
@@ -42,6 +63,8 @@ static std::unique_ptr<ggml_tensor> convert_to_ggml_tensor(const Tensor *t) {
     }
 
     gt->data = buffer_t.m_data_cuda;
+    // TODO: just for test
+    // gt->extra = buffer_t.m_data_host;
     memcpy(gt->ne, t->m_shape.data(), t->m_shape.size() * sizeof(Shape::size_type));
     memcpy(gt->nb, buffer_t.m_stride.data(), buffer_t.m_stride.size() * sizeof(Stride::size_type));
 
@@ -65,10 +88,10 @@ public:
 
 public: // ! Math Ops
     void add(Tensor *dst, const Tensor *src0, const Tensor *src1) const;
-    void get_embedding(Tensor *dst, const Tensor *weight, const std::vector<int> &tokens) const;
+    void get_embedding(Tensor *dst, const Tensor *weight, const std::vector<int> &tokens) const; // finish
     void matmul(Tensor *dst, const Tensor *src0, const Tensor *src1) const;
-    void rmsnorm(Tensor *o, const Tensor *x, const Tensor *weight, float eps) const;
-    void rope(Tensor *out, const Tensor *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &rope_cfg) const;
+    void rmsnorm(Tensor *o, const Tensor *x, const Tensor *weight, float eps) const; // finish
+    void rope(Tensor *out, const Tensor *src, const Tensor *rope_frator, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &rope_cfg) const;
     void softmax(Tensor *out, const Tensor *x, const Tensor *mask, float scale, float bias) const;
     void permute(Tensor *out, const Tensor *x, Shape axes) const;
     void cont(Tensor *out, const Tensor *x) const;

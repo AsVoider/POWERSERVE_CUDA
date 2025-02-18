@@ -220,7 +220,7 @@ public:
     void matmul(const Tensor *dst, const Tensor *src0, const Tensor *src1) const;
     void rmsnorm(const Tensor *o, const Tensor *x, const Tensor *weight, float eps) const;
     void rope(
-        Tensor *out, const Tensor *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &rope_cfg
+        Tensor *out, const Tensor *src, const Tensor *rope_factors, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &rope_cfg
     ) const;
     void softmax(const Tensor *out, const Tensor *x) const;
     void permute(const Tensor *out, const Tensor *x, Shape axes) const;

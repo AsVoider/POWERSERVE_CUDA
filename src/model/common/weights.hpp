@@ -51,6 +51,9 @@ protected:
         }
         // std::cout << fmt::format("loading!, t name is {}\n", t->name);
 #if defined(POWERSERVE_WITH_CUDA)
+        // if (strcmp(t->name, "blk.0.attn_norm.weight") == 0) {
+            printf("t->name: %s, t type is %d, t shape is %ld %ld %ld %ld\n", t->name, t->type, t->ne[0], t->ne[1], t->ne[2], t->ne[3]);
+        // }
         return ggml_cuda::convert_from_ggml_with_data_copied(t);
 #else
         return ggml::convert_from_ggml(t);
@@ -63,12 +66,19 @@ public:
     Tensor token_embedding_table; // "token_embd.weight" (vocab_size, dim)
     Tensor output_weight;         // "output.weight" (vocab_size, dim)
     Tensor rms_final_weight;      // "output_norm.weight" (dim,)
+    Tensor rope_freq_weight;
 
     std::vector<LayerWeights> lw;
 
 public:
     Weight(ggml_context *ctx, bool lazy_load) {
+#if defined(POWERSERVE_WITH_CUDA)
+        token_embedding_table = ggml_cuda::convert_from_ggml_with_data_copied(ggml_get_tensor(ctx, "token_embd.weight"));
+        rope_freq_weight      = ggml_cuda::convert_from_ggml_with_data_copied(ggml_get_tensor(ctx, "rope_freqs.weight"));
+#else
         token_embedding_table = ggml::convert_from_ggml(ggml_get_tensor(ctx, "token_embd.weight"));
+        rope_freq_weight      = ggml::convert_from_ggml(ggml_get_tensor(ctx, "rope_freqs.weight"));
+#endif
         if (!lazy_load) {
             auto ow_name     = ggml_get_tensor(ctx, "output.weight") == nullptr ? "token_embd.weight" : "output.weight";
 #if defined(POWERSERVE_WITH_CUDA)

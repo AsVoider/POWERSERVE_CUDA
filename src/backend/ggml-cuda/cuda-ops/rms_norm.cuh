@@ -33,7 +33,7 @@ static __global__ void rms_norm_f32_with_weight(
     const float scale = rsqrtf(mean + eps);
 
     for (int col = tid; col < ncols; col += block_size) {
-        dst[row * ncols + col] = scale * weight[row * ncols + col] * src[row * ncols + col];
+        dst[row * ncols + col] = scale * weight[col] * src[row * ncols + col];
     }
 }
 

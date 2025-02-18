@@ -57,7 +57,7 @@ public:
     ) -> TensorNode *;
 #endif
 
-    auto rope(TensorNode *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &params)
+    auto rope(TensorNode *src, TensorNode *rope_factors, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &params)
         -> TensorNode *;
 
     auto softmax(TensorNode *x) -> TensorNode *;

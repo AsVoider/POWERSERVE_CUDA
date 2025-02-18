@@ -125,18 +125,19 @@ auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
     return out;
 }
 
-auto Graph::rope(TensorNode *src, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &params)
+auto Graph::rope(TensorNode *src, TensorNode *rope_factors, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &params)
     -> TensorNode * {
     // TODO: Only support linear ROPE now
     auto out = dup_tensor(src);
     out->m_name = "rope_out";
     auto op  = new_op(OpType::ROPE);
-    op->set_inputs({src});
+    op->set_inputs({src, rope_factors});
     op->set_outputs({out});
     op->set_params(RopeParams{pos, params});
 
     {
         out->m_backend = src->m_backend;
+        POWERSERVE_ASSERT(rope_factors == nullptr or rope_factors->m_backend == src->m_backend);
     }
     return out;
 }
