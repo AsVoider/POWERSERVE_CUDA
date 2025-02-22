@@ -101,6 +101,14 @@ auto LlamaModel::forward(
                 auto v_node{g.add_tensor(v_cache)};
                 // auto att_o = m_attn->build(g, x, L, k_node, v_node, pos, mask);
                 auto att_o = m_attn->build(g, x, L, k_node, v_node, modified_pos, mask);
+
+                if (L == llm_config.n_layers - 1) {
+                    att_o = g.view(att_o, {att_o->m_shape[0], 1, 1, 1}, 
+                        {sizeof(float), sizeof(float) * att_o->m_shape[0], sizeof(float) * att_o->m_shape[0], sizeof(float) * att_o->m_shape[0]},
+                        (modified_tokens.size() - 1) * att_o->m_shape[0] * sizeof(float)
+                    );
+                }
+
                 auto ffn_o = m_ffn->build(g, att_o, L);
                 x          = ffn_o;
             }

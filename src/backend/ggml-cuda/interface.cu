@@ -300,57 +300,10 @@ op_interface op_interfaces::op_rms_norm = [] (cuda_context_warp &ctx, ggml_tenso
     if (dst->src[1] == nullptr) {
         ggml_cuda_op_rms_norm(cuda_context_ptr[0], dst);
     } else {
-        printf("rms_norm_with_weight\n");
+        // printf("rms_norm_with_weight\n");
         rms_norm_with_weight(cuda_context_ptr[0], dst);
     }
 
-    // DEBUG
-    // {
-    //     cuda_context_warp::device_sync();
-    //     float eps{0.0f};
-    //     memcpy(&eps, dst->op_params, sizeof(float));
-    //     std::cout << "eps: " << eps << std::endl;
-
-    //     auto src0{dst->src[0]}, weight{dst->src[1]};
-    //     float *src_buffer{new float[src0->ne[0] * src0->ne[1]]};
-    //     cuda_context_warp::copy_memory<2>(src_buffer, src0->data, src0->ne[0] * src0->ne[1] * sizeof(float));
-
-    //     float *weight_buffer{new float[weight->ne[0]]};
-    //     cuda_context_warp::copy_memory<2>(weight_buffer, weight->data, weight->ne[0] * sizeof(float));
-
-    //     float *dst_buffer{new float[dst->ne[0] * dst->ne[1]]};
-    //     cuda_context_warp::copy_memory<2>(dst_buffer, dst->data, dst->ne[0] * dst->ne[1] * sizeof(float));
-
-    //     cuda_context_warp::device_sync();
-
-    //     auto file{fopen("rms_norm.txt", "w")};
-    //     fprintf(file, "src0:\n");
-    //     for (int64_t i{0}; i < src0->ne[1]; ++i) {
-    //         for (int64_t j{0}; j < src0->ne[0]; ++j) {
-    //             fprintf(file, "%f ", src_buffer[i * src0->ne[0] + j]);
-    //         }
-    //         fprintf(file, "\n\n");  
-    //     }
-    //     fprintf(file, "\n\n");
-
-    //     fprintf(file, "weight:\n");
-    //     for (int64_t i{0}; i < weight->ne[0]; ++i) {
-    //         fprintf(file, "%f ", weight_buffer[i]);
-    //     }
-    //     fprintf(file, "\n\n");
-
-    //     fprintf(file, "dst:\n");
-    //     for (int64_t i{0}; i < dst->ne[1]; ++i) {
-    //         for (int64_t j{0}; j < dst->ne[0]; ++j) {
-    //             fprintf(file, "%f ", dst_buffer[i * dst->ne[0] + j]);
-    //         }
-    //         fprintf(file, "\n\n");
-    //     }
-    //     fprintf(file, "\n\n");
-
-    //     fclose(file);
-    //     exit(0);
-    // }
 };
 
 op_interface op_interfaces::op_softmax = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
