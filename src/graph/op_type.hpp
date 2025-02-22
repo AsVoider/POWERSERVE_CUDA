@@ -19,28 +19,28 @@ namespace powerserve {
 enum class OpType {
     NONE = 0,
 
-    ADD, //
-    MAT_MUL, //
-    RMS_NORM, //
+    ADD,           //
+    MAT_MUL,       //
+    RMS_NORM,      //
     SILU_HADAMARD, //
-    ROPE, //
-    SOFTMAX, //
-    COPY, //
+    ROPE,          //
+    SOFTMAX,       //
+    COPY,          //
 
 #if defined(POWERSERVE_WITH_QNN)
     QNN_FORWARD,
     QNN_FORWARD_VL,
 #endif
 
-    PRINT, //
+    PRINT,         //
     GET_EMBEDDING, //
-    ADD_CACHE, //
-    PERMUTE, //
-    CONT, //
-    VIEW, //
-    SOFTMAX_EXT, //
-    GET_MASK, //
-    TRANSPOSE, //
+    ADD_CACHE,     //
+    PERMUTE,       //
+    CONT,          //
+    VIEW,          //
+    SOFTMAX_EXT,   //
+    GET_MASK,      //
+    TRANSPOSE,     //
     INSERT_IMG_EMBEDDIGN,
 };
 

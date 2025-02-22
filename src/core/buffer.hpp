@@ -20,15 +20,15 @@ namespace powerserve {
 
 enum class usage : int {
     UNKNOWN = -1,
-    ANY = 0,
-    WEIGHT = 1,
+    ANY     = 0,
+    WEIGHT  = 1,
     COMPUTE = 2,
 };
 
 struct BaseBuffer {
 public:
     size_t m_size{0UL};
-    usage  m_useage{usage::UNKNOWN};
+    usage m_useage{usage::UNKNOWN};
 
 public:
     virtual ~BaseBuffer() = default;

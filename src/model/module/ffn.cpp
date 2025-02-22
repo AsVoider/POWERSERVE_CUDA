@@ -36,7 +36,7 @@ TensorNode *FFN::build(Graph &g, TensorNode *attn_o, int64_t L) {
     auto down_o = g.mat_mul(down_w, silu);
 
     // {embed_dim, bs, 1, 1}
-    auto res_conn = g.add(attn_o, down_o);
+    auto res_conn    = g.add(attn_o, down_o);
     res_conn->m_name = fmt::format("ffn_o_{}", L);
 
     return res_conn;

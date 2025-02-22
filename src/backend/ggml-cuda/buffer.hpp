@@ -16,17 +16,25 @@ public:
     bool m_is_host_malloc{false}; // ? malloc
 
 public:
-    Buffer_CUDA(Stride stride, void *data_cuda, void *data_host, usage use, size_t size, bool is_cuda_malloc = false, bool is_host_malloc = false) :
-        m_stride{stride}, 
-        m_data_cuda{data_cuda}, 
-        m_data_host{data_host}, 
+    Buffer_CUDA(
+        Stride stride,
+        void *data_cuda,
+        void *data_host,
+        usage use,
+        size_t size,
+        bool is_cuda_malloc = false,
+        bool is_host_malloc = false
+    ) :
+        m_stride{stride},
+        m_data_cuda{data_cuda},
+        m_data_host{data_host},
         m_is_cuda_malloc{is_cuda_malloc},
-        m_is_host_malloc{is_host_malloc} { 
-        
+        m_is_host_malloc{is_host_malloc} {
+
         m_useage = use;
-        m_size = size;
+        m_size   = size;
     }
-    
+
     virtual ~Buffer_CUDA() override {
         if (m_is_cuda_malloc) {
             std::cout << "release cuda" << std::endl;
@@ -47,7 +55,7 @@ public:
             stride[i] = stride[i - 1] * shape[i - 1];
         }
         size_t size = stride.back() * shape.back();
-        
+
         void *cuda_data_ptr{nullptr};
         cuda_context_warp::malloc_cuda_buffer(&cuda_data_ptr, size);
         return std::make_shared<Buffer_CUDA>(stride, cuda_data_ptr, nullptr, usage::COMPUTE, size, true, false);
@@ -68,4 +76,4 @@ public:
     }
 };
 
-}
+} // namespace powerserve::ggml_cuda

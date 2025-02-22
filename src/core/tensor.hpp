@@ -25,9 +25,9 @@
 namespace powerserve {
 
 enum class TensorBackend : int {
-    UNKNOWN = -1,
-    GGML_CPU = 0,
-    GGML_GPU = 1,
+    UNKNOWN        = -1,
+    GGML_CPU       = 0,
+    GGML_GPU       = 1,
     GGML_GPU_SPLIT = 2,
 };
 
@@ -44,16 +44,17 @@ public:
     Tensor(const Tensor &)            = default;
     Tensor &operator=(const Tensor &) = default;
 
-    Tensor(DataType dtype, const Shape &shape, const std::string &name = "") 
-        : m_dtype(dtype), m_name(name) {
+    Tensor(DataType dtype, const Shape &shape, const std::string &name = "") : m_dtype(dtype), m_name(name) {
         POWERSERVE_ASSERT(shape.size() <= max_n_dims);
         for (size_t i = 0; i < shape.size(); i++) {
             m_shape[i] = std::max(shape[i], size_t(1));
         }
     }
 
-    Tensor(DataType dtype, Shape &&shape, const std::string &name = "") 
-        : m_dtype(dtype), m_shape(std::move(shape)), m_name(name) {
+    Tensor(DataType dtype, Shape &&shape, const std::string &name = "") :
+        m_dtype(dtype),
+        m_shape(std::move(shape)),
+        m_name(name) {
         POWERSERVE_ASSERT(m_shape.size() <= max_n_dims);
     }
 

@@ -35,24 +35,22 @@ void Executor::shed_op_to_backend() {
         case OpType::VIEW:
         case OpType::SOFTMAX_EXT:
         case OpType::GET_MASK:
-        case OpType::TRANSPOSE:
-        {
+        case OpType::TRANSPOSE: {
             op->compute_backend = op->output()->m_backend;
         } break;
 
         case OpType::COPY:
         case OpType::PRINT:
-        case OpType::ADD_CACHE:
-        {
+        case OpType::ADD_CACHE: {
             op->compute_backend = op->prev[0]->tensor()->m_backend;
         } break;
 
         default:
-            POWERSERVE_ASSERT(false and "op not implemented");            
+            POWERSERVE_ASSERT(false and "op not implemented");
         }
     }
 }
-    
+
 void Executor::allocate_buffers() {
     for (auto tensor : m_graph.tensors) {
         if (tensor->m_data) {
@@ -85,20 +83,20 @@ void Executor::allocate_buffer_with_backend() {
         POWERSERVE_ASSERT(tensor->m_backend != TensorBackend::UNKNOWN);
 
         switch (tensor->m_dtype) {
-            case DataType::FP32: {
-                create_backend_buffer<float>(tensor);
-            } break;
+        case DataType::FP32: {
+            create_backend_buffer<float>(tensor);
+        } break;
 
-            case DataType::INT32: {
-                create_backend_buffer<int32_t>(tensor);
-            } break;
+        case DataType::INT32: {
+            create_backend_buffer<int32_t>(tensor);
+        } break;
 
-            case DataType::INT64: {
-                create_backend_buffer<int64_t>(tensor);
-            } break;
+        case DataType::INT64: {
+            create_backend_buffer<int64_t>(tensor);
+        } break;
 
-            default:
-                POWERSERVE_ABORT("could not allocate buffer for data type: {}", static_cast<int>(tensor->m_dtype));
+        default:
+            POWERSERVE_ABORT("could not allocate buffer for data type: {}", static_cast<int>(tensor->m_dtype));
         }
     }
 }
@@ -270,15 +268,18 @@ void Executor::print_graph(std::ostream &os) {
             auto a = op->prev[0]->tensor();
             auto b = op->prev[1]->tensor();
             auto c = op->output();
-            os << "ADD: src0 " << static_cast<int>(a->m_backend) << " type is " << static_cast<int>(a->m_dtype) << " shape is ";
+            os << "ADD: src0 " << static_cast<int>(a->m_backend) << " type is " << static_cast<int>(a->m_dtype)
+               << " shape is ";
             for (auto &&p : a->m_shape) {
                 os << p << " ";
             }
-            os << "src1 " << static_cast<int>(b->m_backend) << " type is " << static_cast<int>(b->m_dtype) << " shape is ";
+            os << "src1 " << static_cast<int>(b->m_backend) << " type is " << static_cast<int>(b->m_dtype)
+               << " shape is ";
             for (auto &&p : b->m_shape) {
                 os << p << " ";
             }
-            os << "dst " << static_cast<int>(c->m_backend) << " type is " << static_cast<int>(c->m_dtype) << " shape is ";
+            os << "dst " << static_cast<int>(c->m_backend) << " type is " << static_cast<int>(c->m_dtype)
+               << " shape is ";
             for (auto &&p : c->m_shape) {
                 os << p << " ";
             }
@@ -289,15 +290,18 @@ void Executor::print_graph(std::ostream &os) {
             auto a = op->prev[0]->tensor();
             auto b = op->prev[1]->tensor();
             auto c = op->output();
-            os << "MAT_MUL: src0 " << static_cast<int>(a->m_backend) << " type is " << static_cast<int>(a->m_dtype) << " shape is ";
+            os << "MAT_MUL: src0 " << static_cast<int>(a->m_backend) << " type is " << static_cast<int>(a->m_dtype)
+               << " shape is ";
             for (auto &&p : a->m_shape) {
                 os << p << " ";
             }
-            os << "src1 " << static_cast<int>(b->m_backend) << " type is " << static_cast<int>(b->m_dtype) << " shape is ";
+            os << "src1 " << static_cast<int>(b->m_backend) << " type is " << static_cast<int>(b->m_dtype)
+               << " shape is ";
             for (auto &&p : b->m_shape) {
                 os << p << " ";
             }
-            os << "dst " << static_cast<int>(c->m_backend) << " type is " << static_cast<int>(c->m_dtype) << " shape is ";
+            os << "dst " << static_cast<int>(c->m_backend) << " type is " << static_cast<int>(c->m_dtype)
+               << " shape is ";
             for (auto &&p : c->m_shape) {
                 os << p << " ";
             }
@@ -308,17 +312,20 @@ void Executor::print_graph(std::ostream &os) {
             auto x      = op->prev[0]->tensor();
             auto weight = op->prev[1]->tensor();
             auto c      = op->output();
-            os << "RMS_NORM: src " << static_cast<int>(x->m_backend) <<  " type is " << static_cast<int>(x->m_dtype) << " shape is ";
+            os << "RMS_NORM: src " << static_cast<int>(x->m_backend) << " type is " << static_cast<int>(x->m_dtype)
+               << " shape is ";
             for (auto &&p : x->m_shape) {
                 os << p << " ";
             }
             if (weight != nullptr) {
-                os << "weight " << static_cast<int>(weight->m_backend) << " type is " << static_cast<int>(weight->m_dtype) << " shape is ";
+                os << "weight " << static_cast<int>(weight->m_backend) << " type is "
+                   << static_cast<int>(weight->m_dtype) << " shape is ";
                 for (auto &&p : weight->m_shape) {
                     os << p << " ";
                 }
             }
-            os << "dst " << static_cast<int>(c->m_backend) << " type is " << static_cast<int>(c->m_dtype) << " shape is "; 
+            os << "dst " << static_cast<int>(c->m_backend) << " type is " << static_cast<int>(c->m_dtype)
+               << " shape is ";
             for (auto &&p : c->m_shape) {
                 os << p << " ";
             }
@@ -329,15 +336,18 @@ void Executor::print_graph(std::ostream &os) {
             auto gate = op->prev[0]->tensor();
             auto up   = op->prev[1]->tensor();
             auto c    = op->output();
-            os << "SILU_HADAMARD: gate " << static_cast<int>(gate->m_backend) <<  " type is " << static_cast<int>(gate->m_dtype) << " shape is ";
+            os << "SILU_HADAMARD: gate " << static_cast<int>(gate->m_backend) << " type is "
+               << static_cast<int>(gate->m_dtype) << " shape is ";
             for (auto &&p : gate->m_shape) {
                 os << p << " ";
             }
-            os << "up " << static_cast<int>(up->m_backend) << " type is " << static_cast<int>(up->m_dtype) << " shape is ";
+            os << "up " << static_cast<int>(up->m_backend) << " type is " << static_cast<int>(up->m_dtype)
+               << " shape is ";
             for (auto &&p : up->m_shape) {
                 os << p << " ";
             }
-            os << "dst " << static_cast<int>(c->m_backend) << " type is " << static_cast<int>(c->m_dtype) << " shape is ";
+            os << "dst " << static_cast<int>(c->m_backend) << " type is " << static_cast<int>(c->m_dtype)
+               << " shape is ";
             for (auto &&p : c->m_shape) {
                 os << p << " ";
             }
@@ -345,23 +355,26 @@ void Executor::print_graph(std::ostream &os) {
         } break;
 
         case OpType::ROPE: {
-            auto src = op->prev[0]->tensor();
-            auto rope_factors = op->prev[1]->tensor();
-            auto c   = op->output();
+            auto src             = op->prev[0]->tensor();
+            auto rope_factors    = op->prev[1]->tensor();
+            auto c               = op->output();
             auto [pos, rope_cfg] = op->get_params<RopeParams>();
-            os << "ROPE: src " << static_cast<int>(src->m_backend) <<  " type is " << static_cast<int>(src->m_dtype) << " shape is ";
+            os << "ROPE: src " << static_cast<int>(src->m_backend) << " type is " << static_cast<int>(src->m_dtype)
+               << " shape is ";
             for (auto &&p : src->m_shape) {
                 os << p << " ";
             }
 
             if (rope_factors not_eq nullptr) {
-                os << "rope_factors " << static_cast<int>(rope_factors->m_backend) << " type is " << static_cast<int>(rope_factors->m_dtype) << " shape is ";
+                os << "rope_factors " << static_cast<int>(rope_factors->m_backend) << " type is "
+                   << static_cast<int>(rope_factors->m_dtype) << " shape is ";
                 for (auto &&p : rope_factors->m_shape) {
                     os << p << " ";
                 }
             }
 
-            os << "dst " << static_cast<int>(c->m_backend) << " type is " << static_cast<int>(c->m_dtype) << " shape is ";
+            os << "dst " << static_cast<int>(c->m_backend) << " type is " << static_cast<int>(c->m_dtype)
+               << " shape is ";
             for (auto &&p : c->m_shape) {
                 os << p << " ";
             }
@@ -371,11 +384,13 @@ void Executor::print_graph(std::ostream &os) {
         case OpType::SOFTMAX: {
             auto x = op->prev[0]->tensor();
             auto c = op->output();
-            os << "SOFTMAX: src " << static_cast<int>(x->m_backend) <<  " type is " << static_cast<int>(x->m_dtype) << " shape is ";
+            os << "SOFTMAX: src " << static_cast<int>(x->m_backend) << " type is " << static_cast<int>(x->m_dtype)
+               << " shape is ";
             for (auto &&p : x->m_shape) {
                 os << p << " ";
             }
-            os << "dst " << static_cast<int>(c->m_backend) << " type is " << static_cast<int>(c->m_dtype) << " shape is ";
+            os << "dst " << static_cast<int>(c->m_backend) << " type is " << static_cast<int>(c->m_dtype)
+               << " shape is ";
             for (auto &&p : c->m_shape) {
                 os << p << " ";
             }
@@ -385,11 +400,13 @@ void Executor::print_graph(std::ostream &os) {
         case OpType::COPY: {
             auto dst = op->prev[0]->tensor();
             auto src = op->prev[1]->tensor();
-            os << "COPY: src " << static_cast<int>(src->m_backend) << " type is " << static_cast<int>(src->m_dtype) << " shape is ";
+            os << "COPY: src " << static_cast<int>(src->m_backend) << " type is " << static_cast<int>(src->m_dtype)
+               << " shape is ";
             for (auto &&p : src->m_shape) {
                 os << p << " ";
             }
-            os << "dst " << static_cast<int>(dst->m_backend) << " type is " << static_cast<int>(dst->m_dtype) << " shape is "; 
+            os << "dst " << static_cast<int>(dst->m_backend) << " type is " << static_cast<int>(dst->m_dtype)
+               << " shape is ";
             for (auto &&p : dst->m_shape) {
                 os << p << " ";
             }
@@ -397,9 +414,10 @@ void Executor::print_graph(std::ostream &os) {
         } break;
 
         case OpType::PRINT: {
-            auto x = op->prev[0]->tensor();
+            auto x      = op->prev[0]->tensor();
             auto [size] = op->get_params<PrintParams>();
-            os << "PRINT: src " << static_cast<int>(x->m_backend) <<  " type is " << static_cast<int>(x->m_dtype) << " shape is "; 
+            os << "PRINT: src " << static_cast<int>(x->m_backend) << " type is " << static_cast<int>(x->m_dtype)
+               << " shape is ";
             for (auto &&p : x->m_shape) {
                 os << p << " ";
             }
@@ -407,14 +425,16 @@ void Executor::print_graph(std::ostream &os) {
         } break;
 
         case OpType::GET_EMBEDDING: {
-            auto weight = op->prev[0]->tensor();
-            auto out    = op->output();
+            auto weight   = op->prev[0]->tensor();
+            auto out      = op->output();
             auto [tokens] = op->get_params<GetEmbeddingParams>();
-            os << "GET_EMBEDDING: weight " << static_cast<int>(weight->m_backend) << " type is " << static_cast<int>(weight->m_dtype) << " shape is "; 
+            os << "GET_EMBEDDING: weight " << static_cast<int>(weight->m_backend) << " type is "
+               << static_cast<int>(weight->m_dtype) << " shape is ";
             for (auto &&p : weight->m_shape) {
                 os << p << " ";
             }
-            os << "out " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype) << " shape is "; 
+            os << "out " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype)
+               << " shape is ";
             for (auto &&p : out->m_shape) {
                 os << p << " ";
             }
@@ -422,14 +442,15 @@ void Executor::print_graph(std::ostream &os) {
         } break;
 
         case OpType::ADD_CACHE: {
-            auto k = op->prev[0]->tensor();
-            auto v = op->prev[1]->tensor();
+            auto k                 = op->prev[0]->tensor();
+            auto v                 = op->prev[1]->tensor();
             auto [L, pos, head_id] = op->get_params<AddCacheParams>();
-            os << "ADD_CACHE: k " << static_cast<int>(k->m_backend) << " type is " << static_cast<int>(k->m_dtype) << " shape is "; 
+            os << "ADD_CACHE: k " << static_cast<int>(k->m_backend) << " type is " << static_cast<int>(k->m_dtype)
+               << " shape is ";
             for (auto &&p : k->m_shape) {
                 os << p << " ";
             }
-            os << "v " << static_cast<int>(v->m_backend) << " type is " << static_cast<int>(v->m_dtype) << " shape is "; 
+            os << "v " << static_cast<int>(v->m_backend) << " type is " << static_cast<int>(v->m_dtype) << " shape is ";
             for (auto &&p : v->m_shape) {
                 os << p << " ";
             }
@@ -437,14 +458,16 @@ void Executor::print_graph(std::ostream &os) {
         } break;
 
         case OpType::PERMUTE: {
-            auto x = op->prev[0]->tensor();
-            auto out = op->output();
+            auto x      = op->prev[0]->tensor();
+            auto out    = op->output();
             auto [axes] = op->get_params<PermuteParams>();
-            os << "PERMUTE: src " << static_cast<int>(x->m_backend) << " type is " << static_cast<int>(x->m_dtype) << " shape is "; 
+            os << "PERMUTE: src " << static_cast<int>(x->m_backend) << " type is " << static_cast<int>(x->m_dtype)
+               << " shape is ";
             for (auto &&p : x->m_shape) {
                 os << p << " ";
             }
-            os << "out " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype) << " shape is ";
+            os << "out " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype)
+               << " shape is ";
             for (auto &&p : out->m_shape) {
                 os << p << " ";
             }
@@ -456,13 +479,15 @@ void Executor::print_graph(std::ostream &os) {
         } break;
 
         case OpType::CONT: {
-            auto x = op->prev[0]->tensor();
+            auto x   = op->prev[0]->tensor();
             auto out = op->output();
-            os << "CONT: src " << static_cast<int>(x->m_backend) <<  " type is " << static_cast<int>(x->m_dtype) << " shape is ";
+            os << "CONT: src " << static_cast<int>(x->m_backend) << " type is " << static_cast<int>(x->m_dtype)
+               << " shape is ";
             for (auto &&p : x->m_shape) {
                 os << p << " ";
             }
-            os << "out " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype) << " shape is ";
+            os << "out " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype)
+               << " shape is ";
             for (auto &&p : out->m_shape) {
                 os << p << " ";
             }
@@ -470,30 +495,33 @@ void Executor::print_graph(std::ostream &os) {
         } break;
 
         case OpType::VIEW: {
-            auto out = op->output();
+            auto out              = op->output();
             auto [stride, offset] = op->get_params<ViewParams>();
-            os << "VIEW: dst " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype); 
+            os << "VIEW: dst " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype);
             os << " stride is ";
             for (auto &&p : stride) {
                 os << p << " ";
             }
-            os << "offset is " << offset << std::endl; 
+            os << "offset is " << offset << std::endl;
         } break;
 
         case OpType::SOFTMAX_EXT: {
-            auto x = op->prev[0]->tensor();
-            auto mask = op->prev[1]->tensor();
-            auto out = op->output();
+            auto x                 = op->prev[0]->tensor();
+            auto mask              = op->prev[1]->tensor();
+            auto out               = op->output();
             auto [scale, max_bias] = op->get_params<SoftmaxExtParams>();
-            os << "SOFTMAX_EXT: src " << static_cast<int>(x->m_backend) << " type is " << static_cast<int>(x->m_dtype) << " shape is ";
+            os << "SOFTMAX_EXT: src " << static_cast<int>(x->m_backend) << " type is " << static_cast<int>(x->m_dtype)
+               << " shape is ";
             for (auto &&p : x->m_shape) {
                 os << p << " ";
             }
-            os << "mask " << static_cast<int>(mask->m_backend) << " type is " << static_cast<int>(mask->m_dtype) << " shape is ";
+            os << "mask " << static_cast<int>(mask->m_backend) << " type is " << static_cast<int>(mask->m_dtype)
+               << " shape is ";
             for (auto &&p : mask->m_shape) {
                 os << p << " ";
             }
-            os << "dst " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype) << " shape is ";
+            os << "dst " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype)
+               << " shape is ";
             for (auto &&p : out->m_shape) {
                 os << p << " ";
             }
@@ -501,9 +529,10 @@ void Executor::print_graph(std::ostream &os) {
         } break;
 
         case OpType::GET_MASK: {
-            auto out = op->output();
+            auto out         = op->output();
             auto [mask, pos] = op->get_params<GetMaskParams>();
-            os << "GET_MASK: dst " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype) << " shape is ";
+            os << "GET_MASK: dst " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype)
+               << " shape is ";
             for (auto &&p : out->m_shape) {
                 os << p << " ";
             }
@@ -513,11 +542,13 @@ void Executor::print_graph(std::ostream &os) {
         case OpType::TRANSPOSE: {
             auto x   = op->prev[0]->tensor();
             auto out = op->output();
-            os << "TRANSPOSE: src " << static_cast<int>(x->m_backend) << " type is " << static_cast<int>(x->m_dtype) << " shape is ";
+            os << "TRANSPOSE: src " << static_cast<int>(x->m_backend) << " type is " << static_cast<int>(x->m_dtype)
+               << " shape is ";
             for (auto &&p : x->m_shape) {
                 os << p << " ";
             }
-            os << "dst " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype) << " shape is "; 
+            os << "dst " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype)
+               << " shape is ";
             for (auto &&p : out->m_shape) {
                 os << p << " ";
             }
@@ -553,7 +584,10 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
         auto src0 = op->prev[0]->tensor();
         auto src1 = op->prev[1]->tensor();
         auto out  = op->output();
-        POWERSERVE_ASSERT(src0->m_backend == src1->m_backend and src0->m_backend == TensorBackend::GGML_GPU and out->m_backend == TensorBackend::GGML_GPU);
+        POWERSERVE_ASSERT(
+            src0->m_backend == src1->m_backend and src0->m_backend == TensorBackend::GGML_GPU and
+            out->m_backend == TensorBackend::GGML_GPU
+        );
         m_platform.ggml_cuda_backend->add(out, src0, src1);
     } break;
 
@@ -563,7 +597,10 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
         auto src0 = op->prev[0]->tensor();
         auto src1 = op->prev[1]->tensor();
         auto out  = op->output();
-        POWERSERVE_ASSERT(src0->m_backend == src1->m_backend and src0->m_backend == TensorBackend::GGML_GPU and out->m_backend == TensorBackend::GGML_GPU);
+        POWERSERVE_ASSERT(
+            src0->m_backend == src1->m_backend and src0->m_backend == TensorBackend::GGML_GPU and
+            out->m_backend == TensorBackend::GGML_GPU
+        );
         m_platform.ggml_cuda_backend->matmul(out, src0, src1);
     } break;
 
@@ -574,8 +611,10 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
         auto weight = op->prev[1]->tensor();
         auto out    = op->output();
         auto [eps]  = op->get_params<RMSNormParams>();
-        POWERSERVE_ASSERT(x->m_backend == TensorBackend::GGML_GPU and x->m_backend == TensorBackend::GGML_GPU and 
-                 out->m_backend == TensorBackend::GGML_GPU);
+        POWERSERVE_ASSERT(
+            x->m_backend == TensorBackend::GGML_GPU and x->m_backend == TensorBackend::GGML_GPU and
+            out->m_backend == TensorBackend::GGML_GPU
+        );
         m_platform.ggml_cuda_backend->rmsnorm(out, x, weight, eps);
     } break;
 
@@ -585,8 +624,10 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
         auto gate = op->prev[0]->tensor();
         auto up   = op->prev[1]->tensor();
         auto out  = op->output();
-        POWERSERVE_ASSERT(gate->m_backend == TensorBackend::GGML_GPU and up->m_backend == TensorBackend::GGML_GPU and 
-                 out->m_backend == TensorBackend::GGML_GPU);
+        POWERSERVE_ASSERT(
+            gate->m_backend == TensorBackend::GGML_GPU and up->m_backend == TensorBackend::GGML_GPU and
+            out->m_backend == TensorBackend::GGML_GPU
+        );
         m_platform.ggml_cuda_backend->silu_and_mul(out, gate, up);
     } break;
 
@@ -604,7 +645,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     case OpType::SOFTMAX: {
         printf("SOFTMAX\n");
         // get input tensor and output tensor, check backend, then call softmax on GPU backend
-        auto src   = op->prev[0]->tensor();
+        auto src = op->prev[0]->tensor();
         auto out = op->output();
         POWERSERVE_ASSERT(src->m_backend == TensorBackend::GGML_GPU and out->m_backend == TensorBackend::GGML_GPU);
         m_platform.ggml_cuda_backend->softmax(out, src, nullptr, 1.0, 0.0);
@@ -671,27 +712,31 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     case OpType::VIEW: {
         printf("VIEW\n");
         // get output tensor, stride and offset, check backend, then set stride and data on GPU backend
-        auto out = op->output();
+        auto out              = op->output();
         auto [stride, offset] = op->get_params<ViewParams>();
         POWERSERVE_ASSERT(out->m_backend == TensorBackend::GGML_GPU);
         out->get<ggml_cuda::Buffer_CUDA>().m_stride = stride;
-        out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda = (char *)out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda + offset;
+        out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda =
+            (char *)out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda + offset;
         // DEBUG
         // {
-        //     std::cout << "ptr is " << out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda << " offset is " << offset << std::endl;
-        //     exit(0);
+        //     std::cout << "ptr is " << out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda << " offset is " << offset <<
+        //     std::endl; exit(0);
         // }
     } break;
 
     case OpType::SOFTMAX_EXT: {
         printf("SOFTMAX_EXT\n");
-        // get output tensor, input tensor, mask tensor, scale and max_bias, check backend, then call softmax_ext on GPU backend
+        // get output tensor, input tensor, mask tensor, scale and max_bias, check backend, then call softmax_ext on GPU
+        // backend
         auto out               = op->output();
         auto x                 = op->prev[0]->tensor();
         auto mask              = op->prev[1]->tensor();
         auto [scale, max_bias] = op->get_params<SoftmaxExtParams>();
-        POWERSERVE_ASSERT(x->m_backend == TensorBackend::GGML_GPU and mask->m_backend == TensorBackend::GGML_GPU and 
-                 out->m_backend == TensorBackend::GGML_GPU);
+        POWERSERVE_ASSERT(
+            x->m_backend == TensorBackend::GGML_GPU and mask->m_backend == TensorBackend::GGML_GPU and
+            out->m_backend == TensorBackend::GGML_GPU
+        );
         m_platform.ggml_cuda_backend->softmax(out, x, mask, scale, max_bias);
     } break;
 
@@ -715,7 +760,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
         m_platform.ggml_cuda_backend->transpose(out, x);
     } break;
 
-    default: 
+    default:
         POWERSERVE_ABORT("Unknown OpType: {}", static_cast<int>(op->op));
     } // end of switch statement
 }

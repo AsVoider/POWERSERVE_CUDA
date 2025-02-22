@@ -56,20 +56,23 @@ private:
 #if defined(POWERSERVE_WITH_CUDA)
         if (tensor->m_backend == TensorBackend::GGML_GPU) {
             if (tensor->type == NodeType::TENSOR_VIEW) {
-                tensor->m_data = ggml_cuda::Buffer_CUDA::create_buffer_view<T>(tensor->tensor_view()->parent->get<ggml_cuda::Buffer_CUDA>(), tensor->m_shape);
+                tensor->m_data = ggml_cuda::Buffer_CUDA::create_buffer_view<T>(
+                    tensor->tensor_view()->parent->get<ggml_cuda::Buffer_CUDA>(), tensor->m_shape
+                );
             } else {
                 tensor->m_data = ggml_cuda::Buffer_CUDA::create_buffer<T>(tensor->m_shape);
             }
         } else if (tensor->m_backend == TensorBackend::GGML_CPU) {
             if (tensor->type == NodeType::TENSOR_VIEW) {
-                tensor->m_data = CPUBuffer::create_buffer_view<T>(tensor->tensor_view()->parent->get<CPUBuffer>(), tensor->m_shape);
+                tensor->m_data =
+                    CPUBuffer::create_buffer_view<T>(tensor->tensor_view()->parent->get<CPUBuffer>(), tensor->m_shape);
             } else {
                 tensor->m_data = CPUBuffer::create_buffer<T>(tensor->m_shape);
             }
         } else {
             POWERSERVE_ASSERT(false and "backend not implemented");
         }
-#else 
+#else
         if (tensor->type == NodeType::TENSOR_VIEW) {
             tensor->m_data =
                 CPUBuffer::create_buffer_view<T>(tensor->tensor_view()->parent->get<CPUBuffer>(), tensor->m_shape);

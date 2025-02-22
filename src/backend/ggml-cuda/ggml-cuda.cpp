@@ -47,10 +47,16 @@ void GGML_CUDABackend::matmul(Tensor *dst, const Tensor *src0, const Tensor *src
     // if (src0->m_name == "output.weight") {
 
     //     cuda_context_warp::device_sync();
-    //     printf("src0 shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n", src0->m_shape[0], src0->m_shape[1], src0->m_shape[2], src0->m_shape[3], src0->get<Buffer_CUDA>().m_stride[0], src0->get<Buffer_CUDA>().m_stride[1], src0->get<Buffer_CUDA>().m_stride[2], src0->get<Buffer_CUDA>().m_stride[3]);
-    //     printf("src1 shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n", src1->m_shape[0], src1->m_shape[1], src1->m_shape[2], src1->m_shape[3], src1->get<Buffer_CUDA>().m_stride[0], src1->get<Buffer_CUDA>().m_stride[1], src1->get<Buffer_CUDA>().m_stride[2], src1->get<Buffer_CUDA>().m_stride[3]);
-    //     printf("dst shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n", dst->m_shape[0], dst->m_shape[1], dst->m_shape[2], dst->m_shape[3], dst->get<Buffer_CUDA>().m_stride[0], dst->get<Buffer_CUDA>().m_stride[1], dst->get<Buffer_CUDA>().m_stride[2], dst->get<Buffer_CUDA>().m_stride[3]);
-    //     float *src0_buffer{new float[src0->m_shape[0]]};
+    //     printf("src0 shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n", src0->m_shape[0], src0->m_shape[1],
+    //     src0->m_shape[2], src0->m_shape[3], src0->get<Buffer_CUDA>().m_stride[0],
+    //     src0->get<Buffer_CUDA>().m_stride[1], src0->get<Buffer_CUDA>().m_stride[2],
+    //     src0->get<Buffer_CUDA>().m_stride[3]); printf("src1 shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n",
+    //     src1->m_shape[0], src1->m_shape[1], src1->m_shape[2], src1->m_shape[3], src1->get<Buffer_CUDA>().m_stride[0],
+    //     src1->get<Buffer_CUDA>().m_stride[1], src1->get<Buffer_CUDA>().m_stride[2],
+    //     src1->get<Buffer_CUDA>().m_stride[3]); printf("dst shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n",
+    //     dst->m_shape[0], dst->m_shape[1], dst->m_shape[2], dst->m_shape[3], dst->get<Buffer_CUDA>().m_stride[0],
+    //     dst->get<Buffer_CUDA>().m_stride[1], dst->get<Buffer_CUDA>().m_stride[2],
+    //     dst->get<Buffer_CUDA>().m_stride[3]); float *src0_buffer{new float[src0->m_shape[0]]};
     //     cuda_context_warp::copy_memory<2>(
     //         src0_buffer, src0->get<Buffer_CUDA>().m_data_cuda, src0->m_shape[0] * sizeof(float)
     //     );
@@ -62,15 +68,15 @@ void GGML_CUDABackend::matmul(Tensor *dst, const Tensor *src0, const Tensor *src
 
     //     float *dst_buffer{new float[dst->m_shape[0]]};
     //     cuda_context_warp::copy_memory<2>(
-    //         dst_buffer, dst->get<Buffer_CUDA>().m_data_cuda + (dst->m_shape[1] - 1) * dst->m_shape[0] * sizeof(float),
-    //         dst->m_shape[0] * sizeof(float)
+    //         dst_buffer, dst->get<Buffer_CUDA>().m_data_cuda + (dst->m_shape[1] - 1) * dst->m_shape[0] *
+    //         sizeof(float), dst->m_shape[0] * sizeof(float)
     //     );
 
     //     cuda_context_warp::device_sync();
 
     //     auto file{fopen("matmul_final.txt", "w")};
     //     fprintf(file, "src0:\n");
-        
+
     //     for (int64_t j{0}; j < src0->m_shape[0]; ++j) {
     //         fprintf(file, "%f ", src0_buffer[j]);
     //     }

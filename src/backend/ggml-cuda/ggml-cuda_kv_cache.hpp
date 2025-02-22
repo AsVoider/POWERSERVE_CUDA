@@ -1,6 +1,6 @@
 #include "backend/ggml-cuda/common.hpp"
 
-namespace powerserve::ggml_cuda { 
+namespace powerserve::ggml_cuda {
 
 class GGML_CUDAKV {
 public:
@@ -14,13 +14,13 @@ public:
     };
 
     struct KVCacheShape {
-        size_t kv_dim{0}; // 1024
-        size_t kv_heads{0}; // 8
-        size_t n_ctx{0}; // n
-        size_t n_layers{0}; // 32
-        size_t head_size{0}; // ? 128 ?
+        size_t kv_dim{0};     // 1024
+        size_t kv_heads{0};   // 8
+        size_t n_ctx{0};      // n
+        size_t n_layers{0};   // 32
+        size_t head_size{0};  // ? 128 ?
         size_t batch_size{0}; // always 1
-        size_t kv_size{0}; //
+        size_t kv_size{0};    //
         DataType type{DataType::FP32};
         bool flash_attn{false};
 
@@ -53,4 +53,4 @@ private:
     auto get_v_cache(size_t layer_id) -> uint8_t *;
 };
 
-} // namespace powerinfer::ggml_cuda
+} // namespace powerserve::ggml_cuda

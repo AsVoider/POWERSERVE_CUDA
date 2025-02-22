@@ -60,8 +60,8 @@ auto LlamaModel::forward(
 
     size_t batch_size = modified_tokens.size();
     // size_t batch_size  = tokens.size();
-    auto embd_tb       = g.add_tensor(m_weights->token_embedding_table);
-    auto x             = g.get_embedding(embd_tb, modified_tokens);
+    auto embd_tb = g.add_tensor(m_weights->token_embedding_table);
+    auto x       = g.get_embedding(embd_tb, modified_tokens);
     // auto x             = g.get_embedding(embd_tb, tokens);
     TensorNode *logits = nullptr;
 
@@ -103,8 +103,13 @@ auto LlamaModel::forward(
                 auto att_o = m_attn->build(g, x, L, k_node, v_node, modified_pos, mask);
 
                 if (L == llm_config.n_layers - 1) {
-                    att_o = g.view(att_o, {att_o->m_shape[0], 1, 1, 1}, 
-                        {sizeof(float), sizeof(float) * att_o->m_shape[0], sizeof(float) * att_o->m_shape[0], sizeof(float) * att_o->m_shape[0]},
+                    att_o = g.view(
+                        att_o,
+                        {att_o->m_shape[0], 1, 1, 1},
+                        {sizeof(float),
+                         sizeof(float) * att_o->m_shape[0],
+                         sizeof(float) * att_o->m_shape[0],
+                         sizeof(float) * att_o->m_shape[0]},
                         (modified_tokens.size() - 1) * att_o->m_shape[0] * sizeof(float)
                     );
                 }

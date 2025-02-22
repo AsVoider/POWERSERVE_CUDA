@@ -3,7 +3,7 @@
 #include "core/tensor.hpp"
 
 namespace powerserve::ggml_cuda {
-    
+
 static ggml_type convert_datatype_to_ggml(DataType dtp) {
     switch (dtp) {
     case DataType::FP32:
@@ -36,4 +36,4 @@ static DataType convert_datatype_from_ggml(ggml_type tp) {
     }
 }
 
-} // namespace powerserve:ggml_cuda
+} // namespace powerserve::ggml_cuda

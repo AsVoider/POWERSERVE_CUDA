@@ -41,9 +41,7 @@ TensorNode *NormAttention::build(
     auto n_head_kv = m_config.n_kv_heads;
     auto n_ctx     = m_config.seq_len;
 
-    {
-        n_ctx = n_ctx > 1024 ? 1024 : n_ctx;
-    }
+    { n_ctx = n_ctx > 1024 ? 1024 : n_ctx; }
 
     size_t kv_gqa  = head_size * n_head_kv;
     size_t cur_pos = pos[0];
@@ -75,15 +73,17 @@ TensorNode *NormAttention::build(
     }
 
     // (head_size, n_heads, bs, 1)
-    auto q_view = g.view_tensor(q, {head_size, n_head, q->m_shape[1], q->m_shape[2]});
+    auto q_view    = g.view_tensor(q, {head_size, n_head, q->m_shape[1], q->m_shape[2]});
     q_view->m_name = "q_view";
     // (head_size, n_kv_heads, bs, 1)
-    auto k_view = g.view_tensor(k, {head_size, n_head_kv, k->m_shape[1], k->m_shape[2]});
+    auto k_view    = g.view_tensor(k, {head_size, n_head_kv, k->m_shape[1], k->m_shape[2]});
     k_view->m_name = "k_view";
 
-    auto rope_factor = m_weights->rope_freq_weight.m_backend != TensorBackend::UNKNOWN ? g.add_tensor(m_weights->rope_freq_weight) : nullptr;
-    auto rope_q = g.rope(q_view, rope_factor, pos, m_config.rope_config); // (head_size, n_heads, bs, 1)
-    auto rope_k = g.rope(k_view, rope_factor, pos, m_config.rope_config); // (head_size, n_kv_heads, bs, 1)
+    auto rope_factor = m_weights->rope_freq_weight.m_backend != TensorBackend::UNKNOWN
+                           ? g.add_tensor(m_weights->rope_freq_weight)
+                           : nullptr;
+    auto rope_q      = g.rope(q_view, rope_factor, pos, m_config.rope_config); // (head_size, n_heads, bs, 1)
+    auto rope_k      = g.rope(k_view, rope_factor, pos, m_config.rope_config); // (head_size, n_kv_heads, bs, 1)
 
     // store kv
     {

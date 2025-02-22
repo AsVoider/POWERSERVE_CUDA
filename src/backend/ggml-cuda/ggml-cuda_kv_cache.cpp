@@ -1,20 +1,21 @@
-#include "backend/ggml-cuda/buffer.hpp"
 #include "backend/ggml-cuda/ggml-cuda_kv_cache.hpp"
+
+#include "backend/ggml-cuda/buffer.hpp"
 #include "backend/ggml-cuda/interface.cuh"
 
-namespace powerserve::ggml_cuda{
-    
+namespace powerserve::ggml_cuda {
+
 GGML_CUDAKV::GGML_CUDAKV(const ModelConfig::LLMConfig &config) : config{config} {
-    kv_shape.kv_dim = config.kv_dim;
-    kv_shape.kv_heads = config.n_kv_heads;
-    kv_shape.n_ctx = config.seq_len > 1024 ? 1024 : config.seq_len;
-    kv_shape.n_layers = config.n_layers;
-    kv_shape.head_size = config.head_size;
+    kv_shape.kv_dim     = config.kv_dim;
+    kv_shape.kv_heads   = config.n_kv_heads;
+    kv_shape.n_ctx      = config.seq_len > 1024 ? 1024 : config.seq_len;
+    kv_shape.n_layers   = config.n_layers;
+    kv_shape.head_size  = config.head_size;
     kv_shape.batch_size = 1UL;
-    kv_shape.type = DataType::FP32;
+    kv_shape.type       = DataType::FP32;
 
     init_cache();
-} 
+}
 
 // TODO: fix this function
 auto GGML_CUDAKV::get_cache_position() -> size_t {
@@ -75,11 +76,11 @@ auto GGML_CUDAKV::append_v_cache(const Tensor *v_tensor, size_t layer_id, size_t
 auto GGML_CUDAKV::get_k_cache_tensor(size_t layer_id) -> Tensor * {
     auto ggml_tp{convert_datatype_to_ggml(kv_shape.type)};
     Stride t_stride{
-        get_type_size(kv_shape.type), 
+        get_type_size(kv_shape.type),
         ggml_row_size(ggml_tp, kv_shape.kv_dim),
         ggml_row_size(ggml_tp, kv_shape.head_size),
         ggml_row_size(ggml_tp, kv_shape.kv_dim * k_cache[layer_id].next_position / kv_shape.get_k_size(1)),
-    }; 
+    };
     Shape t_shape{
         kv_shape.head_size,
         k_cache[layer_id].valid_idx,
@@ -88,11 +89,10 @@ auto GGML_CUDAKV::get_k_cache_tensor(size_t layer_id) -> Tensor * {
     };
     auto ret{new Tensor{kv_shape.type, std::move(t_shape)}};
     auto cuda_buffer_ptr{std::make_shared<Buffer_CUDA>(
-        t_stride, static_cast<void *>(get_k_cache(layer_id)), nullptr,
-        usage::COMPUTE, k_cache[layer_id].next_position 
+        t_stride, static_cast<void *>(get_k_cache(layer_id)), nullptr, usage::COMPUTE, k_cache[layer_id].next_position
     )};
 
-    ret->m_data = cuda_buffer_ptr;
+    ret->m_data    = cuda_buffer_ptr;
     ret->m_backend = TensorBackend::GGML_GPU;
     return ret;
 }
@@ -113,11 +113,10 @@ auto GGML_CUDAKV::get_v_cache_tensor(size_t layer_id) -> Tensor * {
 
     auto ret{new Tensor{kv_shape.type, std::move(t_shape)}};
     auto cuda_buffer_ptr{std::make_shared<Buffer_CUDA>(
-        t_stride, static_cast<void *>(get_v_cache(layer_id)), nullptr,
-        usage::COMPUTE, v_cache[layer_id].next_position
+        t_stride, static_cast<void *>(get_v_cache(layer_id)), nullptr, usage::COMPUTE, v_cache[layer_id].next_position
     )};
 
-    ret->m_data = cuda_buffer_ptr;
+    ret->m_data    = cuda_buffer_ptr;
     ret->m_backend = TensorBackend::GGML_GPU;
     return ret;
 }
@@ -151,8 +150,8 @@ auto GGML_CUDAKV::KVCacheShape::get_k_size(size_t token_nums) -> size_t {
 
 auto GGML_CUDAKV::KVCacheShape::get_v_size(size_t token_nums) -> size_t {
     auto ggml_tp{convert_datatype_to_ggml(type)};
-    return flash_attn ? ggml_row_size(ggml_tp, head_size) * kv_heads * token_nums :
-        ggml_row_size(ggml_tp, token_nums) * head_size * kv_heads;
+    return flash_attn ? ggml_row_size(ggml_tp, head_size) * kv_heads * token_nums
+                      : ggml_row_size(ggml_tp, token_nums) * head_size * kv_heads;
 }
 
 } // namespace powerserve::ggml_cuda

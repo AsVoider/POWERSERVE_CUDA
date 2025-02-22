@@ -57,8 +57,12 @@ public:
     ) -> TensorNode *;
 #endif
 
-    auto rope(TensorNode *src, TensorNode *rope_factors, const std::vector<int> &pos, const ModelConfig::LLMConfig::RopeConfig &params)
-        -> TensorNode *;
+    auto rope(
+        TensorNode *src,
+        TensorNode *rope_factors,
+        const std::vector<int> &pos,
+        const ModelConfig::LLMConfig::RopeConfig &params
+    ) -> TensorNode *;
 
     auto softmax(TensorNode *x) -> TensorNode *;
     auto softmax_ext(TensorNode *x, TensorNode *mask, float scale, float max_bias) -> TensorNode *;
@@ -68,7 +72,8 @@ public:
     auto permute(TensorNode *x, Shape axes) -> TensorViewNode *;
     auto cont(TensorNode *x, Shape shape) -> TensorNode *;
     auto view(const TensorNode *x, Shape shape, Shape stride, size_t offset = 0) -> TensorViewNode *;
-    auto get_mask(const CausalAttentionMask &mask, Shape shape, const std::vector<int> &pos, TensorNode *kq = nullptr) -> TensorNode *;
+    auto get_mask(const CausalAttentionMask &mask, Shape shape, const std::vector<int> &pos, TensorNode *kq = nullptr)
+        -> TensorNode *;
     auto transpose(TensorNode *x) -> TensorViewNode *;
 };
 
