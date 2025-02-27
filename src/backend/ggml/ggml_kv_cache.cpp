@@ -47,9 +47,9 @@ void GGMLKV::prepare_model_chunk() {
 
         chunk.key_tensors.emplace_back(Tensor(DataType::FP32, {m_n_ctx, m_kv_dim, 1, 1}));
         chunk.value_tensors.emplace_back(Tensor(DataType::FP32, {m_n_ctx, m_kv_dim, 1, 1}));
-        chunk.key_tensors.back().m_backend = TensorBackend::GGML_CPU;
+        chunk.key_tensors.back().m_backend   = TensorBackend::GGML_CPU;
         chunk.value_tensors.back().m_backend = TensorBackend::GGML_CPU;
-        Stride stride = {
+        Stride stride                        = {
             sizeof(float),
             sizeof(float) * m_n_ctx,
             sizeof(float) * m_kv_dim * m_n_ctx,

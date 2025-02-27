@@ -62,10 +62,11 @@ void GGMLBackend::plan(std::vector<std::shared_ptr<OpNode>> &ops) {
         } break;
 
         case OpType::MAT_MUL: {
-            auto weight      = op->prev[0]->tensor();
-            auto x = op->prev[1]->tensor();
-            // printf("x shape is %ld, %ld, %ld, %ld, we shape is %ld, %ld, %ld, %ld\n", 
-            //     x->m_shape[0], x->m_shape[1], x->m_shape[2], x->m_shape[3], weight->m_shape[0], weight->m_shape[1], weight->m_shape[2], weight->m_shape[3]);
+            auto weight = op->prev[0]->tensor();
+            auto x      = op->prev[1]->tensor();
+            // printf("x shape is %ld, %ld, %ld, %ld, we shape is %ld, %ld, %ld, %ld\n",
+            //     x->m_shape[0], x->m_shape[1], x->m_shape[2], x->m_shape[3], weight->m_shape[0], weight->m_shape[1],
+            //     weight->m_shape[2], weight->m_shape[3]);
             const enum ggml_type vec_dot_type = get_vec_dot_type(x);
             if (ggml::convert_datatype_to_ggml(weight->m_dtype) != vec_dot_type) {
                 cur = ggml_row_size(vec_dot_type, weight->n_elements());
@@ -187,6 +188,137 @@ void GGMLBackend::setup_threadpool() {
 void GGMLBackend::reset_threadpool() {
     POWERSERVE_LOG_DEBUG("reset_threadpool");
     m_thread_pool.reset();
+}
+
+void GGMLBackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) {
+    plan(ops);
+
+    for (auto &op : ops) {
+        switch (op->op) {
+        case OpType::GET_EMBEDDING: {
+            auto weight   = op->prev[0]->tensor();
+            auto out      = op->output();
+            auto [tokens] = op->get_params<GetEmbeddingParams>();
+            get_embedding(out, weight, tokens);
+        } break;
+
+        case OpType::ADD: {
+            auto a   = op->prev[0]->tensor();
+            auto b   = op->prev[1]->tensor();
+            auto out = op->output();
+            add(out, a, b);
+        } break;
+
+        case OpType::MAT_MUL: {
+            auto a   = op->prev[0]->tensor();
+            auto b   = op->prev[1]->tensor();
+            auto out = op->output();
+            matmul(out, a, b);
+        } break;
+
+        case OpType::RMS_NORM: {
+            auto x      = op->prev[0]->tensor();
+            auto weight = op->prev[1]->tensor();
+            auto out    = op->output();
+            auto [eps]  = op->get_params<RMSNormParams>();
+            rmsnorm(out, x, weight, eps);
+        } break;
+
+        case OpType::SILU_HADAMARD: {
+            auto gate = op->prev[0]->tensor();
+            auto up   = op->prev[1]->tensor();
+            auto out  = op->output();
+            silu_hadamard(out, gate, up);
+        } break;
+
+        case OpType::ROPE: {
+            auto src             = op->prev[0]->tensor();
+            auto rope_factors    = op->prev[1]->tensor();
+            auto out             = op->next[0]->tensor();
+            auto [pos, rope_cfg] = op->get_params<RopeParams>();
+            rope(out, src, rope_factors, pos, rope_cfg);
+        } break;
+
+        case OpType::SOFTMAX: {
+            auto x   = op->prev[0]->tensor();
+            auto out = op->output();
+            softmax(out, x);
+        } break;
+
+        case OpType::COPY: {
+            auto dst = op->prev[0]->tensor();
+            auto src = op->prev[1]->tensor();
+            copy(dst, src);
+        } break;
+
+        case OpType::PRINT: {
+            auto x    = op->prev[0]->tensor();
+            auto size = op->get_params<PrintParams>().size;
+            print(x, size);
+        } break;
+
+        case OpType::ADD_CACHE: {
+            auto k                 = op->prev[0]->tensor();
+            auto v                 = op->prev[1]->tensor();
+            auto [L, pos, head_id] = op->get_params<AddCacheParams>();
+            add_cache(k, v, L, pos, head_id);
+        } break;
+
+        case OpType::PERMUTE: {
+            auto x      = op->prev[0]->tensor();
+            auto out    = op->output();
+            auto [axes] = op->get_params<PermuteParams>();
+            permute(out, x, axes);
+        } break;
+
+        case OpType::CONT: {
+            auto x   = op->prev[0]->tensor();
+            auto out = op->output();
+            cont(out, x);
+        } break;
+
+        case OpType::VIEW: {
+            auto out                       = op->output();
+            auto [stride, offset]          = op->get_params<ViewParams>();
+            out->get<CPUBuffer>().m_stride = stride;
+            out->get<CPUBuffer>().m_data   = (char *)out->get<CPUBuffer>().m_data + offset;
+        } break;
+
+        case OpType::SOFTMAX_EXT: {
+            auto out               = op->output();
+            auto x                 = op->prev[0]->tensor();
+            auto mask              = op->prev[1]->tensor();
+            auto [scale, max_bias] = op->get_params<SoftmaxExtParams>();
+
+            softmax_ext(out, x, mask, scale, max_bias);
+        } break;
+
+        case OpType::GET_MASK: {
+            auto out         = op->output();
+            auto [mask, pos] = op->get_params<GetMaskParams>();
+            auto n_kv        = out->m_shape[0];
+            auto batch_size  = out->m_shape[1];
+
+            POWERSERVE_ASSERT(out->m_dtype == DataType::FP32);
+            auto mask_buf = (float *)out->get<CPUBuffer>().m_data;
+            for (size_t i = 0; i < batch_size; i++) {
+                size_t cur_pos = pos[i];
+                for (size_t j = 0; j < n_kv; j++) {
+                    mask_buf[j + i * n_kv] = (j <= cur_pos) ? 0.f : -INFINITY;
+                }
+            }
+        } break;
+
+        case OpType::TRANSPOSE: {
+            auto x   = op->prev[0]->tensor();
+            auto out = op->output();
+            transpose(out, x);
+        } break;
+
+        default:
+            POWERSERVE_ABORT("Unknown OpType: {}", static_cast<int>(op->op));
+        }
+    }
 }
 
 } // namespace powerserve::ggml

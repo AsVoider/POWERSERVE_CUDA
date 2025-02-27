@@ -65,9 +65,9 @@ auto LlamaModel::forward(
 
     size_t batch_size = tokens.size();
     // size_t batch_size  = tokens.size();
-    auto embd_tb = g.add_tensor(m_weights->token_embedding_table);
-    auto x       = g.get_embedding(embd_tb, tokens);
-    x->m_name = fmt::format("embedding_{}", pos[0]);
+    auto embd_tb       = g.add_tensor(m_weights->token_embedding_table);
+    auto x             = g.get_embedding(embd_tb, tokens);
+    x->m_name          = fmt::format("embedding_{}", pos[0]);
     TensorNode *logits = nullptr;
 
     auto &llm_config = m_config->llm;
@@ -92,79 +92,69 @@ auto LlamaModel::forward(
 #endif
     {
         if (!lazy_load) {
-            m_platform->ggml_backends[m_config->model_id]->reset_kv_batch_size(batch_size);
+            // TODO:
+            dynamic_cast<ggml::GGMLBackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).reset_kv_batch_size(batch_size);
+            // m_platform->ggml_backends[m_config->model_id]->reset_kv_batch_size(batch_size);
             for (size_t L = 0; L < llm_config.n_layers; L++) {
 #if defined(POWERSERVE_WITH_CUDA)
-                auto [k_ptr, v_ptr] = m_platform->ggml_cuda_backend->m_kv->get_cache(L);
+                auto [k_ptr, v_ptr] = dynamic_cast<ggml_cuda::GGML_CUDABackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_GPU]).m_kv->get_cache(L);
                 auto &k_cache{*k_ptr}, &v_cache{*v_ptr};
 #else
-                auto [k_cache, v_cache] = m_platform->ggml_backends[m_config->model_id]->m_kv->get_cache(L);
+                auto [k_cache, v_cache] = dynamic_cast<ggml::GGMLBackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).m_kv->get_cache(L);
 #endif
                 k_cache.m_name = fmt::format("k_cache_{}", L);
                 v_cache.m_name = fmt::format("v_cache_{}", L);
                 auto k_node{g.add_tensor(k_cache)};
                 auto v_node{g.add_tensor(v_cache)};
-                // auto att_o = m_attn->build(g, x, L, k_node, v_node, pos, mask);
-                auto att_o = m_attn->build(g, x, L, k_node, v_node, pos, mask);
+                auto attn_o = m_attn->build(g, x, L, k_node, v_node, pos, mask);
 
                 if (L == llm_config.n_layers - 1) {
-                    att_o = g.view(
-                        att_o,
-                        {att_o->m_shape[0], 1, 1, 1},
+                    attn_o = g.view(
+                        attn_o,
+                        {attn_o->m_shape[0], 1, 1, 1},
                         {sizeof(float),
-                         sizeof(float) * att_o->m_shape[0],
-                         sizeof(float) * att_o->m_shape[0],
-                         sizeof(float) * att_o->m_shape[0]},
-                        (tokens.size() - 1) * att_o->m_shape[0] * sizeof(float)
+                         sizeof(float) * attn_o->m_shape[0],
+                         sizeof(float) * attn_o->m_shape[0],
+                         sizeof(float) * attn_o->m_shape[0]},
+                        (tokens.size() - 1) * attn_o->m_shape[0] * sizeof(float)
                     );
                 }
+                attn_o->m_name = fmt::format("attn_o_{}_{}", L, pos[0]);
 
-                auto ffn_o = m_ffn->build(g, att_o, L);
+                auto ffn_o    = m_ffn->build(g, attn_o, L);
                 ffn_o->m_name = fmt::format("ffn_o_{}_{}", L, pos[0]);
-                x          = ffn_o;
+                x             = ffn_o;
             }
             // TODO: cpu and qnn reuse
             if (lm_head) {
-                auto rms_final_w    = g.add_tensor(m_weights->rms_final_weight);
-                auto final_rms_norm = g.rms_norm(x, rms_final_w, llm_config.norm_eps);
-                final_rms_norm->m_name = "final_rms_norm";
-                auto output_w       = g.add_tensor(m_weights->output_weight);
-                logits              = g.mat_mul(output_w, final_rms_norm);
-                logits->m_name = fmt::format("logits_{}", pos[0]);
+                auto rms_final_w       = g.add_tensor(m_weights->rms_final_weight);
+                auto final_rms_norm    = g.rms_norm(x, rms_final_w, llm_config.norm_eps);
+                final_rms_norm->m_name = fmt::format("final_rms_norm_{}", pos[0]);
+                auto output_w          = g.add_tensor(m_weights->output_weight);
+                logits                 = g.mat_mul(output_w, final_rms_norm);
+                logits->m_name         = fmt::format("logits_{}", pos[0]);
             }
         }
     }
 
-    // for (auto t : g.tensors) {
-    //     std::cout << t->m_name << std::endl;
-    // }
-
     Executor executor(*m_platform, g);
-    // for (auto t : executor.m_graph.tensors) {
-    //     std::cout << t->m_name << std::endl;
-    // }
 
     executor.shed_op_to_backend();
-    // open a file as ostream to print the graph
-    // allocate backend buffer
+    executor.split_graph();
     executor.allocate_buffer_with_backend();
 
     // std::ofstream graph_file("graph_output_cpu.log");
     // executor.print_graph(graph_file);
     // graph_file.close();
-// #define POWERSERVE_WITH_CUDA
-#ifndef POWERSERVE_WITH_CUDA
-    executor.run();
-#else
+    // executor.run();
     executor.run_with_backend();
-#endif
 #if defined(POWERSERVE_WITH_QNN)
     if (!m_platform->qnn_backend)
 #endif
     {
-        m_platform->ggml_backends[m_config->model_id]->m_kv->advance(batch_size);
+        dynamic_cast<ggml::GGMLBackend &>(* m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).m_kv->advance(batch_size);
 #if defined(POWERSERVE_WITH_CUDA)
-        m_platform->ggml_cuda_backend->m_kv->advanced_kv_cache_size(batch_size);
+        dynamic_cast<ggml_cuda::GGML_CUDABackend &>(* m_platform->backends[m_config->model_id][TensorBackend::GGML_GPU]).m_kv->advanced_kv_cache_size(batch_size);
 #endif
     }
 
@@ -180,7 +170,7 @@ auto LlamaModel::decode(Sampler &sampler, const std::vector<Token> tokens, const
     auto mask = CausalAttentionMask(tokens.size());
     auto ret  = forward(tokens, pos, mask, lm_head);
     std::vector<Token> toks;
-    // printf("logits vector size is %ld\n", ret.logits_vector.size());
+
     for (auto logits : ret.logits_vector) {
         auto probs = ProbArray(logits);
         sampler.apply(probs);

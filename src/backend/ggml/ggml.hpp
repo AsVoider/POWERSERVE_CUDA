@@ -249,6 +249,9 @@ public:
     void setup_threadpool();
     void reset_threadpool();
 
+public:
+    void graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) override;
+
 private:
     std::vector<ThreadConfig> m_thread_config;
     std::unique_ptr<ThreadPool> m_thread_pool;

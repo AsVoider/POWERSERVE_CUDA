@@ -24,36 +24,51 @@ void Platform::destroy_ggml_backend(const std::shared_ptr<ModelConfig> &config) 
     ggml_backends.erase(config->model_id);
 }
 
+void Platform::init_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams, [[maybe_unused]] const Path &qnn_path) {
+    backends[config->model_id].insert(
+        std::make_pair(TensorBackend::GGML_CPU, std::make_unique<ggml::GGMLBackend>(config->llm, hparams))
+    );
+
+#if defined(POWERSERVE_WITH_CUDA)
+    backends[config->model_id].insert(
+        std::make_pair(TensorBackend::GGML_GPU, std::make_unique<ggml_cuda::GGML_CUDABackend>(config->llm, hparams))
+    );
+#endif
+
+#if defined(POWERSERVE_WITH_QNN)
+    if (qnn_backend) {
+        qnn_backend = std::make_unique<qnn::QNNBackend>(qnn_path);
+    }
+#endif
+}
+
 #if defined(POWERSERVE_WITH_QNN)
 void Platform::init_qnn_backend(const Path &qnn_path) {
     qnn_backend = std::make_unique<qnn::QNNBackend>(qnn_path);
 }
 #endif
 
-#ifdef POWERSERVE_WITH_CUDA
-void Platform::init_cuda_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams) {
-    ggml_cuda_backend = std::make_unique<ggml_cuda::GGML_CUDABackend>(config->llm, hparams);
-}
+size_t Platform::get_kv_position(std::string &model_id) const {
+    // NEW ADD
+    auto position{dynamic_cast<ggml::GGMLBackend &>(*backends.at(model_id).at(TensorBackend::GGML_CPU)).m_kv->kv_cache->position};
+
+#if defined(POWERSERVE_WITH_CUDA) 
+    auto cuda_position{dynamic_cast<ggml_cuda::GGML_CUDABackend &>(*backends.at(model_id).at(TensorBackend::GGML_GPU)).m_kv->get_cache_position()};
+    POWERSERVE_ASSERT(cuda_position == position);
 #endif
 
-size_t Platform::get_kv_position(std::string &model_id) const {
-    size_t position = ggml_backends.at(model_id)->m_kv->kv_cache->position;
 #if defined(POWERSERVE_WITH_QNN)
     if (qnn_backend) {
-        position = qnn_backend->m_models[model_id]->kv_cache->position;
+        auto qnn_position{qnn_backend->m_models[model_id]->kv_cache->position};
+        POWERSERVE_ASSERT(qnn_position == position);`
     }
-#endif
-
-#if defined(POWERSERVE_WITH_CUDA)
-    auto cuda_position = ggml_cuda_backend->m_kv->get_cache_position();
-    // POWERSERVE_ASSERT(cuda_position == position);
-    position = cuda_position;
 #endif
     return position;
 }
 
 void Platform::reset_kv_position(std::string &model_id) {
-    ggml_backends[model_id]->m_kv->reset_kv_cache();
+    // ggml_backends[model_id]->m_kv->reset_kv_cache();
+    dynamic_cast<ggml::GGMLBackend &>(*backends.at(model_id).at(TensorBackend::GGML_CPU)).m_kv->reset_kv_cache();
 #if defined(POWERSERVE_WITH_QNN)
     if (qnn_backend) {
         qnn_backend->m_models[model_id]->reset_kv_cache();

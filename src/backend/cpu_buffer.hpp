@@ -38,6 +38,10 @@ public:
         }
     }
 
+    virtual auto get_host_data() -> void * override {
+        return m_data;
+    }
+
     template <typename T>
     static auto create_buffer(Shape shape) -> BufferPtr {
         Stride stride;

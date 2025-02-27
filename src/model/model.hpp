@@ -31,12 +31,7 @@ struct LogitsVector {
     LogitsVector() = default;
 
     LogitsVector(BufferPtr buffer, size_t vocab_size, size_t batch_size) : buffer(buffer) {
-        // printf("BUILD LOGITS HERE\n");
-#ifdef POWERSERVE_WITH_CUDA
-        float *logits = static_cast<float *>(dynamic_cast<ggml_cuda::Buffer_CUDA &>(*buffer).m_data_host);
-#else
-        float *logits = static_cast<float *>(dynamic_cast<CPUBuffer &>(*buffer).m_data);
-#endif
+    float *logits = static_cast<float *>(buffer->get_host_data());
         for (size_t i = 0; i < batch_size; i++) {
             logits_vector.push_back(std::span<const float>(logits, logits + vocab_size));
             logits += vocab_size;
@@ -147,7 +142,9 @@ public:
         auto &model_id   = m_model.m_config->model_id;
         m_platform->reset_kv_position(model_id);
         position = m_platform->get_kv_position(model_id);
-        m_platform->ggml_backends[model_id]->setup_threadpool();
+        // TODO:
+        // m_platform->ggml_backends[model_id]->setup_threadpool();
+        dynamic_cast<ggml::GGMLBackend &>(*m_platform->backends[model_id][TensorBackend::GGML_CPU]).setup_threadpool();
         // prefill
         while (n_prefilled < n_prompt_tokens - 1) {
             size_t bs = std::min(m_batch_size, n_prompt_tokens - n_prefilled - 1);
@@ -168,8 +165,9 @@ public:
     }
 
     ~ModelTokenIterator() {
-        // TODO speculative's reset
-        m_model.m_platform->ggml_backends[m_model.m_config->model_id]->reset_threadpool();
+        // TODO: speculative's reset
+        dynamic_cast<ggml::GGMLBackend &>(*m_model.m_platform->backends[m_model.m_config->model_id][TensorBackend::GGML_CPU]).reset_threadpool();
+        // m_model.m_platform->ggml_backends[m_model.m_config->model_id]->reset_threadpool();
     }
 
     virtual void decode() override {

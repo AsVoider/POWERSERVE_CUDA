@@ -32,6 +32,7 @@ public:
 
 public:
     virtual ~BaseBuffer() = default;
+    virtual auto get_host_data() -> void * = 0;
 };
 
 using BufferPtr = std::shared_ptr<BaseBuffer>;

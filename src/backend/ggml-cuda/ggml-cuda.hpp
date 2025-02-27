@@ -84,7 +84,7 @@ static std::unique_ptr<ggml_tensor> convert_to_ggml_tensor(const Tensor *t) {
     return gt;
 }
 
-class GGML_CUDABackend : Backend {
+class GGML_CUDABackend : public Backend {
 public:
     // op_compute_params m_params;
     std::unique_ptr<GGML_CUDAKV> m_kv;
@@ -121,6 +121,9 @@ public: // ! Math Ops
     // void reset_kv_batch_size(const size_t batch_size) const;
     void append_kv_cache(const Tensor *src, const size_t layer_id, const size_t token_num, bool is_k_cache);
     void transpose(Tensor *out, const Tensor *x) const;
+
+public:
+    void graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) override;
 
 public: // ! Mem Ops
     template <typename T>

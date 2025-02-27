@@ -41,8 +41,13 @@ public:
         }
 
         if (m_is_host_malloc) {
+            std::cout << "free host buffer\n";
             free(m_data_host);
         }
+    }
+
+    virtual auto get_host_data() -> void * override {
+        return m_data_host;
     }
 
     template <typename T>

@@ -49,7 +49,6 @@ protected:
         if (t == nullptr) {
             throw std::runtime_error(fmt::format("Failed to get tensor: {}", tensor_name));
         }
-        // std::cout << fmt::format("loading!, t name is {}\n", t->name);
 #if defined(POWERSERVE_WITH_CUDA)
         // if (strcmp(t->name, "blk.0.attn_norm.weight") == 0) {
         // printf(

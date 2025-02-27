@@ -14,7 +14,9 @@
 
 #include "ggml-quants.h"
 #include "ggml.hpp"
+
 #include <iostream>
+
 namespace powerserve::ggml {
 
 using std::atomic_int;
@@ -43,13 +45,15 @@ void GGMLBackend::matmul(const Tensor *dst, const Tensor *src0, const Tensor *sr
     // if (dst->m_name == "attn_o_0_5") {
     //     auto file{fopen("matmul_attn_o.txt_ref", "w")};
     //     float *dst_buffer{new float[dst->m_shape[0] * dst->m_shape[1] * dst->m_shape[2] * dst->m_shape[3]]};
-    //     memcpy(dst_buffer, dst->get<CPUBuffer>().m_data, dst->m_shape[0] * dst->m_shape[1] * dst->m_shape[2] * dst->m_shape[3] * sizeof(float));
+    //     memcpy(dst_buffer, dst->get<CPUBuffer>().m_data, dst->m_shape[0] * dst->m_shape[1] * dst->m_shape[2] *
+    //     dst->m_shape[3] * sizeof(float));
 
     //     for (size_t i{0}; i < dst->m_shape[3]; ++i) {
     //         for (size_t j{0}; j < dst->m_shape[2]; ++j) {
     //             for (size_t k{0}; k < dst->m_shape[1]; ++k) {
     //                 for (size_t l{0}; l < dst->m_shape[0]; ++l) {
-    //                     fprintf(file, "%f ", dst_buffer[i * dst->m_shape[2] * dst->m_shape[1] * dst->m_shape[0] + j * dst->m_shape[1] * dst->m_shape[0] + k * dst->m_shape[0] + l]);
+    //                     fprintf(file, "%f ", dst_buffer[i * dst->m_shape[2] * dst->m_shape[1] * dst->m_shape[0] + j *
+    //                     dst->m_shape[1] * dst->m_shape[0] + k * dst->m_shape[0] + l]);
     //                 }
     //                 fprintf(file, "\n\n");
     //             }
@@ -236,20 +240,25 @@ void GGMLBackend::rope(
     // {
     //     auto file{fopen("rope_ref.txt", "w")};
     //     float *src0_buffer{new float[src->m_shape[0] * src->m_shape[1] * src->m_shape[2] * src->m_shape[3]]};
-    //     memcpy(src0_buffer, src->get<CPUBuffer>().m_data, src->m_shape[0] * src->m_shape[1] * src->m_shape[2] * src->m_shape[3] * sizeof(float));
+    //     memcpy(src0_buffer, src->get<CPUBuffer>().m_data, src->m_shape[0] * src->m_shape[1] * src->m_shape[2] *
+    //     src->m_shape[3] * sizeof(float));
 
-    //     float *src2_buffer{new float[rope_factors->m_shape[0] * rope_factors->m_shape[1] * rope_factors->m_shape[2] * rope_factors->m_shape[3]]};
-    //     memcpy(src2_buffer, rope_factors->get<CPUBuffer>().m_data, rope_factors->m_shape[0] * rope_factors->m_shape[1] * rope_factors->m_shape[2] * rope_factors->m_shape[3] * sizeof(float));
+    //     float *src2_buffer{new float[rope_factors->m_shape[0] * rope_factors->m_shape[1] * rope_factors->m_shape[2] *
+    //     rope_factors->m_shape[3]]}; memcpy(src2_buffer, rope_factors->get<CPUBuffer>().m_data,
+    //     rope_factors->m_shape[0] * rope_factors->m_shape[1] * rope_factors->m_shape[2] * rope_factors->m_shape[3] *
+    //     sizeof(float));
 
     //     float *dst_buffer{new float[out->m_shape[0] * out->m_shape[1] * out->m_shape[2] * out->m_shape[3]]};
-    //     memcpy(dst_buffer, out->get<CPUBuffer>().m_data, out->m_shape[0] * out->m_shape[1] * out->m_shape[2] * out->m_shape[3] * sizeof(float));
+    //     memcpy(dst_buffer, out->get<CPUBuffer>().m_data, out->m_shape[0] * out->m_shape[1] * out->m_shape[2] *
+    //     out->m_shape[3] * sizeof(float));
 
     //     fprintf(file, "src0:\n");
     //     for (size_t i{0}; i < src->m_shape[3]; ++i) {
     //         for (size_t j{0}; j < src->m_shape[2]; ++j) {
     //             for (size_t k{0}; k < src->m_shape[1]; ++k) {
     //                 for (size_t l{0}; l < src->m_shape[0]; ++l) {
-    //                     fprintf(file, "%f ", src0_buffer[i * src->m_shape[2] * src->m_shape[1] * src->m_shape[0] + j * src->m_shape[1] * src->m_shape[0] + k * src->m_shape[0] + l]);
+    //                     fprintf(file, "%f ", src0_buffer[i * src->m_shape[2] * src->m_shape[1] * src->m_shape[0] + j
+    //                     * src->m_shape[1] * src->m_shape[0] + k * src->m_shape[0] + l]);
     //                 }
     //                 fprintf(file, "\n\n");
     //             }
@@ -264,7 +273,9 @@ void GGMLBackend::rope(
     //         for (size_t j{0}; j < rope_factors->m_shape[2]; ++j) {
     //             for (size_t k{0}; k < rope_factors->m_shape[1]; ++k) {
     //                 for (size_t l{0}; l < rope_factors->m_shape[0]; ++l) {
-    //                     fprintf(file, "%f ", src2_buffer[i * rope_factors->m_shape[2] * rope_factors->m_shape[1] * rope_factors->m_shape[0] + j * rope_factors->m_shape[1] * rope_factors->m_shape[0] + k * rope_factors->m_shape[0] + l]);
+    //                     fprintf(file, "%f ", src2_buffer[i * rope_factors->m_shape[2] * rope_factors->m_shape[1] *
+    //                     rope_factors->m_shape[0] + j * rope_factors->m_shape[1] * rope_factors->m_shape[0] + k *
+    //                     rope_factors->m_shape[0] + l]);
     //                 }
     //                 fprintf(file, "\n\n");
     //             }
@@ -279,7 +290,8 @@ void GGMLBackend::rope(
     //         for (size_t j{0}; j < out->m_shape[2]; ++j) {
     //             for (size_t k{0}; k < out->m_shape[1]; ++k) {
     //                 for (size_t l{0}; l < out->m_shape[0]; ++l) {
-    //                     fprintf(file, "%f ", dst_buffer[i * out->m_shape[2] * out->m_shape[1] * out->m_shape[0] + j * out->m_shape[1] * out->m_shape[0] + k * out->m_shape[0] + l]);
+    //                     fprintf(file, "%f ", dst_buffer[i * out->m_shape[2] * out->m_shape[1] * out->m_shape[0] + j *
+    //                     out->m_shape[1] * out->m_shape[0] + k * out->m_shape[0] + l]);
     //                 }
     //                 fprintf(file, "\n\n");
     //             }
@@ -404,16 +416,18 @@ void GGMLBackend::softmax_ext(const Tensor *out, const Tensor *x, const Tensor *
     // if (out->m_name == "kq_0_5") {
     //     auto file{fopen("softmax_ref.txt", "w")};
     //     float *dst_buffer{new float[out->m_shape[0] * out->m_shape[1] * out->m_shape[2] * out->m_shape[3]]};
-    //     memcpy(dst_buffer, out->get<CPUBuffer>().m_data, out->m_shape[0] * out->m_shape[1] * out->m_shape[2] * out->m_shape[3] * sizeof(float));
-    //     printf("dst shape is %ld %ld %ld %ld, nb is %ld %ld %ld %ld\n", 
-    //         out->m_shape[0], out->m_shape[1], out->m_shape[2], out->m_shape[3], 
-    //             out->get<CPUBuffer>().m_stride[0], out->get<CPUBuffer>().m_stride[1], out->get<CPUBuffer>().m_stride[2], out->get<CPUBuffer>().m_stride[3]);
+    //     memcpy(dst_buffer, out->get<CPUBuffer>().m_data, out->m_shape[0] * out->m_shape[1] * out->m_shape[2] *
+    //     out->m_shape[3] * sizeof(float)); printf("dst shape is %ld %ld %ld %ld, nb is %ld %ld %ld %ld\n",
+    //         out->m_shape[0], out->m_shape[1], out->m_shape[2], out->m_shape[3],
+    //             out->get<CPUBuffer>().m_stride[0], out->get<CPUBuffer>().m_stride[1],
+    //             out->get<CPUBuffer>().m_stride[2], out->get<CPUBuffer>().m_stride[3]);
     //     fprintf(file, "dst:\n");
     //     for (size_t i{0}; i < out->m_shape[3]; ++i) {
     //         for (size_t j{0}; j < out->m_shape[2]; ++j) {
     //             for (size_t k{0}; k < out->m_shape[1]; ++k) {
     //                 for (size_t l{0}; l < out->m_shape[0]; ++l) {
-    //                     fprintf(file, "%f ", dst_buffer[i * out->m_shape[2] * out->m_shape[1] * out->m_shape[0] + j * out->m_shape[1] * out->m_shape[0] + k * out->m_shape[0] + l]);
+    //                     fprintf(file, "%f ", dst_buffer[i * out->m_shape[2] * out->m_shape[1] * out->m_shape[0] + j *
+    //                     out->m_shape[1] * out->m_shape[0] + k * out->m_shape[0] + l]);
     //                 }
     //                 fprintf(file, "\n\n");
     //             }
@@ -437,7 +451,7 @@ void GGMLBackend::get_embedding(const Tensor *dst, const Tensor *weight, const s
     for (size_t i = 0; i < batch_size; i++) {
         auto token = tokens[i];
         // printf("weightstrip is %ld, token is %d\n", weight_strip[1], token);
-        auto src   = embd_tb + weight_strip[1] * token;
+        auto src = embd_tb + weight_strip[1] * token;
         POWERSERVE_ASSERT(src < embd_tb + weight_strip[2]);
         switch (weight->m_dtype) {
         case DataType::FP32: {
@@ -448,7 +462,7 @@ void GGMLBackend::get_embedding(const Tensor *dst, const Tensor *weight, const s
             auto ptr = dst_tb + i * dim;
             for (size_t j = 0; j < dim; ++j) {
                 auto src_ptr = (ggml_fp16_t *)src;
-                ptr[j] = ggml_fp16_to_fp32(src_ptr[j]);
+                ptr[j]       = ggml_fp16_to_fp32(src_ptr[j]);
             }
         } break;
 
@@ -472,7 +486,6 @@ void GGMLBackend::get_embedding(const Tensor *dst, const Tensor *weight, const s
     //             fprintf(file, "%.6f ", dst_tb[i]);
     //         }
     //         fprintf(file, "\n");
-
 
     //         fclose(file);
     //         exit(0);

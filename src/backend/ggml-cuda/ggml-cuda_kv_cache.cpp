@@ -49,7 +49,6 @@ auto GGML_CUDAKV::clear_cache(size_t trunc_idx) -> void {
             if (kv_shape.flash_attn) {
                 cuda_context_warp::device_memset(k_cache[i].cache_data_ptr + v_aft_size, 0, clear_v_size);
             } else {
-                // TODO: Add V Cache Clear
                 // ! just do nothing here
             }
         }

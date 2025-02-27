@@ -16,6 +16,7 @@
 
 #include "backend/platform.hpp"
 #include "graph/graph.hpp"
+#include "graph/graph_split.hpp"
 
 namespace powerserve {
 
@@ -23,34 +24,19 @@ struct Executor {
 public:
     Platform &m_platform;
     Graph &m_graph;
+    std::vector<std::unique_ptr<GraphSplit>> graph_splits{};
 
 public:
     Executor(Platform &platform, Graph &graph) : m_platform(platform), m_graph(graph) {}
 
 public:
-    void allocate_buffers();
-    void run();
-    void plan();
     void shed_op_to_backend();
     void allocate_buffer_with_backend();
     void print_graph(std::ostream &os);
-
-#if defined(POWERSERVE_WITH_CUDA)
+    void split_graph();
     void run_with_backend();
-    void run_forward_gpu(std::shared_ptr<OpNode> op);
-#endif
 
 private:
-    template <typename T>
-    void create_cpu_buffer(std::shared_ptr<TensorNode> tensor) {
-        if (tensor->type == NodeType::TENSOR_VIEW) {
-            tensor->m_data =
-                CPUBuffer::create_buffer_view<T>(tensor->tensor_view()->parent->get<CPUBuffer>(), tensor->m_shape);
-        } else {
-            tensor->m_data = CPUBuffer::create_buffer<T>(tensor->m_shape);
-        }
-    }
-
     template <typename T>
     void create_backend_buffer(std::shared_ptr<TensorNode> tensor) {
 #if defined(POWERSERVE_WITH_CUDA)

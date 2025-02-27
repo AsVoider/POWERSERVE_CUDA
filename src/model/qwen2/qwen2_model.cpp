@@ -83,6 +83,7 @@ auto Qwen2Model::forward(
 #endif
     {
         if (!lazy_load) {
+            // TODO: fuck CPU
             m_platform->ggml_backends[m_config->model_id]->reset_kv_batch_size(batch_size);
             for (size_t L = 0; L < llm_config.n_layers; L++) {
                 auto [k_cache, v_cache] = m_platform->ggml_backends[m_config->model_id]->m_kv->get_cache(L);
@@ -101,13 +102,14 @@ auto Qwen2Model::forward(
     }
 
     Executor executor(*m_platform, g);
-    executor.allocate_buffers();
+    executor.allocate_buffer_with_backend();
 
-    executor.run();
+    executor.run_with_backend();
 #if defined(POWERSERVE_WITH_QNN)
     if (!m_platform->qnn_backend)
 #endif
     {
+        // TODO: fuck CPU
         m_platform->ggml_backends[m_config->model_id]->m_kv->advance(batch_size);
     }
 

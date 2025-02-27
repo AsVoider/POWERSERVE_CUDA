@@ -332,7 +332,6 @@ void ggml_cuda_mul_mat_batched_cublas(ggml_backend_cuda_context & ctx, const ggm
     }
 }
 
-// TODO: 1. src0 split
 void ggml_cuda_op_mul_mat(
     ggml_backend_cuda_context & ctx,
     const ggml_tensor * src0, const ggml_tensor * src1, ggml_tensor * dst, ggml_cuda_op_mul_mat_t op,

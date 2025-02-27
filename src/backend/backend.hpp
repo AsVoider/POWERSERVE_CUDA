@@ -15,10 +15,16 @@
 // WIP: direct pass funcs
 #pragma once
 
+#include <memory>
+#include <vector>
+#include "graph/node.hpp"
+
 namespace powerserve {
 
 struct Backend {
     virtual ~Backend() = default;
+
+    virtual auto graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) -> void = 0;
 };
 
 } // namespace powerserve

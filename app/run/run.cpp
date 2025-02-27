@@ -41,15 +41,11 @@ int main(int argc, char *argv[]) {
     main_model->m_platform                             = std::make_shared<powerserve::Platform>();
     auto &platform                                     = main_model->m_platform;
 
-    platform->init_ggml_backend(main_model->m_config, config.hyper_params);
-
-#if defined(POWERSERVE_WITH_CUDA)
-    platform->init_cuda_backend(main_model->m_config, config.hyper_params);
-#endif
+    platform->init_backend(main_model->m_config, config.hyper_params, args.qnn_lib_folder);
 
     if (args.use_spec) {
         draft_model->m_platform = platform;
-        platform->init_ggml_backend(draft_model->m_config, config.hyper_params);
+        platform->init_backend(draft_model->m_config, config.hyper_params, args.qnn_lib_folder);
     }
 
 #if defined(POWERSERVE_WITH_QNN)

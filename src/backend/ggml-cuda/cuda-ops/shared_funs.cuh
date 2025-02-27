@@ -10,12 +10,10 @@ int check_device_pointer(void *ptr) {
         } else if (attr.type == cudaMemoryTypeHost) {
             return -1;
         } else {
-            // TODO:
             exit(1);
             // return -2;
         }
     } else {
-        // TODO:
         exit(1);
     }
 }

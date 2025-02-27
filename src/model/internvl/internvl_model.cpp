@@ -120,9 +120,9 @@ auto InternVL::forward(
     }
 
     Executor executor(*m_platform, g);
-    executor.allocate_buffers();
+    executor.allocate_buffer_with_backend();
 
-    executor.run();
+    executor.run_with_backend();
 
     if (!lm_head) {
         return LogitsVector();

@@ -18,6 +18,7 @@
 #include "backend/ggml/ggml.hpp"
 
 #include <map>
+#include <unordered_map>
 
 #if defined(POWERSERVE_WITH_QNN)
 #include "backend/qnn/qnn_backend.hpp"
@@ -35,10 +36,8 @@ struct Platform {
 #if defined(POWERSERVE_WITH_QNN)
     std::unique_ptr<qnn::QNNBackend> qnn_backend = nullptr;
 #endif
-#ifdef POWERSERVE_WITH_CUDA
-    std::unique_ptr<ggml_cuda::GGML_CUDABackend> ggml_cuda_backend{nullptr};
-#endif
 
+    std::unordered_map<std::string, std::unordered_map<TensorBackend, std::unique_ptr<Backend>>> backends{};
 public:
     Platform() = default;
 
@@ -48,16 +47,13 @@ public:
     // TODO: No need trans config
     void init_ggml_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams);
     void destroy_ggml_backend(const std::shared_ptr<ModelConfig> &config);
-
+    void init_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams, [[maybe_unused]] const Path &qnn_path);
 #if defined(POWERSERVE_WITH_QNN)
     void init_qnn_backend(const Path &qnn_path);
 #endif
 
     size_t get_kv_position(std::string &model_id) const;
     void reset_kv_position(std::string &model_id);
-#ifdef POWERSERVE_WITH_CUDA
-    void init_cuda_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams);
-#endif
 };
 
 } // namespace powerserve

@@ -158,24 +158,24 @@ op_interface op_interfaces::op_mat_mul = [] (cuda_context_warp &ctx, ggml_tensor
     if (!split && use_mul_mat_vec && dst->ne[3] == 1 && (src0->ne[1] < MMV_MAX_ROWS || any_gpus_without_fp16_mma)) {
         // the custom F16 vector kernel can be used over batched cuBLAS GEMM
         // but this is only faster for GPUs without tensor cores or with a thin src0 matrix (particularly KQV in attention)
-        printf("1\n");
+        // printf("1\n");
         ggml_cuda_mul_mat_vec(cuda_context_ptr[0], src0, src1, dst);
     } else if (!split && src0->type == GGML_TYPE_F16 && (src1->type == GGML_TYPE_F16 || !any_gpus_with_slow_fp16)
                && !ggml_is_transposed(src0) && !ggml_is_transposed(src1) && src1->ne[2]*src1->ne[3] > 1) {
         // general KQ + KQV multi-batch without FlashAttention
-        printf("2\n");
+        // printf("2\n");
         ggml_cuda_mul_mat_batched_cublas(cuda_context_ptr[0], src0, src1, dst);
     } else if (use_mul_mat_vec) {
-        printf("3\n");
+        // printf("3\n");
         ggml_cuda_op_mul_mat(cuda_context_ptr[0], src0, src1, dst, ggml_cuda_op_mul_mat_vec, nullptr);
     } else if (use_mul_mat_vec_q) {
-        printf("4\n");
+        // printf("4\n");
         ggml_cuda_op_mul_mat(cuda_context_ptr[0], src0, src1, dst, ggml_cuda_op_mul_mat_vec_q, quantize_row_q8_1_cuda);
     } else if (use_mul_mat_q) {
-        printf("5\n");
+        // printf("5\n");
         ggml_cuda_op_mul_mat(cuda_context_ptr[0], src0, src1, dst, ggml_cuda_op_mul_mat_q, quantize_mmq_q8_1_cuda);
     } else {
-        printf("6\n");
+        // printf("6\n");
         ggml_cuda_op_mul_mat(cuda_context_ptr[0], src0, src1, dst, ggml_cuda_op_mul_mat_cublas, nullptr);
     }
 
@@ -388,7 +388,7 @@ op_interface op_interfaces::op_print = [] (cuda_context_warp &ctx, ggml_tensor *
 
     // auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
     // GGML_UNUSED(cuda_context_ptr);
-    // auto file_name{std::string{dst->name}}; TODO:
+    // auto file_name{std::string{dst->name}};
     auto file_name{std::string{"output.txt"}};
     auto file{fopen(file_name.c_str(), "a+")};
 
