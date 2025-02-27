@@ -114,24 +114,6 @@ op_interface op_interfaces::op_get_embedding = [] (cuda_context_warp &ctx, ggml_
     auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
 
     ggml_cuda_op_get_rows(cuda_context_ptr[0], dst);
-
-    // {
-    //     cuda_context_warp::device_sync();
-    //     auto file{fopen("get_embedding.txt", "w")};
-    //     float *dst_buffer{new float[dst->ne[0] * dst->ne[1]]};
-    //     cuda_context_warp::copy_memory<2>(dst_buffer, dst->data, dst->ne[0] * dst->ne[1] * sizeof(float));
-    //     cuda_context_warp::device_sync();
-       
-    //     for (int64_t i{0}; i < dst->ne[1]; ++i) {
-    //         for (int64_t j{0}; j < dst->ne[0]; ++j) {
-    //             fprintf(file, "%f ", dst_buffer[i * dst->ne[0] + j]);
-    //         }
-    //         fprintf(file, "\n\n");
-    //     }
-
-    //     fclose(file);
-    //     exit(0);
-    // }
 };
 
 op_interface op_interfaces::op_mat_mul = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
@@ -176,18 +158,24 @@ op_interface op_interfaces::op_mat_mul = [] (cuda_context_warp &ctx, ggml_tensor
     if (!split && use_mul_mat_vec && dst->ne[3] == 1 && (src0->ne[1] < MMV_MAX_ROWS || any_gpus_without_fp16_mma)) {
         // the custom F16 vector kernel can be used over batched cuBLAS GEMM
         // but this is only faster for GPUs without tensor cores or with a thin src0 matrix (particularly KQV in attention)
+        printf("1\n");
         ggml_cuda_mul_mat_vec(cuda_context_ptr[0], src0, src1, dst);
     } else if (!split && src0->type == GGML_TYPE_F16 && (src1->type == GGML_TYPE_F16 || !any_gpus_with_slow_fp16)
                && !ggml_is_transposed(src0) && !ggml_is_transposed(src1) && src1->ne[2]*src1->ne[3] > 1) {
         // general KQ + KQV multi-batch without FlashAttention
+        printf("2\n");
         ggml_cuda_mul_mat_batched_cublas(cuda_context_ptr[0], src0, src1, dst);
     } else if (use_mul_mat_vec) {
+        printf("3\n");
         ggml_cuda_op_mul_mat(cuda_context_ptr[0], src0, src1, dst, ggml_cuda_op_mul_mat_vec, nullptr);
     } else if (use_mul_mat_vec_q) {
+        printf("4\n");
         ggml_cuda_op_mul_mat(cuda_context_ptr[0], src0, src1, dst, ggml_cuda_op_mul_mat_vec_q, quantize_row_q8_1_cuda);
     } else if (use_mul_mat_q) {
+        printf("5\n");
         ggml_cuda_op_mul_mat(cuda_context_ptr[0], src0, src1, dst, ggml_cuda_op_mul_mat_q, quantize_mmq_q8_1_cuda);
     } else {
+        printf("6\n");
         ggml_cuda_op_mul_mat(cuda_context_ptr[0], src0, src1, dst, ggml_cuda_op_mul_mat_cublas, nullptr);
     }
 
@@ -315,31 +303,6 @@ op_interface op_interfaces::op_softmax = [] (cuda_context_warp &ctx, ggml_tensor
     auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
 
     ggml_cuda_op_soft_max(cuda_context_ptr[0], dst);
-
-    // DEBUG
-    // {
-    //     cuda_context_warp::device_sync();
-    //     auto file{fopen("softmax.txt", "w")};
-    //     float *dst_buffer{new float[dst->ne[0] * dst->ne[1] * dst->ne[2] * dst->ne[3]]};
-    //     cuda_context_warp::copy_memory<2>(dst_buffer, dst->data, dst->ne[0] * dst->ne[1] * dst->ne[2] * dst->ne[3] * sizeof(float));
-    //     cuda_context_warp::device_sync();
-    //     printf("dst shape is %ld %ld %ld %ld, nb is %ld %ld %ld %ld\n", 
-    //         dst->ne[0], dst->ne[1], dst->ne[2], dst->ne[3], dst->nb[0], dst->nb[1], dst->nb[2], dst->nb[3]);
-    //     fprintf(file, "dst:\n");
-    //     for (int64_t i{0}; i < dst->ne[3]; ++i) {
-    //         for (int64_t j{0}; j < dst->ne[2]; ++j) {
-    //             for (int64_t k{0}; k < dst->ne[1]; ++k) {
-    //                 for (int64_t l{0}; l < dst->ne[0]; ++l) {
-    //                     fprintf(file, "%f ", dst_buffer[i * dst->ne[2] * dst->ne[1] * dst->ne[0] + j * dst->ne[1] * dst->ne[0] + k * dst->ne[0] + l]);
-    //                 }
-    //                 fprintf(file, "\n\n");
-    //             }
-    //             fprintf(file, "\n\n");
-    //         }
-    //         fprintf(file, "\n\n");
-    //     }
-    //     exit(0);
-    // }
 };
 
 op_interface op_interfaces::op_rope = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
@@ -350,70 +313,6 @@ op_interface op_interfaces::op_rope = [] (cuda_context_warp &ctx, ggml_tensor *d
     auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
 
     ggml_cuda_op_rope(cuda_context_ptr[0], dst);
-
-    // DEBUG
-    // {
-    //     auto src0{dst->src[0]}, src2{dst->src[2]};
-    //     cuda_context_warp::device_sync();
-    //     auto file{fopen("rope.txt", "w")};
-    //     float *src_buffer{new float[src0->ne[0] * src0->ne[1] * src0->ne[2] * src0->ne[3]]};
-    //     cuda_context_warp::copy_memory<2>(src_buffer, src0->data, src0->ne[0] * src0->ne[1] * src0->ne[2] * src0->ne[3] * sizeof(float));
-
-    //     float *src2_buffer{new float[src2->ne[0] * src2->ne[1] * src2->ne[2] * src2->ne[3]]};
-    //     cuda_context_warp::copy_memory<2>(src2_buffer, src2->data, src2->ne[0] * src2->ne[1] * src2->ne[2] * src2->ne[3] * sizeof(float));
-
-    //     float *dst_buffer{new float[dst->ne[0] * dst->ne[1] * dst->ne[2] * dst->ne[3]]};
-    //     cuda_context_warp::copy_memory<2>(dst_buffer, dst->data, dst->ne[0] * dst->ne[1] * dst->ne[2] * dst->ne[3] * sizeof(float));
-    //     cuda_context_warp::device_sync();
-
-    //     fprintf(file, "src0:\n");
-    //     for (int64_t i{0}; i < src0->ne[3]; ++i) {
-    //         for (int64_t j{0}; j < src0->ne[2]; ++j) {
-    //             for (int64_t k{0}; k < src0->ne[1]; ++k) {
-    //                 for (int64_t l{0}; l < src0->ne[0]; ++l) {
-    //                     fprintf(file, "%f ", src_buffer[i * src0->ne[2] * src0->ne[1] * src0->ne[0] + j * src0->ne[1] * src0->ne[0] + k * src0->ne[0] + l]);
-    //                 }
-    //                 fprintf(file, "\n\n");
-    //             }
-    //             fprintf(file, "\n\n");
-    //         }
-    //         fprintf(file, "\n\n");
-    //     }
-    //     fprintf(file, "\n\n");
-
-    //     fprintf(file, "src2:\n");
-    //     for (int64_t i{0}; i < src2->ne[3]; ++i) {
-    //         for (int64_t j{0}; j < src2->ne[2]; ++j) {
-    //             for (int64_t k{0}; k < src2->ne[1]; ++k) {
-    //                 for (int64_t l{0}; l < src2->ne[0]; ++l) {
-    //                     fprintf(file, "%f ", src2_buffer[i * src2->ne[2] * src2->ne[1] * src2->ne[0] + j * src2->ne[1] * src2->ne[0] + k * src2->ne[0] + l]);
-    //                 }
-    //                 fprintf(file, "\n\n");
-    //             }
-    //             fprintf(file, "\n\n");
-    //         }
-    //         fprintf(file, "\n\n");
-    //     }
-    //     fprintf(file, "\n\n");
-
-    //     fprintf(file, "dst:\n");
-    //     for (int64_t i{0}; i < dst->ne[3]; ++i) {
-    //         for (int64_t j{0}; j < dst->ne[2]; ++j) {
-    //             for (int64_t k{0}; k < dst->ne[1]; ++k) {
-    //                 for (int64_t l{0}; l < dst->ne[0]; ++l) {
-    //                     fprintf(file, "%f ", dst_buffer[i * dst->ne[2] * dst->ne[1] * dst->ne[0] + j * dst->ne[1] * dst->ne[0] + k * dst->ne[0] + l]);
-    //                 }
-    //                 fprintf(file, "\n\n");
-    //             }
-    //             fprintf(file, "\n\n");
-    //         }
-    //         fprintf(file, "\n\n");
-    //     }
-    //     fprintf(file, "\n\n");
-
-    //     fclose(file);
-    //     exit(0);
-    // }
 };
 
 op_interface op_interfaces::op_add = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
@@ -444,53 +343,6 @@ op_interface op_interfaces::op_copy = [] (cuda_context_warp &ctx, ggml_tensor *d
     auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
 
     ggml_cuda_dup(cuda_context_ptr[0], dst);
-
-    // DEBUG K
-    // {
-    //     cuda_context_warp::device_sync();
-    //     auto file{fopen("copy.txt", "w")};
-    //     float *src_buffer{new float[dst->src[0]->ne[0] * dst->src[0]->ne[1] * dst->src[0]->ne[2] * dst->src[0]->ne[3]]};
-    //     cuda_context_warp::copy_memory<2>(src_buffer, dst->src[0]->data, dst->src[0]->ne[0] * dst->src[0]->ne[1] * dst->src[0]->ne[2] * dst->src[0]->ne[3] * sizeof(float));
-
-    //     float *dst_buffer{new float[dst->ne[0] * dst->ne[1] * dst->ne[2] * dst->ne[3]]};
-    //     cuda_context_warp::copy_memory<2>(dst_buffer, dst->data, dst->ne[0] * dst->ne[1] * dst->ne[2] * dst->ne[3] * sizeof(float));
-    //     cuda_context_warp::device_sync();
-
-    //     fprintf(file, "src:\n");
-    //     for (int64_t i{0}; i < dst->src[0]->ne[3]; ++i) {
-    //         for (int64_t j{0}; j < dst->src[0]->ne[2]; ++j) {
-    //             for (int64_t k{0}; k < dst->src[0]->ne[1]; ++k) {
-    //                 for (int64_t l{0}; l < dst->src[0]->ne[0]; ++l) {
-    //                     fprintf(file, "%f ", src_buffer[i * dst->src[0]->ne[2] * dst->src[0]->ne[1] * dst->src[0]->ne[0] + j * dst->src[0]->ne[1] * dst->src[0]->ne[0] + k * dst->src[0]->ne[0] + l]);
-    //                 }
-    //                 fprintf(file, "\n\n");
-    //             }
-    //             fprintf(file, "\n\n");
-    //         }
-    //         fprintf(file, "\n\n");
-    //     }
-    //     fprintf(file, "\n\n");
-
-    //     fprintf(file, "dst: %p\n", dst->data);
-    //     for (int64_t i{0}; i < dst->ne[3]; ++i) {
-    //         for (int64_t j{0}; j < dst->ne[2]; ++j) {
-    //             for (int64_t k{0}; k < dst->ne[1]; ++k) {
-    //                 for (int64_t l{0}; l < dst->ne[0]; ++l) {
-    //                     fprintf(file, "%f ", dst_buffer[i * dst->ne[2] * dst->ne[1] * dst->ne[0] + j * dst->ne[1] * dst->ne[0] + k * dst->ne[0] + l]);
-    //                 }
-    //                 fprintf(file, "\n\n");
-    //             }
-    //             fprintf(file, "\n\n");
-    //         }
-    //         fprintf(file, "\n\n");
-    //     }
-    //     fprintf(file, "\n\n");
-
-    //     fclose(file);
-    //     delete[] src_buffer;
-    //     delete[] dst_buffer;
-    //     exit(0);
-    // }
 
     // DEBUG V
     // {

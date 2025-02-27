@@ -17,9 +17,13 @@ GGML_CUDAKV::GGML_CUDAKV(const ModelConfig::LLMConfig &config) : config{config} 
     init_cache();
 }
 
+auto GGML_CUDAKV::advanced_kv_cache_size(size_t token_nums) -> void {
+    kv_shape.kv_size += token_nums;
+}
+
 // TODO: fix this function
 auto GGML_CUDAKV::get_cache_position() -> size_t {
-    return this->k_cache[0].valid_idx;
+    return kv_shape.kv_size;
 }
 
 auto GGML_CUDAKV::get_cache(size_t layer_id) -> std::pair<Tensor *, Tensor *> {

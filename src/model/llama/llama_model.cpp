@@ -54,15 +54,20 @@ auto LlamaModel::forward(
 ) -> LogitsVector {
     Graph g(m_config->model_id);
     // input embedding
-    // TEST
-    std::vector<int> modified_tokens{128000, 128006, 9125, 128007, 271, 15339, 128009};
-    std::vector<int> modified_pos{0, 1, 2, 3, 4, 5, 6};
+    // for (auto t : tokens) {
+    //     std::cout << t << " ";
+    // }
+    // std::cout << std::endl;
+    // for (auto p : pos) {
+    //     std::cout << p << " ";
+    // }
+    // std::cout << std::endl;
 
-    size_t batch_size = modified_tokens.size();
+    size_t batch_size = tokens.size();
     // size_t batch_size  = tokens.size();
     auto embd_tb = g.add_tensor(m_weights->token_embedding_table);
-    auto x       = g.get_embedding(embd_tb, modified_tokens);
-    // auto x             = g.get_embedding(embd_tb, tokens);
+    auto x       = g.get_embedding(embd_tb, tokens);
+    x->m_name = fmt::format("embedding_{}", pos[0]);
     TensorNode *logits = nullptr;
 
     auto &llm_config = m_config->llm;
@@ -100,7 +105,7 @@ auto LlamaModel::forward(
                 auto k_node{g.add_tensor(k_cache)};
                 auto v_node{g.add_tensor(v_cache)};
                 // auto att_o = m_attn->build(g, x, L, k_node, v_node, pos, mask);
-                auto att_o = m_attn->build(g, x, L, k_node, v_node, modified_pos, mask);
+                auto att_o = m_attn->build(g, x, L, k_node, v_node, pos, mask);
 
                 if (L == llm_config.n_layers - 1) {
                     att_o = g.view(
@@ -110,19 +115,22 @@ auto LlamaModel::forward(
                          sizeof(float) * att_o->m_shape[0],
                          sizeof(float) * att_o->m_shape[0],
                          sizeof(float) * att_o->m_shape[0]},
-                        (modified_tokens.size() - 1) * att_o->m_shape[0] * sizeof(float)
+                        (tokens.size() - 1) * att_o->m_shape[0] * sizeof(float)
                     );
                 }
 
                 auto ffn_o = m_ffn->build(g, att_o, L);
+                ffn_o->m_name = fmt::format("ffn_o_{}_{}", L, pos[0]);
                 x          = ffn_o;
             }
             // TODO: cpu and qnn reuse
             if (lm_head) {
                 auto rms_final_w    = g.add_tensor(m_weights->rms_final_weight);
                 auto final_rms_norm = g.rms_norm(x, rms_final_w, llm_config.norm_eps);
+                final_rms_norm->m_name = "final_rms_norm";
                 auto output_w       = g.add_tensor(m_weights->output_weight);
                 logits              = g.mat_mul(output_w, final_rms_norm);
+                logits->m_name = fmt::format("logits_{}", pos[0]);
             }
         }
     }
@@ -141,10 +149,10 @@ auto LlamaModel::forward(
     // allocate backend buffer
     executor.allocate_buffer_with_backend();
 
-    // std::ofstream graph_file("graph_output.log");
+    // std::ofstream graph_file("graph_output_cpu.log");
     // executor.print_graph(graph_file);
     // graph_file.close();
-
+// #define POWERSERVE_WITH_CUDA
 #ifndef POWERSERVE_WITH_CUDA
     executor.run();
 #else
@@ -155,6 +163,9 @@ auto LlamaModel::forward(
 #endif
     {
         m_platform->ggml_backends[m_config->model_id]->m_kv->advance(batch_size);
+#if defined(POWERSERVE_WITH_CUDA)
+        m_platform->ggml_cuda_backend->m_kv->advanced_kv_cache_size(batch_size);
+#endif
     }
 
     if (!lm_head) {
@@ -169,6 +180,7 @@ auto LlamaModel::decode(Sampler &sampler, const std::vector<Token> tokens, const
     auto mask = CausalAttentionMask(tokens.size());
     auto ret  = forward(tokens, pos, mask, lm_head);
     std::vector<Token> toks;
+    // printf("logits vector size is %ld\n", ret.logits_vector.size());
     for (auto logits : ret.logits_vector) {
         auto probs = ProbArray(logits);
         sampler.apply(probs);

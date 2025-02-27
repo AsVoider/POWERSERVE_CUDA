@@ -52,15 +52,15 @@ protected:
         // std::cout << fmt::format("loading!, t name is {}\n", t->name);
 #if defined(POWERSERVE_WITH_CUDA)
         // if (strcmp(t->name, "blk.0.attn_norm.weight") == 0) {
-        printf(
-            "t->name: %s, t type is %d, t shape is %ld %ld %ld %ld\n",
-            t->name,
-            t->type,
-            t->ne[0],
-            t->ne[1],
-            t->ne[2],
-            t->ne[3]
-        );
+        // printf(
+        //     "t->name: %s, t type is %d, t shape is %ld %ld %ld %ld\n",
+        //     t->name,
+        //     t->type,
+        //     t->ne[0],
+        //     t->ne[1],
+        //     t->ne[2],
+        //     t->ne[3]
+        // );
         // }
         return ggml_cuda::convert_from_ggml_with_data_copied(t);
 #else

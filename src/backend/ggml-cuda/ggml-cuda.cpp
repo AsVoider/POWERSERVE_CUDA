@@ -28,6 +28,25 @@ void GGML_CUDABackend::get_embedding(Tensor *dst, const Tensor *weight, const st
     ggml_tensor_dst->src[0] = ggml_tensor_weight.get();
     ggml_tensor_dst->src[1] = ggml_tensor_tokens;
     op_interfaces::op_get_embedding(*warp, ggml_tensor_dst.get());
+
+    // DEBUG
+    // if (tokens.size() == 1) {
+    //     cuda_context_warp::device_sync();
+    //     auto file{fopen("get_embedding.txt", "a+")};
+    //     float *dst_buffer{new float[dst->m_shape[0] * dst->m_shape[1]]};
+    //     cuda_context_warp::copy_memory<2>(dst_buffer, dst->get<Buffer_CUDA>().m_data_cuda, dst->m_shape[0] * dst->m_shape[1] * sizeof(float));
+    //     cuda_context_warp::device_sync();
+       
+    //     for (size_t i{0}; i < dst->m_shape[1]; ++i) {
+    //         for (size_t j{0}; j < dst->m_shape[0]; ++j) {
+    //             fprintf(file, "%f ", dst_buffer[i * dst->m_shape[0] + j]);
+    //         }
+    //         fprintf(file, "\n\n");
+    //     }
+
+    //     fclose(file);
+    //     exit(0);
+    // }
 }
 
 void GGML_CUDABackend::matmul(Tensor *dst, const Tensor *src0, const Tensor *src1) const { // finish
@@ -43,63 +62,94 @@ void GGML_CUDABackend::matmul(Tensor *dst, const Tensor *src0, const Tensor *src
 
     op_interfaces::op_mat_mul(*warp, ggml_tensor_dst.get());
 
+    // printf("dst name is %s\n", dst->m_name.c_str());
     // DEBUG
-    // if (src0->m_name == "output.weight") {
-
+    // if (dst->m_name == "attn_o_0_5") {
     //     cuda_context_warp::device_sync();
-    //     printf("src0 shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n", src0->m_shape[0], src0->m_shape[1],
-    //     src0->m_shape[2], src0->m_shape[3], src0->get<Buffer_CUDA>().m_stride[0],
-    //     src0->get<Buffer_CUDA>().m_stride[1], src0->get<Buffer_CUDA>().m_stride[2],
-    //     src0->get<Buffer_CUDA>().m_stride[3]); printf("src1 shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n",
-    //     src1->m_shape[0], src1->m_shape[1], src1->m_shape[2], src1->m_shape[3], src1->get<Buffer_CUDA>().m_stride[0],
-    //     src1->get<Buffer_CUDA>().m_stride[1], src1->get<Buffer_CUDA>().m_stride[2],
-    //     src1->get<Buffer_CUDA>().m_stride[3]); printf("dst shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n",
-    //     dst->m_shape[0], dst->m_shape[1], dst->m_shape[2], dst->m_shape[3], dst->get<Buffer_CUDA>().m_stride[0],
-    //     dst->get<Buffer_CUDA>().m_stride[1], dst->get<Buffer_CUDA>().m_stride[2],
-    //     dst->get<Buffer_CUDA>().m_stride[3]); float *src0_buffer{new float[src0->m_shape[0]]};
+    //     auto file{fopen("matmul_attn_o.txt", "w")};
+    //     float *dst_buffer{new float[dst->m_shape[0] * dst->m_shape[1] * dst->m_shape[2] * dst->m_shape[3]]};
     //     cuda_context_warp::copy_memory<2>(
-    //         src0_buffer, src0->get<Buffer_CUDA>().m_data_cuda, src0->m_shape[0] * sizeof(float)
+    //         dst_buffer, dst->get<Buffer_CUDA>().m_data_cuda, dst->m_shape[0] * dst->m_shape[1] * dst->m_shape[2] * dst->m_shape[3] * sizeof(float)
     //     );
-
-    //     float *src1_buffer{new float[src1->m_shape[0] * src1->m_shape[1]]};
-    //     cuda_context_warp::copy_memory<2>(
-    //         src1_buffer, src1->get<Buffer_CUDA>().m_data_cuda, src1->m_shape[0] * src1->m_shape[1] * sizeof(float)
-    //     );
-
-    //     float *dst_buffer{new float[dst->m_shape[0]]};
-    //     cuda_context_warp::copy_memory<2>(
-    //         dst_buffer, dst->get<Buffer_CUDA>().m_data_cuda + (dst->m_shape[1] - 1) * dst->m_shape[0] *
-    //         sizeof(float), dst->m_shape[0] * sizeof(float)
-    //     );
-
     //     cuda_context_warp::device_sync();
 
-    //     auto file{fopen("matmul_final.txt", "w")};
-    //     fprintf(file, "src0:\n");
-
-    //     for (int64_t j{0}; j < src0->m_shape[0]; ++j) {
-    //         fprintf(file, "%f ", src0_buffer[j]);
-    //     }
-    //     fprintf(file, "\n\n");
-
-    //     fprintf(file, "src1:\n");
-    //     for (int64_t i{0}; i < src1->m_shape[1]; ++i) {
-    //         for (int64_t j{0}; j < src1->m_shape[0]; ++j) {
-    //             fprintf(file, "%f ", src1_buffer[i * src1->m_shape[0] + j]);
+    //     for (size_t i{0}; i < dst->m_shape[3]; ++i) {
+    //         for (size_t j{0}; j < dst->m_shape[2]; ++j) {
+    //             for (size_t k{0}; k < dst->m_shape[1]; ++k) {
+    //                 for (size_t l{0}; l < dst->m_shape[0]; ++l) {
+    //                     fprintf(file, "%f ", dst_buffer[i * dst->m_shape[2] * dst->m_shape[1] * dst->m_shape[0] + j * dst->m_shape[1] * dst->m_shape[0] + k * dst->m_shape[0] + l]);
+    //                 }
+    //                 fprintf(file, "\n\n");
+    //             }
+    //             fprintf(file, "\n\n");
     //         }
     //         fprintf(file, "\n\n");
     //     }
-    //     fprintf(file, "\n\n");
-
-    //     fprintf(file, "dst:\n");
-    //     for (int64_t j{0}; j < dst->m_shape[0]; ++j) {
-    //         fprintf(file, "%f ", dst_buffer[j]);
-    //     }
-    //     fprintf(file, "\n\n");
-
-    //     fclose(file);
     //     exit(0);
     // }
+
+    // DEBUG
+    if (dst->m_name.substr(0, 7) == "logits_") {
+        // printf("here\n");
+        cuda_context_warp::device_sync();
+        dst->get<Buffer_CUDA>().m_data_host = new float[dst->m_shape[0]];
+        cuda_context_warp::copy_memory<2>(
+            dst->get<Buffer_CUDA>().m_data_host, dst->get<Buffer_CUDA>().m_data_cuda, dst->m_shape[0] * sizeof(float)
+        );
+        // printf("dst cuda ptr is %p\n", dst->get<Buffer_CUDA>().m_data_cuda);
+        // cuda_context_warp::device_sync();
+
+        // if (dst->m_name == "logits_7") {
+        //     cuda_context_warp::device_sync();
+        //     printf("src0 shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n", src0->m_shape[0], src0->m_shape[1],
+        //     src0->m_shape[2], src0->m_shape[3], src0->get<Buffer_CUDA>().m_stride[0],
+        //     src0->get<Buffer_CUDA>().m_stride[1], src0->get<Buffer_CUDA>().m_stride[2],
+        //     src0->get<Buffer_CUDA>().m_stride[3]); printf("src1 shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n",
+        //     src1->m_shape[0], src1->m_shape[1], src1->m_shape[2], src1->m_shape[3], src1->get<Buffer_CUDA>().m_stride[0],
+        //     src1->get<Buffer_CUDA>().m_stride[1], src1->get<Buffer_CUDA>().m_stride[2],
+        //     src1->get<Buffer_CUDA>().m_stride[3]); printf("dst shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n",
+        //     dst->m_shape[0], dst->m_shape[1], dst->m_shape[2], dst->m_shape[3], dst->get<Buffer_CUDA>().m_stride[0],
+        //     dst->get<Buffer_CUDA>().m_stride[1], dst->get<Buffer_CUDA>().m_stride[2],
+        //     dst->get<Buffer_CUDA>().m_stride[3]); float *src0_buffer{new float[src0->m_shape[0]]};
+        //     cuda_context_warp::copy_memory<2>(
+        //         src0_buffer, src0->get<Buffer_CUDA>().m_data_cuda, src0->m_shape[0] * sizeof(float)
+        //     );
+
+        //     float *src1_buffer{new float[src1->m_shape[0] * src1->m_shape[1]]};
+        //     cuda_context_warp::copy_memory<2>(
+        //         src1_buffer, src1->get<Buffer_CUDA>().m_data_cuda, src1->m_shape[0] * src1->m_shape[1] * sizeof(float)
+        //     );
+
+        //     cuda_context_warp::device_sync();
+
+        //     auto file{fopen("matmul_final.txt", "w")};
+        //     fprintf(file, "src0:\n");
+
+        //     for (size_t j{0}; j < src0->m_shape[0]; ++j) {
+        //         fprintf(file, "%f ", src0_buffer[j]);
+        //     }
+        //     fprintf(file, "\n\n");
+
+        //     fprintf(file, "src1:\n");
+        //     for (size_t i{0}; i < src1->m_shape[1]; ++i) {
+        //         for (size_t j{0}; j < src1->m_shape[0]; ++j) {
+        //             fprintf(file, "%f ", src1_buffer[i * src1->m_shape[0] + j]);
+        //         }
+        //         fprintf(file, "\n\n");
+        //     }
+        //     fprintf(file, "\n\n");
+
+        //     fprintf(file, "dst:\n");
+        //     float *host_ptr = static_cast<float *>(dst->get<Buffer_CUDA>().m_data_host);
+        //     for (size_t j{0}; j < dst->m_shape[0]; ++j) {
+        //         fprintf(file, "%f ", host_ptr[j]);
+        //     }
+        //     fprintf(file, "\n\n");
+
+        //     fclose(file);
+        // }
+        // exit(0);
+    }
 }
 
 void GGML_CUDABackend::rmsnorm(Tensor *o, const Tensor *x, const Tensor *weight, float eps) const { // finish
@@ -136,8 +186,8 @@ void GGML_CUDABackend::rmsnorm(Tensor *o, const Tensor *x, const Tensor *weight,
 
     //         auto file{fopen("rms_norm_final.txt", "w")};
     //         fprintf(file, "src0:\n");
-    //         for (int64_t i{0}; i < x->m_shape[1]; ++i) {
-    //             for (int64_t j{0}; j < x->m_shape[0]; ++j) {
+    //         for (size_t i{0}; i < x->m_shape[1]; ++i) {
+    //             for (size_t j{0}; j < x->m_shape[0]; ++j) {
     //                 fprintf(file, "%f ", src_buffer[i * x->m_shape[0] + j]);
     //             }
     //             fprintf(file, "\n\n");
@@ -145,14 +195,14 @@ void GGML_CUDABackend::rmsnorm(Tensor *o, const Tensor *x, const Tensor *weight,
     //         fprintf(file, "\n\n");
 
     //         fprintf(file, "weight:\n");
-    //         for (int64_t i{0}; i < weight->m_shape[0]; ++i) {
+    //         for (size_t i{0}; i < weight->m_shape[0]; ++i) {
     //             fprintf(file, "%f ", weight_buffer[i]);
     //         }
     //         fprintf(file, "\n\n");
 
     //         fprintf(file, "dst:\n");
-    //         for (int64_t i{0}; i < o->m_shape[1]; ++i) {
-    //             for (int64_t j{0}; j < o->m_shape[0]; ++j) {
+    //         for (size_t i{0}; i < o->m_shape[1]; ++i) {
+    //             for (size_t j{0}; j < o->m_shape[0]; ++j) {
     //                 fprintf(file, "%f ", dst_buffer[i * o->m_shape[0] + j]);
     //             }
     //             fprintf(file, "\n\n");
@@ -177,6 +227,32 @@ void GGML_CUDABackend::softmax(Tensor *out, const Tensor *x, const Tensor *mask,
     ggml_tensor_out->src[1] = ggml_tensor_mask.get();
 
     op_interfaces::op_softmax(*warp, ggml_tensor_out.get());
+
+    // DEBUG
+    // if (out->m_name == "kq_0_5") {
+    //     cuda_context_warp::device_sync();
+    //     auto file{fopen("softmax.txt", "w")};
+    //     float *dst_buffer{new float[out->m_shape[0] * out->m_shape[1] * out->m_shape[2] * out->m_shape[3]]};
+    //     cuda_context_warp::copy_memory<2>(dst_buffer, out->get<Buffer_CUDA>().m_data_cuda, out->m_shape[0] * out->m_shape[1] * out->m_shape[2] * out->m_shape[3] * sizeof(float));
+    //     cuda_context_warp::device_sync();
+    //     printf("dst shape is %ld %ld %ld %ld, nb is %ld %ld %ld %ld\n", 
+    //         out->m_shape[0], out->m_shape[1], out->m_shape[2], out->m_shape[3], 
+    //             out->get<Buffer_CUDA>().m_stride[0], out->get<Buffer_CUDA>().m_stride[1], out->get<Buffer_CUDA>().m_stride[2], out->get<Buffer_CUDA>().m_stride[3]);
+    //     fprintf(file, "dst:\n");
+    //     for (size_t i{0}; i < out->m_shape[3]; ++i) {
+    //         for (size_t j{0}; j < out->m_shape[2]; ++j) {
+    //             for (size_t k{0}; k < out->m_shape[1]; ++k) {
+    //                 for (size_t l{0}; l < out->m_shape[0]; ++l) {
+    //                     fprintf(file, "%f ", dst_buffer[i * out->m_shape[2] * out->m_shape[1] * out->m_shape[0] + j * out->m_shape[1] * out->m_shape[0] + k * out->m_shape[0] + l]);
+    //                 }
+    //                 fprintf(file, "\n\n");
+    //             }
+    //             fprintf(file, "\n\n");
+    //         }
+    //         fprintf(file, "\n\n");
+    //     }
+    //     exit(0);
+    // }
 }
 
 void GGML_CUDABackend::rope(
@@ -234,6 +310,69 @@ void GGML_CUDABackend::rope(
     memcpy(&ggml_tensor_out->op_params[5], arr_f, sizeof(arr_f));
 
     op_interfaces::op_rope(*warp, ggml_tensor_out.get());
+
+    // DEBUG
+    // {
+    //     cuda_context_warp::device_sync();
+    //     auto file{fopen("rope.txt", "w")};
+    //     float *src0_buffer{new float[src->m_shape[0] * src->m_shape[1] * src->m_shape[2] * src->m_shape[3]]};
+    //     cuda_context_warp::copy_memory<2>(src0_buffer, src->get<Buffer_CUDA>().m_data_cuda, src->m_shape[0] * src->m_shape[1] * src->m_shape[2] * src->m_shape[3] * sizeof(float));
+
+    //     float *src2_buffer{new float[rope_frators->m_shape[0] * rope_frators->m_shape[1] * rope_frators->m_shape[2] * rope_frators->m_shape[3]]};
+    //     cuda_context_warp::copy_memory<2>(src2_buffer, rope_frators->get<Buffer_CUDA>().m_data_cuda, rope_frators->m_shape[0] * rope_frators->m_shape[1] * rope_frators->m_shape[2] * rope_frators->m_shape[3] * sizeof(float));
+
+    //     float *dst_buffer{new float[out->m_shape[0] * out->m_shape[1] * out->m_shape[2] * out->m_shape[3]]};
+    //     cuda_context_warp::copy_memory<2>(dst_buffer, out->get<Buffer_CUDA>().m_data_cuda, out->m_shape[0] * out->m_shape[1] * out->m_shape[2] * out->m_shape[3] * sizeof(float));
+    //     cuda_context_warp::device_sync();
+
+    //     fprintf(file, "src0:\n");
+    //     for (size_t i{0}; i < src->m_shape[3]; ++i) {
+    //         for (size_t j{0}; j < src->m_shape[2]; ++j) {
+    //             for (size_t k{0}; k < src->m_shape[1]; ++k) {
+    //                 for (size_t l{0}; l < src->m_shape[0]; ++l) {
+    //                     fprintf(file, "%f ", src0_buffer[i * src->m_shape[2] * src->m_shape[1] * src->m_shape[0] + j * src->m_shape[1] * src->m_shape[0] + k * src->m_shape[0] + l]);
+    //                 }
+    //                 fprintf(file, "\n\n");
+    //             }
+    //             fprintf(file, "\n\n");
+    //         }
+    //         fprintf(file, "\n\n");
+    //     }
+    //     fprintf(file, "\n\n");
+
+    //     fprintf(file, "src2:\n");
+    //     for (size_t i{0}; i < rope_frators->m_shape[3]; ++i) {
+    //         for (size_t j{0}; j < rope_frators->m_shape[2]; ++j) {
+    //             for (size_t k{0}; k < rope_frators->m_shape[1]; ++k) {
+    //                 for (size_t l{0}; l < rope_frators->m_shape[0]; ++l) {
+    //                     fprintf(file, "%f ", src2_buffer[i * rope_frators->m_shape[2] * rope_frators->m_shape[1] * rope_frators->m_shape[0] + j * rope_frators->m_shape[1] * rope_frators->m_shape[0] + k * rope_frators->m_shape[0] + l]);
+    //                 }
+    //                 fprintf(file, "\n\n");
+    //             }
+    //             fprintf(file, "\n\n");
+    //         }
+    //         fprintf(file, "\n\n");
+    //     }
+    //     fprintf(file, "\n\n");
+
+    //     fprintf(file, "dst:\n");
+    //     for (size_t i{0}; i < out->m_shape[3]; ++i) {
+    //         for (size_t j{0}; j < out->m_shape[2]; ++j) {
+    //             for (size_t k{0}; k < out->m_shape[1]; ++k) {
+    //                 for (size_t l{0}; l < out->m_shape[0]; ++l) {
+    //                     fprintf(file, "%f ", dst_buffer[i * out->m_shape[2] * out->m_shape[1] * out->m_shape[0] + j * out->m_shape[1] * out->m_shape[0] + k * out->m_shape[0] + l]);
+    //                 }
+    //                 fprintf(file, "\n\n");
+    //             }
+    //             fprintf(file, "\n\n");
+    //         }
+    //         fprintf(file, "\n\n");
+    //     }
+    //     fprintf(file, "\n\n");
+
+    //     fclose(file);
+    //     exit(0);
+    // }
 }
 
 void GGML_CUDABackend::permute(Tensor *out, const Tensor *x, Shape axes) const {
@@ -269,7 +408,7 @@ void GGML_CUDABackend::add(Tensor *dst, const Tensor *src0, const Tensor *src1) 
     op_interfaces::op_add(*warp, ggml_tensor_dst.get());
 
     // DEBUG
-    // if (dst->m_name == "ffn_o_31") {
+    // if (dst->m_name == "ffn_o_31_6") {
     //     cuda_context_warp::device_sync();
     //     printf("src0 shape is %ld %ld %ld %ld, stride is %ld %ld %ld %ld\n", src0->m_shape[0], src0->m_shape[1],
     //     src0->m_shape[2], src0->m_shape[3],
@@ -288,7 +427,7 @@ void GGML_CUDABackend::add(Tensor *dst, const Tensor *src0, const Tensor *src1) 
     //     cuda_context_warp::copy_memory<2>(dst_buffer, dst->get<Buffer_CUDA>().m_data_cuda, dst->m_shape[0] *
     //     dst->m_shape[1] * dst->m_shape[2] * dst->m_shape[3] * sizeof(float)); cuda_context_warp::device_sync();
 
-    //     auto file{fopen("add_ffn_o_small.txt", "w")};
+    //     auto file{fopen("add_ffn_o.txt", "w")};
     //     for (size_t i = 0; i < dst->m_shape[3]; i++) {
     //         for (size_t j = 0; j < dst->m_shape[2]; j++) {
     //             for (size_t k = 0; k < dst->m_shape[1]; k++) {
@@ -383,6 +522,56 @@ void GGML_CUDABackend::copy(Tensor *out, const Tensor *src) const {
 
     ggml_tensor_out->src[0] = ggml_tensor_src.get();
     op_interfaces::op_copy(*warp, ggml_tensor_out.get());
+
+    // DEBUG K
+    // if (out->m_name == "k_cache_view_0_5") {
+    //     printf("src shape is %ld %ld %ld %ld, stride is %ld %ld %ld %ld\n", src->m_shape[0], src->m_shape[1], src->m_shape[2], src->m_shape[3],
+    //         src->get<Buffer_CUDA>().m_stride[0], src->get<Buffer_CUDA>().m_stride[1], src->get<Buffer_CUDA>().m_stride[2], src->get<Buffer_CUDA>().m_stride[3]);
+    //     printf("dst shape is %ld %ld %ld %ld, stride is %ld %ld %ld %ld\n", out->m_shape[0], out->m_shape[1], out->m_shape[2], out->m_shape[3],
+    //         out->get<Buffer_CUDA>().m_stride[0], out->get<Buffer_CUDA>().m_stride[1], out->get<Buffer_CUDA>().m_stride[2], out->get<Buffer_CUDA>().m_stride[3]);
+    //     cuda_context_warp::device_sync();
+    //     auto file{fopen("copy_k.txt", "w")};
+    //     float *src_buffer{new float[src->m_shape[0] * src->m_shape[1] * src->m_shape[2] * src->m_shape[3]]};
+    //     cuda_context_warp::copy_memory<2>(src_buffer, src->get<Buffer_CUDA>().m_data_cuda, src->m_shape[0] * src->m_shape[1] * src->m_shape[2] * src->m_shape[3] * sizeof(float));
+
+    //     float *dst_buffer{new float[out->m_shape[0] * out->m_shape[1] * out->m_shape[2] * out->m_shape[3]]};
+    //     cuda_context_warp::copy_memory<2>(dst_buffer, out->get<Buffer_CUDA>().m_data_cuda, out->m_shape[0] * out->m_shape[1] * out->m_shape[2] * out->m_shape[3] * sizeof(float));
+    //     cuda_context_warp::device_sync();
+
+    //     fprintf(file, "src:\n");
+    //     for (size_t i{0}; i < src->m_shape[3]; ++i) {
+    //         for (size_t j{0}; j < src->m_shape[2]; ++j) {
+    //             for (size_t k{0}; k < src->m_shape[1]; ++k) {
+    //                 for (size_t l{0}; l < src->m_shape[0]; ++l) {
+    //                     fprintf(file, "%f ", src_buffer[i * src->m_shape[2] * src->m_shape[1] * src->m_shape[0] + j * src->m_shape[1] * src->m_shape[0] + k * src->m_shape[0] + l]);
+    //                 }
+    //                 fprintf(file, "\n\n");
+    //             }
+    //             fprintf(file, "\n\n");
+    //         }
+    //         fprintf(file, "\n\n");
+    //     }
+    //     fprintf(file, "\n\n");
+
+    //     for (size_t i{0}; i < out->m_shape[3]; ++i) {
+    //         for (size_t j{0}; j < out->m_shape[2]; ++j) {
+    //             for (size_t k{0}; k < out->m_shape[1]; ++k) {
+    //                 for (size_t l{0}; l < out->m_shape[0]; ++l) {
+    //                     fprintf(file, "%f ", dst_buffer[i * out->m_shape[2] * out->m_shape[1] * out->m_shape[0] + j * out->m_shape[1] * out->m_shape[0] + k * out->m_shape[0] + l]);
+    //                 }
+    //                 fprintf(file, "\n\n");
+    //             }
+    //             fprintf(file, "\n\n");
+    //         }
+    //         fprintf(file, "\n\n");
+    //     }
+    //     fprintf(file, "\n\n");
+
+    //     fclose(file);
+    //     delete[] src_buffer;
+    //     delete[] dst_buffer;
+    //     exit(0);
+    // }
 }
 
 void GGML_CUDABackend::print(const Tensor *x, size_t rows) const {

@@ -178,6 +178,12 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
+### Build for Linux CUDA gpu
+```shell
+cmake -B build -S ./ -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DCMAKE_BUILD_TYPE=Debug/Release -DPOWERSERVE_WITH_CUDA=ON -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=<SM>
+cmake --build build --config Debug/Release -j
+```
+
 ### Build for Android cpu
 ```shell
 # Under the root directory of PowerServe

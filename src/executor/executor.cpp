@@ -220,6 +220,48 @@ void Executor::run() {
             auto [stride, offset]          = op->get_params<ViewParams>();
             out->get<CPUBuffer>().m_stride = stride;
             out->get<CPUBuffer>().m_data   = (char *)out->get<CPUBuffer>().m_data + offset;
+            
+            // DEBUG
+            // auto a = 7;
+            // if (out->m_name == fmt::format("k_cache_view_0_{}", a)) {
+            //     POWERSERVE_ASSERT(out->m_shape[0] * out->m_shape[2] == 1024);
+            //     float *k_cache_ptr{new float[(a + 1) * 1024]};
+                
+            //     memcpy(
+            //         k_cache_ptr, out->get<CPUBuffer>().m_data, (a + 1) * 1024 * sizeof(float));
+
+            //     auto file{fopen("k_cache_view_ref.txt", "w")};
+            //     for (int i{0}; i < a + 1; ++i) {
+            //         for (int j{0}; j < 1024; ++j) {
+            //             fprintf(file, "%f ", k_cache_ptr[i * 1024 + j]);
+            //         }
+
+            //         fprintf(file, "\n\n");
+            //     }
+            //     fclose(file);
+            //     delete[] k_cache_ptr;
+            // }
+
+            // if (out->m_name == fmt::format("v_cache_view_0_{}", a)) {
+            //     printf("shape is %ld %ld %ld %ld, stride is %ld %ld %ld %ld\n", 
+            //         out->m_shape[0], out->m_shape[1], out->m_shape[2], out->m_shape[3],
+            //         stride[0], stride[1], stride[2], stride[3]);    
+            //     float *v_cache_ptr{new float[1024 * 1024]};
+            //     memcpy(
+            //         v_cache_ptr, out->get<CPUBuffer>().m_data, 1024 * 1024 * sizeof(float));
+
+            //     auto file{fopen("v_cache_view_ref.txt", "w")};
+            //     for (int i{0}; i < 1024; ++i) {
+            //         for (int j{0}; j < (a + 1); ++j) {
+            //             fprintf(file, "%f ", v_cache_ptr[i * 1024 + j]);
+            //         }
+
+            //         fprintf(file, "\n\n");
+            //     }
+            //     fclose(file);
+            //     delete[] v_cache_ptr;
+            //     exit(0);
+            // }
         } break;
 
         case OpType::SOFTMAX_EXT: {
@@ -579,7 +621,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     // forward compute to gpu backend by case
     switch (op->op) {
     case OpType::ADD: {
-        printf("ADD\n");
+        // printf("ADD\n");
         // get two input tensor and output tensor, check backend, then call add on GPU backend
         auto src0 = op->prev[0]->tensor();
         auto src1 = op->prev[1]->tensor();
@@ -619,7 +661,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     } break;
 
     case OpType::SILU_HADAMARD: {
-        printf("SILU_HADAMARD\n");
+        // printf("SILU_HADAMARD\n");
         // get gate tensor, up tensor and output tensor, check backend, then call silu_hadamard on GPU backend
         auto gate = op->prev[0]->tensor();
         auto up   = op->prev[1]->tensor();
@@ -632,7 +674,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     } break;
 
     case OpType::ROPE: {
-        printf("ROPE\n");
+        // printf("ROPE\n");
         // get input tensor, output tensor, pos and rope config, check backend, then call rope on GPU backend
         auto src             = op->prev[0]->tensor();
         auto rope_factors    = op->prev[1]->tensor();
@@ -643,7 +685,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     } break;
 
     case OpType::SOFTMAX: {
-        printf("SOFTMAX\n");
+        // printf("SOFTMAX\n");
         // get input tensor and output tensor, check backend, then call softmax on GPU backend
         auto src = op->prev[0]->tensor();
         auto out = op->output();
@@ -652,7 +694,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     } break;
 
     case OpType::COPY: {
-        printf("COPY\n");
+        // printf("COPY\n");
         // get input tensor and output tensor, check backend, then call copy on GPU backend
         auto dst = op->prev[0]->tensor();
         auto src = op->prev[1]->tensor();
@@ -661,7 +703,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     } break;
 
     case OpType::PRINT: {
-        printf("PRINT\n");
+        // printf("PRINT\n");
         // get input tensor and size, check backend, then call print on GPU backend
         auto x    = op->prev[0]->tensor();
         auto size = op->get_params<PrintParams>().size;
@@ -670,7 +712,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     } break;
 
     case OpType::GET_EMBEDDING: {
-        printf("GET_EMBEDDING\n");
+        // printf("GET_EMBEDDING\n");
         // get weight tensor, output tensor and tokens, check backend, then call get_embedding on GPU backend
         auto weight   = op->prev[0]->tensor();
         auto out      = op->output();
@@ -680,7 +722,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     } break;
 
     case OpType::ADD_CACHE: {
-        printf("ADD_CACHE\n");
+        // printf("ADD_CACHE\n");
         // get k tensor, v tensor, L, pos and head_id, check backend, then call add_cache on GPU backend
         auto k                 = op->prev[0]->tensor();
         auto v                 = op->prev[1]->tensor();
@@ -691,7 +733,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     } break;
 
     case OpType::PERMUTE: {
-        printf("PERMUTE\n");
+        // printf("PERMUTE\n");
         // get input tensor, output tensor and axes, check backend, then call permute on GPU backend
         auto x      = op->prev[0]->tensor();
         auto out    = op->output();
@@ -701,7 +743,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     } break;
 
     case OpType::CONT: {
-        printf("CONT\n");
+        // printf("CONT\n");
         // get input tensor and output tensor, check backend, then call cont on GPU backend
         auto x   = op->prev[0]->tensor();
         auto out = op->output();
@@ -710,7 +752,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     } break;
 
     case OpType::VIEW: {
-        printf("VIEW\n");
+        // printf("VIEW\n");
         // get output tensor, stride and offset, check backend, then set stride and data on GPU backend
         auto out              = op->output();
         auto [stride, offset] = op->get_params<ViewParams>();
@@ -720,8 +762,49 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
             (char *)out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda + offset;
         // DEBUG
         // {
-        //     std::cout << "ptr is " << out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda << " offset is " << offset <<
-        //     std::endl; exit(0);
+        //     auto a = 7; 
+        //     if (out->m_name == fmt::format("k_cache_view_0_{}", a)) {
+        //         POWERSERVE_ASSERT(out->m_shape[0] * out->m_shape[2] == 1024);
+        //         ggml_cuda::cuda_context_warp::device_sync();
+        //         float *k_cache_ptr{new float[(a + 1) * 1024]};
+                
+        //         ggml_cuda::cuda_context_warp::copy_memory<2>(
+        //             k_cache_ptr, out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda, (a + 1) * 1024 * sizeof(float));
+        //         ggml_cuda::cuda_context_warp::device_sync();
+
+        //         auto file{fopen("k_cache_view.txt", "w")};
+        //         for (int i{0}; i < (a + 1); ++i) {
+        //             for (int j{0}; j < 1024; ++j) {
+        //                 fprintf(file, "%f ", k_cache_ptr[i * 1024 + j]);
+        //             }
+
+        //             fprintf(file, "\n\n");
+        //         }
+        //         fclose(file);
+        //         delete[] k_cache_ptr;
+        //     }
+
+        //     if (out->m_name == fmt::format("v_cache_view_0_{}", a)) {
+        //         printf("shape is %ld %ld %ld %ld, stride is %ld %ld %ld %ld\n", 
+        //             out->m_shape[0], out->m_shape[1], out->m_shape[2], out->m_shape[3],
+        //             stride[0], stride[1], stride[2], stride[3]);    
+        //         float *v_cache_ptr{new float[1024 * 1024]};
+        //         ggml_cuda::cuda_context_warp::device_sync();
+        //         ggml_cuda::cuda_context_warp::copy_memory<2>(
+        //             v_cache_ptr, out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda, 1024 * 1024 * sizeof(float));
+        //         ggml_cuda::cuda_context_warp::device_sync();
+
+        //         auto file{fopen("v_cache_view.txt", "w")};
+        //         for (int i{0}; i < 1024; ++i) {
+        //             for (int j{0}; j < (a + 1); ++j) {
+        //                 fprintf(file, "%f ", v_cache_ptr[i * 1024 + j]);
+        //             }
+        //             fprintf(file, "\n\n");
+        //         }
+        //         fclose(file);
+        //         delete[] v_cache_ptr;
+        //         exit(0);
+        //     }
         // }
     } break;
 
@@ -741,7 +824,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     } break;
 
     case OpType::GET_MASK: {
-        printf("GET_MASK\n");
+        // printf("GET_MASK\n");
         // get output tensor, mask tensor and pos, check backend, then set mask on GPU backend
         auto out         = op->output();
         auto [mask, pos] = op->get_params<GetMaskParams>();
@@ -752,7 +835,7 @@ void Executor::run_forward_gpu(std::shared_ptr<OpNode> op) {
     } break;
 
     case OpType::TRANSPOSE: {
-        printf("TRANSPOSE\n");
+        // printf("TRANSPOSE\n");
         // get input tensor and output tensor, check backend, then call transpose on GPU backend
         auto x   = op->prev[0]->tensor();
         auto out = op->output();

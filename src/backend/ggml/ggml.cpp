@@ -62,9 +62,10 @@ void GGMLBackend::plan(std::vector<std::shared_ptr<OpNode>> &ops) {
         } break;
 
         case OpType::MAT_MUL: {
-            auto x      = op->prev[0]->tensor();
-            auto weight = op->prev[1]->tensor();
-
+            auto weight      = op->prev[0]->tensor();
+            auto x = op->prev[1]->tensor();
+            // printf("x shape is %ld, %ld, %ld, %ld, we shape is %ld, %ld, %ld, %ld\n", 
+            //     x->m_shape[0], x->m_shape[1], x->m_shape[2], x->m_shape[3], weight->m_shape[0], weight->m_shape[1], weight->m_shape[2], weight->m_shape[3]);
             const enum ggml_type vec_dot_type = get_vec_dot_type(x);
             if (ggml::convert_datatype_to_ggml(weight->m_dtype) != vec_dot_type) {
                 cur = ggml_row_size(vec_dot_type, weight->n_elements());

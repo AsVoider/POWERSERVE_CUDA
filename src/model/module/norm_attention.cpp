@@ -52,6 +52,7 @@ TensorNode *NormAttention::build(
     // QKV
     auto q_w = g.add_tensor(m_weights->lw[L].attn_q); // (embd_dim, embd_dim, 1, 1)
     auto q   = g.mat_mul(q_w, att_norm_o);            // (embd_dim, bs, 1, 1)
+    q->m_name = fmt::format("q_{}_{}", L, pos[0]);
     if (is_need_bias) {
         auto q_b = g.add_tensor(m_weights->lw[L].attn_q_bias); // (embd_dim, 1, 1, 1)
         q        = g.add(q, q_b);
@@ -60,6 +61,7 @@ TensorNode *NormAttention::build(
     // kv_dim == n_kv_heads * head_size
     auto k_w = g.add_tensor(m_weights->lw[L].attn_k); // (embd_dim, kv_dim, 1, 1)
     auto k   = g.mat_mul(k_w, att_norm_o);            // (kv_dim, batch_size, 1, 1)
+    k->m_name = fmt::format("k_{}_{}", L, pos[0]);
     if (is_need_bias) {
         auto k_b = g.add_tensor(m_weights->lw[L].attn_k_bias); // (kv_dim, 1, 1, 1)
         k        = g.add(k, k_b);
@@ -67,6 +69,7 @@ TensorNode *NormAttention::build(
 
     auto v_w = g.add_tensor(m_weights->lw[L].attn_v); // (embd_dim, kv_dim, 1, 1)
     auto v   = g.mat_mul(v_w, att_norm_o);            // (kv_dim, batch_size, 1, 1)
+    v->m_name = fmt::format("v_{}_{}", L, pos[0]);
     if (is_need_bias) {
         auto v_b = g.add_tensor(m_weights->lw[L].attn_v_bias); // (kv_dim, 1, 1, 1)
         v        = g.add(v, v_b);
@@ -98,8 +101,8 @@ TensorNode *NormAttention::build(
              k_cache->element_size() * batch_size * kv_gqa},
             k_cache->row_size(kv_gqa) * cur_pos
         );
-        k_cache_view->m_name = "k_cache_view";
         g.copy(k_cache_view, k);
+        k_cache_view->m_name = fmt::format("k_view_{}_{}", L, pos[0]);
 
         auto v_cache_view = g.view(
             v_cache,
@@ -113,6 +116,7 @@ TensorNode *NormAttention::build(
             v_cache->element_size() * cur_pos
         );
         g.copy(v_cache_view, v);
+        v_cache_view->m_name = fmt::format("v_view_{}_{}", L, pos[0]);
     }
 
     TensorNode *att_scores = nullptr;
@@ -135,6 +139,7 @@ TensorNode *NormAttention::build(
                 k_cache->row_size(head_size) * n_head_kv,
             }
         );
+        k->m_name = fmt::format("k_cache_view_{}_{}", L, pos[0]);
 
         // {bs, cur_postion, n_head_kv, 1}
         auto kq                = g.mat_mul(k, q);
@@ -143,6 +148,7 @@ TensorNode *NormAttention::build(
         float f_max_alibi_bias = 0.000000;
         auto kq_mask           = g.get_mask(mask, {n_kv, batch_32, 1, 1}, pos, kq);
         kq                     = g.softmax_ext(kq, kq_mask, kq_scale, f_max_alibi_bias);
+        kq->m_name             = fmt::format("kq_{}_{}", L, pos[0]);
 
         // split cached v into n_head heads
         // {cur_postion, head_size, n_head_kv, 1};
@@ -154,6 +160,7 @@ TensorNode *NormAttention::build(
              v_cache->element_size() * n_ctx * head_size,
              v_cache->element_size() * n_ctx * head_size * n_head_kv}
         );
+        v->m_name = fmt::format("v_cache_view_{}_{}", L, pos[0]);
         // {head_size, cur_postion, n_head_kv, 1};
         auto kqv = g.mat_mul(v, kq);
         // {head_size, n_head_kv, cur_postion, 1};
@@ -165,6 +172,7 @@ TensorNode *NormAttention::build(
     auto attn_output_w = g.add_tensor(m_weights->lw[L].attn_output);
     auto attn_o        = g.mat_mul(attn_output_w, att_scores); // (embd_dim, bs, 1, 1)
 
+    attn_o->m_name = fmt::format("attn_o_{}_{}", L, pos[0]);
     // residual connection
     auto res_conn = g.add(x, attn_o);
     return res_conn;

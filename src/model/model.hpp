@@ -32,7 +32,11 @@ struct LogitsVector {
 
     LogitsVector(BufferPtr buffer, size_t vocab_size, size_t batch_size) : buffer(buffer) {
         // printf("BUILD LOGITS HERE\n");
+#ifdef POWERSERVE_WITH_CUDA
+        float *logits = static_cast<float *>(dynamic_cast<ggml_cuda::Buffer_CUDA &>(*buffer).m_data_host);
+#else
         float *logits = static_cast<float *>(dynamic_cast<CPUBuffer &>(*buffer).m_data);
+#endif
         for (size_t i = 0; i < batch_size; i++) {
             logits_vector.push_back(std::span<const float>(logits, logits + vocab_size));
             logits += vocab_size;
@@ -156,7 +160,6 @@ public:
             std::vector<int> pos(bs);
             std::iota(pos.begin(), pos.end(), position);
             m_model.decode(m_sampler, tokens, pos, false);
-            printf("HERE PREFILLED\n");
             position = m_platform->get_kv_position(model_id);
             n_prefilled += bs;
         }
