@@ -42,10 +42,9 @@ public:
         return m_data;
     }
 
-    template <typename T>
-    static auto create_buffer(Shape shape) -> BufferPtr {
+    static auto create_buffer(Shape shape, size_t type_size) -> BufferPtr {
         Stride stride;
-        stride[0] = sizeof(T);
+        stride[0] = type_size;
         for (size_t i = 1; i < shape.size(); i++) {
             stride[i] = stride[i - 1] * shape[i - 1];
         }
@@ -54,16 +53,16 @@ public:
         return std::make_shared<CPUBuffer>(stride, malloc(size), true);
     }
 
-    template <typename T>
-    static auto create_buffer_view(CPUBuffer &parent, Shape shape) -> BufferPtr {
+    static auto create_buffer_view(BaseBuffer &parent, Shape shape, size_t type_size) -> BufferPtr {
         Stride stride;
-        stride[0] = sizeof(T);
+        stride[0] = type_size;
         for (size_t i = 1; i < shape.size(); i++) {
             stride[i] = stride[i - 1] * shape[i - 1];
         }
-        POWERSERVE_ASSERT(parent.m_data != nullptr, "paraent buffer is nullptr");
+        auto &parent_buffer{dynamic_cast<CPUBuffer &>(parent)};
+        POWERSERVE_ASSERT(parent_buffer.m_data != nullptr, "parent buffer is nullptr");
         auto b    = std::make_shared<CPUBuffer>(stride, nullptr, false);
-        b->m_data = parent.m_data;
+        b->m_data = parent_buffer.m_data;
         return b;
     }
 };

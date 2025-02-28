@@ -97,51 +97,7 @@ void Executor::allocate_buffer_with_backend() {
 //             img_infos.clear();
 //         } break;
 // #endif
-
-
-
-            // DEBUG
-            // auto a = 7;
-            // if (out->m_name == fmt::format("k_cache_view_0_{}", a)) {
-            //     POWERSERVE_ASSERT(out->m_shape[0] * out->m_shape[2] == 1024);
-            //     float *k_cache_ptr{new float[(a + 1) * 1024]};
-
-            //     memcpy(
-            //         k_cache_ptr, out->get<CPUBuffer>().m_data, (a + 1) * 1024 * sizeof(float));
-
-            //     auto file{fopen("k_cache_view_ref.txt", "w")};
-            //     for (int i{0}; i < a + 1; ++i) {
-            //         for (int j{0}; j < 1024; ++j) {
-            //             fprintf(file, "%f ", k_cache_ptr[i * 1024 + j]);
-            //         }
-
-            //         fprintf(file, "\n\n");
-            //     }
-            //     fclose(file);
-            //     delete[] k_cache_ptr;
-            // }
-
-            // if (out->m_name == fmt::format("v_cache_view_0_{}", a)) {
-            //     printf("shape is %ld %ld %ld %ld, stride is %ld %ld %ld %ld\n",
-            //         out->m_shape[0], out->m_shape[1], out->m_shape[2], out->m_shape[3],
-            //         stride[0], stride[1], stride[2], stride[3]);
-            //     float *v_cache_ptr{new float[1024 * 1024]};
-            //     memcpy(
-            //         v_cache_ptr, out->get<CPUBuffer>().m_data, 1024 * 1024 * sizeof(float));
-
-            //     auto file{fopen("v_cache_view_ref.txt", "w")};
-            //     for (int i{0}; i < 1024; ++i) {
-            //         for (int j{0}; j < (a + 1); ++j) {
-            //             fprintf(file, "%f ", v_cache_ptr[i * 1024 + j]);
-            //         }
-
-            //         fprintf(file, "\n\n");
-            //     }
-            //     fclose(file);
-            //     delete[] v_cache_ptr;
-            //     exit(0);
-            // }
-
+            
 // fix this function, accept a parameter to print graph to a file
 void Executor::print_graph(std::ostream &os) {
     os << "total tensor num is " << m_graph.tensors.size() << std::endl;
@@ -463,50 +419,4 @@ void Executor::run_with_backend() {
     }
 }
 
-        // DEBUG
-        // {
-        //     auto a = 7;
-        //     if (out->m_name == fmt::format("k_cache_view_0_{}", a)) {
-        //         POWERSERVE_ASSERT(out->m_shape[0] * out->m_shape[2] == 1024);
-        //         ggml_cuda::cuda_context_warp::device_sync();
-        //         float *k_cache_ptr{new float[(a + 1) * 1024]};
-
-        //         ggml_cuda::cuda_context_warp::copy_memory<2>(
-        //             k_cache_ptr, out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda, (a + 1) * 1024 * sizeof(float));
-        //         ggml_cuda::cuda_context_warp::device_sync();
-
-        //         auto file{fopen("k_cache_view.txt", "w")};
-        //         for (int i{0}; i < (a + 1); ++i) {
-        //             for (int j{0}; j < 1024; ++j) {
-        //                 fprintf(file, "%f ", k_cache_ptr[i * 1024 + j]);
-        //             }
-
-        //             fprintf(file, "\n\n");
-        //         }
-        //         fclose(file);
-        //         delete[] k_cache_ptr;
-        //     }
-
-        //     if (out->m_name == fmt::format("v_cache_view_0_{}", a)) {
-        //         printf("shape is %ld %ld %ld %ld, stride is %ld %ld %ld %ld\n",
-        //             out->m_shape[0], out->m_shape[1], out->m_shape[2], out->m_shape[3],
-        //             stride[0], stride[1], stride[2], stride[3]);
-        //         float *v_cache_ptr{new float[1024 * 1024]};
-        //         ggml_cuda::cuda_context_warp::device_sync();
-        //         ggml_cuda::cuda_context_warp::copy_memory<2>(
-        //             v_cache_ptr, out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda, 1024 * 1024 * sizeof(float));
-        //         ggml_cuda::cuda_context_warp::device_sync();
-
-        //         auto file{fopen("v_cache_view.txt", "w")};
-        //         for (int i{0}; i < 1024; ++i) {
-        //             for (int j{0}; j < (a + 1); ++j) {
-        //                 fprintf(file, "%f ", v_cache_ptr[i * 1024 + j]);
-        //             }
-        //             fprintf(file, "\n\n");
-        //         }
-        //         fclose(file);
-        //         delete[] v_cache_ptr;
-        //         exit(0);
-        //     }
-        // }
 } // namespace powerserve

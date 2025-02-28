@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "graph/graph.hpp"
+#include "backend/platform.hpp"
 
 namespace powerserve {
 
@@ -52,6 +53,7 @@ auto Graph::get_embedding(TensorNode *weight, const std::vector<int> &tokens) ->
 #else
     out->m_backend = TensorBackend::GGML_CPU;
 #endif
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
 
@@ -68,11 +70,11 @@ auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
         POWERSERVE_ASSERT(a->m_backend == b->m_backend);
         out->m_backend = a->m_backend;
     }
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
 
 auto Graph::mat_mul(TensorNode *a, TensorNode *b) -> TensorNode * {
-    // TODO: Add checks
     POWERSERVE_ASSERT(a->m_shape[0] == b->m_shape[0]);
     POWERSERVE_ASSERT(tensor_can_mul_mat(a, b));
 
@@ -87,6 +89,7 @@ auto Graph::mat_mul(TensorNode *a, TensorNode *b) -> TensorNode * {
         POWERSERVE_ASSERT(a->m_backend == b->m_backend);
         out->m_backend = a->m_backend;
     }
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
 
@@ -106,6 +109,7 @@ auto Graph::rms_norm(TensorNode *x, TensorNode *weight, float eps) -> TensorNode
         out->m_backend = x->m_backend;
         POWERSERVE_ASSERT(weight == nullptr or weight->m_backend == x->m_backend);
     }
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
 
@@ -122,6 +126,7 @@ auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
         POWERSERVE_ASSERT(gate->m_backend == up->m_backend);
         out->m_backend = gate->m_backend;
     }
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
 
@@ -143,6 +148,7 @@ auto Graph::rope(
         out->m_backend = src->m_backend;
         POWERSERVE_ASSERT(rope_factors == nullptr or rope_factors->m_backend == src->m_backend);
     }
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
 
@@ -153,6 +159,7 @@ auto Graph::softmax(TensorNode *x) -> TensorNode * {
     op->set_outputs({out});
     { out->m_backend = x->m_backend; }
 
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
 
@@ -241,7 +248,10 @@ auto Graph::permute(TensorNode *x, Shape axes) -> TensorViewNode * {
     op->set_outputs({out});
     op->set_params(PermuteParams{.axes = axes});
 
+    POWERSERVE_ASSERT(out->m_data not_eq nullptr);
     { out->m_backend = x->m_backend; }
+    // TODO: fix permute on build graph
+    // out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float));
     return out;
 }
 
@@ -253,6 +263,7 @@ auto Graph::cont(TensorNode *x, Shape shape) -> TensorNode * {
     op->set_params(ContParams({}));
 
     { out->m_backend = x->m_backend; }
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(shape, sizeof(float));
     return out;
 }
 
@@ -264,6 +275,9 @@ auto Graph::view(const TensorNode *x, Shape shape, Shape stride, size_t offset) 
     op->set_params(ViewParams({.stride = stride, .offset = offset}));
 
     { out->m_backend = x->m_backend; }
+
+    // TODO: fix view on build graph
+    // out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, out->m_shape, sizeof(float));
     return out;
 }
 
@@ -278,6 +292,8 @@ auto Graph::softmax_ext(TensorNode *x, TensorNode *mask, float scale, float max_
         POWERSERVE_ASSERT(x->m_backend == mask->m_backend);
         out->m_backend = x->m_backend;
     }
+
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
 
@@ -289,6 +305,8 @@ auto Graph::get_mask(const CausalAttentionMask &mask, Shape shape, const std::ve
     op->set_params(GetMaskParams{.mask = mask, .pos = pos});
 
     { out->m_backend = kq == nullptr ? TensorBackend::GGML_CPU : kq->m_backend; }
+
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
 
@@ -304,11 +322,14 @@ auto Graph::transpose(TensorNode *x) -> TensorViewNode * {
     op->set_outputs({out});
 
     { out->m_backend = x->m_backend; }
+
+    // TODO: fix transpose on build graph
     return out;
 }
 
 auto Graph::make_contiguous(TensorNode *x) -> TensorNode * {
     auto out = dup_tensor(x);
+    x->m_data = Platform::buffer_interfaces.at(x->m_backend).create_buffer(x->m_shape, sizeof(float));
     copy(out, x);
     return out;
 }

@@ -90,68 +90,67 @@ void GGML_CUDABackend::matmul(Tensor *dst, const Tensor *src0, const Tensor *src
     //     exit(0);
     // }
     // DEBUG
-    if (dst->m_name.substr(0, 7) == "logits_") {
-        // printf("here\n");
-        cuda_context_warp::device_sync();
-        dst->get<Buffer_CUDA>().m_data_host = new float[dst->m_shape[0]];
-        cuda_context_warp::copy_memory<2>(
-            dst->get<Buffer_CUDA>().m_data_host, dst->get<Buffer_CUDA>().m_data_cuda, dst->m_shape[0] * sizeof(float)
-        );
-        // printf("dst cuda ptr is %p\n", dst->get<Buffer_CUDA>().m_data_cuda);
-        // cuda_context_warp::device_sync();
+    // if (dst->m_name.substr(0, 7) == "logits_") {
+    //     cuda_context_warp::device_sync();
+    //     dst->get<Buffer_CUDA>().m_data_host = new float[dst->m_shape[0]];
+    //     cuda_context_warp::copy_memory<2>(
+    //         dst->get<Buffer_CUDA>().m_data_host, dst->get<Buffer_CUDA>().m_data_cuda, dst->m_shape[0] * sizeof(float)
+    //     );
+    //     printf("dst cuda ptr is %p\n", dst->get<Buffer_CUDA>().m_data_cuda);
+    //     cuda_context_warp::device_sync();
 
-        // if (dst->m_name == "logits_7") {
-        //     cuda_context_warp::device_sync();
-        //     printf("src0 shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n", src0->m_shape[0], src0->m_shape[1],
-        //     src0->m_shape[2], src0->m_shape[3], src0->get<Buffer_CUDA>().m_stride[0],
-        //     src0->get<Buffer_CUDA>().m_stride[1], src0->get<Buffer_CUDA>().m_stride[2],
-        //     src0->get<Buffer_CUDA>().m_stride[3]); printf("src1 shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n",
-        //     src1->m_shape[0], src1->m_shape[1], src1->m_shape[2], src1->m_shape[3],
-        //     src1->get<Buffer_CUDA>().m_stride[0], src1->get<Buffer_CUDA>().m_stride[1],
-        //     src1->get<Buffer_CUDA>().m_stride[2], src1->get<Buffer_CUDA>().m_stride[3]); printf("dst shape %ld %ld
-        //     %ld %ld, stride %ld %ld %ld %ld\n", dst->m_shape[0], dst->m_shape[1], dst->m_shape[2], dst->m_shape[3],
-        //     dst->get<Buffer_CUDA>().m_stride[0], dst->get<Buffer_CUDA>().m_stride[1],
-        //     dst->get<Buffer_CUDA>().m_stride[2], dst->get<Buffer_CUDA>().m_stride[3]); float *src0_buffer{new
-        //     float[src0->m_shape[0]]}; cuda_context_warp::copy_memory<2>(
-        //         src0_buffer, src0->get<Buffer_CUDA>().m_data_cuda, src0->m_shape[0] * sizeof(float)
-        //     );
+    //     if (dst->m_name == "logits_7") {
+    //         cuda_context_warp::device_sync();
+    //         printf("src0 shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n", src0->m_shape[0], src0->m_shape[1],
+    //         src0->m_shape[2], src0->m_shape[3], src0->get<Buffer_CUDA>().m_stride[0],
+    //         src0->get<Buffer_CUDA>().m_stride[1], src0->get<Buffer_CUDA>().m_stride[2],
+    //         src0->get<Buffer_CUDA>().m_stride[3]); printf("src1 shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n",
+    //         src1->m_shape[0], src1->m_shape[1], src1->m_shape[2], src1->m_shape[3],
+    //         src1->get<Buffer_CUDA>().m_stride[0], src1->get<Buffer_CUDA>().m_stride[1],
+    //         src1->get<Buffer_CUDA>().m_stride[2], src1->get<Buffer_CUDA>().m_stride[3]); printf("dst shape %ld %ld
+    //         %ld %ld, stride %ld %ld %ld %ld\n", dst->m_shape[0], dst->m_shape[1], dst->m_shape[2], dst->m_shape[3],
+    //         dst->get<Buffer_CUDA>().m_stride[0], dst->get<Buffer_CUDA>().m_stride[1],
+    //         dst->get<Buffer_CUDA>().m_stride[2], dst->get<Buffer_CUDA>().m_stride[3]); float *src0_buffer{new
+    //         float[src0->m_shape[0]]}; cuda_context_warp::copy_memory<2>(
+    //             src0_buffer, src0->get<Buffer_CUDA>().m_data_cuda, src0->m_shape[0] * sizeof(float)
+    //         );
 
-        //     float *src1_buffer{new float[src1->m_shape[0] * src1->m_shape[1]]};
-        //     cuda_context_warp::copy_memory<2>(
-        //         src1_buffer, src1->get<Buffer_CUDA>().m_data_cuda, src1->m_shape[0] * src1->m_shape[1] *
-        //         sizeof(float)
-        //     );
+    //         float *src1_buffer{new float[src1->m_shape[0] * src1->m_shape[1]]};
+    //         cuda_context_warp::copy_memory<2>(
+    //             src1_buffer, src1->get<Buffer_CUDA>().m_data_cuda, src1->m_shape[0] * src1->m_shape[1] *
+    //             sizeof(float)
+    //         );
 
-        //     cuda_context_warp::device_sync();
+    //         cuda_context_warp::device_sync();
 
-        //     auto file{fopen("matmul_final.txt", "w")};
-        //     fprintf(file, "src0:\n");
+    //         auto file{fopen("matmul_final.txt", "w")};
+    //         fprintf(file, "src0:\n");
 
-        //     for (size_t j{0}; j < src0->m_shape[0]; ++j) {
-        //         fprintf(file, "%f ", src0_buffer[j]);
-        //     }
-        //     fprintf(file, "\n\n");
+    //         for (size_t j{0}; j < src0->m_shape[0]; ++j) {
+    //             fprintf(file, "%f ", src0_buffer[j]);
+    //         }
+    //         fprintf(file, "\n\n");
 
-        //     fprintf(file, "src1:\n");
-        //     for (size_t i{0}; i < src1->m_shape[1]; ++i) {
-        //         for (size_t j{0}; j < src1->m_shape[0]; ++j) {
-        //             fprintf(file, "%f ", src1_buffer[i * src1->m_shape[0] + j]);
-        //         }
-        //         fprintf(file, "\n\n");
-        //     }
-        //     fprintf(file, "\n\n");
+    //         fprintf(file, "src1:\n");
+    //         for (size_t i{0}; i < src1->m_shape[1]; ++i) {
+    //             for (size_t j{0}; j < src1->m_shape[0]; ++j) {
+    //                 fprintf(file, "%f ", src1_buffer[i * src1->m_shape[0] + j]);
+    //             }
+    //             fprintf(file, "\n\n");
+    //         }
+    //         fprintf(file, "\n\n");
 
-        //     fprintf(file, "dst:\n");
-        //     float *host_ptr = static_cast<float *>(dst->get<Buffer_CUDA>().m_data_host);
-        //     for (size_t j{0}; j < dst->m_shape[0]; ++j) {
-        //         fprintf(file, "%f ", host_ptr[j]);
-        //     }
-        //     fprintf(file, "\n\n");
+    //         fprintf(file, "dst:\n");
+    //         float *host_ptr = static_cast<float *>(dst->get<Buffer_CUDA>().m_data_host);
+    //         for (size_t j{0}; j < dst->m_shape[0]; ++j) {
+    //             fprintf(file, "%f ", host_ptr[j]);
+    //         }
+    //         fprintf(file, "\n\n");
 
-        //     fclose(file);
-        // }
-        // exit(0);
-    }
+    //         fclose(file);
+    //     }
+    //     exit(0);
+    // }
 }
 
 void GGML_CUDABackend::rmsnorm(Tensor *o, const Tensor *x, const Tensor *weight, float eps) const { // finish
@@ -826,6 +825,16 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
         default:
             POWERSERVE_ABORT("Unknown OpType: {}", static_cast<int>(op->op));
         }
+    }
+
+    auto &last_op{ops.back()};
+    auto last_out{last_op->output()};
+    if (last_out->m_name.substr(0, 7) == "logits_") {
+        cuda_context_warp::device_sync();
+        last_out->get<Buffer_CUDA>().m_data_host = new float[last_out->m_shape[0]];
+        cuda_context_warp::copy_memory<2>(
+            last_out->get<Buffer_CUDA>().m_data_host, last_out->get<Buffer_CUDA>().m_data_cuda, last_out->m_shape[0] * sizeof(float)
+        );
     }
 }
 

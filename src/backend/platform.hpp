@@ -17,6 +17,7 @@
 
 #include "backend/ggml/ggml.hpp"
 
+#include <functional>
 #include <map>
 #include <unordered_map>
 
@@ -30,14 +31,22 @@
 
 namespace powerserve {
 
-struct Platform {
-    std::map<std::string, std::unique_ptr<ggml::GGMLBackend>> ggml_backends;
+using buffer_create_fn = std::function<BufferPtr(Shape, size_t)>;
+using buffer_view_fn   = std::function<BufferPtr(BaseBuffer &, Shape, size_t)>;
 
+class BufferInterface {
+public:
+    buffer_create_fn create_buffer;
+    buffer_view_fn create_buffer_view;
+};
+
+
+struct Platform {
 #if defined(POWERSERVE_WITH_QNN)
     std::unique_ptr<qnn::QNNBackend> qnn_backend = nullptr;
 #endif
-
     std::unordered_map<std::string, std::unordered_map<TensorBackend, std::unique_ptr<Backend>>> backends{};
+    static std::unordered_map<TensorBackend, BufferInterface> buffer_interfaces;
 public:
     Platform() = default;
 
@@ -45,9 +54,8 @@ public:
 
 public:
     // TODO: No need trans config
-    void init_ggml_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams);
-    void destroy_ggml_backend(const std::shared_ptr<ModelConfig> &config);
     void init_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams, [[maybe_unused]] const Path &qnn_path);
+    void destroy_backend(const std::shared_ptr<ModelConfig> &config);
 #if defined(POWERSERVE_WITH_QNN)
     void init_qnn_backend(const Path &qnn_path);
 #endif

@@ -16,23 +16,25 @@
 
 namespace powerserve {
 
-void Platform::init_ggml_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams) {
-    ggml_backends.insert({config->model_id, std::make_unique<ggml::GGMLBackend>(config->llm, hparams)});
-}
-
-void Platform::destroy_ggml_backend(const std::shared_ptr<ModelConfig> &config) {
-    ggml_backends.erase(config->model_id);
-}
+std::unordered_map<TensorBackend, BufferInterface> Platform::buffer_interfaces{};
 
 void Platform::init_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams, [[maybe_unused]] const Path &qnn_path) {
     backends[config->model_id].insert(
         std::make_pair(TensorBackend::GGML_CPU, std::make_unique<ggml::GGMLBackend>(config->llm, hparams))
     );
+    buffer_interfaces.insert(std::make_pair(TensorBackend::GGML_CPU, BufferInterface{
+        .create_buffer = CPUBuffer::create_buffer,
+        .create_buffer_view = CPUBuffer::create_buffer_view
+    }));
 
 #if defined(POWERSERVE_WITH_CUDA)
     backends[config->model_id].insert(
         std::make_pair(TensorBackend::GGML_GPU, std::make_unique<ggml_cuda::GGML_CUDABackend>(config->llm, hparams))
     );
+    buffer_interfaces.insert(std::make_pair(TensorBackend::GGML_GPU, BufferInterface{
+        .create_buffer = ggml_cuda::Buffer_CUDA::create_buffer,
+        .create_buffer_view = ggml_cuda::Buffer_CUDA::create_buffer_view
+    }));
 #endif
 
 #if defined(POWERSERVE_WITH_QNN)
@@ -40,6 +42,11 @@ void Platform::init_backend(const std::shared_ptr<ModelConfig> &config, const Hy
         qnn_backend = std::make_unique<qnn::QNNBackend>(qnn_path);
     }
 #endif
+}
+
+void Platform::destroy_backend(const std::shared_ptr<ModelConfig> &config) {
+    backends[config->model_id].clear();
+    backends.erase(config->model_id);
 }
 
 #if defined(POWERSERVE_WITH_QNN)
