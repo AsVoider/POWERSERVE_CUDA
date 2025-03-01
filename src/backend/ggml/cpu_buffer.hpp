@@ -18,7 +18,7 @@
 #include "core/logger.hpp"
 #include "core/typedefs.hpp"
 
-namespace powerserve {
+namespace powerserve::ggml {
 
 struct CPUBuffer : BaseBuffer {
 public:
@@ -77,4 +77,4 @@ public:
     }
 };
 
-} // namespace powerserve
+} // namespace powerserve::ggml

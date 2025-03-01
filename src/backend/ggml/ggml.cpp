@@ -14,8 +14,8 @@
 
 #include "ggml.hpp"
 
-#include "backend/cpu_buffer.hpp"
 #include "core/data_type.hpp"
+#include "cpu_buffer.hpp"
 #include "ggml.h"
 
 #include <cmath>
@@ -113,7 +113,11 @@ void GGMLBackend::setup_work_data(size_t work_size) {
     m_params.wsize = m_wdata.size();
 }
 
-void GGMLBackend::reset_kv_batch_size(const size_t batch_size) const {
+void GGMLBackend::advance(const size_t &size) {
+    m_kv->advance(size);
+}
+
+void GGMLBackend::reset_kv_batch_size(const size_t &batch_size) {
     m_kv->reset_batch_size(batch_size);
 }
 

@@ -146,11 +146,11 @@ public:
         kv_cache->truncate_tokens(kv_size);
     }
 
-    void save_kv(int size) {
+    void save_kv(size_t size) {
         kv_cache->save_tokens(size);
     }
 
-    void advance(int size) {
+    void advance(size_t size) {
         kv_cache->advance_tokens(size);
     }
 

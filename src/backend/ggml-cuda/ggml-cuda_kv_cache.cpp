@@ -21,7 +21,10 @@ auto GGML_CUDAKV::advanced_kv_cache_size(size_t token_nums) -> void {
     kv_shape.kv_size += token_nums;
 }
 
-// TODO: fix this function
+auto GGML_CUDAKV::reset_kv_batch_size(size_t batch_size) -> void {
+    kv_shape.batch_size = batch_size;
+}
+
 auto GGML_CUDAKV::get_cache_position() -> size_t {
     return kv_shape.kv_size;
 }

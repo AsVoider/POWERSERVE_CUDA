@@ -25,6 +25,8 @@ struct Backend {
     virtual ~Backend() = default;
 
     virtual auto graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) -> void = 0;
+    virtual auto advance(const size_t &size) -> void = 0;
+    virtual auto reset_kv_batch_size(const size_t &size) -> void = 0;
 };
 
 } // namespace powerserve

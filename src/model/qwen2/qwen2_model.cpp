@@ -14,7 +14,7 @@
 
 #include "qwen2_model.hpp"
 
-#include "backend/cpu_buffer.hpp"
+#include "backend/ggml/cpu_buffer.hpp"
 #include "core/logger.hpp"
 #include "core/perfetto_trace.hpp"
 #include "executor/executor.hpp"

@@ -648,6 +648,14 @@ void GGML_CUDABackend::transpose(Tensor *out, const Tensor *x) const {
     buffer_out.m_stride    = stride;
 }
 
+void GGML_CUDABackend::advance(const size_t &size) {
+    m_kv->advanced_kv_cache_size(size);
+}
+
+void GGML_CUDABackend::reset_kv_batch_size(const size_t &size) {
+    m_kv->reset_kv_batch_size(size);
+}
+
 void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) {
     for (auto &op : ops) {
         switch (op->op) {

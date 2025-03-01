@@ -23,10 +23,10 @@ void Platform::init_backend(const std::shared_ptr<ModelConfig> &config, const Hy
         std::make_pair(TensorBackend::GGML_CPU, std::make_unique<ggml::GGMLBackend>(config->llm, hparams))
     );
     buffer_interfaces.insert(std::make_pair(TensorBackend::GGML_CPU, BufferInterface{
-        .create_buffer = CPUBuffer::create_buffer,
-        .create_buffer_view = CPUBuffer::create_buffer_view,
-        .set_stride = CPUBuffer::set_stride,
-        .get_stride = CPUBuffer::get_stride
+        .create_buffer = ggml::CPUBuffer::create_buffer,
+        .create_buffer_view = ggml::CPUBuffer::create_buffer_view,
+        .set_stride = ggml::CPUBuffer::set_stride,
+        .get_stride = ggml::CPUBuffer::get_stride
     }));
 
 #if defined(POWERSERVE_WITH_CUDA)

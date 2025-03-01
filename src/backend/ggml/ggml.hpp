@@ -15,13 +15,13 @@
 #pragma once
 
 #include "backend/backend.hpp"
-#include "backend/cpu_buffer.hpp"
-#include "backend/ggml/ggml_kv_cache.hpp"
 #include "core/config.hpp"
 #include "core/data_type.hpp"
 #include "core/logger.hpp"
 #include "core/tensor.hpp"
 #include "core/thread_pool.hpp"
+#include "cpu_buffer.hpp"
+#include "ggml_kv_cache.hpp"
 #include "ggml-cpu.h"
 #include "ggml.h"
 #include "graph/node.hpp"
@@ -239,7 +239,6 @@ public:
     void silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const;
     void copy(const Tensor *dst, const Tensor *src) const;
     void print(const Tensor *x, size_t size) const;
-    void reset_kv_batch_size(const size_t batch_size) const;
     void add_cache(const Tensor *k, const Tensor *v, size_t L, const std::vector<int> &pos, size_t head_id);
     void transpose(const Tensor *out, const Tensor *x) const;
 
@@ -250,6 +249,8 @@ public:
     void reset_threadpool();
 
 public:
+    void advance(const size_t &size) override;
+    void reset_kv_batch_size(const size_t &size) override;
     void graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) override;
 
 private:

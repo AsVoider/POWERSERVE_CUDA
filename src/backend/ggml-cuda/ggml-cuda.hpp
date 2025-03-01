@@ -123,6 +123,8 @@ public: // ! Math Ops
     void transpose(Tensor *out, const Tensor *x) const;
 
 public:
+    void advance(const size_t &size) override;
+    void reset_kv_batch_size(const size_t &size) override;
     void graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) override;
 
 public: // ! Mem Ops

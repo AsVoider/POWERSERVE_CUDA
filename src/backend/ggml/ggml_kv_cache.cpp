@@ -14,7 +14,7 @@
 
 #include "backend/ggml/ggml_kv_cache.hpp"
 
-#include "backend/cpu_buffer.hpp"
+#include "cpu_buffer.hpp"
 
 namespace powerserve::ggml {
 

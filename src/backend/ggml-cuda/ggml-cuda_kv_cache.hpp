@@ -40,6 +40,7 @@ public:
 
 public:
     auto advanced_kv_cache_size(size_t token_nums) -> void;
+    auto reset_kv_batch_size(size_t batch_size) -> void;
     auto get_cache_position() -> size_t;
     auto get_cache(size_t layer_id) -> std::pair<Tensor *, Tensor *>;
     auto clear_cache(size_t trunc_idx) -> void;

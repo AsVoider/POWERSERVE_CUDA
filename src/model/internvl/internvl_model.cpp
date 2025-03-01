@@ -14,7 +14,7 @@
 
 #include "internvl_model.hpp"
 
-#include "backend/cpu_buffer.hpp"
+#include "backend/ggml/cpu_buffer.hpp"
 #include "core/logger.hpp"
 #include "core/typedefs.hpp"
 #include "executor/executor.hpp"
