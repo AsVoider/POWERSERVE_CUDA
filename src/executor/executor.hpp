@@ -41,7 +41,7 @@ private:
     void create_backend_buffer(std::shared_ptr<TensorNode> tensor) {
         if (tensor->type == NodeType::TENSOR_VIEW) {
             tensor->m_data = Platform::buffer_interfaces.at(tensor->m_backend).create_buffer_view(
-                *tensor->tensor_view()->parent->m_data, tensor->m_shape, sizeof(T)
+                *tensor->tensor_view()->parent->m_data, tensor->m_shape, sizeof(T), 0UL
             );
         } else {
             tensor->m_data = Platform::buffer_interfaces.at(tensor->m_backend).create_buffer(tensor->m_shape, sizeof(T));

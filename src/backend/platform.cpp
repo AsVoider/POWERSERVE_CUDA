@@ -24,7 +24,9 @@ void Platform::init_backend(const std::shared_ptr<ModelConfig> &config, const Hy
     );
     buffer_interfaces.insert(std::make_pair(TensorBackend::GGML_CPU, BufferInterface{
         .create_buffer = CPUBuffer::create_buffer,
-        .create_buffer_view = CPUBuffer::create_buffer_view
+        .create_buffer_view = CPUBuffer::create_buffer_view,
+        .set_stride = CPUBuffer::set_stride,
+        .get_stride = CPUBuffer::get_stride
     }));
 
 #if defined(POWERSERVE_WITH_CUDA)
@@ -33,7 +35,9 @@ void Platform::init_backend(const std::shared_ptr<ModelConfig> &config, const Hy
     );
     buffer_interfaces.insert(std::make_pair(TensorBackend::GGML_GPU, BufferInterface{
         .create_buffer = ggml_cuda::Buffer_CUDA::create_buffer,
-        .create_buffer_view = ggml_cuda::Buffer_CUDA::create_buffer_view
+        .create_buffer_view = ggml_cuda::Buffer_CUDA::create_buffer_view,
+        .set_stride = ggml_cuda::Buffer_CUDA::set_stride,
+        .get_stride = ggml_cuda::Buffer_CUDA::get_stride
     }));
 #endif
 
@@ -57,10 +61,10 @@ void Platform::init_qnn_backend(const Path &qnn_path) {
 
 size_t Platform::get_kv_position(std::string &model_id) const {
     // NEW ADD
-    auto position{dynamic_cast<ggml::GGMLBackend &>(*backends.at(model_id).at(TensorBackend::GGML_CPU)).m_kv->kv_cache->position};
+    auto position{static_cast<ggml::GGMLBackend &>(*backends.at(model_id).at(TensorBackend::GGML_CPU)).m_kv->kv_cache->position};
 
 #if defined(POWERSERVE_WITH_CUDA) 
-    auto cuda_position{dynamic_cast<ggml_cuda::GGML_CUDABackend &>(*backends.at(model_id).at(TensorBackend::GGML_GPU)).m_kv->get_cache_position()};
+    auto cuda_position{static_cast<ggml_cuda::GGML_CUDABackend &>(*backends.at(model_id).at(TensorBackend::GGML_GPU)).m_kv->get_cache_position()};
     POWERSERVE_ASSERT(cuda_position == position);
 #endif
 
@@ -75,7 +79,7 @@ size_t Platform::get_kv_position(std::string &model_id) const {
 
 void Platform::reset_kv_position(std::string &model_id) {
     // ggml_backends[model_id]->m_kv->reset_kv_cache();
-    dynamic_cast<ggml::GGMLBackend &>(*backends.at(model_id).at(TensorBackend::GGML_CPU)).m_kv->reset_kv_cache();
+    static_cast<ggml::GGMLBackend &>(*backends.at(model_id).at(TensorBackend::GGML_CPU)).m_kv->reset_kv_cache();
 #if defined(POWERSERVE_WITH_QNN)
     if (qnn_backend) {
         qnn_backend->m_models[model_id]->reset_kv_cache();

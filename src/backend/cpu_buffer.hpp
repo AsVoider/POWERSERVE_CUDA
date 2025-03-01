@@ -53,17 +53,27 @@ public:
         return std::make_shared<CPUBuffer>(stride, malloc(size), true);
     }
 
-    static auto create_buffer_view(BaseBuffer &parent, Shape shape, size_t type_size) -> BufferPtr {
+    static auto create_buffer_view(BaseBuffer &parent, Shape shape, size_t type_size, size_t offset = 0) -> BufferPtr {
         Stride stride;
         stride[0] = type_size;
         for (size_t i = 1; i < shape.size(); i++) {
             stride[i] = stride[i - 1] * shape[i - 1];
         }
-        auto &parent_buffer{dynamic_cast<CPUBuffer &>(parent)};
+        auto &parent_buffer{static_cast<CPUBuffer &>(parent)};
         POWERSERVE_ASSERT(parent_buffer.m_data != nullptr, "parent buffer is nullptr");
         auto b    = std::make_shared<CPUBuffer>(stride, nullptr, false);
-        b->m_data = parent_buffer.m_data;
+        b->m_data = static_cast<void *>(static_cast<char*>(parent_buffer.m_data) + offset);
         return b;
+    }
+
+    static auto set_stride(BaseBuffer &parent, Stride &&stride) -> void {
+        auto &buffer{static_cast<CPUBuffer &>(parent)};
+        buffer.m_stride = std::move(stride);
+    }
+
+    static auto get_stride(BaseBuffer &parent) -> Stride & {
+        auto &buffer{static_cast<CPUBuffer &>(parent)};
+        return buffer.m_stride;
     }
 };
 

@@ -63,18 +63,28 @@ public:
         return std::make_shared<Buffer_CUDA>(stride, cuda_data_ptr, nullptr, usage::COMPUTE, size, true, false);
     }
 
-    static auto create_buffer_view(BaseBuffer &p, Shape shape, size_t type_size) -> BufferPtr {
+    static auto create_buffer_view(BaseBuffer &p, Shape shape, size_t type_size, size_t offset = 0) -> BufferPtr {
         Stride stride{};
         stride[0] = type_size;
         for (size_t i{1}; i < shape.size(); ++i) {
             stride[i] = stride[i - 1] * shape[i - 1];
         }
-        auto &parent_buffer{dynamic_cast<Buffer_CUDA &>(p)};
+        auto &parent_buffer{static_cast<Buffer_CUDA &>(p)};
         POWERSERVE_ASSERT(parent_buffer.m_data_cuda != nullptr);
         auto b{std::make_shared<Buffer_CUDA>(stride, nullptr, nullptr, usage::COMPUTE, p.m_size, false, false)};
-        b->m_data_cuda = parent_buffer.m_data_cuda;
+        b->m_data_cuda = static_cast<void *>(static_cast<char*>(parent_buffer.m_data_cuda) + offset);
         b->m_data_host = parent_buffer.m_data_host;
         return b;
+    }
+
+    static auto set_stride(BaseBuffer &p, Stride &&stride) -> void {
+        auto &buffer{static_cast<Buffer_CUDA &>(p)};
+        buffer.m_stride = std::move(stride);
+    }
+
+    static auto get_stride(BaseBuffer &p) -> Stride & {
+        auto &buffer{static_cast<Buffer_CUDA &>(p)};
+        return buffer.m_stride;
     }
 };
 

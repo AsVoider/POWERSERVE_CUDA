@@ -93,14 +93,14 @@ auto LlamaModel::forward(
     {
         if (!lazy_load) {
             // TODO:
-            dynamic_cast<ggml::GGMLBackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).reset_kv_batch_size(batch_size);
+            static_cast<ggml::GGMLBackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).reset_kv_batch_size(batch_size);
             // m_platform->ggml_backends[m_config->model_id]->reset_kv_batch_size(batch_size);
             for (size_t L = 0; L < llm_config.n_layers; L++) {
 #if defined(POWERSERVE_WITH_CUDA)
-                auto [k_ptr, v_ptr] = dynamic_cast<ggml_cuda::GGML_CUDABackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_GPU]).m_kv->get_cache(L);
+                auto [k_ptr, v_ptr] = static_cast<ggml_cuda::GGML_CUDABackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_GPU]).m_kv->get_cache(L);
                 auto &k_cache{*k_ptr}, &v_cache{*v_ptr};
 #else
-                auto [k_cache, v_cache] = dynamic_cast<ggml::GGMLBackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).m_kv->get_cache(L);
+                auto [k_cache, v_cache] = static_cast<ggml::GGMLBackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).m_kv->get_cache(L);
 #endif
                 k_cache.m_name = fmt::format("k_cache_{}", L);
                 v_cache.m_name = fmt::format("v_cache_{}", L);
@@ -152,9 +152,9 @@ auto LlamaModel::forward(
     if (!m_platform->qnn_backend)
 #endif
     {
-        dynamic_cast<ggml::GGMLBackend &>(* m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).m_kv->advance(batch_size);
+        static_cast<ggml::GGMLBackend &>(* m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).m_kv->advance(batch_size);
 #if defined(POWERSERVE_WITH_CUDA)
-        dynamic_cast<ggml_cuda::GGML_CUDABackend &>(* m_platform->backends[m_config->model_id][TensorBackend::GGML_GPU]).m_kv->advanced_kv_cache_size(batch_size);
+        static_cast<ggml_cuda::GGML_CUDABackend &>(* m_platform->backends[m_config->model_id][TensorBackend::GGML_GPU]).m_kv->advanced_kv_cache_size(batch_size);
 #endif
     }
 

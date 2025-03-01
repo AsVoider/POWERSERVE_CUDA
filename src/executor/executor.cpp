@@ -63,6 +63,10 @@ void Executor::allocate_buffer_with_backend() {
             create_backend_buffer<float>(tensor);
         } break;
 
+        case DataType::FP16: {
+            create_backend_buffer<uint16_t>(tensor);
+        } break;
+
         case DataType::INT32: {
             create_backend_buffer<int32_t>(tensor);
         } break;

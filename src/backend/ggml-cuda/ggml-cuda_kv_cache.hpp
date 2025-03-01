@@ -21,7 +21,7 @@ public:
         size_t head_size{0};  // ? 128 ?
         size_t batch_size{0}; // always 1
         size_t kv_size{0};    //
-        DataType type{DataType::FP32};
+        DataType type{DataType::FP16};
         bool flash_attn{false};
 
         auto get_k_size(size_t token_nums) -> size_t;

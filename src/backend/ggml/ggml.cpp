@@ -265,10 +265,10 @@ void GGMLBackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) {
         } break;
 
         case OpType::PERMUTE: {
-            auto x      = op->prev[0]->tensor();
-            auto out    = op->output();
-            auto [axes] = op->get_params<PermuteParams>();
-            permute(out, x, axes);
+            // auto x      = op->prev[0]->tensor();
+            // auto out    = op->output();
+            // auto [axes] = op->get_params<PermuteParams>();
+            // permute(out, x, axes);
         } break;
 
         case OpType::CONT: {
@@ -278,10 +278,10 @@ void GGMLBackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) {
         } break;
 
         case OpType::VIEW: {
-            auto out                       = op->output();
-            auto [stride, offset]          = op->get_params<ViewParams>();
-            out->get<CPUBuffer>().m_stride = stride;
-            out->get<CPUBuffer>().m_data   = (char *)out->get<CPUBuffer>().m_data + offset;
+            // auto out                       = op->output();
+            // auto [stride, offset]          = op->get_params<ViewParams>();
+            // out->get<CPUBuffer>().m_stride = stride;
+            // out->get<CPUBuffer>().m_data   = (char *)out->get<CPUBuffer>().m_data + offset;
         } break;
 
         case OpType::SOFTMAX_EXT: {
@@ -310,9 +310,9 @@ void GGMLBackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) {
         } break;
 
         case OpType::TRANSPOSE: {
-            auto x   = op->prev[0]->tensor();
-            auto out = op->output();
-            transpose(out, x);
+            // auto x   = op->prev[0]->tensor();
+            // auto out = op->output();
+            // transpose(out, x);
         } break;
 
         default:

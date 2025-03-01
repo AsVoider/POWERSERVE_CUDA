@@ -142,7 +142,7 @@ public:
         auto &model_id   = m_model.m_config->model_id;
         m_platform->reset_kv_position(model_id);
         position = m_platform->get_kv_position(model_id);
-        dynamic_cast<ggml::GGMLBackend &>(*m_platform->backends[model_id][TensorBackend::GGML_CPU]).setup_threadpool();
+        static_cast<ggml::GGMLBackend &>(*m_platform->backends[model_id][TensorBackend::GGML_CPU]).setup_threadpool();
         // prefill
         while (n_prefilled < n_prompt_tokens - 1) {
             size_t bs = std::min(m_batch_size, n_prompt_tokens - n_prefilled - 1);
@@ -164,7 +164,7 @@ public:
 
     ~ModelTokenIterator() {
         // TODO: speculative's reset
-        dynamic_cast<ggml::GGMLBackend &>(*m_model.m_platform->backends[m_model.m_config->model_id][TensorBackend::GGML_CPU]).reset_threadpool();
+        static_cast<ggml::GGMLBackend &>(*m_model.m_platform->backends[m_model.m_config->model_id][TensorBackend::GGML_CPU]).reset_threadpool();
     }
 
     virtual void decode() override {

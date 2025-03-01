@@ -61,7 +61,6 @@ auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
     POWERSERVE_ASSERT(tensor_can_repeat(b, a));
 
     auto out    = dup_tensor(a);
-    out->m_name = "add_out";
     auto op     = new_op(OpType::ADD);
     op->set_inputs({a, b});
     op->set_outputs({out});
@@ -80,7 +79,6 @@ auto Graph::mat_mul(TensorNode *a, TensorNode *b) -> TensorNode * {
 
     Shape shape = {a->m_shape[1], b->m_shape[1], b->m_shape[2], b->m_shape[3]};
     auto out    = new_tensor(DataType::FP32, shape);
-    out->m_name = "mat_mul_out";
     auto op     = new_op(OpType::MAT_MUL);
     op->set_inputs({a, b});
     op->set_outputs({out});
@@ -99,7 +97,6 @@ auto Graph::rms_norm(TensorNode *x, TensorNode *weight, float eps) -> TensorNode
     POWERSERVE_ASSERT(x->m_shape[0] == weight->m_shape[0]);
 
     auto out    = dup_tensor(x);
-    out->m_name = "rms_norm_out";
     auto op     = new_op(OpType::RMS_NORM);
     op->set_inputs({x, weight});
     op->set_outputs({out});
@@ -138,7 +135,6 @@ auto Graph::rope(
 ) -> TensorNode * {
     // TODO: Only support linear ROPE now
     auto out    = dup_tensor(src);
-    out->m_name = "rope_out";
     auto op     = new_op(OpType::ROPE);
     op->set_inputs({src, rope_factors});
     op->set_outputs({out});
@@ -242,16 +238,23 @@ auto Graph::permute(TensorNode *x, Shape axes) -> TensorViewNode * {
     shape[axes[3]] = x->m_shape[3];
 
     auto out    = view_tensor(x, shape);
-    out->m_name = "permute_out";
     auto op     = new_op(OpType::PERMUTE);
     op->set_inputs({x});
     op->set_outputs({out});
     op->set_params(PermuteParams{.axes = axes});
 
-    POWERSERVE_ASSERT(out->m_data not_eq nullptr);
+    
     { out->m_backend = x->m_backend; }
-    // TODO: fix permute on build graph
-    // out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float));
+
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float), 0UL);
+    auto &x_stride{Platform::buffer_interfaces.at(out->m_backend).get_stride(*x->m_data)};
+    Stride new_stride{};
+    new_stride[axes[0]] = x_stride[0];
+    new_stride[axes[1]] = x_stride[1];
+    new_stride[axes[2]] = x_stride[2];
+    new_stride[axes[3]] = x_stride[3];
+    Platform::buffer_interfaces.at(out->m_backend).set_stride(*out->m_data, std::move(new_stride));
+    POWERSERVE_ASSERT(out->m_data not_eq nullptr);
     return out;
 }
 
@@ -277,7 +280,9 @@ auto Graph::view(const TensorNode *x, Shape shape, Shape stride, size_t offset) 
     { out->m_backend = x->m_backend; }
 
     // TODO: fix view on build graph
-    // out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, out->m_shape, sizeof(float));
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, out->m_shape, sizeof(float), offset);
+    Platform::buffer_interfaces.at(out->m_backend).set_stride(*out->m_data, std::move(stride));
+    POWERSERVE_ASSERT(out->m_data not_eq nullptr);
     return out;
 }
 
@@ -316,14 +321,18 @@ auto Graph::transpose(TensorNode *x) -> TensorViewNode * {
     shape[1] = x->m_shape[0];
 
     auto out    = view_tensor(x, shape);
-    out->m_name = "transpose_out";
     auto op     = new_op(OpType::TRANSPOSE);
     op->set_inputs({x});
     op->set_outputs({out});
 
     { out->m_backend = x->m_backend; }
 
-    // TODO: fix transpose on build graph
+    // TODO: fix transpose on build graph, stride shape
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float), 0UL);
+    Stride &x_stride{Platform::buffer_interfaces.at(out->m_backend).get_stride(*x->m_data)};
+    Stride new_stride{x_stride[1], x_stride[0], x_stride[2], x_stride[3]};
+    Platform::buffer_interfaces.at(out->m_backend).set_stride(*out->m_data, std::move(new_stride));
+    POWERSERVE_ASSERT(out->m_data not_eq nullptr);
     return out;
 }
 

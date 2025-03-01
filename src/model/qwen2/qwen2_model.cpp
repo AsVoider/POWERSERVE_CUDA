@@ -84,9 +84,9 @@ auto Qwen2Model::forward(
     {
         if (!lazy_load) {
             // TODO: fuck CPU
-            dynamic_cast<ggml::GGMLBackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).reset_kv_batch_size(batch_size);
+            static_cast<ggml::GGMLBackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).reset_kv_batch_size(batch_size);
             for (size_t L = 0; L < llm_config.n_layers; L++) {
-                auto [k_cache, v_cache] = dynamic_cast<ggml::GGMLBackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).m_kv->get_cache(L);
+                auto [k_cache, v_cache] = static_cast<ggml::GGMLBackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).m_kv->get_cache(L);
                 auto att_o = m_attn->build(g, x, L, g.add_tensor(k_cache), g.add_tensor(v_cache), pos, mask, true);
                 auto ffn_o = m_ffn->build(g, att_o, L);
                 x          = ffn_o;
@@ -110,7 +110,7 @@ auto Qwen2Model::forward(
 #endif
     {
         // TODO: save GPU
-        dynamic_cast<ggml::GGMLBackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).m_kv->advance(batch_size);
+        static_cast<ggml::GGMLBackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).m_kv->advance(batch_size);
     }
 
     if (!lm_head) {

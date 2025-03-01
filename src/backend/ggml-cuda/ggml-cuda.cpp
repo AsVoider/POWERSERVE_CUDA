@@ -645,10 +645,7 @@ void GGML_CUDABackend::transpose(Tensor *out, const Tensor *x) const {
     stride[0] = buffer_x.m_stride[1];
     stride[1] = buffer_x.m_stride[0];
 
-    buffer_out.m_data_cuda = buffer_x.m_data_cuda;
-    buffer_out.m_data_host = buffer_x.m_data_host;
     buffer_out.m_stride    = stride;
-    buffer_out.m_size      = buffer_x.m_size;
 }
 
 void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) {
@@ -757,15 +754,7 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
             append_kv_cache(v, L, pos.size(), false);
         } break;
 
-        case OpType::PERMUTE: {
-            // printf("PERMUTE\n");
-            // get input tensor, output tensor and axes, check backend, then call permute on GPU backend
-            auto x      = op->prev[0]->tensor();
-            auto out    = op->output();
-            auto [axes] = op->get_params<PermuteParams>();
-            POWERSERVE_ASSERT(x->m_backend == TensorBackend::GGML_GPU and out->m_backend == TensorBackend::GGML_GPU);
-            permute(out, x, axes);
-        } break;
+        case OpType::PERMUTE: {} break;
     
         case OpType::CONT: {
             // printf("CONT\n");
@@ -776,16 +765,7 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
             cont(out, x);
         } break;
 
-        case OpType::VIEW: {
-            // printf("VIEW\n");
-            // get output tensor, stride and offset, check backend, then set stride and data on GPU backend
-            auto out              = op->output();
-            auto [stride, offset] = op->get_params<ViewParams>();
-            POWERSERVE_ASSERT(out->m_backend == TensorBackend::GGML_GPU);
-            out->get<ggml_cuda::Buffer_CUDA>().m_stride = stride;
-            out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda =
-                (char *)out->get<ggml_cuda::Buffer_CUDA>().m_data_cuda + offset;
-        } break;
+        case OpType::VIEW: {} break;
 
         case OpType::SOFTMAX_EXT: {
             // printf("SOFTMAX_EXT\n");
@@ -813,14 +793,7 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
             get_mask(out, pos, n_kv, batch_size);
         } break;
 
-        case OpType::TRANSPOSE: {
-            // printf("TRANSPOSE\n");
-            // get input tensor and output tensor, check backend, then call transpose on GPU backend
-            auto x   = op->prev[0]->tensor();
-            auto out = op->output();
-            POWERSERVE_ASSERT(x->m_backend == TensorBackend::GGML_GPU and out->m_backend == TensorBackend::GGML_GPU);
-            transpose(out, x);
-        } break;
+        case OpType::TRANSPOSE: {} break;
     
         default:
             POWERSERVE_ABORT("Unknown OpType: {}", static_cast<int>(op->op));
