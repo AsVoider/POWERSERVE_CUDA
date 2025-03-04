@@ -55,8 +55,8 @@ void GGMLKV::prepare_model_chunk() {
             sizeof(float) * m_kv_dim * m_n_ctx,
             sizeof(float) * m_kv_dim * m_n_ctx
         };
-        chunk.key_tensors[L].m_data   = std::make_shared<CPUBuffer>(stride, key_buffer[L].data());
-        chunk.value_tensors[L].m_data = std::make_shared<CPUBuffer>(stride, value_buffer[L].data());
+        chunk.key_tensors[L].m_data   = std::make_shared<CPUBuffer>(stride, key_buffer[L].data(), false, layer_size * sizeof(float), usage::COMPUTE);
+        chunk.value_tensors[L].m_data = std::make_shared<CPUBuffer>(stride, value_buffer[L].data(), false, layer_size * sizeof(float), usage::COMPUTE);
     }
 
     k.resize(m_n_layers);

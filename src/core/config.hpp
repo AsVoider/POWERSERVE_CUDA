@@ -48,9 +48,10 @@ struct HyperParams {
 
     size_t n_threads  = 4;
     size_t batch_size = 128;
+    size_t n_gpu_layers = 999;
 
     HyperParams() = default;
-    HyperParams(const Path &params_file);
+    HyperParams(const Path &params_file, size_t ngl = 999);
 
     ~HyperParams() noexcept = default;
 };
@@ -106,6 +107,7 @@ struct ModelConfig {
         uint32_t kv_dim     = 0; // head_size * n_kv_heads
         uint32_t head_size  = 0; // dim / n_heads
         float norm_eps      = 1e-5f;
+        uint32_t n_gpu_layers = 999;
     } llm;
 
     struct VisionConfig {
@@ -141,7 +143,7 @@ public:
 public:
     Config() = default;
 
-    Config(const Path &work_folder, const Path &workspace_config_path);
+    Config(const Path &work_folder, const Path &workspace_config_path, uint32_t ngl = 999);
 
     ~Config() noexcept = default;
 };

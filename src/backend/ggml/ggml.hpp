@@ -81,18 +81,18 @@ static Tensor convert_from_ggml(ggml_tensor *t) {
         stride[i] = t->nb[i];
     }
     Tensor tensor(convert_datatype_from_ggml(t->type), shape, t->name);
-    tensor.m_data    = std::make_shared<CPUBuffer>(stride, t->data);
+    tensor.m_data    = std::make_shared<CPUBuffer>(stride, t->data, false, ggml_nbytes(t), usage::WEIGHT);
     tensor.m_backend = TensorBackend::GGML_CPU;
     return tensor;
 }
 
 static std::unique_ptr<ggml_tensor> convert_to_ggml(const Tensor *tensor) {
     auto gt  = std::make_unique<ggml_tensor>();
-    gt->data = tensor->get<CPUBuffer>().m_data;
+    gt->data = tensor->m_data->m_data_host;
     gt->type = convert_datatype_to_ggml(tensor->m_dtype);
     for (size_t i = 0; i < max_n_dims; i++) {
         gt->ne[i] = tensor->m_shape[i];
-        gt->nb[i] = tensor->get<CPUBuffer>().m_stride[i];
+        gt->nb[i] = tensor->m_data->m_stride[i];
     }
     return gt;
 }

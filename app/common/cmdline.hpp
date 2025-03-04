@@ -39,6 +39,8 @@ struct CommandLineArgument {
     /// The number of thread for inference
     uint32_t num_thread = 0;
 
+    uint32_t num_gpu_layers = 999;
+
     /*
      * Model & Input & Output Configuration
      */
@@ -46,7 +48,7 @@ struct CommandLineArgument {
     /// The model name of main model
     std::string main_model;
 
-    /// The model name of dragt model (only for speculative inference)
+    /// The model name of draft model (only for speculative inference)
     std::string draft_model;
 
     /// Input prompt string

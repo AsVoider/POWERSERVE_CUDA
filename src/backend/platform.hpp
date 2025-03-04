@@ -33,15 +33,11 @@ namespace powerserve {
 
 using buffer_create_fn = std::function<BufferPtr(Shape, size_t)>;
 using buffer_view_fn   = std::function<BufferPtr(BaseBuffer &, Shape, size_t, size_t)>;
-using buffer_set_stride_fn = std::function<void(BaseBuffer &, Stride &&)>;
-using buffer_get_stride_fn = std::function<Stride &(BaseBuffer &)>;
 
 class BufferInterface {
 public:
     buffer_create_fn create_buffer;
     buffer_view_fn create_buffer_view;
-    buffer_set_stride_fn set_stride;
-    buffer_get_stride_fn get_stride;
 };
 
 

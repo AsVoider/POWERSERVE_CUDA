@@ -247,13 +247,13 @@ auto Graph::permute(TensorNode *x, Shape axes) -> TensorViewNode * {
     { out->m_backend = x->m_backend; }
 
     out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float), 0UL);
-    auto &x_stride{Platform::buffer_interfaces.at(out->m_backend).get_stride(*x->m_data)};
+    auto &x_stride{x->m_data->m_stride};
     Stride new_stride{};
     new_stride[axes[0]] = x_stride[0];
     new_stride[axes[1]] = x_stride[1];
     new_stride[axes[2]] = x_stride[2];
     new_stride[axes[3]] = x_stride[3];
-    Platform::buffer_interfaces.at(out->m_backend).set_stride(*out->m_data, std::move(new_stride));
+    out->m_data->m_stride = std::move(new_stride);
     POWERSERVE_ASSERT(out->m_data not_eq nullptr);
     return out;
 }
@@ -281,7 +281,7 @@ auto Graph::view(const TensorNode *x, Shape shape, Shape stride, size_t offset) 
 
     // TODO: fix view on build graph
     out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, out->m_shape, sizeof(float), offset);
-    Platform::buffer_interfaces.at(out->m_backend).set_stride(*out->m_data, std::move(stride));
+    out->m_data->m_stride = std::move(stride);
     POWERSERVE_ASSERT(out->m_data not_eq nullptr);
     return out;
 }
@@ -329,9 +329,9 @@ auto Graph::transpose(TensorNode *x) -> TensorViewNode * {
 
     // TODO: fix transpose on build graph, stride shape
     out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float), 0UL);
-    Stride &x_stride{Platform::buffer_interfaces.at(out->m_backend).get_stride(*x->m_data)};
+    Stride &x_stride{x->m_data->m_stride};
     Stride new_stride{x_stride[1], x_stride[0], x_stride[2], x_stride[3]};
-    Platform::buffer_interfaces.at(out->m_backend).set_stride(*out->m_data, std::move(new_stride));
+    out->m_data->m_stride = std::move(new_stride);
     POWERSERVE_ASSERT(out->m_data not_eq nullptr);
     return out;
 }

@@ -13,8 +13,9 @@
 // limitations under the License.
 
 #pragma once
-
+#if defined(POWERSERVE_WITH_CUDA)
 #include "backend/ggml-cuda/ggml-cuda.hpp"
+#endif
 #include "backend/ggml/ggml.hpp"
 
 #include <cstdio>
@@ -43,26 +44,20 @@ public:
     virtual ~LayerWeights() = default;
 
 protected:
-    static Tensor get_tensor(ggml_context *ctx, uint32_t layer, const char *name) {
+    static Tensor get_tensor(ggml_context *ctx, uint32_t layer, const char *name, const uint32_t ngl = 33) {
         std::string tensor_name = fmt::format("blk.{}.{}", layer, name);
         ggml_tensor *t          = ggml_get_tensor(ctx, tensor_name.c_str());
         if (t == nullptr) {
             throw std::runtime_error(fmt::format("Failed to get tensor: {}", tensor_name));
         }
 #if defined(POWERSERVE_WITH_CUDA)
-        // if (strcmp(t->name, "blk.0.attn_norm.weight") == 0) {
-        // printf(
-        //     "t->name: %s, t type is %d, t shape is %ld %ld %ld %ld\n",
-        //     t->name,
-        //     t->type,
-        //     t->ne[0],
-        //     t->ne[1],
-        //     t->ne[2],
-        //     t->ne[3]
-        // );
-        // }
-        return ggml_cuda::convert_from_ggml_with_data_copied(t);
+        if (layer < ngl) {
+            return ggml_cuda::convert_from_ggml_with_data_copied(t);
+        } else {
+            return ggml::convert_from_ggml(t);
+        }
 #else
+        POWERSERVE_UNUSED(ngl);
         return ggml::convert_from_ggml(t);
 #endif
     }
@@ -74,6 +69,7 @@ public:
     Tensor output_weight;         // "output.weight" (vocab_size, dim)
     Tensor rms_final_weight;      // "output_norm.weight" (dim,)
     Tensor rope_freq_weight;
+    int ngl{33};
 
     std::vector<LayerWeights> lw;
 

@@ -25,8 +25,6 @@ void Platform::init_backend(const std::shared_ptr<ModelConfig> &config, const Hy
     buffer_interfaces.insert(std::make_pair(TensorBackend::GGML_CPU, BufferInterface{
         .create_buffer = ggml::CPUBuffer::create_buffer,
         .create_buffer_view = ggml::CPUBuffer::create_buffer_view,
-        .set_stride = ggml::CPUBuffer::set_stride,
-        .get_stride = ggml::CPUBuffer::get_stride
     }));
 
 #if defined(POWERSERVE_WITH_CUDA)
@@ -36,8 +34,6 @@ void Platform::init_backend(const std::shared_ptr<ModelConfig> &config, const Hy
     buffer_interfaces.insert(std::make_pair(TensorBackend::GGML_GPU, BufferInterface{
         .create_buffer = ggml_cuda::Buffer_CUDA::create_buffer,
         .create_buffer_view = ggml_cuda::Buffer_CUDA::create_buffer_view,
-        .set_stride = ggml_cuda::Buffer_CUDA::set_stride,
-        .get_stride = ggml_cuda::Buffer_CUDA::get_stride
     }));
 #endif
 

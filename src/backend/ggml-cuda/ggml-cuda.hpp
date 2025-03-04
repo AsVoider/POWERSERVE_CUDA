@@ -64,16 +64,16 @@ static std::unique_ptr<ggml_tensor> convert_to_ggml_tensor(const Tensor *t) {
     }
 
     auto gt              = std::make_unique<ggml_tensor>();
-    const auto &buffer_t = t->get<Buffer_CUDA>();
+    const auto &buffer_t = *t->m_data;
     gt->type             = convert_datatype_to_ggml(t->m_dtype);
 
     // Copy if need
-    if (buffer_t.m_data_cuda == nullptr) {
+    if (buffer_t.m_data_device == nullptr) {
         POWERSERVE_ASSERT(buffer_t.m_data_host not_eq nullptr and "Data host is nullptr\n");
-        cuda_context_warp::copy_memory_async<1>(buffer_t.m_data_cuda, buffer_t.m_data_host, buffer_t.m_size);
+        cuda_context_warp::copy_memory_async<1>(buffer_t.m_data_device, buffer_t.m_data_host, buffer_t.m_size);
     }
 
-    gt->data = buffer_t.m_data_cuda;
+    gt->data = buffer_t.m_data_device;
     // TODO: just for test
     // gt->extra = buffer_t.m_data_host;
     memcpy(gt->ne, t->m_shape.data(), t->m_shape.size() * sizeof(Shape::size_type));
@@ -149,10 +149,10 @@ public: // ! Mem Ops
         for (size_t i{1}; i < shape.size(); ++i) {
             stride[i] = stride[i - 1] * shape[i - 1];
         }
-        POWERSERVE_ASSERT(parent.m_data_cuda != nullptr);
+        POWERSERVE_ASSERT(parent.m_data_device != nullptr);
 
         auto b{std::make_shared<Buffer_CUDA>(stride, nullptr, nullptr, usage::ANY, parent.m_size, false, false)};
-        b->m_data_cuda = parent.m_data_cuda;
+        b->m_data_device = parent.m_data_device;
         b->m_data_host = parent.m_data_host;
         return b;
     }
@@ -167,8 +167,6 @@ public: // ! Mem Ops
 
         } else if constexpr (D_Type == DataType::FP32) {
             float *mem_buffer = new float[n_rows * x.m_shape[0]];
-            // cudaMemcpy(mem_buffer, x.get<Buffer_CUDA>().m_data_cuda, n_rows * x.m_shape[0] * sizeof(float),
-            // cudaMemcpyDeviceToHost);
             for (size_t i{0UL}; i < n_rows; ++i) {
                 for (size_t j{0UL}; j < x.m_shape[0]; ++j) {
                     auto num_to_print{mem_buffer[j + i * x.m_shape[0]]};

@@ -64,6 +64,7 @@ CommandLineArgument parse_command_line(const std::string_view program_name, int 
      * Model Configuration
      */
     app.add_option("-m,--model", args.main_model, "Set the model name or path to the main model directory.");
+    app.add_option("-l,--num-gpu-layers", args.num_gpu_layers, "Set the number of layers to run on GPU.");
     app.add_option("--draft-model", args.draft_model, "Set the model name or path to the draft model directory.");
 #if defined(POWERSERVE_WITH_QNN)
     app.add_flag("--use-spec", args.use_spec, "Use QNN speculative decode.");
@@ -149,7 +150,7 @@ CommandLineArgument parse_command_line(const std::string_view program_name, int 
 }
 
 Config get_config_from_argument(const CommandLineArgument &args) {
-    Config config(args.work_folder, args.workspace_config_path);
+    Config config(args.work_folder, args.workspace_config_path, args.num_gpu_layers);
 
     if (!args.main_model.empty()) {
         const Path inner_model_path = Path(args.work_folder) / args.main_model;

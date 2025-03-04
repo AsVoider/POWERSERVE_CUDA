@@ -125,9 +125,9 @@ void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tenso
     POWERSERVE_ASSERT(is_contiguous(out, 0));
     POWERSERVE_ASSERT(is_contiguous(hb, 0));
     POWERSERVE_ASSERT(is_contiguous(hb2, 0));
-    float *out_data = static_cast<float *>(out->get<CPUBuffer>().m_data);
-    float *hb_data  = static_cast<float *>(hb->get<CPUBuffer>().m_data);
-    float *hb2_data = static_cast<float *>(hb2->get<CPUBuffer>().m_data);
+    float *out_data = static_cast<float *>(out->m_data->m_data_host);
+    float *hb_data  = static_cast<float *>(hb->m_data->m_data_host);
+    float *hb2_data = static_cast<float *>(hb2->m_data->m_data_host);
 
     for (size_t j = 0; j < hb->n_elements(); j++) {
         float val = hb_data[j];
@@ -141,14 +141,14 @@ void GGMLBackend::print(const Tensor *x, size_t size) const {
     POWERSERVE_UNUSED(size);
     POWERSERVE_ASSERT(x->m_dtype == DataType::FP32);
     auto shape  = x->m_shape;
-    auto stride = x->get<CPUBuffer>().m_stride;
+    auto stride = x->m_data->m_stride;
     printf("\n{%ld, %ld, %ld, %ld}\n", shape[3], shape[2], shape[1], shape[0]);
     printf("\n{%ld, %ld, %ld, %ld}\n", stride[3], stride[2], stride[1], stride[0]);
     for (size_t i3 = 0; i3 < shape[3]; i3++) {
         for (size_t i2 = 0; i2 < shape[2]; i2++) {
             for (size_t i1 = 0; i1 < shape[1]; i1++) {
                 for (size_t i0 = 0; i0 < shape[0]; i0++) {
-                    float *ptr = (float *)((char *)x->get<CPUBuffer>().m_data + i3 * stride[3] + i2 * stride[2] +
+                    float *ptr = (float *)((char *)x->m_data->m_data_host + i3 * stride[3] + i2 * stride[2] +
                                            i1 * stride[1] + i0 * stride[0]);
                     // printf("[%ld][%ld][%ld][%ld] = %.6f\n", i3, i2, i1, i0, (double)*ptr);
                     printf("%.6f\n", (double)*ptr);
@@ -168,8 +168,8 @@ void GGMLBackend::add_cache(const Tensor *k, const Tensor *v, size_t L, const st
     auto cur_position = m_kv->kv_cache->position;
     POWERSERVE_ASSERT(batch_size == m_kv->m_batch_size);
 
-    float *src_k  = static_cast<float *>(k->get<CPUBuffer>().m_data); // (kv_dim, batch_size, 1, 1)
-    float *src_v  = static_cast<float *>(v->get<CPUBuffer>().m_data); // (kv_dim, batch_size, 1, 1)
+    float *src_k  = static_cast<float *>(k->m_data->m_data_host); // (kv_dim, batch_size, 1, 1)
+    float *src_v  = static_cast<float *>(v->m_data->m_data_host); // (kv_dim, batch_size, 1, 1)
     float *dst_kb = m_kv->chunk.key_buffer[L].data() + kv_dim * cur_position;
     float *dst_vb = m_kv->chunk.value_buffer[L].data() + kv_dim * cur_position;
     memcpy(dst_kb, src_k, kv_dim * batch_size * sizeof(float));
@@ -177,12 +177,12 @@ void GGMLBackend::add_cache(const Tensor *k, const Tensor *v, size_t L, const st
 }
 
 void GGMLBackend::transpose(const Tensor *out, const Tensor *x) const {
-    Stride stride{x->get<CPUBuffer>().m_stride};
-    stride[0] = x->get<CPUBuffer>().m_stride[1];
-    stride[1] = x->get<CPUBuffer>().m_stride[0];
+    Stride stride{x->m_data->m_stride};
+    stride[0] = x->m_data->m_stride[1];
+    stride[1] = x->m_data->m_stride[0];
 
-    out->get<CPUBuffer>().m_data   = x->get<CPUBuffer>().m_data;
-    out->get<CPUBuffer>().m_stride = stride;
+    out->m_data->m_data_host   = x->m_data->m_data_host;
+    out->m_data->m_stride = stride;
 }
 
 void GGMLBackend::setup_threadpool() {
@@ -284,8 +284,8 @@ void GGMLBackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) {
         case OpType::VIEW: {
             // auto out                       = op->output();
             // auto [stride, offset]          = op->get_params<ViewParams>();
-            // out->get<CPUBuffer>().m_stride = stride;
-            // out->get<CPUBuffer>().m_data   = (char *)out->get<CPUBuffer>().m_data + offset;
+            // out->m_data->m_stride = stride;
+            // out->m_data->m_data   = (char *)out->m_data->m_data + offset;
         } break;
 
         case OpType::SOFTMAX_EXT: {
@@ -304,7 +304,7 @@ void GGMLBackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) {
             auto batch_size  = out->m_shape[1];
 
             POWERSERVE_ASSERT(out->m_dtype == DataType::FP32);
-            auto mask_buf = (float *)out->get<CPUBuffer>().m_data;
+            auto mask_buf = (float *)out->m_data->m_data_host;
             for (size_t i = 0; i < batch_size; i++) {
                 size_t cur_pos = pos[i];
                 for (size_t j = 0; j < n_kv; j++) {

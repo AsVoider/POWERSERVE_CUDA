@@ -9,39 +9,22 @@ namespace powerserve::ggml_cuda {
 
 class Buffer_CUDA : public BaseBuffer {
 public:
-    Stride m_stride;
-    void *m_data_cuda{nullptr};
-    void *m_data_host{nullptr};
-    bool m_is_cuda_malloc{false}; // ? cudaMalloc
-    bool m_is_host_malloc{false}; // ? malloc
-
-public:
     Buffer_CUDA(
         Stride stride,
-        void *data_cuda,
+        void *data_device,
         void *data_host,
         usage use,
         size_t size,
         bool is_cuda_malloc = false,
         bool is_host_malloc = false
-    ) :
-        m_stride{stride},
-        m_data_cuda{data_cuda},
-        m_data_host{data_host},
-        m_is_cuda_malloc{is_cuda_malloc},
-        m_is_host_malloc{is_host_malloc} {
-
-        m_useage = use;
-        m_size   = size;
-    }
+    ) : BaseBuffer{stride, data_device, data_host, is_cuda_malloc, is_host_malloc, size, use} {}
 
     virtual ~Buffer_CUDA() override {
-        if (m_is_cuda_malloc) {
-            cuda_context_warp::free_cuda_buffer(m_data_cuda);
+        if (m_is_device_malloc) {
+            cuda_context_warp::free_cuda_buffer(m_data_device);
         }
 
         if (m_is_host_malloc) {
-            std::cout << "free host buffer\n";
             free(m_data_host);
         }
     }
@@ -70,21 +53,11 @@ public:
             stride[i] = stride[i - 1] * shape[i - 1];
         }
         auto &parent_buffer{static_cast<Buffer_CUDA &>(p)};
-        POWERSERVE_ASSERT(parent_buffer.m_data_cuda != nullptr);
+        POWERSERVE_ASSERT(parent_buffer.m_data_device != nullptr);
         auto b{std::make_shared<Buffer_CUDA>(stride, nullptr, nullptr, usage::COMPUTE, p.m_size, false, false)};
-        b->m_data_cuda = static_cast<void *>(static_cast<char*>(parent_buffer.m_data_cuda) + offset);
+        b->m_data_device = static_cast<void *>(static_cast<char*>(parent_buffer.m_data_device) + offset);
         b->m_data_host = parent_buffer.m_data_host;
         return b;
-    }
-
-    static auto set_stride(BaseBuffer &p, Stride &&stride) -> void {
-        auto &buffer{static_cast<Buffer_CUDA &>(p)};
-        buffer.m_stride = std::move(stride);
-    }
-
-    static auto get_stride(BaseBuffer &p) -> Stride & {
-        auto &buffer{static_cast<Buffer_CUDA &>(p)};
-        return buffer.m_stride;
     }
 };
 

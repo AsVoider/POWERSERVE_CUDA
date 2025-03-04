@@ -22,24 +22,17 @@ namespace powerserve::ggml {
 
 struct CPUBuffer : BaseBuffer {
 public:
-    Stride m_stride; // In bytes
-    void *m_data;
-    bool m_allocated_by_malloc = false;
-
-public:
-    CPUBuffer(Stride stride, void *data, bool allocated_by_malloc = false) :
-        m_stride(stride),
-        m_data(data),
-        m_allocated_by_malloc(allocated_by_malloc) {}
+    CPUBuffer(Stride stride, void *data, bool allocated_by_malloc, size_t size, usage use)
+        : BaseBuffer{stride, nullptr, data, false, allocated_by_malloc, size, use} {}
 
     virtual ~CPUBuffer() override {
-        if (m_allocated_by_malloc) {
-            free(m_data);
+        if (m_is_host_malloc) {
+            free(m_data_host);
         }
     }
 
     virtual auto get_host_data() -> void * override {
-        return m_data;
+        return m_data_host;
     }
 
     static auto create_buffer(Shape shape, size_t type_size) -> BufferPtr {
@@ -50,7 +43,7 @@ public:
         }
         size_t size = stride.back() * shape.back();
 
-        return std::make_shared<CPUBuffer>(stride, malloc(size), true);
+        return std::make_shared<CPUBuffer>(stride, malloc(size), true, size, usage::COMPUTE);
     }
 
     static auto create_buffer_view(BaseBuffer &parent, Shape shape, size_t type_size, size_t offset = 0) -> BufferPtr {
@@ -60,20 +53,10 @@ public:
             stride[i] = stride[i - 1] * shape[i - 1];
         }
         auto &parent_buffer{static_cast<CPUBuffer &>(parent)};
-        POWERSERVE_ASSERT(parent_buffer.m_data != nullptr, "parent buffer is nullptr");
-        auto b    = std::make_shared<CPUBuffer>(stride, nullptr, false);
-        b->m_data = static_cast<void *>(static_cast<char*>(parent_buffer.m_data) + offset);
+        POWERSERVE_ASSERT(parent_buffer.m_data_host != nullptr, "parent buffer is nullptr");
+        auto b    = std::make_shared<CPUBuffer>(stride, nullptr, false, parent_buffer.m_size, usage::COMPUTE);
+        b->m_data_host = static_cast<void *>(static_cast<char*>(parent_buffer.m_data_host) + offset);
         return b;
-    }
-
-    static auto set_stride(BaseBuffer &parent, Stride &&stride) -> void {
-        auto &buffer{static_cast<CPUBuffer &>(parent)};
-        buffer.m_stride = std::move(stride);
-    }
-
-    static auto get_stride(BaseBuffer &parent) -> Stride & {
-        auto &buffer{static_cast<CPUBuffer &>(parent)};
-        return buffer.m_stride;
     }
 };
 

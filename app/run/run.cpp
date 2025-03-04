@@ -30,14 +30,15 @@ int main(int argc, char *argv[]) {
     const powerserve::CommandLineArgument args = powerserve::parse_command_line("PowerServe CLI", argc, argv);
     const powerserve::Config config            = powerserve::get_config_from_argument(args);
 
-    std::shared_ptr<powerserve::Model> main_model  = powerserve::load_model(config.main_model_dir);
+    std::shared_ptr<powerserve::Model> main_model  = powerserve::load_model(config.main_model_dir, config.hyper_params);
     std::shared_ptr<powerserve::Model> draft_model = nullptr;
     if (args.use_spec) {
-        draft_model = powerserve::load_model(config.draft_model_dir);
+        draft_model = powerserve::load_model(config.draft_model_dir, config.hyper_params);
     }
     POWERSERVE_LOG_INFO("after model init: {}", powerserve::perf_get_mem_result());
+    POWERSERVE_LOG_INFO("number of gpu layers: {}", main_model->m_config->llm.n_gpu_layers);
 
-    const auto [sampler_config, n_threads, batch_size] = config.hyper_params;
+    const auto [sampler_config, n_threads, batch_size, _] = config.hyper_params;
     main_model->m_platform                             = std::make_shared<powerserve::Platform>();
     auto &platform                                     = main_model->m_platform;
 

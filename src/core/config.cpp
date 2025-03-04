@@ -27,7 +27,7 @@
 
 namespace powerserve {
 
-HyperParams::HyperParams(const Path &params_file) {
+HyperParams::HyperParams(const Path &params_file, size_t ngl) {
     nlohmann::json j;
     std::ifstream file(params_file);
     POWERSERVE_ASSERT_CONFIG(file.good(), "HyperConfig", "failed to open hparams config file {}", params_file);
@@ -37,6 +37,7 @@ HyperParams::HyperParams(const Path &params_file) {
 
         n_threads  = j.value("n_threads", n_threads);
         batch_size = j.value("batch_size", batch_size);
+        n_gpu_layers = ngl;
 
         const uint32_t max_concurrency = std::thread::hardware_concurrency();
         if (max_concurrency != 0) {
@@ -119,7 +120,7 @@ ModelConfig::ModelConfig(const Path &model_config_file) {
     }
 }
 
-Config::Config(const Path &work_folder, const Path &workspace_config_path) {
+Config::Config(const Path &work_folder, const Path &workspace_config_path, const uint32_t ngl) {
     POWERSERVE_ASSERT_CONFIG(
         std::filesystem::is_directory(work_folder), "Config", "work folder {} is not a directory", work_folder
     );
@@ -130,7 +131,7 @@ Config::Config(const Path &work_folder, const Path &workspace_config_path) {
     try {
         file >> j;
         if (j.contains(HYPER_PARAMS_FILENAME_KEY)) {
-            hyper_params = HyperParams(work_folder / j[HYPER_PARAMS_FILENAME_KEY].get<std::string>());
+            hyper_params = HyperParams(work_folder / j[HYPER_PARAMS_FILENAME_KEY].get<std::string>(), ngl);
         } else {
             hyper_params = HyperParams();
         }

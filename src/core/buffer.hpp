@@ -16,9 +16,11 @@
 
 #include <memory>
 
+#include "typedefs.hpp"
+
 namespace powerserve {
 
-enum class usage : int {
+enum class usage : int64_t {
     UNKNOWN = -1,
     ANY     = 0,
     WEIGHT  = 1,
@@ -27,12 +29,20 @@ enum class usage : int {
 
 struct BaseBuffer {
 public:
+    Stride m_stride;
+    void *m_data_device{nullptr};
+    void *m_data_host{nullptr};
+    bool m_is_device_malloc{false};
+    bool m_is_host_malloc{false};
     size_t m_size{0UL};
     usage m_useage{usage::UNKNOWN};
 
 public:
+    BaseBuffer(Stride stride, void *data_device, void *data_host, bool device_malloc, bool host_malloc, size_t size, usage use)
+        : m_stride{stride}, m_data_device{data_device}, m_data_host{data_host}, m_is_device_malloc{device_malloc}, m_is_host_malloc{host_malloc}, m_size{size}, m_useage{use} {}
     virtual ~BaseBuffer() = default;
     virtual auto get_host_data() -> void * = 0;
+    
 };
 
 using BufferPtr = std::shared_ptr<BaseBuffer>;
