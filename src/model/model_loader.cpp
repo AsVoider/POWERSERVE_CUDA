@@ -22,7 +22,7 @@ namespace powerserve {
 
 auto load_model(const Path &model_dir, const HyperParams &hyper_params) -> std::shared_ptr<Model> {
     std::shared_ptr<Model> out_model;
-    auto out_config = std::make_shared<ModelConfig>(model_dir / MODEL_CONFIG_FILENAME);
+    auto out_config              = std::make_shared<ModelConfig>(model_dir / MODEL_CONFIG_FILENAME);
     out_config->llm.n_gpu_layers = hyper_params.n_gpu_layers;
 
     auto arch        = out_config->arch;

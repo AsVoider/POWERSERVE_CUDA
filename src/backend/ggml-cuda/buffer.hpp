@@ -17,7 +17,8 @@ public:
         size_t size,
         bool is_cuda_malloc = false,
         bool is_host_malloc = false
-    ) : BaseBuffer{stride, data_device, data_host, is_cuda_malloc, is_host_malloc, size, use} {}
+    ) :
+        BaseBuffer{stride, data_device, data_host, is_cuda_malloc, is_host_malloc, size, use} {}
 
     virtual ~Buffer_CUDA() override {
         if (m_is_device_malloc) {
@@ -55,8 +56,8 @@ public:
         auto &parent_buffer{static_cast<Buffer_CUDA &>(p)};
         POWERSERVE_ASSERT(parent_buffer.m_data_device != nullptr);
         auto b{std::make_shared<Buffer_CUDA>(stride, nullptr, nullptr, usage::COMPUTE, p.m_size, false, false)};
-        b->m_data_device = static_cast<void *>(static_cast<char*>(parent_buffer.m_data_device) + offset);
-        b->m_data_host = parent_buffer.m_data_host;
+        b->m_data_device = static_cast<void *>(static_cast<char *>(parent_buffer.m_data_device) + offset);
+        b->m_data_host   = parent_buffer.m_data_host;
         return b;
     }
 };

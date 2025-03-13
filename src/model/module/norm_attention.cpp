@@ -45,8 +45,8 @@ TensorNode *NormAttention::build(
     size_t kv_gqa  = head_size * n_head_kv;
     size_t cur_pos = pos[0];
 
-    auto att_norm_w = g.add_tensor(m_weights->lw[L].attn_norm);     // (embd_dim, 1, 1, 1)
-    auto att_norm_o = g.rms_norm(x, att_norm_w, m_config.norm_eps); // (embd_dim, bs, 1, 1)
+    auto att_norm_w    = g.add_tensor(m_weights->lw[L].attn_norm);     // (embd_dim, 1, 1, 1)
+    auto att_norm_o    = g.rms_norm(x, att_norm_w, m_config.norm_eps); // (embd_dim, bs, 1, 1)
     att_norm_o->m_name = fmt::format("attn_norm_o_{}", L);
 
     // QKV
@@ -86,15 +86,15 @@ TensorNode *NormAttention::build(
                            ? g.add_tensor(m_weights->rope_freq_weight)
                            : nullptr;
     auto rope_q      = g.rope(q_view, rope_factor, pos, m_config.rope_config); // (head_size, n_heads, bs, 1)
-    rope_q->m_name = fmt::format("rope_q_{}_{}", L, pos[0]);
+    rope_q->m_name   = fmt::format("rope_q_{}_{}", L, pos[0]);
     auto rope_k      = g.rope(k_view, rope_factor, pos, m_config.rope_config); // (head_size, n_kv_heads, bs, 1)
-    rope_k->m_name = fmt::format("rope_k_{}_{}", L, pos[0]);
+    rope_k->m_name   = fmt::format("rope_k_{}_{}", L, pos[0]);
 
     // store kv
     {
         k                 = rope_k;
         v                 = g.transpose(v);
-        v->m_name        = fmt::format("v_transpose_{}_{}", L, pos[0]);
+        v->m_name         = fmt::format("v_transpose_{}_{}", L, pos[0]);
         auto k_cache_view = g.view(
             k_cache,
             {batch_size * kv_gqa, 1, 1, 1},
@@ -130,7 +130,7 @@ TensorNode *NormAttention::build(
         size_t batch_32 = batch_size;
 
         // (head_size, bs, n_heads, 1)
-        q = g.permute(rope_q, {0, 2, 1, 3});
+        q         = g.permute(rope_q, {0, 2, 1, 3});
         q->m_name = fmt::format("q_permute_{}_{}", L, pos[0]);
         // {head_size, cur_postion, n_head_kv, 1}
         k = g.view(
@@ -168,13 +168,13 @@ TensorNode *NormAttention::build(
         );
         v->m_name = fmt::format("v_cache_view_{}_{}", L, pos[0]);
         // {head_size, cur_postion, n_head_kv, 1};
-        auto kqv = g.mat_mul(v, kq);
+        auto kqv    = g.mat_mul(v, kq);
         kqv->m_name = fmt::format("kqv_{}_{}", L, pos[0]);
         // {head_size, n_head_kv, cur_postion, 1};
-        auto kqv_merged = g.permute(kqv, {0, 2, 1, 3});
+        auto kqv_merged    = g.permute(kqv, {0, 2, 1, 3});
         kqv_merged->m_name = fmt::format("kqv_merged_{}_{}", L, pos[0]);
         //  {embed_dim, bs, 1, 1};
-        att_scores = g.cont(kqv_merged, {head_size * n_head, batch_size, 1, 1});
+        att_scores         = g.cont(kqv_merged, {head_size * n_head, batch_size, 1, 1});
         att_scores->m_name = fmt::format("att_scores_{}_{}", L, pos[0]);
     }
 

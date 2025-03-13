@@ -1,5 +1,5 @@
-#include "graph.hpp"
 #include "backend/backend.hpp"
+#include "graph.hpp"
 
 namespace powerserve {
 
@@ -15,7 +15,7 @@ public:
 
     GraphSplit(GraphSplit &&);
 
-    GraphSplit (std::vector<std::shared_ptr<OpNode>> &ops, size_t &first_or_end);
+    GraphSplit(std::vector<std::shared_ptr<OpNode>> &ops, size_t &first_or_end);
 
     ~GraphSplit() = default;
 

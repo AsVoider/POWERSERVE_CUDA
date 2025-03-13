@@ -1,10 +1,10 @@
-#include <algorithm>
-
 #include "ggml-cuda.hpp"
 
 #include "backend/ggml-cuda/buffer.hpp"
 #include "ggml-quants.h"
 #include "ggml.h"
+
+#include <algorithm>
 
 namespace powerserve::ggml_cuda {
 
@@ -647,7 +647,7 @@ void GGML_CUDABackend::transpose(Tensor *out, const Tensor *x) const {
     stride[0] = buffer_x.m_stride[1];
     stride[1] = buffer_x.m_stride[0];
 
-    buffer_out.m_stride    = stride;
+    buffer_out.m_stride = stride;
 }
 
 void GGML_CUDABackend::advance(const size_t &size) {
@@ -686,7 +686,6 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
             );
             matmul(out, src0, src1);
         } break;
-
 
         case OpType::RMS_NORM: {
             auto x      = op->prev[0]->tensor();
@@ -737,7 +736,7 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
             POWERSERVE_ASSERT(src->m_backend == TensorBackend::GGML_GPU && dst->m_backend == TensorBackend::GGML_GPU);
             copy(dst, src);
         } break;
-    
+
         case OpType::PRINT: {
             // printf("PRINT\n");
             // get input tensor and size, check backend, then call print on GPU backend
@@ -756,7 +755,7 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
             POWERSERVE_ASSERT(out->m_backend == TensorBackend::GGML_GPU);
             get_embedding(out, weight, tokens);
         } break;
-    
+
         case OpType::ADD_CACHE: {
             // printf("ADD_CACHE\n");
             // get k tensor, v tensor, L, pos and head_id, check backend, then call add_cache on GPU backend
@@ -768,8 +767,9 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
             append_kv_cache(v, L, pos.size(), false);
         } break;
 
-        case OpType::PERMUTE: {} break;
-    
+        case OpType::PERMUTE: {
+        } break;
+
         case OpType::CONT: {
             // printf("CONT\n");
             // get input tensor and output tensor, check backend, then call cont on GPU backend
@@ -779,12 +779,13 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
             cont(out, x);
         } break;
 
-        case OpType::VIEW: {} break;
+        case OpType::VIEW: {
+        } break;
 
         case OpType::SOFTMAX_EXT: {
             // printf("SOFTMAX_EXT\n");
-            // get output tensor, input tensor, mask tensor, scale and max_bias, check backend, then call softmax_ext on GPU
-            // backend
+            // get output tensor, input tensor, mask tensor, scale and max_bias, check backend, then call softmax_ext on
+            // GPU backend
             auto out               = op->output();
             auto x                 = op->prev[0]->tensor();
             auto mask              = op->prev[1]->tensor();
@@ -795,7 +796,7 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
             );
             softmax(out, x, mask, scale, max_bias);
         } break;
-    
+
         case OpType::GET_MASK: {
             // printf("GET_MASK\n");
             // get output tensor, mask tensor and pos, check backend, then set mask on GPU backend
@@ -807,8 +808,9 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
             get_mask(out, pos, n_kv, batch_size);
         } break;
 
-        case OpType::TRANSPOSE: {} break;
-    
+        case OpType::TRANSPOSE: {
+        } break;
+
         default:
             POWERSERVE_ABORT("Unknown OpType: {}", static_cast<int>(op->op));
         }
@@ -817,13 +819,13 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
     auto &last_op{ops.back()};
     auto last_out{last_op->output()};
     // if (last_out->m_name.substr(0, 7) == "logits_") {
-        cuda_context_warp::device_sync();
-        auto num_element{std::reduce(last_out->m_shape.begin(), last_out->m_shape.end(), 1, std::multiplies<size_t>())};
-        last_out->m_data->m_data_host = malloc(num_element * sizeof(float));
-        last_out->m_data->m_is_host_malloc = true;
-        cuda_context_warp::copy_memory<2>(
-            last_out->m_data->m_data_host, last_out->m_data->m_data_device, num_element * sizeof(float)
-        );
+    cuda_context_warp::device_sync();
+    auto num_element{std::reduce(last_out->m_shape.begin(), last_out->m_shape.end(), 1, std::multiplies<size_t>())};
+    last_out->m_data->m_data_host      = malloc(num_element * sizeof(float));
+    last_out->m_data->m_is_host_malloc = true;
+    cuda_context_warp::copy_memory<2>(
+        last_out->m_data->m_data_host, last_out->m_data->m_data_device, num_element * sizeof(float)
+    );
     // }
 }
 

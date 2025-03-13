@@ -22,8 +22,8 @@ namespace powerserve::ggml {
 
 struct CPUBuffer : BaseBuffer {
 public:
-    CPUBuffer(Stride stride, void *data, bool allocated_by_malloc, size_t size, usage use)
-        : BaseBuffer{stride, nullptr, data, false, allocated_by_malloc, size, use} {}
+    CPUBuffer(Stride stride, void *data, bool allocated_by_malloc, size_t size, usage use) :
+        BaseBuffer{stride, nullptr, data, false, allocated_by_malloc, size, use} {}
 
     virtual ~CPUBuffer() override {
         if (m_is_host_malloc) {
@@ -54,8 +54,8 @@ public:
         }
         auto &parent_buffer{static_cast<CPUBuffer &>(parent)};
         POWERSERVE_ASSERT(parent_buffer.m_data_host != nullptr, "parent buffer is nullptr");
-        auto b    = std::make_shared<CPUBuffer>(stride, nullptr, false, parent_buffer.m_size, usage::COMPUTE);
-        b->m_data_host = static_cast<void *>(static_cast<char*>(parent_buffer.m_data_host) + offset);
+        auto b         = std::make_shared<CPUBuffer>(stride, nullptr, false, parent_buffer.m_size, usage::COMPUTE);
+        b->m_data_host = static_cast<void *>(static_cast<char *>(parent_buffer.m_data_host) + offset);
         return b;
     }
 };

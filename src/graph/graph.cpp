@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "graph/graph.hpp"
+
 #include "backend/platform.hpp"
 
 namespace powerserve {
@@ -50,15 +51,15 @@ auto Graph::get_embedding(TensorNode *weight, const std::vector<int> &tokens) ->
     op->set_params(GetEmbeddingParams{tokens});
 
     out->m_backend = weight->m_backend;
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+    out->m_data    = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
 
 auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
     POWERSERVE_ASSERT(tensor_can_repeat(b, a));
 
-    auto out    = dup_tensor(a);
-    auto op     = new_op(OpType::ADD);
+    auto out = dup_tensor(a);
+    auto op  = new_op(OpType::ADD);
     op->set_inputs({a, b});
     op->set_outputs({out});
 
@@ -93,8 +94,8 @@ auto Graph::rms_norm(TensorNode *x, TensorNode *weight, float eps) -> TensorNode
     POWERSERVE_ASSERT(x->m_dtype == weight->m_dtype);
     POWERSERVE_ASSERT(x->m_shape[0] == weight->m_shape[0]);
 
-    auto out    = dup_tensor(x);
-    auto op     = new_op(OpType::RMS_NORM);
+    auto out = dup_tensor(x);
+    auto op  = new_op(OpType::RMS_NORM);
     op->set_inputs({x, weight});
     op->set_outputs({out});
     op->set_params(RMSNormParams{.eps = eps});
@@ -131,8 +132,8 @@ auto Graph::rope(
     const ModelConfig::LLMConfig::RopeConfig &params
 ) -> TensorNode * {
     // TODO: Only support linear ROPE now
-    auto out    = dup_tensor(src);
-    auto op     = new_op(OpType::ROPE);
+    auto out = dup_tensor(src);
+    auto op  = new_op(OpType::ROPE);
     op->set_inputs({src, rope_factors});
     op->set_outputs({out});
     op->set_params(RopeParams{pos, params});
@@ -234,22 +235,22 @@ auto Graph::permute(TensorNode *x, Shape axes) -> TensorViewNode * {
     shape[axes[2]] = x->m_shape[2];
     shape[axes[3]] = x->m_shape[3];
 
-    auto out    = view_tensor(x, shape);
-    auto op     = new_op(OpType::PERMUTE);
+    auto out = view_tensor(x, shape);
+    auto op  = new_op(OpType::PERMUTE);
     op->set_inputs({x});
     op->set_outputs({out});
     op->set_params(PermuteParams{.axes = axes});
 
-    
     { out->m_backend = x->m_backend; }
 
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float), 0UL);
+    out->m_data =
+        Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float), 0UL);
     auto &x_stride{x->m_data->m_stride};
     Stride new_stride{};
-    new_stride[axes[0]] = x_stride[0];
-    new_stride[axes[1]] = x_stride[1];
-    new_stride[axes[2]] = x_stride[2];
-    new_stride[axes[3]] = x_stride[3];
+    new_stride[axes[0]]   = x_stride[0];
+    new_stride[axes[1]]   = x_stride[1];
+    new_stride[axes[2]]   = x_stride[2];
+    new_stride[axes[3]]   = x_stride[3];
     out->m_data->m_stride = std::move(new_stride);
     POWERSERVE_ASSERT(out->m_data not_eq nullptr);
     return out;
@@ -276,7 +277,8 @@ auto Graph::view(const TensorNode *x, Shape shape, Shape stride, size_t offset) 
 
     { out->m_backend = x->m_backend; }
 
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, out->m_shape, sizeof(float), offset);
+    out->m_data = Platform::buffer_interfaces.at(out->m_backend)
+                      .create_buffer_view(*x->m_data, out->m_shape, sizeof(float), offset);
     out->m_data->m_stride = std::move(stride);
     POWERSERVE_ASSERT(out->m_data not_eq nullptr);
     return out;
@@ -316,15 +318,16 @@ auto Graph::transpose(TensorNode *x) -> TensorViewNode * {
     shape[0] = x->m_shape[1];
     shape[1] = x->m_shape[0];
 
-    auto out    = view_tensor(x, shape);
-    auto op     = new_op(OpType::TRANSPOSE);
+    auto out = view_tensor(x, shape);
+    auto op  = new_op(OpType::TRANSPOSE);
     op->set_inputs({x});
     op->set_outputs({out});
 
     { out->m_backend = x->m_backend; }
 
     // TODO: fix transpose on build graph, stride shape
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float), 0UL);
+    out->m_data =
+        Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float), 0UL);
     Stride &x_stride{x->m_data->m_stride};
     Stride new_stride{x_stride[1], x_stride[0], x_stride[2], x_stride[3]};
     out->m_data->m_stride = std::move(new_stride);
@@ -333,7 +336,7 @@ auto Graph::transpose(TensorNode *x) -> TensorViewNode * {
 }
 
 auto Graph::make_contiguous(TensorNode *x) -> TensorNode * {
-    auto out = dup_tensor(x);
+    auto out  = dup_tensor(x);
     x->m_data = Platform::buffer_interfaces.at(x->m_backend).create_buffer(x->m_shape, sizeof(float));
     copy(out, x);
     return out;
@@ -341,7 +344,9 @@ auto Graph::make_contiguous(TensorNode *x) -> TensorNode * {
 
 // params: scale, max_bias, logit_softcap
 // tensors: q, k, v, mask
-auto Graph::flash_attention(TensorNode *q, TensorNode *k, TensorNode *v, TensorNode *mask, float scale, float max_bias, float logit_softcap) -> TensorNode * {
+auto Graph::flash_attention(
+    TensorNode *q, TensorNode *k, TensorNode *v, TensorNode *mask, float scale, float max_bias, float logit_softcap
+) -> TensorNode * {
     if (mask) {
         POWERSERVE_ASSERT(mask->m_shape[2] == 1 and mask->m_shape[3] == 1);
         POWERSERVE_ASSERT(mask->m_shape[0] >= (q->m_shape[1] + 64 - 1) / 64 * 64);
@@ -355,17 +360,13 @@ auto Graph::flash_attention(TensorNode *q, TensorNode *k, TensorNode *v, TensorN
     auto op{new_op(OpType::FLASH_ATTENTION)};
     op->set_inputs({q, k, v, mask});
     op->set_outputs({out});
-    op->set_params(FlashAttentionParams{
-        .scale = scale,
-        .max_bias = max_bias,
-        .logit_softcap = logit_softcap
-    });
+    op->set_params(FlashAttentionParams{.scale = scale, .max_bias = max_bias, .logit_softcap = logit_softcap});
 
     {
         auto backend{q->m_backend};
         POWERSERVE_ASSERT(backend == k->m_backend and backend == v->m_backend and backend == mask->m_backend);
         out->m_backend = backend;
-        out->m_data = Platform::buffer_interfaces.at(backend).create_buffer(out->m_shape, sizeof(float));
+        out->m_data    = Platform::buffer_interfaces.at(backend).create_buffer(out->m_shape, sizeof(float));
     }
 
     return out;

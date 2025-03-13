@@ -35,8 +35,8 @@ HyperParams::HyperParams(const Path &params_file, size_t ngl) {
     try {
         file >> j;
 
-        n_threads  = j.value("n_threads", n_threads);
-        batch_size = j.value("batch_size", batch_size);
+        n_threads    = j.value("n_threads", n_threads);
+        batch_size   = j.value("batch_size", batch_size);
         n_gpu_layers = ngl;
 
         const uint32_t max_concurrency = std::thread::hardware_concurrency();

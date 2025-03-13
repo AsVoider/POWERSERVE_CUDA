@@ -46,8 +46,8 @@ struct HyperParams {
         bool ignore_eos       = false;
     } sampler_config;
 
-    size_t n_threads  = 4;
-    size_t batch_size = 128;
+    size_t n_threads    = 4;
+    size_t batch_size   = 128;
     size_t n_gpu_layers = 999;
 
     HyperParams() = default;
@@ -97,16 +97,16 @@ struct ModelConfig {
             int rope_type     = -1;
         } rope_config;
 
-        uint32_t dim        = 0; // n_embd
-        uint32_t hidden_dim = 0;
-        uint32_t n_layers   = 0; //
-        uint32_t n_heads    = 0; //
-        uint32_t n_kv_heads = 0; //
-        uint32_t seq_len    = 0; // n_ctx_orig in rope
-        uint32_t vocab_size = 0;
-        uint32_t kv_dim     = 0; // head_size * n_kv_heads
-        uint32_t head_size  = 0; // dim / n_heads
-        float norm_eps      = 1e-5f;
+        uint32_t dim          = 0; // n_embd
+        uint32_t hidden_dim   = 0;
+        uint32_t n_layers     = 0; //
+        uint32_t n_heads      = 0; //
+        uint32_t n_kv_heads   = 0; //
+        uint32_t seq_len      = 0; // n_ctx_orig in rope
+        uint32_t vocab_size   = 0;
+        uint32_t kv_dim       = 0; // head_size * n_kv_heads
+        uint32_t head_size    = 0; // dim / n_heads
+        float norm_eps        = 1e-5f;
         uint32_t n_gpu_layers = 999;
     } llm;
 

@@ -18,23 +18,31 @@ namespace powerserve {
 
 std::unordered_map<TensorBackend, BufferInterface> Platform::buffer_interfaces{};
 
-void Platform::init_backend(const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams, [[maybe_unused]] const Path &qnn_path) {
+void Platform::init_backend(
+    const std::shared_ptr<ModelConfig> &config, const HyperParams &hparams, [[maybe_unused]] const Path &qnn_path
+) {
     backends[config->model_id].insert(
         std::make_pair(TensorBackend::GGML_CPU, std::make_unique<ggml::GGMLBackend>(config->llm, hparams))
     );
-    buffer_interfaces.insert(std::make_pair(TensorBackend::GGML_CPU, BufferInterface{
-        .create_buffer = ggml::CPUBuffer::create_buffer,
-        .create_buffer_view = ggml::CPUBuffer::create_buffer_view,
-    }));
+    buffer_interfaces.insert(std::make_pair(
+        TensorBackend::GGML_CPU,
+        BufferInterface{
+            .create_buffer      = ggml::CPUBuffer::create_buffer,
+            .create_buffer_view = ggml::CPUBuffer::create_buffer_view,
+        }
+    ));
 
 #if defined(POWERSERVE_WITH_CUDA)
     backends[config->model_id].insert(
         std::make_pair(TensorBackend::GGML_GPU, std::make_unique<ggml_cuda::GGML_CUDABackend>(config->llm, hparams))
     );
-    buffer_interfaces.insert(std::make_pair(TensorBackend::GGML_GPU, BufferInterface{
-        .create_buffer = ggml_cuda::Buffer_CUDA::create_buffer,
-        .create_buffer_view = ggml_cuda::Buffer_CUDA::create_buffer_view,
-    }));
+    buffer_interfaces.insert(std::make_pair(
+        TensorBackend::GGML_GPU,
+        BufferInterface{
+            .create_buffer      = ggml_cuda::Buffer_CUDA::create_buffer,
+            .create_buffer_view = ggml_cuda::Buffer_CUDA::create_buffer_view,
+        }
+    ));
 #endif
 
 #if defined(POWERSERVE_WITH_QNN)
@@ -57,17 +65,21 @@ void Platform::init_qnn_backend(const Path &qnn_path) {
 
 size_t Platform::get_kv_position(std::string &model_id) const {
     // NEW ADD
-    auto position{static_cast<ggml::GGMLBackend &>(*backends.at(model_id).at(TensorBackend::GGML_CPU)).m_kv->get_cache_position()};
+    auto position{
+        static_cast<ggml::GGMLBackend &>(*backends.at(model_id).at(TensorBackend::GGML_CPU)).m_kv->get_cache_position()
+    };
 
-#if defined(POWERSERVE_WITH_CUDA) 
-    auto cuda_position{static_cast<ggml_cuda::GGML_CUDABackend &>(*backends.at(model_id).at(TensorBackend::GGML_GPU)).m_kv->get_cache_position()};
+#if defined(POWERSERVE_WITH_CUDA)
+    auto cuda_position{static_cast<ggml_cuda::GGML_CUDABackend &>(*backends.at(model_id).at(TensorBackend::GGML_GPU))
+                           .m_kv->get_cache_position()};
     POWERSERVE_ASSERT(cuda_position == position);
 #endif
 
 #if defined(POWERSERVE_WITH_QNN)
     if (qnn_backend) {
         auto qnn_position{qnn_backend->m_models[model_id]->kv_cache->position};
-        POWERSERVE_ASSERT(qnn_position == position);`
+        POWERSERVE_ASSERT(qnn_position == position);
+        `
     }
 #endif
     return position;

@@ -22,9 +22,9 @@
 #include "core/tensor.hpp"
 #include "core/thread_pool.hpp"
 #include "cpu_buffer.hpp"
-#include "ggml_kv_cache.hpp"
 #include "ggml-cpu.h"
 #include "ggml.h"
+#include "ggml_kv_cache.hpp"
 #include "graph/node.hpp"
 
 #include <atomic>

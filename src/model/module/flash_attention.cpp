@@ -24,8 +24,8 @@ TensorNode *FlashAttention::build(
     size_t kv_gqa  = head_size * n_head_kv;
     size_t cur_pos = pos[0];
 
-    auto att_norm_w = g.add_tensor(m_weights->lw[L].attn_norm);     // (embd_dim, 1, 1, 1)
-    auto att_norm_o = g.rms_norm(x, att_norm_w, m_config.norm_eps); // (embd_dim, bs, 1, 1)
+    auto att_norm_w    = g.add_tensor(m_weights->lw[L].attn_norm);     // (embd_dim, 1, 1, 1)
+    auto att_norm_o    = g.rms_norm(x, att_norm_w, m_config.norm_eps); // (embd_dim, bs, 1, 1)
     att_norm_o->m_name = fmt::format("attn_norm_o_{}", L);
 
     // QKV
@@ -65,9 +65,9 @@ TensorNode *FlashAttention::build(
                            ? g.add_tensor(m_weights->rope_freq_weight)
                            : nullptr;
     auto rope_q      = g.rope(q_view, rope_factor, pos, m_config.rope_config); // (head_size, n_heads, bs, 1)
-    rope_q->m_name = fmt::format("rope_q_{}_{}", L, pos[0]);
+    rope_q->m_name   = fmt::format("rope_q_{}_{}", L, pos[0]);
     auto rope_k      = g.rope(k_view, rope_factor, pos, m_config.rope_config); // (head_size, n_kv_heads, bs, 1)
-    rope_k->m_name = fmt::format("rope_k_{}_{}", L, pos[0]);
+    rope_k->m_name   = fmt::format("rope_k_{}_{}", L, pos[0]);
 
     // store kv
     {
@@ -101,23 +101,31 @@ TensorNode *FlashAttention::build(
     // flash attention
     TensorNode *reshaped_fattn_res{nullptr};
     {
-        size_t n_kv = pos.back() + 1;
-        n_kv = (n_kv + KV_PADDING - 1) / KV_PADDING * KV_PADDING;
+        size_t n_kv     = pos.back() + 1;
+        n_kv            = (n_kv + KV_PADDING - 1) / KV_PADDING * KV_PADDING;
         size_t batch_32 = batch_size;
 
-        q = g.permute(rope_q, {0, 2, 1, 3});
+        q         = g.permute(rope_q, {0, 2, 1, 3});
         q->m_name = fmt::format("q_permute_{}_{}", L, pos[0]);
 
         k = g.view(
-            k_cache, {head_size, n_kv, n_head_kv, 1},
-            {k_cache->element_size(), k_cache->row_size(n_head_kv * head_size), k_cache->row_size(head_size), k_cache->row_size(n_head_kv * head_size)},
+            k_cache,
+            {head_size, n_kv, n_head_kv, 1},
+            {k_cache->element_size(),
+             k_cache->row_size(n_head_kv * head_size),
+             k_cache->row_size(head_size),
+             k_cache->row_size(n_head_kv * head_size)},
             0UL
         );
         k->m_name = fmt::format("k_view_{}_{}", L, pos[0]);
 
         v = g.view(
-            v_cache, {head_size, n_kv, n_head_kv, 1},
-            {v_cache->element_size(), v_cache->row_size(n_head_kv * head_size), v_cache->row_size(head_size), v_cache->row_size(n_head_kv * head_size)},
+            v_cache,
+            {head_size, n_kv, n_head_kv, 1},
+            {v_cache->element_size(),
+             v_cache->row_size(n_head_kv * head_size),
+             v_cache->row_size(head_size),
+             v_cache->row_size(n_head_kv * head_size)},
             0UL
         );
         v->m_name = fmt::format("v_view_{}_{}", L, pos[0]);
@@ -127,24 +135,24 @@ TensorNode *FlashAttention::build(
         float f_max_alibi_bias = 0.000000;
         float logit_softcap    = 0.0f;
 
-        auto kq_mask = g.get_mask(mask, {head_size, n_kv, 1, 1}, pos, q);
+        auto kq_mask    = g.get_mask(mask, {head_size, n_kv, 1, 1}, pos, q);
         kq_mask->m_name = fmt::format("kq_mask_{}_{}", L, pos[0]);
 
-        auto fattn_res = g.flash_attention(q, k, v, kq_mask, kq_scale, f_max_alibi_bias, logit_softcap);
+        auto fattn_res    = g.flash_attention(q, k, v, kq_mask, kq_scale, f_max_alibi_bias, logit_softcap);
         fattn_res->m_name = fmt::format("fattn_res_{}_{}", L, pos[0]);
-    
-        reshaped_fattn_res = g.view_tensor(fattn_res, {head_size * n_head, batch_size, 1, 1});
+
+        reshaped_fattn_res         = g.view_tensor(fattn_res, {head_size * n_head, batch_size, 1, 1});
         reshaped_fattn_res->m_name = fmt::format("reshaped_fattn_res_{}_{}", L, pos[0]);
     }
 
     auto attn_out_w = g.add_tensor(m_weights->lw[L].attn_output);
-    auto attn_o = g.mat_mul(attn_out_w, reshaped_fattn_res);
-    attn_o->m_name = fmt::format("attn_o_{}_{}", L, pos[0]);
+    auto attn_o     = g.mat_mul(attn_out_w, reshaped_fattn_res);
+    attn_o->m_name  = fmt::format("attn_o_{}_{}", L, pos[0]);
 
-    auto res_conn = g.add(x, attn_o);
+    auto res_conn    = g.add(x, attn_o);
     res_conn->m_name = fmt::format("res_conn_{}_{}", L, pos[0]);
 
     return res_conn;
 }
 
-}
+} // namespace powerserve

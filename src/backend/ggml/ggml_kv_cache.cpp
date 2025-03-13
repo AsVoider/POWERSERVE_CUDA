@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "backend/common/common.hpp"
 #include "backend/ggml/ggml_kv_cache.hpp"
 
+#include "backend/common/common.hpp"
 #include "cpu_buffer.hpp"
 
 namespace powerserve::ggml {
@@ -25,9 +25,9 @@ GGML_CPUKV::GGML_CPUKV(const ModelConfig::LLMConfig &config) : config{config} {
     kv_shape.n_ctx      = config.seq_len > 1024 ? 1024 : config.seq_len;
     kv_shape.n_layers   = config.n_layers;
     kv_shape.head_size  = config.head_size;
-    kv_shape.batch_size = 1UL; 
+    kv_shape.batch_size = 1UL;
     kv_shape.type       = DataType::FP32;
-    
+
     init_cache();
 }
 
@@ -211,8 +211,9 @@ auto GGML_CPUKV::KVCacheShape::get_v_size(size_t token_nums) -> size_t {
 //             sizeof(float) * m_kv_dim * m_n_ctx,
 //             sizeof(float) * m_kv_dim * m_n_ctx
 //         };
-//         chunk.key_tensors[L].m_data   = std::make_shared<CPUBuffer>(stride, key_buffer[L].data(), false, layer_size * sizeof(float), usage::COMPUTE);
-//         chunk.value_tensors[L].m_data = std::make_shared<CPUBuffer>(stride, value_buffer[L].data(), false, layer_size * sizeof(float), usage::COMPUTE);
+//         chunk.key_tensors[L].m_data   = std::make_shared<CPUBuffer>(stride, key_buffer[L].data(), false, layer_size *
+//         sizeof(float), usage::COMPUTE); chunk.value_tensors[L].m_data = std::make_shared<CPUBuffer>(stride,
+//         value_buffer[L].data(), false, layer_size * sizeof(float), usage::COMPUTE);
 //     }
 
 //     k.resize(m_n_layers);

@@ -39,8 +39,8 @@ int main(int argc, char *argv[]) {
     POWERSERVE_LOG_INFO("number of gpu layers: {}", main_model->m_config->llm.n_gpu_layers);
 
     const auto [sampler_config, n_threads, batch_size, _] = config.hyper_params;
-    main_model->m_platform                             = std::make_shared<powerserve::Platform>();
-    auto &platform                                     = main_model->m_platform;
+    main_model->m_platform                                = std::make_shared<powerserve::Platform>();
+    auto &platform                                        = main_model->m_platform;
 
     platform->init_backend(main_model->m_config, config.hyper_params, args.qnn_lib_folder);
 

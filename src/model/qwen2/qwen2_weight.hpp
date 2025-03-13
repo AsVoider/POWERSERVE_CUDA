@@ -42,7 +42,8 @@ public:
 struct Qwen2Weight : Weight {
 
 public:
-    Qwen2Weight(ggml_context *ctx, uint32_t n_layers, bool lazy_load, uint32_t &n_gpu_layer) : Weight(ctx, lazy_load, n_gpu_layer, n_layers) {
+    Qwen2Weight(ggml_context *ctx, uint32_t n_layers, bool lazy_load, uint32_t &n_gpu_layer) :
+        Weight(ctx, lazy_load, n_gpu_layer, n_layers) {
         if (!lazy_load) {
             for (size_t layer = 0; layer < n_layers; layer++) {
                 lw.push_back(Qwen2LayerWeights(ctx, layer));

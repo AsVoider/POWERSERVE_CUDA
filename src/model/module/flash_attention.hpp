@@ -13,11 +13,12 @@ namespace powerserve {
 class FlashAttention : public Attention {
 
 public:
-    FlashAttention(const ModelConfig::LLMConfig &config, std::shared_ptr<Weight> weights) : Attention(config, weights) {}
+    FlashAttention(const ModelConfig::LLMConfig &config, std::shared_ptr<Weight> weights) :
+        Attention(config, weights) {}
 
     ~FlashAttention() = default;
 
-    public:
+public:
     TensorNode *build(
         Graph &g,
         TensorNode *x,

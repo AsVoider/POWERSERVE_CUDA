@@ -88,7 +88,10 @@ auto LlamaModel::forward(
                 bk->reset_kv_batch_size(batch_size);
             }
             for (size_t L = 0; L < llm_config.n_layers; L++) {
-                auto [k_ptr, v_ptr] = L < m_config->llm.n_gpu_layers ? m_platform->backends[m_config->model_id][TensorBackend::GGML_GPU]->get_kv_cache(L) : m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]->get_kv_cache(L);
+                auto [k_ptr, v_ptr] =
+                    L < m_config->llm.n_gpu_layers
+                        ? m_platform->backends[m_config->model_id][TensorBackend::GGML_GPU]->get_kv_cache(L)
+                        : m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]->get_kv_cache(L);
                 auto &k_cache{*k_ptr}, &v_cache{*v_ptr};
                 k_cache.m_name = fmt::format("k_cache_{}", L);
                 v_cache.m_name = fmt::format("v_cache_{}", L);

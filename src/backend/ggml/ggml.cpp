@@ -170,8 +170,12 @@ void GGMLBackend::add_cache(const Tensor *k, const Tensor *v, size_t L, const st
 
     float *src_k  = static_cast<float *>(k->m_data->m_data_host); // (kv_dim, batch_size, 1, 1)
     float *src_v  = static_cast<float *>(v->m_data->m_data_host); // (kv_dim, batch_size, 1, 1)
-    float *dst_kb = reinterpret_cast<float *>(m_kv->k_cache[L].cache_data_ptr + kv_dim * cur_position * sizeof(float)); // fixed to use k_cache for destination
-    float *dst_vb = reinterpret_cast<float *>(m_kv->v_cache[L].cache_data_ptr + kv_dim * cur_position * sizeof(float)); // fixed to use v_cache for destination
+    float *dst_kb = reinterpret_cast<float *>(
+        m_kv->k_cache[L].cache_data_ptr + kv_dim * cur_position * sizeof(float)
+    ); // fixed to use k_cache for destination
+    float *dst_vb = reinterpret_cast<float *>(
+        m_kv->v_cache[L].cache_data_ptr + kv_dim * cur_position * sizeof(float)
+    ); // fixed to use v_cache for destination
     memcpy(dst_kb, src_k, kv_dim * batch_size * sizeof(float));
     memcpy(dst_vb, src_v, kv_dim * batch_size * sizeof(float));
 }
@@ -181,8 +185,8 @@ void GGMLBackend::transpose(const Tensor *out, const Tensor *x) const {
     stride[0] = x->m_data->m_stride[1];
     stride[1] = x->m_data->m_stride[0];
 
-    out->m_data->m_data_host   = x->m_data->m_data_host;
-    out->m_data->m_stride = stride;
+    out->m_data->m_data_host = x->m_data->m_data_host;
+    out->m_data->m_stride    = stride;
 }
 
 void GGMLBackend::setup_threadpool() {

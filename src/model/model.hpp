@@ -31,7 +31,7 @@ struct LogitsVector {
     LogitsVector() = default;
 
     LogitsVector(BufferPtr buffer, size_t vocab_size, size_t batch_size) : buffer(buffer) {
-    float *logits = static_cast<float *>(buffer->get_host_data());
+        float *logits = static_cast<float *>(buffer->get_host_data());
         for (size_t i = 0; i < batch_size; i++) {
             logits_vector.push_back(std::span<const float>(logits, logits + vocab_size));
             logits += vocab_size;
@@ -164,7 +164,10 @@ public:
 
     ~ModelTokenIterator() {
         // TODO: speculative's reset
-        static_cast<ggml::GGMLBackend &>(*m_model.m_platform->backends[m_model.m_config->model_id][TensorBackend::GGML_CPU]).reset_threadpool();
+        static_cast<ggml::GGMLBackend &>(
+            *m_model.m_platform->backends[m_model.m_config->model_id][TensorBackend::GGML_CPU]
+        )
+            .reset_threadpool();
     }
 
     virtual void decode() override {

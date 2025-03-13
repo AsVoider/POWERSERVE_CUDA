@@ -101,7 +101,7 @@ void Executor::allocate_buffer_with_backend() {
 //             img_infos.clear();
 //         } break;
 // #endif
-            
+
 // fix this function, accept a parameter to print graph to a file
 void Executor::print_graph(std::ostream &os) {
     os << "total tensor num is " << m_graph.tensors.size() << std::endl;

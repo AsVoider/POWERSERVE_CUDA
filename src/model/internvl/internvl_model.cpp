@@ -43,7 +43,7 @@ InternVL::InternVL(const std::string &filename, const std::shared_ptr<ModelConfi
     lazy_load = ggml_get_tensor(ggml_ctx, "output.weight") == nullptr ? true : false;
     // FIXME: hyperparams
     uint32_t a = 0;
-    m_weights = std::make_shared<InternVLWeight>(ggml_ctx, m_config->llm.n_layers, lazy_load, a);
+    m_weights  = std::make_shared<InternVLWeight>(ggml_ctx, m_config->llm.n_layers, lazy_load, a);
     if (lazy_load) {
         POWERSERVE_LOG_WARN("only the embedding table was loaded");
     }
