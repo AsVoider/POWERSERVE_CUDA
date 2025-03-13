@@ -125,8 +125,9 @@ public: // ! Math Ops
 public:
     void advance(const size_t &size) override;
     void reset_kv_batch_size(const size_t &size) override;
+    std::pair<Tensor *, Tensor *> get_kv_cache(size_t layer_id) override;
     void graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) override;
-
+    
 public: // ! Mem Ops
     template <typename T>
     auto create_cuda_buffer(Shape shape, usage use = usage::ANY) -> BufferPtr {

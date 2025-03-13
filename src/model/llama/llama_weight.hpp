@@ -39,7 +39,7 @@ public:
 struct LlamaWeight : Weight {
 
 public:
-    LlamaWeight(ggml_context *ctx, uint32_t n_layers, bool lazy_load) : Weight(ctx, lazy_load) {
+    LlamaWeight(ggml_context *ctx, uint32_t n_layers, bool lazy_load, uint32_t &n_gpu_layer) : Weight{ctx, lazy_load, n_gpu_layer, n_layers} {
         if (!lazy_load) {
             for (size_t layer = 0; layer < n_layers; layer++) {
                 lw.push_back(LlamaLayerWeights(ctx, layer));

@@ -39,7 +39,7 @@ public:
 struct InternVLWeight : Weight {
 
 public:
-    InternVLWeight(ggml_context *ctx, uint32_t n_layers, bool lazy_load) : Weight(ctx, lazy_load) {
+    InternVLWeight(ggml_context *ctx, uint32_t n_layers, bool lazy_load, uint32_t &n_gpu_layers) : Weight(ctx, lazy_load, n_gpu_layers, n_layers) {
         if (!lazy_load) {
             for (size_t layer = 0; layer < n_layers; layer++) {
                 lw.push_back(InternVLLayerWeights(ctx, layer));

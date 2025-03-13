@@ -1,8 +1,10 @@
+#pragma once
+
 #include "core/config.hpp"
 #include "core/defines.hpp"
 #include "core/tensor.hpp"
 
-namespace powerserve::ggml_cuda {
+namespace powerserve {
 
 static ggml_type convert_datatype_to_ggml(DataType dtp) {
     switch (dtp) {
@@ -36,4 +38,4 @@ static DataType convert_datatype_from_ggml(ggml_type tp) {
     }
 }
 
-} // namespace powerserve::ggml_cuda
+} // namespace powerserve

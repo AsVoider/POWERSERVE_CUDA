@@ -1,4 +1,4 @@
-#include "backend/ggml-cuda/common.hpp"
+#include "backend/common/common.hpp"
 
 namespace powerserve::ggml_cuda {
 

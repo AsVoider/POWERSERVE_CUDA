@@ -26,6 +26,7 @@ struct Backend {
 
     virtual auto graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) -> void = 0;
     virtual auto advance(const size_t &size) -> void = 0;
+    virtual auto get_kv_cache(size_t layer_id) -> std::pair<Tensor *, Tensor *> = 0;
     virtual auto reset_kv_batch_size(const size_t &size) -> void = 0;
 };
 

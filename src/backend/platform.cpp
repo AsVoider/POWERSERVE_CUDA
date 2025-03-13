@@ -57,7 +57,7 @@ void Platform::init_qnn_backend(const Path &qnn_path) {
 
 size_t Platform::get_kv_position(std::string &model_id) const {
     // NEW ADD
-    auto position{static_cast<ggml::GGMLBackend &>(*backends.at(model_id).at(TensorBackend::GGML_CPU)).m_kv->kv_cache->position};
+    auto position{static_cast<ggml::GGMLBackend &>(*backends.at(model_id).at(TensorBackend::GGML_CPU)).m_kv->get_cache_position()};
 
 #if defined(POWERSERVE_WITH_CUDA) 
     auto cuda_position{static_cast<ggml_cuda::GGML_CUDABackend &>(*backends.at(model_id).at(TensorBackend::GGML_GPU)).m_kv->get_cache_position()};
@@ -75,7 +75,7 @@ size_t Platform::get_kv_position(std::string &model_id) const {
 
 void Platform::reset_kv_position(std::string &model_id) {
     // ggml_backends[model_id]->m_kv->reset_kv_cache();
-    static_cast<ggml::GGMLBackend &>(*backends.at(model_id).at(TensorBackend::GGML_CPU)).m_kv->reset_kv_cache();
+    static_cast<ggml::GGMLBackend &>(*backends.at(model_id).at(TensorBackend::GGML_CPU)).m_kv->clear_cache(0UL);
 #if defined(POWERSERVE_WITH_QNN)
     if (qnn_backend) {
         qnn_backend->m_models[model_id]->reset_kv_cache();

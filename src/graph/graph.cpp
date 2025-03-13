@@ -48,11 +48,8 @@ auto Graph::get_embedding(TensorNode *weight, const std::vector<int> &tokens) ->
     op->set_inputs({weight});
     op->set_outputs({out});
     op->set_params(GetEmbeddingParams{tokens});
-#if defined(POWERSERVE_WITH_CUDA)
-    out->m_backend = TensorBackend::GGML_GPU;
-#else
-    out->m_backend = TensorBackend::GGML_CPU;
-#endif
+
+    out->m_backend = weight->m_backend;
     out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
@@ -279,7 +276,6 @@ auto Graph::view(const TensorNode *x, Shape shape, Shape stride, size_t offset) 
 
     { out->m_backend = x->m_backend; }
 
-    // TODO: fix view on build graph
     out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, out->m_shape, sizeof(float), offset);
     out->m_data->m_stride = std::move(stride);
     POWERSERVE_ASSERT(out->m_data not_eq nullptr);
@@ -340,6 +336,38 @@ auto Graph::make_contiguous(TensorNode *x) -> TensorNode * {
     auto out = dup_tensor(x);
     x->m_data = Platform::buffer_interfaces.at(x->m_backend).create_buffer(x->m_shape, sizeof(float));
     copy(out, x);
+    return out;
+}
+
+// params: scale, max_bias, logit_softcap
+// tensors: q, k, v, mask
+auto Graph::flash_attention(TensorNode *q, TensorNode *k, TensorNode *v, TensorNode *mask, float scale, float max_bias, float logit_softcap) -> TensorNode * {
+    if (mask) {
+        POWERSERVE_ASSERT(mask->m_shape[2] == 1 and mask->m_shape[3] == 1);
+        POWERSERVE_ASSERT(mask->m_shape[0] >= (q->m_shape[1] + 64 - 1) / 64 * 64);
+    }
+
+    if (max_bias > 0.f) {
+        POWERSERVE_ASSERT(mask);
+    }
+
+    auto out{new_tensor(DataType::FP32, {q->m_shape[0], q->m_shape[2], q->m_shape[1], q->m_shape[3]})};
+    auto op{new_op(OpType::FLASH_ATTENTION)};
+    op->set_inputs({q, k, v, mask});
+    op->set_outputs({out});
+    op->set_params(FlashAttentionParams{
+        .scale = scale,
+        .max_bias = max_bias,
+        .logit_softcap = logit_softcap
+    });
+
+    {
+        auto backend{q->m_backend};
+        POWERSERVE_ASSERT(backend == k->m_backend and backend == v->m_backend and backend == mask->m_backend);
+        out->m_backend = backend;
+        out->m_data = Platform::buffer_interfaces.at(backend).create_buffer(out->m_shape, sizeof(float));
+    }
+
     return out;
 }
 

@@ -68,7 +68,7 @@ void GGMLBackend::plan(std::vector<std::shared_ptr<OpNode>> &ops) {
             //     x->m_shape[0], x->m_shape[1], x->m_shape[2], x->m_shape[3], weight->m_shape[0], weight->m_shape[1],
             //     weight->m_shape[2], weight->m_shape[3]);
             const enum ggml_type vec_dot_type = get_vec_dot_type(x);
-            if (ggml::convert_datatype_to_ggml(weight->m_dtype) != vec_dot_type) {
+            if (convert_datatype_to_ggml(weight->m_dtype) != vec_dot_type) {
                 cur = ggml_row_size(vec_dot_type, weight->n_elements());
             }
         } break;
@@ -114,11 +114,11 @@ void GGMLBackend::setup_work_data(size_t work_size) {
 }
 
 void GGMLBackend::advance(const size_t &size) {
-    m_kv->advance(size);
+    m_kv->advanced_kv_cache_size(size);
 }
 
 void GGMLBackend::reset_kv_batch_size(const size_t &batch_size) {
-    m_kv->reset_batch_size(batch_size);
+    m_kv->reset_kv_batch_size(batch_size);
 }
 
 void GGMLBackend::silu_hadamard(const Tensor *out, const Tensor *hb, const Tensor *hb2) const {
@@ -163,15 +163,15 @@ void GGMLBackend::add_cache(const Tensor *k, const Tensor *v, size_t L, const st
     fmt::println("This function is deprecated!");
     POWERSERVE_UNUSED(head_id);
 
-    auto kv_dim       = m_kv->m_kv_dim;
+    auto kv_dim       = m_kv->kv_shape.kv_dim;
     auto batch_size   = pos.size();
-    auto cur_position = m_kv->kv_cache->position;
-    POWERSERVE_ASSERT(batch_size == m_kv->m_batch_size);
+    auto cur_position = m_kv->kv_shape.kv_size;
+    POWERSERVE_ASSERT(batch_size == m_kv->kv_shape.batch_size);
 
     float *src_k  = static_cast<float *>(k->m_data->m_data_host); // (kv_dim, batch_size, 1, 1)
     float *src_v  = static_cast<float *>(v->m_data->m_data_host); // (kv_dim, batch_size, 1, 1)
-    float *dst_kb = m_kv->chunk.key_buffer[L].data() + kv_dim * cur_position;
-    float *dst_vb = m_kv->chunk.value_buffer[L].data() + kv_dim * cur_position;
+    float *dst_kb = reinterpret_cast<float *>(m_kv->k_cache[L].cache_data_ptr + kv_dim * cur_position * sizeof(float)); // fixed to use k_cache for destination
+    float *dst_vb = reinterpret_cast<float *>(m_kv->v_cache[L].cache_data_ptr + kv_dim * cur_position * sizeof(float)); // fixed to use v_cache for destination
     memcpy(dst_kb, src_k, kv_dim * batch_size * sizeof(float));
     memcpy(dst_vb, src_v, kv_dim * batch_size * sizeof(float));
 }
@@ -192,6 +192,10 @@ void GGMLBackend::setup_threadpool() {
 void GGMLBackend::reset_threadpool() {
     POWERSERVE_LOG_DEBUG("reset_threadpool");
     m_thread_pool.reset();
+}
+
+std::pair<Tensor *, Tensor *> GGMLBackend::get_kv_cache(size_t layer_id) {
+    return m_kv->get_cache(layer_id);
 }
 
 void GGMLBackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) {

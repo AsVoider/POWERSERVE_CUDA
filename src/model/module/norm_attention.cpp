@@ -140,7 +140,7 @@ TensorNode *NormAttention::build(
                 k_cache->element_size(),
                 k_cache->row_size(kv_gqa),
                 k_cache->row_size(head_size),
-                k_cache->row_size(head_size) * n_head_kv,
+                k_cache->row_size(head_size) * n_kv,
             }
         );
         k->m_name = fmt::format("k_cache_view_{}_{}", L, pos[0]);

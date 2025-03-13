@@ -38,7 +38,7 @@ LlamaModel::LlamaModel(const std::string &filename, const std::shared_ptr<ModelC
     }
     m_config  = config;
     lazy_load = ggml_get_tensor(ggml_ctx, "output_norm.weight") == nullptr ? true : false;
-    m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->llm.n_layers, lazy_load);
+    m_weights = std::make_shared<LlamaWeight>(ggml_ctx, m_config->llm.n_layers, lazy_load, m_config->llm.n_gpu_layers);
     if (lazy_load) {
         POWERSERVE_LOG_WARN("only the embedding table was loaded");
     }
@@ -88,12 +88,8 @@ auto LlamaModel::forward(
                 bk->reset_kv_batch_size(batch_size);
             }
             for (size_t L = 0; L < llm_config.n_layers; L++) {
-#if defined(POWERSERVE_WITH_CUDA)
-                auto [k_ptr, v_ptr] = static_cast<ggml_cuda::GGML_CUDABackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_GPU]).m_kv->get_cache(L);
+                auto [k_ptr, v_ptr] = L < m_config->llm.n_gpu_layers ? m_platform->backends[m_config->model_id][TensorBackend::GGML_GPU]->get_kv_cache(L) : m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]->get_kv_cache(L);
                 auto &k_cache{*k_ptr}, &v_cache{*v_ptr};
-#else
-                auto [k_cache, v_cache] = static_cast<ggml::GGMLBackend &>(*m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).m_kv->get_cache(L);
-#endif
                 k_cache.m_name = fmt::format("k_cache_{}", L);
                 v_cache.m_name = fmt::format("v_cache_{}", L);
                 auto k_node{g.add_tensor(k_cache)};
@@ -144,10 +140,6 @@ auto LlamaModel::forward(
     if (!m_platform->qnn_backend)
 #endif
     {
-//         static_cast<ggml::GGMLBackend &>(* m_platform->backends[m_config->model_id][TensorBackend::GGML_CPU]).m_kv->advance(batch_size);
-// #if defined(POWERSERVE_WITH_CUDA)
-//         static_cast<ggml_cuda::GGML_CUDABackend &>(* m_platform->backends[m_config->model_id][TensorBackend::GGML_GPU]).m_kv->advanced_kv_cache_size(batch_size);
-// #endif
         for (auto &[_, bk] : m_platform->backends[m_config->model_id]) {
             bk->advance(batch_size);
         }

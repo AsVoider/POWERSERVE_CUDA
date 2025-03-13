@@ -23,6 +23,9 @@ namespace powerserve {
 struct Attention {
 
 public:
+    constexpr static size_t KV_PADDING = 64;
+
+public:
     const ModelConfig::LLMConfig &m_config;
     std::shared_ptr<Weight> m_weights;
 

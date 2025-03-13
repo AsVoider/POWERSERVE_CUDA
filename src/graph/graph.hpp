@@ -75,6 +75,7 @@ public:
     auto get_mask(const CausalAttentionMask &mask, Shape shape, const std::vector<int> &pos, TensorNode *kq = nullptr)
         -> TensorNode *;
     auto transpose(TensorNode *x) -> TensorViewNode *;
+    auto flash_attention(TensorNode *q, TensorNode *k, TensorNode *v, TensorNode *mask, float scale, float max_bias, float logit_softcap) -> TensorNode *;
 };
 
 } // namespace powerserve

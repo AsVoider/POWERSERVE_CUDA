@@ -116,4 +116,10 @@ struct GetMaskParams {
     const std::vector<int> &pos;
 };
 
+struct FlashAttentionParams {
+    float scale;
+    float max_bias;
+    float logit_softcap;
+};
+
 } // namespace powerserve

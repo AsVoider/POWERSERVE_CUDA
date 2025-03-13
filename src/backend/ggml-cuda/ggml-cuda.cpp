@@ -658,6 +658,10 @@ void GGML_CUDABackend::reset_kv_batch_size(const size_t &size) {
     m_kv->reset_kv_batch_size(size);
 }
 
+std::pair<Tensor *, Tensor *> GGML_CUDABackend::get_kv_cache(size_t layer_id) {
+    return m_kv->get_cache(layer_id);
+}
+
 void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) {
     for (auto &op : ops) {
         switch (op->op) {

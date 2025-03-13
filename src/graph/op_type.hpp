@@ -41,7 +41,8 @@ enum class OpType {
     SOFTMAX_EXT,   //
     GET_MASK,      //
     TRANSPOSE,     //
-    INSERT_IMG_EMBEDDIGN,
+    FLASH_ATTENTION,
+    INSERT_IMG_EMBEDDING,
 };
 
 } // namespace powerserve

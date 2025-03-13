@@ -20,146 +20,57 @@
 
 namespace powerserve::ggml {
 
-struct GGMLKV {
+class GGML_CPUKV {
 public:
-    using KVBuffer = std::vector<std::vector<float>>;
+    static constexpr int KVPaddingSize{256};
+    static constexpr int KVBlockSize{64};
 
-    size_t m_kv_dim     = 0;
-    size_t m_n_kv_heads = 0;
-    size_t m_n_ctx      = 0;
-    size_t m_n_layers   = 0;
-    size_t m_head_size  = 0;
-    size_t m_batch_size = 0;
-    size_t kv_size      = 0; // system_prompt size
-    const ModelConfig::LLMConfig &m_config;
-
-    struct GGMLChunk {
-        KVBuffer key_buffer;          // [n_layers][seq_len * kv_dim]) kv_dim == n_kv_heads * head_size
-        KVBuffer value_buffer;        // [n_layers][seq_len * kv_dim])
-        KVBuffer current_k;           // [n_layers][batch_size * kv_dim])
-        KVBuffer current_v;           // [n_layers][batch_size * kv_dim])
-        std::vector<float> attn_bias; // [batch_size * n_ctx]
-
-        std::vector<Tensor> key_tensors;   // n_layers
-        std::vector<Tensor> value_tensors; // n_layers
+    struct GGML_CPUCHUNK {
+        uint8_t *cache_data_ptr{nullptr};
+        size_t next_position{0};
+        size_t valid_idx{0};
     };
 
-    GGMLChunk chunk;
+    struct KVCacheShape {
+        size_t kv_dim{0};     // 1024
+        size_t kv_heads{0};   // 8
+        size_t n_ctx{0};      // n
+        size_t n_layers{0};   // 32
+        size_t head_size{0};  // ? 128 ?
+        size_t batch_size{0}; // always 1
+        size_t kv_size{0};    //
+        DataType type{DataType::UNKNOWN};
+        bool flash_attn{false};
 
-    struct GGMLKVInterface {
-        GGMLKV &parent;
-        GGMLChunk &chunk;
-
-        GGMLKVInterface(GGMLKV &parent, GGMLChunk &chunk) : parent(parent), chunk(chunk) {}
-
-        // Note: get entry from temporary kv
-        ALWAYS_INLINE auto get_key(KVPosition token_pos) const -> KVView {
-            auto &chk       = chunk.current_k[token_pos.layer_id];
-            auto buffer     = chk.data() + token_pos.index * parent.m_kv_dim + token_pos.head_id * parent.m_head_size;
-            size_t n_elem   = parent.m_head_size;
-            size_t n_stride = sizeof(float); // TODO: transpose will change stride
-
-            return {
-                .n_elements   = n_elem,
-                .element_size = sizeof(float),
-                .stride       = n_stride,
-                .data         = buffer,
-            };
-        }
-
-        ALWAYS_INLINE auto get_value(KVPosition token_pos) const -> KVView {
-            auto &chk       = chunk.current_v[token_pos.layer_id];
-            auto buffer     = chk.data() + token_pos.index * parent.m_kv_dim + token_pos.head_id * parent.m_head_size;
-            size_t n_elem   = parent.m_head_size;
-            size_t n_stride = sizeof(float); // TODO: transpose will change stride
-
-            return {
-                .n_elements   = n_elem,
-                .element_size = sizeof(float),
-                .stride       = n_stride,
-                .data         = buffer,
-            };
-        };
-
-        // Note: get entry from KV cache
-        ALWAYS_INLINE auto key_entry(KVPosition cache_pos) const -> KVView {
-            auto &chk       = chunk.key_buffer[cache_pos.layer_id];
-            auto buffer     = chk.data() + cache_pos.index * parent.m_kv_dim + cache_pos.head_id * parent.m_head_size;
-            size_t n_elem   = parent.m_head_size;
-            size_t n_stride = sizeof(float); // TODO: transpose will change stride
-
-            return {
-                .n_elements   = n_elem,
-                .element_size = sizeof(float),
-                .stride       = n_stride,
-                .data         = buffer,
-            };
-        }
-
-        ALWAYS_INLINE auto value_entry(KVPosition cache_pos) const -> KVView {
-            auto &chk       = chunk.value_buffer[cache_pos.layer_id];
-            auto buffer     = chk.data() + cache_pos.index * parent.m_kv_dim + cache_pos.head_id * parent.m_head_size;
-            size_t n_elem   = parent.m_head_size;
-            size_t n_stride = sizeof(float); // TODO: transpose will change stride
-
-            return {
-                .n_elements   = n_elem,
-                .element_size = sizeof(float),
-                .stride       = n_stride,
-                .data         = buffer,
-            };
-        }
-
-        ALWAYS_INLINE void set_mask(size_t cache_index, bool mask) {
-            for (size_t i = 0; i < parent.m_batch_size; i++) {
-                auto attn_bias         = chunk.attn_bias.data() + i * parent.m_n_ctx;
-                attn_bias[cache_index] = mask ? -INFINITY : 0;
-            }
-        }
+        auto get_k_size(size_t token_nums) -> size_t;
+        auto get_v_size(size_t token_nums) -> size_t;
     };
 
 public:
-    std::unique_ptr<KVCache<GGMLKVInterface>> kv_cache;
+    const ModelConfig::LLMConfig &config;
+    KVCacheShape kv_shape;
+
+    std::vector<GGML_CPUCHUNK> k_cache;
+    std::vector<GGML_CPUCHUNK> v_cache;
+
+    GGML_CPUKV(const ModelConfig::LLMConfig &config);
+    ~GGML_CPUKV() = default;
 
 public:
-    GGMLKV(const ModelConfig::LLMConfig &config);
-
-    ~GGMLKV() = default;
-
-public:
-    void reset_batch_size(const size_t &batch_size) {
-        if (m_batch_size == batch_size)
-            return;
-        // fmt::println("Resize batch size: {} -> {}", m_batch_size, batch_size);
-        m_batch_size = batch_size;
-
-        auto &k = chunk.current_k;
-        auto &v = chunk.current_v;
-        for (size_t L = 0; L < m_n_layers; L++) {
-            k[L].resize(m_batch_size * m_kv_dim);
-            v[L].resize(m_batch_size * m_kv_dim);
-        }
-        chunk.attn_bias.resize(m_batch_size * m_n_ctx);
-    }
-
-    void reset_kv_cache() {
-        kv_cache->truncate_tokens(kv_size);
-    }
-
-    void save_kv(size_t size) {
-        kv_cache->save_tokens(size);
-    }
-
-    void advance(size_t size) {
-        kv_cache->advance_tokens(size);
-    }
-
-    auto get_cache(size_t L) -> std::pair<Tensor &, Tensor &> {
-        return {chunk.key_tensors[L], chunk.value_tensors[L]};
-    }
+    auto advanced_kv_cache_size(size_t token_nums) -> void;
+    auto reset_kv_batch_size(size_t batch_size) -> void;
+    auto get_cache_position() -> size_t;
+    auto get_cache(size_t layer_id) -> std::pair<Tensor *, Tensor *>;
+    auto clear_cache(size_t trunc_idx) -> void;
+    auto append_k_cache(const Tensor *k_tensor, size_t layer_id, size_t token_nums) -> void;
+    auto append_v_cache(const Tensor *v_tensor, size_t layer_id, size_t token_nums) -> void;
+    auto get_k_cache_tensor(size_t layer_id) -> Tensor *;
+    auto get_v_cache_tensor(size_t layer_id) -> Tensor *;
 
 private:
-    void prepare_model_chunk();
+    auto init_cache() -> void;
+    auto get_k_cache(size_t layer_id) -> uint8_t *;
+    auto get_v_cache(size_t layer_id) -> uint8_t *;
 };
 
 } // namespace powerserve::ggml

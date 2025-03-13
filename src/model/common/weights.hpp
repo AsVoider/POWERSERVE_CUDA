@@ -65,35 +65,54 @@ protected:
 
 struct Weight {
 public:
+    uint32_t ngl;
+    uint32_t model_layers;
     Tensor token_embedding_table; // "token_embd.weight" (vocab_size, dim)
     Tensor output_weight;         // "output.weight" (vocab_size, dim)
     Tensor rms_final_weight;      // "output_norm.weight" (dim,)
     Tensor rope_freq_weight;
-    int ngl{33};
 
     std::vector<LayerWeights> lw;
 
 public:
-    Weight(ggml_context *ctx, bool lazy_load) {
+    Weight(ggml_context *ctx, bool lazy_load, uint32_t &n_gpu_layer, uint32_t model_layer) : model_layers{model_layer} {
 #if defined(POWERSERVE_WITH_CUDA)
-        token_embedding_table =
-            ggml_cuda::convert_from_ggml_with_data_copied(ggml_get_tensor(ctx, "token_embd.weight"));
-        rope_freq_weight = ggml_cuda::convert_from_ggml_with_data_copied(ggml_get_tensor(ctx, "rope_freqs.weight"));
+        n_gpu_layer = n_gpu_layer > model_layer ? model_layer : n_gpu_layer;
+        ngl = n_gpu_layer;
+        ngl = n_gpu_layer;
+        if (ngl == 0) {
+            token_embedding_table =
+                ggml_cuda::convert_from_ggml_with_data_on_host(ggml_get_tensor(ctx, "token_embd.weight"));
+            rope_freq_weight = ggml_cuda::convert_from_ggml_with_data_on_host(ggml_get_tensor(ctx, "rope_freqs.weight"));
+        } else {
+            token_embedding_table =
+                ggml_cuda::convert_from_ggml_with_data_copied(ggml_get_tensor(ctx, "token_embd.weight"));
+            rope_freq_weight = ggml_cuda::convert_from_ggml_with_data_copied(ggml_get_tensor(ctx, "rope_freqs.weight"));
+        }
+
+        if (not lazy_load) {
+            auto ow_name = ggml_get_tensor(ctx, "output.weight") == nullptr ? "token_embd.weight" : "output.weight";
+            if (ngl < model_layers) {
+                output_weight = ggml_cuda::convert_from_ggml_with_data_on_host(ggml_get_tensor(ctx, ow_name));
+                rms_final_weight =
+                    ggml_cuda::convert_from_ggml_with_data_on_host(ggml_get_tensor(ctx, "output_norm.weight"));
+            } else {
+                output_weight = ggml_cuda::convert_from_ggml_with_data_copied(ggml_get_tensor(ctx, ow_name));
+                rms_final_weight =
+                    ggml_cuda::convert_from_ggml_with_data_copied(ggml_get_tensor(ctx, "output_norm.weight"));
+            }
+        }
 #else
+        ngl = 0, n_gpu_layer = 0;
         token_embedding_table = ggml::convert_from_ggml(ggml_get_tensor(ctx, "token_embd.weight"));
         rope_freq_weight      = ggml::convert_from_ggml(ggml_get_tensor(ctx, "rope_freqs.weight"));
-#endif
-        if (!lazy_load) {
+
+        if (not lazy_load) {
             auto ow_name = ggml_get_tensor(ctx, "output.weight") == nullptr ? "token_embd.weight" : "output.weight";
-#if defined(POWERSERVE_WITH_CUDA)
-            output_weight = ggml_cuda::convert_from_ggml_with_data_copied(ggml_get_tensor(ctx, ow_name));
-            rms_final_weight =
-                ggml_cuda::convert_from_ggml_with_data_copied(ggml_get_tensor(ctx, "output_norm.weight"));
-#else
             output_weight    = ggml::convert_from_ggml(ggml_get_tensor(ctx, ow_name));
             rms_final_weight = ggml::convert_from_ggml(ggml_get_tensor(ctx, "output_norm.weight"));
-#endif
         }
+#endif
     }
 
     virtual ~Weight() = default;

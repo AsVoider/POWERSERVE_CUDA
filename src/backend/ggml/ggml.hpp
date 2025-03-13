@@ -15,6 +15,7 @@
 #pragma once
 
 #include "backend/backend.hpp"
+#include "backend/common/common.hpp"
 #include "core/config.hpp"
 #include "core/data_type.hpp"
 #include "core/logger.hpp"
@@ -33,44 +34,6 @@
 #include <vector>
 
 namespace powerserve::ggml {
-
-static ggml_type convert_datatype_to_ggml(DataType dtp) {
-    switch (dtp) {
-    case DataType::FP32:
-        return GGML_TYPE_F32;
-    case DataType::FP16:
-        return GGML_TYPE_F16;
-    case DataType::GGML_Q4_0:
-        return GGML_TYPE_Q4_0;
-    case DataType::GGML_Q8_0:
-        return GGML_TYPE_Q8_0;
-    case DataType::INT32:
-        return GGML_TYPE_I32;
-    case DataType::INT64:
-        return GGML_TYPE_I64;
-    default:
-        POWERSERVE_ABORT("unsupported data type: {}", static_cast<int>(dtp));
-    }
-}
-
-static DataType convert_datatype_from_ggml(ggml_type tp) {
-    switch (tp) {
-    case GGML_TYPE_F32:
-        return DataType::FP32;
-    case GGML_TYPE_F16:
-        return DataType::FP16;
-    case GGML_TYPE_Q4_0:
-        return DataType::GGML_Q4_0;
-    case GGML_TYPE_Q8_0:
-        return DataType::GGML_Q8_0;
-    case GGML_TYPE_I32:
-        return DataType::INT32;
-    case GGML_TYPE_I64:
-        return DataType::INT64;
-    default:
-        POWERSERVE_ABORT("unsupported ggml data type: {}", static_cast<int>(tp));
-    }
-}
 
 static Tensor convert_from_ggml(ggml_tensor *t) {
     POWERSERVE_ASSERT(t != nullptr);
@@ -189,7 +152,7 @@ struct GGMLBackend : Backend {
 public:
     op_compute_params m_params;
     std::vector<char> m_wdata;
-    std::unique_ptr<GGMLKV> m_kv;
+    std::unique_ptr<GGML_CPUKV> m_kv;
     int num_threads;
 
 public:
@@ -208,7 +171,7 @@ public:
         for (int i = 0; i < num_threads; i++) {
             m_thread_config.emplace_back(ThreadConfig{});
         }
-        m_kv = std::make_unique<GGMLKV>(config);
+        m_kv = std::make_unique<GGML_CPUKV>(config);
     }
 
     ~GGMLBackend() override = default;
@@ -251,6 +214,7 @@ public:
 public:
     void advance(const size_t &size) override;
     void reset_kv_batch_size(const size_t &size) override;
+    std::pair<Tensor *, Tensor *> get_kv_cache(size_t layer_id) override;
     void graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) override;
 
 private:

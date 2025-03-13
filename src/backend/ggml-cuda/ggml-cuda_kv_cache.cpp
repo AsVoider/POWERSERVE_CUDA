@@ -50,7 +50,7 @@ auto GGML_CUDAKV::clear_cache(size_t trunc_idx) -> void {
 
         if (const size_t clear_v_size{v_cur_size - v_aft_size}; clear_v_size > 0) {
             if (kv_shape.flash_attn) {
-                cuda_context_warp::device_memset(k_cache[i].cache_data_ptr + v_aft_size, 0, clear_v_size);
+                cuda_context_warp::device_memset(v_cache[i].cache_data_ptr + v_aft_size, 0, clear_v_size);
             } else {
                 // ! just do nothing here
             }
@@ -79,13 +79,14 @@ auto GGML_CUDAKV::append_v_cache(const Tensor *v_tensor, size_t layer_id, size_t
     v_cache[layer_id].valid_idx += token_nums;
 }
 
+// FIXME: memory leak
 auto GGML_CUDAKV::get_k_cache_tensor(size_t layer_id) -> Tensor * {
     auto ggml_tp{convert_datatype_to_ggml(kv_shape.type)};
     Stride t_stride{
         get_type_size(kv_shape.type),
         ggml_row_size(ggml_tp, kv_shape.kv_dim),
         ggml_row_size(ggml_tp, kv_shape.head_size),
-        ggml_row_size(ggml_tp, kv_shape.kv_dim * k_cache[layer_id].next_position / kv_shape.get_k_size(1)),
+        ggml_row_size(ggml_tp, kv_shape.kv_size * kv_shape.kv_heads * kv_shape.head_size),
     };
     Shape t_shape{
         kv_shape.head_size,
