@@ -5,7 +5,7 @@
 
 namespace powerserve::ggml_cuda {
 
-GGML_CUDAKV::GGML_CUDAKV(const ModelConfig::LLMConfig &config) : config{config} {
+GGML_CUDAKV::GGML_CUDAKV(const ModelConfig::LLMConfig &config, void *stream) : config{config}, stream{stream} {
     kv_shape.kv_dim     = config.kv_dim;
     kv_shape.kv_heads   = config.n_kv_heads;
     kv_shape.n_ctx      = config.seq_len > 1024 ? 1024 : config.seq_len;
@@ -45,12 +45,12 @@ auto GGML_CUDAKV::clear_cache(size_t trunc_idx) -> void {
         v_cache[i].valid_idx = trunc_idx;
 
         if (const size_t clear_k_size{k_cur_size - k_aft_size}; clear_k_size > 0) {
-            cuda_context_warp::device_memset(k_cache[i].cache_data_ptr + k_aft_size, 0, clear_k_size);
+            cuda_context_warp::device_memset_async(k_cache[i].cache_data_ptr + k_aft_size, 0, clear_k_size, stream);
         }
 
         if (const size_t clear_v_size{v_cur_size - v_aft_size}; clear_v_size > 0) {
             if (kv_shape.flash_attn) {
-                cuda_context_warp::device_memset(v_cache[i].cache_data_ptr + v_aft_size, 0, clear_v_size);
+                cuda_context_warp::device_memset_async(v_cache[i].cache_data_ptr + v_aft_size, 0, clear_v_size, stream);
             } else {
                 // ! just do nothing here
             }
@@ -65,7 +65,7 @@ auto GGML_CUDAKV::append_k_cache(const Tensor *k_tensor, size_t layer_id, size_t
     const size_t target_size{kv_shape.get_k_size(token_nums)};
     auto dst_ptr{reinterpret_cast<void *>(k_cache[layer_id].cache_data_ptr + k_cache[layer_id].next_position)};
     auto src_ptr{const_cast<void *>(k_tensor->m_data->m_data_device)};
-    cuda_context_warp::copy_memory<3>(dst_ptr, src_ptr, target_size);
+    cuda_context_warp::copy_memory_async<3>(dst_ptr, src_ptr, target_size, stream);
     k_cache[layer_id].next_position += target_size;
     k_cache[layer_id].valid_idx += token_nums;
 }
@@ -74,7 +74,7 @@ auto GGML_CUDAKV::append_v_cache(const Tensor *v_tensor, size_t layer_id, size_t
     const size_t target_size{kv_shape.get_v_size(token_nums)};
     auto dst_ptr{reinterpret_cast<void *>(v_cache[layer_id].cache_data_ptr + v_cache[layer_id].next_position)};
     auto src_ptr{const_cast<void *>(v_tensor->m_data->m_data_device)};
-    cuda_context_warp::copy_memory<3>(dst_ptr, src_ptr, target_size);
+    cuda_context_warp::copy_memory_async<3>(dst_ptr, src_ptr, target_size, stream);
     v_cache[layer_id].next_position += target_size;
     v_cache[layer_id].valid_idx += token_nums;
 }
@@ -136,8 +136,8 @@ auto GGML_CUDAKV::init_cache() -> void {
     auto v_size{kv_shape.get_v_size(kv_shape.n_ctx)};
     printf("k_size is %ld, nctx is %ld\n", k_size, kv_shape.n_ctx);
     for (size_t i{0}; i < kv_shape.n_layers; ++i) {
-        cuda_context_warp::malloc_cuda_buffer(reinterpret_cast<void **>(&k_cache[i].cache_data_ptr), k_size);
-        cuda_context_warp::malloc_cuda_buffer(reinterpret_cast<void **>(&v_cache[i].cache_data_ptr), v_size);
+        cuda_context_warp::malloc_cuda_buffer_async(reinterpret_cast<void **>(&k_cache[i].cache_data_ptr), k_size, stream);
+        cuda_context_warp::malloc_cuda_buffer_async(reinterpret_cast<void **>(&v_cache[i].cache_data_ptr), v_size, stream);
         printf("layer: %ld, k_cache: %p, v_cache: %p\n", i, k_cache[i].cache_data_ptr, v_cache[i].cache_data_ptr);
     }
 }

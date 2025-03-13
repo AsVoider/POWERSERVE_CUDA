@@ -124,10 +124,10 @@ TensorNode *NormAttention::build(
 
     TensorNode *att_scores = nullptr;
     {
-        // size_t n_kv = ((pos.back() / 32) + 1) * 32;
-        // size_t batch_32 = ((batch_size / 32) + 1) * 32;
-        size_t n_kv     = pos.back() + 1;
-        size_t batch_32 = batch_size;
+        size_t n_kv = ((pos.back() / 32) + 1) * 32;
+        size_t batch_32 = (batch_size - 1) / 32 * 32 + 32;
+        // size_t n_kv     = pos.back() + 1;
+        // size_t batch_32 = batch_size;
 
         // (head_size, bs, n_heads, 1)
         q         = g.permute(rope_q, {0, 2, 1, 3});

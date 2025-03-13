@@ -66,15 +66,38 @@ void GGML_CUDABackend::matmul(Tensor *dst, const Tensor *src0, const Tensor *src
 
     // printf("dst name is %s\n", dst->m_name.c_str());
     // DEBUG
-    // if (dst->m_name == "attn_o_0_5") {
+    // if (dst->m_name == "attn_o_0_0") {
+    //     printf("src1 shape %ld %ld %ld %ld, stride %ld %ld %ld %ld\n", src1->m_shape[0], src1->m_shape[1],
+    //            src1->m_shape[2], src1->m_shape[3], src1->m_data->m_stride[0],
+    //            src1->m_data->m_stride[1], src1->m_data->m_stride[2],
+    //            src1->m_data->m_stride[3]);
     //     cuda_context_warp::device_sync();
     //     auto file{fopen("matmul_attn_o.txt", "w")};
+    //     float *src_buffer{new float[src1->m_shape[0] * src1->m_shape[1] * src1->m_shape[2] * src1->m_shape[3]]};
     //     float *dst_buffer{new float[dst->m_shape[0] * dst->m_shape[1] * dst->m_shape[2] * dst->m_shape[3]]};
+    //     cuda_context_warp::copy_memory<2>(
+    //         src_buffer, src1->m_data->m_data_device, src1->m_shape[0] * src1->m_shape[1] * src1->m_shape[2] *
+    //         src1->m_shape[3] * sizeof(float)
+    //     );
     //     cuda_context_warp::copy_memory<2>(
     //         dst_buffer, dst->m_data->m_data_device, dst->m_shape[0] * dst->m_shape[1] * dst->m_shape[2] *
     //         dst->m_shape[3] * sizeof(float)
     //     );
     //     cuda_context_warp::device_sync();
+
+    //     for (size_t i{0}; i < src1->m_shape[3]; ++i) {
+    //         for (size_t j{0}; j < src1->m_shape[2]; ++j) {
+    //             for (size_t k{0}; k < src1->m_shape[1]; ++k) {
+    //                 for (size_t l{0}; l < src1->m_shape[0]; ++l) {
+    //                     fprintf(file, "%f ", src_buffer[i * src1->m_shape[2] * src1->m_shape[1] * src1->m_shape[0] + j *
+    //                     src1->m_shape[1] * src1->m_shape[0] + k * src1->m_shape[0] + l]);
+    //                 }
+    //                 fprintf(file, "\n\n");
+    //             }
+    //             fprintf(file, "\n\n");
+    //         }
+    //         fprintf(file, "\n\n");
+    //     }
 
     //     for (size_t i{0}; i < dst->m_shape[3]; ++i) {
     //         for (size_t j{0}; j < dst->m_shape[2]; ++j) {
@@ -89,6 +112,7 @@ void GGML_CUDABackend::matmul(Tensor *dst, const Tensor *src0, const Tensor *src
     //         }
     //         fprintf(file, "\n\n");
     //     }
+    //     fclose(file);
     //     exit(0);
     // }
     // DEBUG
@@ -819,7 +843,7 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
     auto &last_op{ops.back()};
     auto last_out{last_op->output()};
     // if (last_out->m_name.substr(0, 7) == "logits_") {
-    cuda_context_warp::device_sync();
+    cuda_context_warp::stream_sync(warp->get_stream());
     auto num_element{std::reduce(last_out->m_shape.begin(), last_out->m_shape.end(), 1, std::multiplies<size_t>())};
     last_out->m_data->m_data_host      = malloc(num_element * sizeof(float));
     last_out->m_data->m_is_host_malloc = true;

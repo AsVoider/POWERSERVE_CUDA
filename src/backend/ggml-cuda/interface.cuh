@@ -18,11 +18,16 @@ public:
 
     explicit cuda_context_warp();
 
+    auto get_stream() -> void *;
+
     static auto malloc_cuda_buffer(void **ptr, size_t size) -> int;
     static auto free_cuda_buffer(void *ptr) -> int;
+    static auto malloc_cuda_buffer_async(void **ptr, size_t size, void *stream_ptr) -> int;
+    static auto free_cuda_buffer_async(void *ptr, void *stream_ptr) -> int;
     // static inline auto malloc_host_buffer(void **ptr, size_t size) -> void const;
     // static inline auto free_host_buffer(void *ptr);
     static auto device_sync() -> int;
+    static auto stream_sync(void *stream_ptr) -> int;
     static auto device_memset(void *dst, int value, size_t size) -> int;
     static auto device_memset_async(void *dst, int value, size_t size, void *stream_ptr) -> int;
 

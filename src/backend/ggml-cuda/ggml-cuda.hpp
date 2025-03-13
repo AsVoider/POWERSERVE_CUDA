@@ -80,7 +80,7 @@ static std::unique_ptr<ggml_tensor> convert_to_ggml_tensor(const Tensor *t) {
     memcpy(gt->nb, buffer_t.m_stride.data(), buffer_t.m_stride.size() * sizeof(Stride::size_type));
 
     //  FIXME: if no sync?
-    cuda_context_warp::device_sync();
+    // cuda_context_warp::device_sync();
     return gt;
 }
 
@@ -92,7 +92,7 @@ public:
 
     explicit GGML_CUDABackend(const ModelConfig::LLMConfig &config, const HyperParams &hparams) :
         warp{new cuda_context_warp()} {
-        m_kv = std::make_unique<GGML_CUDAKV>(config);
+        m_kv = std::make_unique<GGML_CUDAKV>(config, warp->get_stream());
         POWERSERVE_UNUSED(hparams);
     }
 

@@ -34,6 +34,10 @@ cuda_context_warp::cuda_context_warp() {
     }
 }
 
+auto cuda_context_warp::get_stream() -> void * {
+    return static_cast<void*>(static_cast<ggml_backend_cuda_context *>(ctx)->stream());
+}
+
 auto cuda_context_warp::malloc_cuda_buffer(void **ptr, size_t size) -> int {
     return static_cast<int>(cudaMalloc(ptr, size));
 }
@@ -42,8 +46,20 @@ auto cuda_context_warp::free_cuda_buffer(void *ptr) -> int {
     return static_cast<int>(cudaFree(ptr));
 }
 
+auto cuda_context_warp::malloc_cuda_buffer_async(void **ptr, size_t size, void *stream_ptr) -> int {
+    return static_cast<int>(cudaMallocAsync(ptr, size, static_cast<cudaStream_t>(stream_ptr)));
+}
+
+auto cuda_context_warp::free_cuda_buffer_async(void *ptr, void *stream_ptr) -> int {
+    return static_cast<int>(cudaFreeAsync(ptr, static_cast<cudaStream_t>(stream_ptr)));
+}
+
 auto cuda_context_warp::device_sync() -> int {
     return static_cast<int>(cudaDeviceSynchronize());
+}
+
+auto cuda_context_warp::stream_sync(void *stream_ptr) -> int {
+    return static_cast<int>(cudaStreamSynchronize(static_cast<cudaStream_t>(stream_ptr)));
 }
 
 auto cuda_context_warp::copy_memory_host_to_host(void *dst, void *src, size_t size) -> int{

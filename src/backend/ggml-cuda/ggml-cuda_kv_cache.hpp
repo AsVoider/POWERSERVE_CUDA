@@ -30,12 +30,13 @@ public:
 
 public:
     const ModelConfig::LLMConfig &config;
+    void *stream{nullptr};
     KVCacheShape kv_shape;
 
     std::vector<GGML_CUDACHUNK> k_cache;
     std::vector<GGML_CUDACHUNK> v_cache;
 
-    GGML_CUDAKV(const ModelConfig::LLMConfig &config);
+    GGML_CUDAKV(const ModelConfig::LLMConfig &config, void *stream = nullptr);
     ~GGML_CUDAKV() = default;
 
 public:

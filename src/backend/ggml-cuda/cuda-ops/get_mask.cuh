@@ -31,7 +31,8 @@ void ggml_get_mask(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     const auto kv_number = dst->op_params[2];
     const auto batch_size = dst->op_params[3];
 
-    GGML_ASSERT(pos_size == batch_size);
+    GGML_UNUSED(pos_size);
+    // GGML_ASSERT(pos_size == batch_size);
 
     mask_inf_f32_cuda((float *)dst->data, kv_number, batch_size, first_pos, stream);
 }

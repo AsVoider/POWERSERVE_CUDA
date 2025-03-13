@@ -137,7 +137,7 @@ auto LlamaModel::forward(
     // std::ofstream graph_file("graph_output_cpu.log");
     // executor.print_graph(graph_file);
     // graph_file.close();
-    // executor.run();
+
     executor.run_with_backend();
 #if defined(POWERSERVE_WITH_QNN)
     if (!m_platform->qnn_backend)
