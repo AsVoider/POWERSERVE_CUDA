@@ -3,16 +3,20 @@
 
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <optional>
-
 
 namespace powerserve::ggml_cuda {
 
-static std::optional<void *> default_cuda_context{nullptr};
-
 class cuda_context_warp;
+class cuda_mempool;
+
+extern std::optional<void *> default_cuda_context;
+extern std::unique_ptr<cuda_mempool> default_mempool;
 
 using op_interface = std::function<void (cuda_context_warp &, ggml_tensor *dst)>;
+
+constexpr size_t PAGE_SIZE = 4096;
 
 class cuda_context_warp {
 public:
@@ -34,6 +38,7 @@ public:
     static auto device_memset(void *dst, int value, size_t size) -> int;
     static auto device_memset_async(void *dst, int value, size_t size, void *stream_ptr) -> int;
 
+    static auto default_alloc_total(size_t size) -> void;
     template <int type>
     static inline auto copy_memory(void *dst, void *src, size_t size) -> int {
         if constexpr (type == 0) {
@@ -90,6 +95,21 @@ public:
     static op_interface op_silu_and_mul;
     static op_interface op_append_v_cache;
     static op_interface op_get_mask;
+};
+
+class cuda_mempool {
+public: 
+    void *stream{nullptr};
+    void *ptr{nullptr};
+    size_t offset{0UL};
+    size_t total_size{0UL};
+
+    cuda_mempool() = default;
+    ~cuda_mempool();
+    auto init_total(size_t size) -> void;
+    auto init_stream(void *stream_ptr) -> int;
+    auto reset() -> int;
+    auto allocate(size_t size) -> void *;
 };
 
 } // namespace powerserve::ggml_cuda

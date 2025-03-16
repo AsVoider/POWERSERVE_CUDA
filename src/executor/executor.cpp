@@ -52,32 +52,73 @@ void Executor::shed_op_to_backend() {
 }
 
 void Executor::allocate_buffer_with_backend() {
-    for (auto tensor : m_graph.tensors) {
-        if (tensor->m_data) {
+    for (size_t device{0UL}; device < m_graph.backend_size.size(); ++device) {
+        auto device_size = m_graph.backend_size[device];
+        if (device_size == 0) {
             continue;
         }
-        POWERSERVE_ASSERT(tensor->m_backend != TensorBackend::UNKNOWN);
+        Platform::buffer_interfaces.at(static_cast<TensorBackend>(device)).alloc_total(device_size);
+    }
 
-        switch (tensor->m_dtype) {
-        case DataType::FP32: {
-            create_backend_buffer<float>(tensor);
-        } break;
+    for (auto &op : m_graph.ops) {
+        switch (op->op) {
+            case OpType::ADD: 
+            case OpType::MAT_MUL: 
+            case OpType::RMS_NORM: 
+            case OpType::SILU_HADAMARD: 
+            case OpType::SOFTMAX: 
+            case OpType::GET_EMBEDDING: 
+            case OpType::CONT:
+            case OpType::SOFTMAX_EXT: 
+            case OpType::GET_MASK: {
+                auto out{op->output()};
+                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+            } break;
 
-        case DataType::FP16: {
-            create_backend_buffer<uint16_t>(tensor);
-        } break;
+            case OpType::ROPE: {
+                auto src{op->prev[0]->tensor_view()};
+                src->m_data = Platform::buffer_interfaces.at(src->m_backend).create_buffer_view(*src->parent->m_data, src->m_shape, sizeof(float), 0UL);
+                auto out{op->output()};
+                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+            } break;
 
-        case DataType::INT32: {
-            create_backend_buffer<int32_t>(tensor);
-        } break;
+            case OpType::PERMUTE: {
+                auto x{op->prev[0]->tensor()};
+                auto out{op->output()};
+                auto [axes]{op->get_params<PermuteParams>()};
+                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, out->m_shape, sizeof(float), 0UL);
+                auto &x_stride{x->m_data->m_stride};
+                Stride new_stride{};
+                new_stride[axes[0]]   = x_stride[0];
+                new_stride[axes[1]]   = x_stride[1];
+                new_stride[axes[2]]   = x_stride[2];
+                new_stride[axes[3]]   = x_stride[3];
+                out->m_data->m_stride = std::move(new_stride);
+            } break;
 
-        case DataType::INT64: {
-            create_backend_buffer<int64_t>(tensor);
-        } break;
+            case OpType::VIEW: {
+                auto x{op->prev[0]->tensor()};
+                auto out{op->output()};
+                auto [stride, offset]{op->get_params<ViewParams>()};
+                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, out->m_shape, sizeof(float), offset);
+                out->m_data->m_stride = std::move(stride);
+            } break;
 
-        default:
-            POWERSERVE_ABORT("could not allocate buffer for data type: {}", static_cast<int>(tensor->m_dtype));
+            case OpType::TRANSPOSE: {
+                auto x{op->prev[0]->tensor()};
+                auto out{op->output()};
+                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, out->m_shape, sizeof(float), 0UL);
+                auto &x_stride{x->m_data->m_stride};
+                Stride new_stride{x_stride[1], x_stride[0], x_stride[2], x_stride[3]};
+                out->m_data->m_stride = std::move(new_stride);
+            } break;
+
+            case OpType::COPY:
+            case OpType::PRINT:
+            case OpType::ADD_CACHE: break;
+            default: POWERSERVE_ASSERT(false and "op not implemented");
         }
+
     }
 }
 
@@ -102,7 +143,6 @@ void Executor::allocate_buffer_with_backend() {
 //         } break;
 // #endif
 
-// fix this function, accept a parameter to print graph to a file
 void Executor::print_graph(std::ostream &os) {
     os << "total tensor num is " << m_graph.tensors.size() << std::endl;
 

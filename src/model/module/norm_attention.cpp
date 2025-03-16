@@ -96,7 +96,7 @@ TensorNode *NormAttention::build(
         v                 = g.transpose(v);
         v->m_name         = fmt::format("v_transpose_{}_{}", L, pos[0]);
         auto k_cache_view = g.view(
-            k_cache,
+            const_cast<TensorNode *>(k_cache),
             {batch_size * kv_gqa, 1, 1, 1},
             {k_cache->element_size(),
              k_cache->element_size() * batch_size * kv_gqa,
@@ -108,7 +108,7 @@ TensorNode *NormAttention::build(
         k_cache_view->m_name = fmt::format("k_view_{}_{}", L, pos[0]);
 
         auto v_cache_view = g.view(
-            v_cache,
+            const_cast<TensorNode *>(v_cache),
             {batch_size, kv_gqa, 1, 1},
             {
                 v_cache->element_size(),
@@ -134,7 +134,7 @@ TensorNode *NormAttention::build(
         q->m_name = fmt::format("q_permute_{}_{}", L, pos[0]);
         // {head_size, cur_postion, n_head_kv, 1}
         k = g.view(
-            k_cache,
+            const_cast<TensorNode *>(k_cache),
             {head_size, n_kv, n_head_kv, 1},
             {
                 k_cache->element_size(),
@@ -159,7 +159,7 @@ TensorNode *NormAttention::build(
         // split cached v into n_head heads
         // {cur_postion, head_size, n_head_kv, 1};
         v = g.view(
-            v_cache,
+            const_cast<TensorNode *>(v_cache),
             {n_kv, head_size, n_head_kv, 1},
             {v_cache->element_size(),
              v_cache->element_size() * n_ctx,

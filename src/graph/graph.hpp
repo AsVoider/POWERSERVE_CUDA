@@ -23,6 +23,7 @@ public:
     std::vector<std::shared_ptr<TensorNode>> tensors;
     std::vector<std::shared_ptr<OpNode>> ops;
     std::string m_model_id;
+    std::array<size_t, sizeof(TensorBackend)> backend_size{0};
 
     Graph(std::string model_id) : m_model_id(model_id) {}
 
@@ -71,7 +72,7 @@ public:
     void add_cache(TensorNode *k, TensorNode *v, size_t L, const std::vector<int> &pos, size_t head_id);
     auto permute(TensorNode *x, Shape axes) -> TensorViewNode *;
     auto cont(TensorNode *x, Shape shape) -> TensorNode *;
-    auto view(const TensorNode *x, Shape shape, Shape stride, size_t offset = 0) -> TensorViewNode *;
+    auto view(TensorNode *x, Shape shape, Shape stride, size_t offset = 0) -> TensorViewNode *;
     auto get_mask(const CausalAttentionMask &mask, Shape shape, const std::vector<int> &pos, TensorNode *kq = nullptr)
         -> TensorNode *;
     auto transpose(TensorNode *x) -> TensorViewNode *;

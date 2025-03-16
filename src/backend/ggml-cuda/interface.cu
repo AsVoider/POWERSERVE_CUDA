@@ -20,6 +20,9 @@
 namespace powerserve::ggml_cuda
 {
 
+std::optional<void *> default_cuda_context{nullptr};
+std::unique_ptr<cuda_mempool> default_mempool;
+
 cuda_context_warp::cuda_context_warp() {
     auto err{cudaGetDeviceCount(&device_count)};
     if (err not_eq cudaSuccess) {
@@ -34,6 +37,9 @@ cuda_context_warp::cuda_context_warp() {
     }
 
     default_cuda_context = reinterpret_cast<void *>(get_stream());
+    default_mempool = std::make_unique<cuda_mempool>();
+    GGML_ASSERT(default_cuda_context.has_value());
+    default_mempool->init_stream(default_cuda_context.value());
 }
 
 auto cuda_context_warp::get_stream() -> void * {
@@ -122,6 +128,10 @@ auto cuda_context_warp::device_memset(void *dst, int value, size_t size) -> int 
 
 auto cuda_context_warp::device_memset_async(void *dst, int value, size_t size, void *stream_ptr) -> int {
     return static_cast<int>(cudaMemsetAsync(dst, value, size, static_cast<cudaStream_t>(stream_ptr)));
+}
+
+auto cuda_context_warp::default_alloc_total(size_t size) -> void {
+    default_mempool->init_total(size);
 }
 
 op_interface op_interfaces::op_get_embedding = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
@@ -548,5 +558,72 @@ op_interface op_interfaces::op_get_mask = [] (cuda_context_warp &ctx, ggml_tenso
     //     exit(0);
     // }
 };
+
+cuda_mempool::~cuda_mempool() {
+    if (ptr not_eq nullptr) {
+        if (stream not_eq nullptr) {
+            cudaFreeAsync(ptr, static_cast<cudaStream_t>(stream));
+        } else {
+            cudaFree(ptr);
+        }
+    }
+
+    printf("cuda_mempool is destructed\n");
+}
+
+auto cuda_mempool::init_total(size_t size) -> void {
+    if (stream == nullptr or size == 0) {
+        exit(1);
+    }
+    size = (size - 1 + PAGE_SIZE) / PAGE_SIZE * PAGE_SIZE;
+
+    if (total_size > 2 * size or total_size < size) {
+        reset();
+    }
+
+    if (size <= total_size) {
+        offset = 0;
+        return;
+    }
+
+    auto res{cudaMallocAsync(&ptr, size, static_cast<cudaStream_t>(stream))};
+
+    if (res not_eq cudaSuccess) {
+        exit(1);
+    }
+    total_size = size;
+}
+
+auto cuda_mempool::init_stream(void *stream_ptr) -> int {
+    assert(stream_ptr not_eq nullptr);
+    stream = stream_ptr;
+    return 0;
+}
+
+auto cuda_mempool::reset() -> int {
+    if (ptr not_eq nullptr and stream not_eq nullptr) {
+        auto res{cudaFreeAsync(ptr, static_cast<cudaStream_t>(stream))};
+        ptr = nullptr;
+        total_size = 0;
+        offset = 0;
+        return static_cast<int>(res);
+    }
+
+    return -1;
+}
+
+auto cuda_mempool::allocate(size_t size) -> void * {
+    if (ptr == nullptr) {
+        exit(1);
+    }
+
+    if (size % 256 not_eq 0 or size + offset > total_size) {
+        exit(1);
+    }
+
+    void *ret{static_cast<char *>(ptr) + offset};
+    offset += size;
+    return ret;
+}
 
 } // namespace powerserve::ggml_cuda

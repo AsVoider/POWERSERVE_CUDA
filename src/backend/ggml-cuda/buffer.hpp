@@ -43,8 +43,9 @@ public:
         size_t size = stride.back() * shape.back();
 
         void *cuda_data_ptr{nullptr};
-        cuda_context_warp::malloc_cuda_buffer_async(&cuda_data_ptr, size, default_cuda_context.value());
-        return std::make_shared<Buffer_CUDA>(stride, cuda_data_ptr, nullptr, usage::COMPUTE, size, true, false);
+        // printf("size is %ld, size %% 256 is %ld, size %% 4096 is %ld\n", size, size % 256, size % 4096);
+        cuda_data_ptr = default_mempool->allocate(size);
+        return std::make_shared<Buffer_CUDA>(stride, cuda_data_ptr, nullptr, usage::COMPUTE, size, false, false);
     }
 
     static auto create_buffer_view(BaseBuffer &p, Shape shape, size_t type_size, size_t offset = 0) -> BufferPtr {

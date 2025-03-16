@@ -50,8 +50,14 @@ auto Graph::get_embedding(TensorNode *weight, const std::vector<int> &tokens) ->
     op->set_outputs({out});
     op->set_params(GetEmbeddingParams{tokens});
 
-    out->m_backend = weight->m_backend;
-    out->m_data    = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+    {
+        out->m_backend = weight->m_backend;
+    }
+
+    {
+        size_t tmp_size{out->row_size(out->n_elements())};
+        backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
+    }
     return out;
 }
 
@@ -67,7 +73,11 @@ auto Graph::add(TensorNode *a, TensorNode *b) -> TensorNode * {
         POWERSERVE_ASSERT(a->m_backend == b->m_backend);
         out->m_backend = a->m_backend;
     }
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+
+    {
+        size_t tmp_size{out->row_size(out->n_elements())};
+        backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
+    }
     return out;
 }
 
@@ -85,7 +95,11 @@ auto Graph::mat_mul(TensorNode *a, TensorNode *b) -> TensorNode * {
         POWERSERVE_ASSERT(a->m_backend == b->m_backend);
         out->m_backend = a->m_backend;
     }
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+
+    {
+        size_t tmp_size{out->row_size(out->n_elements())};
+        backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
+    }
     return out;
 }
 
@@ -104,7 +118,11 @@ auto Graph::rms_norm(TensorNode *x, TensorNode *weight, float eps) -> TensorNode
         out->m_backend = x->m_backend;
         POWERSERVE_ASSERT(weight == nullptr or weight->m_backend == x->m_backend);
     }
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+    
+    {
+        size_t tmp_size{out->row_size(out->n_elements())};
+        backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
+    }
     return out;
 }
 
@@ -121,7 +139,11 @@ auto Graph::silu_hadamard(TensorNode *gate, TensorNode *up) -> TensorNode * {
         POWERSERVE_ASSERT(gate->m_backend == up->m_backend);
         out->m_backend = gate->m_backend;
     }
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+
+    {
+        size_t tmp_size{out->row_size(out->n_elements())};
+        backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
+    }
     return out;
 }
 
@@ -142,7 +164,11 @@ auto Graph::rope(
         out->m_backend = src->m_backend;
         POWERSERVE_ASSERT(rope_factors == nullptr or rope_factors->m_backend == src->m_backend);
     }
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+
+    {
+        size_t tmp_size{out->row_size(out->n_elements())};
+        backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
+    }
     return out;
 }
 
@@ -153,7 +179,13 @@ auto Graph::softmax(TensorNode *x) -> TensorNode * {
     op->set_outputs({out});
     { out->m_backend = x->m_backend; }
 
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+    {
+        size_t tmp_size{out->row_size(out->n_elements())};
+        // fmt::println("softmax: size: {}", tmp_size);
+        backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
+    }
+    
+    // out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
 
@@ -243,16 +275,16 @@ auto Graph::permute(TensorNode *x, Shape axes) -> TensorViewNode * {
 
     { out->m_backend = x->m_backend; }
 
-    out->m_data =
-        Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float), 0UL);
-    auto &x_stride{x->m_data->m_stride};
-    Stride new_stride{};
-    new_stride[axes[0]]   = x_stride[0];
-    new_stride[axes[1]]   = x_stride[1];
-    new_stride[axes[2]]   = x_stride[2];
-    new_stride[axes[3]]   = x_stride[3];
-    out->m_data->m_stride = std::move(new_stride);
-    POWERSERVE_ASSERT(out->m_data not_eq nullptr);
+    // out->m_data =
+    //     Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float), 0UL);
+    // auto &x_stride{x->m_data->m_stride};
+    // Stride new_stride{};
+    // new_stride[axes[0]]   = x_stride[0];
+    // new_stride[axes[1]]   = x_stride[1];
+    // new_stride[axes[2]]   = x_stride[2];
+    // new_stride[axes[3]]   = x_stride[3];
+    // out->m_data->m_stride = std::move(new_stride);
+    // POWERSERVE_ASSERT(out->m_data not_eq nullptr);
     return out;
 }
 
@@ -264,23 +296,29 @@ auto Graph::cont(TensorNode *x, Shape shape) -> TensorNode * {
     op->set_params(ContParams({}));
 
     { out->m_backend = x->m_backend; }
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(shape, sizeof(float));
+
+    {
+        size_t tmp_size{out->row_size(out->n_elements())};
+        // fmt::println("cont: size: {}", tmp_size);
+        backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
+    }
+    // out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(shape, sizeof(float));
     return out;
 }
 
-auto Graph::view(const TensorNode *x, Shape shape, Shape stride, size_t offset) -> TensorViewNode * {
+auto Graph::view(TensorNode *x, Shape shape, Shape stride, size_t offset) -> TensorViewNode * {
     auto out = view_tensor(x, shape);
     auto op  = new_op(OpType::VIEW);
-    op->set_inputs({});
+    op->set_inputs({x});
     op->set_outputs({out});
     op->set_params(ViewParams({.stride = stride, .offset = offset}));
 
     { out->m_backend = x->m_backend; }
 
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend)
-                      .create_buffer_view(*x->m_data, out->m_shape, sizeof(float), offset);
-    out->m_data->m_stride = std::move(stride);
-    POWERSERVE_ASSERT(out->m_data not_eq nullptr);
+    // out->m_data = Platform::buffer_interfaces.at(out->m_backend)
+    //                   .create_buffer_view(*x->m_data, out->m_shape, sizeof(float), offset);
+    // out->m_data->m_stride = std::move(stride);
+    // POWERSERVE_ASSERT(out->m_data not_eq nullptr);
     return out;
 }
 
@@ -296,7 +334,13 @@ auto Graph::softmax_ext(TensorNode *x, TensorNode *mask, float scale, float max_
         out->m_backend = x->m_backend;
     }
 
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+    {
+        size_t tmp_size{out->row_size(out->n_elements())};
+        // fmt::println("softmax_ext: size: {}", tmp_size);
+        backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
+    }
+
+    // out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
 
@@ -309,7 +353,12 @@ auto Graph::get_mask(const CausalAttentionMask &mask, Shape shape, const std::ve
 
     { out->m_backend = kq == nullptr ? TensorBackend::GGML_CPU : kq->m_backend; }
 
-    out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+    {
+        size_t tmp_size{out->row_size(out->n_elements())};
+        // fmt::println("get_mask: size: {}", tmp_size);
+        backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
+    }
+    // out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }
 
@@ -325,13 +374,12 @@ auto Graph::transpose(TensorNode *x) -> TensorViewNode * {
 
     { out->m_backend = x->m_backend; }
 
-    // TODO: fix transpose on build graph, stride shape
-    out->m_data =
-        Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float), 0UL);
-    Stride &x_stride{x->m_data->m_stride};
-    Stride new_stride{x_stride[1], x_stride[0], x_stride[2], x_stride[3]};
-    out->m_data->m_stride = std::move(new_stride);
-    POWERSERVE_ASSERT(out->m_data not_eq nullptr);
+    // out->m_data =
+    //     Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, shape, sizeof(float), 0UL);
+    // Stride &x_stride{x->m_data->m_stride};
+    // Stride new_stride{x_stride[1], x_stride[0], x_stride[2], x_stride[3]};
+    // out->m_data->m_stride = std::move(new_stride);
+    // POWERSERVE_ASSERT(out->m_data not_eq nullptr);
     return out;
 }
 

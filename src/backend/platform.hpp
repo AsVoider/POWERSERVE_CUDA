@@ -33,11 +33,13 @@ namespace powerserve {
 
 using buffer_create_fn = std::function<BufferPtr(Shape, size_t)>;
 using buffer_view_fn   = std::function<BufferPtr(BaseBuffer &, Shape, size_t, size_t)>;
+using buffer_alloc_total = std::function<void(size_t)>;
 
 class BufferInterface {
 public:
     buffer_create_fn create_buffer;
     buffer_view_fn create_buffer_view;
+    buffer_alloc_total alloc_total;
 };
 
 struct Platform {
