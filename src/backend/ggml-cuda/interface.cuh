@@ -3,9 +3,12 @@
 
 #include <functional>
 #include <iostream>
+#include <optional>
 
 
 namespace powerserve::ggml_cuda {
+
+static std::optional<void *> default_cuda_context{nullptr};
 
 class cuda_context_warp;
 

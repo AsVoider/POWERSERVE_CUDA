@@ -6720,7 +6720,7 @@ struct gguf_context * gguf_init_from_file_impl(FILE * file, struct gguf_init_par
                 return NULL;
             }
         }
-
+        
         for (uint64_t i = 0; i < n_kv; ++i) {
             struct gguf_kv * kv = &ctx->kv[i];
 
@@ -6919,10 +6919,13 @@ struct gguf_context * gguf_init_from_file_impl(FILE * file, struct gguf_init_par
             }
 
             const size_t size_cur = ggml_row_size(info->type, ne);
+            printf("tensor : %s, size : %lu, pad size : %ld, offset is %ld\n", info->name.data, size_cur, GGML_PAD(size_cur, ctx->alignment), info->offset);
 
             ctx->size += GGML_PAD(size_cur, ctx->alignment);
         }
     }
+    printf("offset now is %ld, offset %% PAGE_SIZE = %ld\n", offset, offset % 4096);
+    // exit(0);
 
     // load the tensor data only if requested
     if (params.ctx != NULL) {

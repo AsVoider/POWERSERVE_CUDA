@@ -22,7 +22,7 @@ public:
 
     virtual ~Buffer_CUDA() override {
         if (m_is_device_malloc) {
-            cuda_context_warp::free_cuda_buffer(m_data_device);
+            cuda_context_warp::free_cuda_buffer_async(m_data_device, default_cuda_context.value());
         }
 
         if (m_is_host_malloc) {
@@ -43,7 +43,7 @@ public:
         size_t size = stride.back() * shape.back();
 
         void *cuda_data_ptr{nullptr};
-        cuda_context_warp::malloc_cuda_buffer(&cuda_data_ptr, size);
+        cuda_context_warp::malloc_cuda_buffer_async(&cuda_data_ptr, size, default_cuda_context.value());
         return std::make_shared<Buffer_CUDA>(stride, cuda_data_ptr, nullptr, usage::COMPUTE, size, true, false);
     }
 

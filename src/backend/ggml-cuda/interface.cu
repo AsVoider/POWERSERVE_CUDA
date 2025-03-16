@@ -32,10 +32,12 @@ cuda_context_warp::cuda_context_warp() {
     for (int i{0}; i < device_count; ++i) {
         std::construct_at(&ctx_ptr[i], i);
     }
+
+    default_cuda_context = reinterpret_cast<void *>(get_stream());
 }
 
 auto cuda_context_warp::get_stream() -> void * {
-    return static_cast<void*>(static_cast<ggml_backend_cuda_context *>(ctx)->stream());
+    return static_cast<void*>(static_cast<ggml_backend_cuda_context *>(ctx)[0].stream());
 }
 
 auto cuda_context_warp::malloc_cuda_buffer(void **ptr, size_t size) -> int {
