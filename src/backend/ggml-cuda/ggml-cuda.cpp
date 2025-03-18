@@ -17,10 +17,9 @@ void GGML_CUDABackend::get_embedding(Tensor *dst, const Tensor *weight, const st
         Stride{sizeof(int), sizeof(int) * tokens.size(), sizeof(int) * tokens.size(), sizeof(int) * tokens.size()}
     };
     auto tensor_shape{Shape{tokens.size(), 1, 1, 1}};
-    void *cuda_ptr{nullptr};
-    cuda_context_warp::malloc_cuda_buffer(&cuda_ptr, sizeof(int) * tokens.size());
-    cuda_context_warp::copy_memory<1>(
-        cuda_ptr, reinterpret_cast<void *>(const_cast<int *>(tokens.data())), sizeof(int) * tokens.size()
+    auto cuda_ptr{default_mempool->allocate((sizeof(int) * tokens.size() + 255) / 256 * 256)};
+    cuda_context_warp::copy_memory_async<1>(
+        cuda_ptr, reinterpret_cast<void *>(const_cast<int *>(tokens.data())), sizeof(int) * tokens.size(), warp->get_stream()
     );
     ggml_tensor_tokens->data = cuda_ptr;
     ggml_tensor_tokens->type = GGML_TYPE_I32;
@@ -297,10 +296,10 @@ void GGML_CUDABackend::rope(
 
     auto ggml_tensor_pos{std::make_unique<ggml_tensor>()};
     {
-        void *pos_data_ptr{nullptr};
+        auto pos_data_ptr{static_cast<void *>(static_cast<char *>(default_mempool->ptr) + default_mempool->offset - (sizeof(int) * pos.size() + 255) / 256 * 256)};
         void *cpu_data_ptr = static_cast<void *>(const_cast<int *>(pos.data()));
-        cuda_context_warp::malloc_cuda_buffer(&pos_data_ptr, pos.size() * sizeof(int));
-        cuda_context_warp::copy_memory_async<1>(pos_data_ptr, cpu_data_ptr, pos.size() * sizeof(int), nullptr);
+        auto stream_ptr{warp->get_stream()};
+        cuda_context_warp::copy_memory_async<1>(pos_data_ptr, cpu_data_ptr, pos.size() * sizeof(int), stream_ptr);
         ggml_tensor_pos->data  = pos_data_ptr;
         ggml_tensor_pos->type  = GGML_TYPE_I32;
         ggml_tensor_pos->ne[0] = pos.size();

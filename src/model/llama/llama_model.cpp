@@ -54,6 +54,8 @@ auto LlamaModel::forward(
 ) -> LogitsVector {
     Graph g(m_config->model_id);
 
+    g.pos_size = (pos.size() * sizeof(int) + 255) / 256 * 256;
+
     size_t batch_size = tokens.size();
     // size_t batch_size  = tokens.size();
     auto embd_tb       = g.add_tensor(m_weights->token_embedding_table);

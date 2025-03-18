@@ -55,15 +55,15 @@ public:
     }
 
     template <int type>
-    static inline auto copy_memory_async(void *dst, void *src, size_t size, void *context = nullptr) -> int {
+    static inline auto copy_memory_async(void *dst, void *src, size_t size, void *stream = nullptr) -> int {
         if constexpr (type == 0) {
-            return copy_memory_host_to_host_async(dst, src, size, context);
+            return copy_memory_host_to_host_async(dst, src, size, stream);
         } else if constexpr (type == 1) {
-            return copy_memory_host_to_device_async(dst, src, size, context);
+            return copy_memory_host_to_device_async(dst, src, size, stream);
         } else if constexpr (type == 2) {
-            return copy_memory_device_to_host_async(dst, src, size, context);
+            return copy_memory_device_to_host_async(dst, src, size, stream);
         } else if constexpr (type == 3) {
-            return copy_memory_device_to_device_async(dst, src, size, context);
+            return copy_memory_device_to_device_async(dst, src, size, stream);
         } else {
             exit(1);
         }
@@ -75,10 +75,10 @@ private:
     static auto copy_memory_device_to_host(void *dst, void *src, size_t size) -> int;
     static auto copy_memory_device_to_device(void *dst, void *src, size_t size) -> int;
 
-    static auto copy_memory_host_to_host_async(void *dst, void *src, size_t size, void *context = nullptr) -> int;
-    static auto copy_memory_host_to_device_async(void *dst, void *src, size_t size, void *context = nullptr) -> int;
-    static auto copy_memory_device_to_host_async(void *dst, void *src, size_t size, void *context = nullptr) -> int;
-    static auto copy_memory_device_to_device_async(void *dst, void *src, size_t size, void *context = nullptr) -> int;
+    static auto copy_memory_host_to_host_async(void *dst, void *src, size_t size, void *stream = nullptr) -> int;
+    static auto copy_memory_host_to_device_async(void *dst, void *src, size_t size, void *stream = nullptr) -> int;
+    static auto copy_memory_device_to_host_async(void *dst, void *src, size_t size, void *stream = nullptr) -> int;
+    static auto copy_memory_device_to_device_async(void *dst, void *src, size_t size, void *stream = nullptr) -> int;
 };
 
 class op_interfaces {

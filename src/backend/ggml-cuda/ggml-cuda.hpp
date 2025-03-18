@@ -27,11 +27,11 @@ static Tensor convert_from_ggml_with_data_copied(ggml_tensor *t) {
     Tensor tensor{convert_datatype_from_ggml(t->type), std::move(tensor_shape), t->name};
 
     void *cuda_ptr{nullptr};
-    if (cuda_context_warp::malloc_cuda_buffer(&cuda_ptr, ggml_nbytes(t)) != 0) {
+    if (cuda_context_warp::malloc_cuda_buffer_async(&cuda_ptr, ggml_nbytes(t), default_cuda_context.value()) != 0) {
         throw std::runtime_error("Failed to allocate CUDA buffer");
     }
 
-    if (cuda_context_warp::copy_memory_async<1>(cuda_ptr, t->data, ggml_nbytes(t)) != 0) {
+    if (cuda_context_warp::copy_memory_async<1>(cuda_ptr, t->data, ggml_nbytes(t), default_cuda_context.value()) != 0) {
         throw std::runtime_error("Failed to copy memory to CUDA buffer");
     }
 

@@ -24,6 +24,7 @@ public:
     std::vector<std::shared_ptr<OpNode>> ops;
     std::string m_model_id;
     std::array<size_t, sizeof(TensorBackend)> backend_size{0};
+    size_t pos_size{0UL};
 
     Graph(std::string model_id) : m_model_id(model_id) {}
 

@@ -86,39 +86,35 @@ auto cuda_context_warp::copy_memory_device_to_device(void *dst, void *src, size_
     return static_cast<int>(cudaMemcpy(dst, src, size, cudaMemcpyDeviceToDevice));
 }
 
-auto cuda_context_warp::copy_memory_host_to_host_async(void *dst, void *src, size_t size, void *context) -> int {
-    if (context == nullptr) {
+auto cuda_context_warp::copy_memory_host_to_host_async(void *dst, void *src, size_t size, void *stream) -> int {
+    if (stream == nullptr) {
         return static_cast<int>(cudaMemcpyAsync(dst, src, size, cudaMemcpyHostToHost));
     } else {
-        auto stream{static_cast<ggml_backend_cuda_context *>(context)->stream()};
-        return static_cast<int>(cudaMemcpyAsync(dst, src, size, cudaMemcpyHostToHost, stream));
+        return static_cast<int>(cudaMemcpyAsync(dst, src, size, cudaMemcpyHostToHost, static_cast<cudaStream_t>(stream)));
     } 
 }
 
-auto cuda_context_warp::copy_memory_host_to_device_async(void *dst, void *src, size_t size, void *context) -> int {
-    if (context == nullptr) {
+auto cuda_context_warp::copy_memory_host_to_device_async(void *dst, void *src, size_t size, void *stream) -> int {
+    if (stream == nullptr) {
         return static_cast<int>(cudaMemcpyAsync(dst, src, size, cudaMemcpyHostToDevice));
     } else {
-        auto stream{static_cast<ggml_backend_cuda_context *>(context)->stream()};
-        return static_cast<int>(cudaMemcpyAsync(dst, src, size, cudaMemcpyHostToDevice, stream));
+        return static_cast<int>(cudaMemcpyAsync(dst, src, size, cudaMemcpyHostToDevice, static_cast<cudaStream_t>(stream)));
     } 
 }
 
-auto cuda_context_warp::copy_memory_device_to_host_async(void *dst, void *src, size_t size, void *context) -> int {
-    if (context == nullptr) {
+auto cuda_context_warp::copy_memory_device_to_host_async(void *dst, void *src, size_t size, void *stream) -> int {
+    if (stream == nullptr) {
         return static_cast<int>(cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToHost));
     } else {
-        auto stream{static_cast<ggml_backend_cuda_context *>(context)->stream()};
-        return static_cast<int>(cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToHost, stream));
+        return static_cast<int>(cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToHost, static_cast<cudaStream_t>(stream)));
     } 
 }
 
-auto cuda_context_warp::copy_memory_device_to_device_async(void *dst, void *src, size_t size, void *context) -> int {
-    if (context == nullptr) {
+auto cuda_context_warp::copy_memory_device_to_device_async(void *dst, void *src, size_t size, void *stream) -> int {
+    if (stream == nullptr) {
         return static_cast<int>(cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToDevice));
     } else {
-        auto stream{static_cast<ggml_backend_cuda_context *>(context)->stream()};
-        return static_cast<int>(cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToDevice, stream));
+        return static_cast<int>(cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToDevice, static_cast<cudaStream_t>(stream)));
     } 
 }
 
