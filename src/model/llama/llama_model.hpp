@@ -29,6 +29,7 @@ public:
     // ggml need those context
     ggml_context *ggml_ctx;
     gguf_context *gguf_ctx;
+    std::unique_ptr<Graph> m_graph{nullptr};
     bool lazy_load;
 
 public:

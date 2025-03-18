@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "backend/ggml/interface.hpp"
 #include "core/buffer.hpp"
 #include "core/logger.hpp"
 #include "core/typedefs.hpp"
@@ -42,8 +43,8 @@ public:
             stride[i] = stride[i - 1] * shape[i - 1];
         }
         size_t size = stride.back() * shape.back();
-
-        return std::make_shared<CPUBuffer>(stride, malloc(size), true, size, usage::COMPUTE);
+        auto ptr{default_mempool->allocate(size)};
+        return std::make_shared<CPUBuffer>(stride, ptr, false, size, usage::COMPUTE);
     }
 
     static auto create_buffer_view(BaseBuffer &parent, Shape shape, size_t type_size, size_t offset = 0) -> BufferPtr {

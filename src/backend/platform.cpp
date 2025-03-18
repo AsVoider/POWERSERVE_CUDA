@@ -29,8 +29,7 @@ void Platform::init_backend(
         BufferInterface{
             .create_buffer      = ggml::CPUBuffer::create_buffer,
             .create_buffer_view = ggml::CPUBuffer::create_buffer_view,
-            // TODO: Add funtion to get total memory
-            .alloc_total = nullptr,
+            .alloc_total        = ggml::default_alloc_total,
         }
     ));
 

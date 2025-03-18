@@ -54,7 +54,7 @@ void Executor::shed_op_to_backend() {
 void Executor::allocate_buffer_with_backend() {
     for (size_t device{0UL}; device < m_graph.backend_size.size(); ++device) {
         auto device_size = m_graph.backend_size[device];
-        if (device_size == 0 or device == static_cast<size_t>(TensorBackend::GGML_CPU)) {
+        if (device_size == 0) {
             continue;
         }
         Platform::buffer_interfaces.at(static_cast<TensorBackend>(device)).alloc_total(device_size + m_graph.pos_size);

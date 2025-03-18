@@ -52,7 +52,9 @@ LlamaModel::~LlamaModel() {
 auto LlamaModel::forward(
     const std::vector<int> &tokens, const std::vector<int> &pos, const CausalAttentionMask &mask, bool lm_head
 ) -> LogitsVector {
-    Graph g(m_config->model_id);
+    m_graph = std::make_unique<Graph>(m_config->model_id);
+    // Graph g(m_config->model_id);
+    auto &g{*m_graph};
 
     g.pos_size = (pos.size() * sizeof(int) + 255) / 256 * 256;
 

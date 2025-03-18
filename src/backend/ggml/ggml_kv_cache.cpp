@@ -26,7 +26,7 @@ GGML_CPUKV::GGML_CPUKV(const ModelConfig::LLMConfig &config) : config{config} {
     kv_shape.n_layers   = config.n_layers;
     kv_shape.head_size  = config.head_size;
     kv_shape.batch_size = 1UL;
-    kv_shape.type       = DataType::FP32;
+    kv_shape.type       = DataType::FP16;
 
     init_cache();
 }
