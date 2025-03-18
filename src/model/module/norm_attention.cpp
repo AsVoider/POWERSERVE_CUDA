@@ -124,7 +124,7 @@ TensorNode *NormAttention::build(
 
     TensorNode *att_scores = nullptr;
     {
-        size_t n_kv = ((pos.back() / 64) + 1) * 64;
+        size_t n_kv     = ((pos.back() / 64) + 1) * 64;
         size_t batch_32 = (batch_size - 1) / 64 * 64 + 64;
         // size_t n_kv     = pos.back() + 1;
         // size_t batch_32 = batch_size;

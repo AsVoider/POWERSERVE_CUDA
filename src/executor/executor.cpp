@@ -61,64 +61,69 @@ void Executor::allocate_buffer_with_backend() {
     }
 
     for (auto &op : m_graph.ops) {
+        auto out{op->output()};
         switch (op->op) {
-            case OpType::ADD: 
-            case OpType::MAT_MUL: 
-            case OpType::RMS_NORM: 
-            case OpType::SILU_HADAMARD: 
-            case OpType::SOFTMAX: 
-            case OpType::GET_EMBEDDING: 
-            case OpType::CONT:
-            case OpType::SOFTMAX_EXT: 
-            case OpType::GET_MASK: {
-                auto out{op->output()};
-                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
-            } break;
+        case OpType::ADD:
+        case OpType::MAT_MUL:
+        case OpType::RMS_NORM:
+        case OpType::SILU_HADAMARD:
+        case OpType::SOFTMAX:
+        case OpType::GET_EMBEDDING:
+        case OpType::CONT:
+        case OpType::SOFTMAX_EXT:
+        case OpType::GET_MASK: {
+            out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+        } break;
 
-            case OpType::ROPE: {
-                auto src{op->prev[0]->tensor_view()};
-                src->m_data = Platform::buffer_interfaces.at(src->m_backend).create_buffer_view(*src->parent->m_data, src->m_shape, sizeof(float), 0UL);
-                auto out{op->output()};
-                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
-            } break;
+        case OpType::ROPE: {
+            auto src{op->prev[0]->tensor_view()};
+            src->m_data = Platform::buffer_interfaces.at(src->m_backend)
+                              .create_buffer_view(*src->parent->m_data, src->m_shape, sizeof(float), 0UL);
+            // auto out{op->output()};
+            out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+        } break;
 
-            case OpType::PERMUTE: {
-                auto x{op->prev[0]->tensor()};
-                auto out{op->output()};
-                auto [axes]{op->get_params<PermuteParams>()};
-                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, out->m_shape, sizeof(float), 0UL);
-                auto &x_stride{x->m_data->m_stride};
-                Stride new_stride{};
-                new_stride[axes[0]]   = x_stride[0];
-                new_stride[axes[1]]   = x_stride[1];
-                new_stride[axes[2]]   = x_stride[2];
-                new_stride[axes[3]]   = x_stride[3];
-                out->m_data->m_stride = std::move(new_stride);
-            } break;
+        case OpType::PERMUTE: {
+            auto x{op->prev[0]->tensor()};
+            // auto out{op->output()};
+            auto [axes]{op->get_params<PermuteParams>()};
+            out->m_data = Platform::buffer_interfaces.at(out->m_backend)
+                              .create_buffer_view(*x->m_data, out->m_shape, sizeof(float), 0UL);
+            auto &x_stride{x->m_data->m_stride};
+            Stride new_stride{};
+            new_stride[axes[0]]   = x_stride[0];
+            new_stride[axes[1]]   = x_stride[1];
+            new_stride[axes[2]]   = x_stride[2];
+            new_stride[axes[3]]   = x_stride[3];
+            out->m_data->m_stride = std::move(new_stride);
+        } break;
 
-            case OpType::VIEW: {
-                auto x{op->prev[0]->tensor()};
-                auto out{op->output()};
-                auto [stride, offset]{op->get_params<ViewParams>()};
-                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, out->m_shape, sizeof(float), offset);
-                out->m_data->m_stride = std::move(stride);
-            } break;
+        case OpType::VIEW: {
+            auto x{op->prev[0]->tensor()};
+            // auto out{op->output()};
+            auto [stride, offset]{op->get_params<ViewParams>()};
+            out->m_data = Platform::buffer_interfaces.at(out->m_backend)
+                              .create_buffer_view(*x->m_data, out->m_shape, sizeof(float), offset);
+            out->m_data->m_stride = std::move(stride);
+        } break;
 
-            case OpType::TRANSPOSE: {
-                auto x{op->prev[0]->tensor()};
-                auto out{op->output()};
-                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer_view(*x->m_data, out->m_shape, sizeof(float), 0UL);
-                auto &x_stride{x->m_data->m_stride};
-                Stride new_stride{x_stride[1], x_stride[0], x_stride[2], x_stride[3]};
-                out->m_data->m_stride = std::move(new_stride);
-            } break;
+        case OpType::TRANSPOSE: {
+            auto x{op->prev[0]->tensor()};
+            // auto out{op->output()};
+            out->m_data = Platform::buffer_interfaces.at(out->m_backend)
+                              .create_buffer_view(*x->m_data, out->m_shape, sizeof(float), 0UL);
+            auto &x_stride{x->m_data->m_stride};
+            Stride new_stride{x_stride[1], x_stride[0], x_stride[2], x_stride[3]};
+            out->m_data->m_stride = std::move(new_stride);
+        } break;
 
-            case OpType::COPY:
-            case OpType::PRINT:
-            case OpType::ADD_CACHE: break;
-            default: POWERSERVE_ASSERT(false and "op not implemented");
+        case OpType::COPY:
+        case OpType::PRINT:
+        case OpType::ADD_CACHE:
+            break;
+        default:
+            POWERSERVE_ASSERT(false and "op not implemented");
         }
-
     }
 }
 

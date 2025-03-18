@@ -50,9 +50,7 @@ auto Graph::get_embedding(TensorNode *weight, const std::vector<int> &tokens) ->
     op->set_outputs({out});
     op->set_params(GetEmbeddingParams{tokens});
 
-    {
-        out->m_backend = weight->m_backend;
-    }
+    { out->m_backend = weight->m_backend; }
 
     {
         size_t tmp_size{out->row_size(out->n_elements())};
@@ -118,7 +116,7 @@ auto Graph::rms_norm(TensorNode *x, TensorNode *weight, float eps) -> TensorNode
         out->m_backend = x->m_backend;
         POWERSERVE_ASSERT(weight == nullptr or weight->m_backend == x->m_backend);
     }
-    
+
     {
         size_t tmp_size{out->row_size(out->n_elements())};
         backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
@@ -184,7 +182,7 @@ auto Graph::softmax(TensorNode *x) -> TensorNode * {
         // fmt::println("softmax: size: {}", tmp_size);
         backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
     }
-    
+
     // out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
     return out;
 }

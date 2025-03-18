@@ -30,7 +30,7 @@ void Platform::init_backend(
             .create_buffer      = ggml::CPUBuffer::create_buffer,
             .create_buffer_view = ggml::CPUBuffer::create_buffer_view,
             // TODO: Add funtion to get total memory
-            .alloc_total       = nullptr,
+            .alloc_total = nullptr,
         }
     ));
 
@@ -43,7 +43,7 @@ void Platform::init_backend(
         BufferInterface{
             .create_buffer      = ggml_cuda::Buffer_CUDA::create_buffer,
             .create_buffer_view = ggml_cuda::Buffer_CUDA::create_buffer_view,
-            .alloc_total = ggml_cuda::cuda_context_warp::default_alloc_total,
+            .alloc_total        = ggml_cuda::cuda_context_warp::default_alloc_total,
         }
     ));
 #endif

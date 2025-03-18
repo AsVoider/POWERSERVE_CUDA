@@ -136,8 +136,12 @@ auto GGML_CUDAKV::init_cache() -> void {
     auto v_size{kv_shape.get_v_size(kv_shape.n_ctx)};
     printf("k_size is %ld, nctx is %ld\n", k_size, kv_shape.n_ctx);
     for (size_t i{0}; i < kv_shape.n_layers; ++i) {
-        cuda_context_warp::malloc_cuda_buffer_async(reinterpret_cast<void **>(&k_cache[i].cache_data_ptr), k_size, stream);
-        cuda_context_warp::malloc_cuda_buffer_async(reinterpret_cast<void **>(&v_cache[i].cache_data_ptr), v_size, stream);
+        cuda_context_warp::malloc_cuda_buffer_async(
+            reinterpret_cast<void **>(&k_cache[i].cache_data_ptr), k_size, stream
+        );
+        cuda_context_warp::malloc_cuda_buffer_async(
+            reinterpret_cast<void **>(&v_cache[i].cache_data_ptr), v_size, stream
+        );
         printf("layer: %ld, k_cache: %p, v_cache: %p\n", i, k_cache[i].cache_data_ptr, v_cache[i].cache_data_ptr);
     }
 }

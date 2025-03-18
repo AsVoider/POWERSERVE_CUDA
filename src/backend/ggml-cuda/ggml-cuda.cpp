@@ -19,7 +19,10 @@ void GGML_CUDABackend::get_embedding(Tensor *dst, const Tensor *weight, const st
     auto tensor_shape{Shape{tokens.size(), 1, 1, 1}};
     auto cuda_ptr{default_mempool->allocate((sizeof(int) * tokens.size() + 255) / 256 * 256)};
     cuda_context_warp::copy_memory_async<1>(
-        cuda_ptr, reinterpret_cast<void *>(const_cast<int *>(tokens.data())), sizeof(int) * tokens.size(), warp->get_stream()
+        cuda_ptr,
+        reinterpret_cast<void *>(const_cast<int *>(tokens.data())),
+        sizeof(int) * tokens.size(),
+        warp->get_stream()
     );
     ggml_tensor_tokens->data = cuda_ptr;
     ggml_tensor_tokens->type = GGML_TYPE_I32;
@@ -88,8 +91,8 @@ void GGML_CUDABackend::matmul(Tensor *dst, const Tensor *src0, const Tensor *src
     //         for (size_t j{0}; j < src1->m_shape[2]; ++j) {
     //             for (size_t k{0}; k < src1->m_shape[1]; ++k) {
     //                 for (size_t l{0}; l < src1->m_shape[0]; ++l) {
-    //                     fprintf(file, "%f ", src_buffer[i * src1->m_shape[2] * src1->m_shape[1] * src1->m_shape[0] + j *
-    //                     src1->m_shape[1] * src1->m_shape[0] + k * src1->m_shape[0] + l]);
+    //                     fprintf(file, "%f ", src_buffer[i * src1->m_shape[2] * src1->m_shape[1] * src1->m_shape[0] +
+    //                     j * src1->m_shape[1] * src1->m_shape[0] + k * src1->m_shape[0] + l]);
     //                 }
     //                 fprintf(file, "\n\n");
     //             }
@@ -296,7 +299,10 @@ void GGML_CUDABackend::rope(
 
     auto ggml_tensor_pos{std::make_unique<ggml_tensor>()};
     {
-        auto pos_data_ptr{static_cast<void *>(static_cast<char *>(default_mempool->ptr) + default_mempool->offset - (sizeof(int) * pos.size() + 255) / 256 * 256)};
+        auto pos_data_ptr{static_cast<void *>(
+            static_cast<char *>(default_mempool->ptr) + default_mempool->offset -
+            (sizeof(int) * pos.size() + 255) / 256 * 256
+        )};
         void *cpu_data_ptr = static_cast<void *>(const_cast<int *>(pos.data()));
         auto stream_ptr{warp->get_stream()};
         cuda_context_warp::copy_memory_async<1>(pos_data_ptr, cpu_data_ptr, pos.size() * sizeof(int), stream_ptr);
