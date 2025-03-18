@@ -555,7 +555,7 @@ static inline ggml_bf16_t ggml_compute_fp32_to_bf16(float s) {
 
 GGML_API size_t gguf_type_size(enum gguf_type type);
 
-GGML_API struct gguf_context * gguf_init_from_file_impl(FILE * file, struct gguf_init_params params);
+GGML_API struct gguf_context * gguf_init_from_file_impl(FILE * file, struct gguf_init_params params, const char *file_name);
 
 struct gguf_buf {
     void * data;

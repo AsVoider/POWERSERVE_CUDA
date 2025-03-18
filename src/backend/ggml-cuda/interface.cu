@@ -613,7 +613,7 @@ auto cuda_mempool::allocate(size_t size) -> void * {
         exit(1);
     }
 
-    if (size % 256 not_eq 0 or size + offset > total_size) {
+    if (size % 256 not_eq 0UL or size + offset > total_size) {
         exit(1);
     }
 

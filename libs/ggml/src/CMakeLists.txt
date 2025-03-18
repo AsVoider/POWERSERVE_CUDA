@@ -218,7 +218,7 @@ add_library(ggml-base
             ggml-quants.h)
 
 target_include_directories(ggml-base PRIVATE .)
-
+target_link_libraries(ggml-base PRIVATE uring)
 add_library(ggml
             ggml-backend-reg.cpp)
 

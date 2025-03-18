@@ -29,6 +29,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <float.h>
+#include <liburing.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <signal.h>
@@ -48,6 +49,10 @@
     #define NOMINMAX
 #endif
 #include <windows.h>
+#endif
+
+#ifdef UNUSED
+#undef UNUSED
 #endif
 
 #define UNUSED GGML_UNUSED
@@ -6651,7 +6656,168 @@ struct gguf_context * gguf_init_empty(void) {
     return ctx;
 }
 
-struct gguf_context * gguf_init_from_file_impl(FILE * file, struct gguf_init_params params) {
+#define QUEUE_DEPTH 128
+#define M_BLOCK_SIZE 4096
+#define READ_SIZE (4096 * M_BLOCK_SIZE)
+#define BATCH_SIZE 16
+
+struct io_meta_data {
+    off_t offset;
+    size_t length;
+    void *buf;
+};
+
+static void fall_back_on_fail(const char *err, int fd) {
+    if (fd < 0) {
+        fprintf(stderr, "%s\n", err);
+        exit(1);
+    } else {
+        close(fd);
+        fprintf(stderr, "%s\n", err);
+        exit(2);
+    }
+}
+
+static void LOG_PRINT(const char *msg) {
+    printf("[IO URING LOG INFO] %s\n", msg);
+}
+
+static void print_throughput(size_t bytes, struct timespec *start, struct timespec *end) {
+    double seconds = (end->tv_sec - start->tv_sec) + 
+                     (end->tv_nsec - start->tv_nsec) / 1000000000.0;
+    double mb_per_sec = (bytes / 1024.0 / 1024.0) / seconds;
+    printf("read %.2f MB, take %.2f seconds, speed: %.2f MB/s\n", 
+           bytes / 1024.0 / 1024.0, seconds, mb_per_sec);
+}
+
+static void *io_uring_read_data(const char *file_name, off_t offset_on_start, size_t total_size) {
+    const char *file_path = file_name;
+
+    off_t start = offset_on_start;
+
+    int fd = open(file_path, O_RDONLY | O_DIRECT);
+    if (fd < 0) {
+        fall_back_on_fail("Failed to open model file", fd);
+    }
+
+    struct stat st;
+    if (fstat(fd, &st) < 0) {
+        fall_back_on_fail("Failed to fstat model file", fd);
+    }
+
+    if (total_size == 0) {
+        printf("total size is 0, return\n");
+        close(fd);
+        return NULL;
+    }
+
+    struct io_uring ring;
+    int ret = io_uring_queue_init(QUEUE_DEPTH, &ring, IORING_SETUP_SQPOLL);
+    if (ret < 0) {
+        fall_back_on_fail("Failed to initialize io_uring", fd);
+    }
+    LOG_PRINT("RING INITED");
+    
+    void *buffer = NULL;
+    ret = posix_memalign(&buffer, M_BLOCK_SIZE, total_size);
+    if (ret != 0 || buffer == NULL) {
+        fall_back_on_fail("malloc failed", fd);
+    }
+
+
+    size_t num_requests = (total_size + READ_SIZE - 1) / READ_SIZE;
+    struct io_meta_data *io_meta_data_vec_ptr = calloc(num_requests, sizeof(struct io_meta_data));
+    if (!io_meta_data_vec_ptr) {
+        fall_back_on_fail("Failed to allocate memory for io_meta_data", fd);
+    }
+    size_t last_request_size = (total_size % READ_SIZE == 0) ? READ_SIZE : 
+            ((total_size % READ_SIZE) + READ_SIZE - 1) / READ_SIZE * READ_SIZE;
+    // printf("last request size is %ld, num requests is %ld\n", last_request_size, num_requests);
+    for (size_t i = 0; i < num_requests; ++i) {
+        io_meta_data_vec_ptr[i].offset = start + i * READ_SIZE;
+        io_meta_data_vec_ptr[i].length = ((i != num_requests - 1) ? READ_SIZE : last_request_size);
+        io_meta_data_vec_ptr[i].buf = (char *)buffer + i * READ_SIZE;
+    }
+
+    struct iovec iov = {
+        .iov_base = buffer,
+        .iov_len = total_size,
+    };
+    ret = io_uring_register_buffers(&ring, &iov, 1);
+
+    bool buffer_reg = false, file_reg = false;
+    if (ret < 0) {
+        LOG_PRINT("register buffer failed, continue");
+    } else {
+        buffer_reg = true;
+        LOG_PRINT("buffer registered");
+    }
+
+    ret = io_uring_register_files(&ring, &fd, 1);
+    if (ret < 0) {
+        LOG_PRINT("register file failed, continue");
+    } else {
+        file_reg = true;
+        LOG_PRINT("file registered");
+    }
+
+    size_t completed = 0UL, submitted = 0UL;
+    while (completed < num_requests) {
+        unsigned int to_submit = 0;
+        
+        while (submitted < num_requests && to_submit < BATCH_SIZE) {
+            struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+            if (!sqe) {
+                break;
+            }
+
+            struct io_meta_data *meta = &io_meta_data_vec_ptr[submitted];
+            
+            if (buffer_reg && file_reg) {
+                io_uring_prep_read_fixed(sqe, 0, meta->buf, meta->length, 
+                                        meta->offset, 0);
+                sqe->flags |= IOSQE_FIXED_FILE;
+            } else {
+                io_uring_prep_read(sqe, fd, meta->buf, meta->length, meta->offset);
+            }
+            
+            io_uring_sqe_set_data(sqe, meta);
+            
+            submitted++;
+            to_submit++;
+        }
+
+        if (to_submit > 0) {
+            ret = io_uring_submit(&ring);
+            if (ret < 0) {
+                fall_back_on_fail("Failed to submit requests", fd);
+            }
+        }
+
+        // unsigned int head;
+        struct io_uring_cqe *cqe;
+
+        if (submitted == num_requests) {
+            ret = io_uring_wait_cqe(&ring, &cqe);
+            if (ret < 0) {
+                fprintf(stderr, "wait queue error: %s\n", strerror(-ret));
+                break;
+            }
+            
+            struct io_meta_data *data = (struct io_meta_data *)io_uring_cqe_get_data(cqe);
+            if (cqe->res < 0) {
+                fprintf(stderr, "I/O less (block %d): %s\n", (int)(data - io_meta_data_vec_ptr), strerror(-cqe->res));
+            }
+            
+            io_uring_cqe_seen(&ring, cqe);
+            completed++;
+        }
+    }
+    close(fd);
+    return buffer;
+}
+
+struct gguf_context * gguf_init_from_file_impl(FILE * file, struct gguf_init_params params, const char *file_name) {
     // offset from start of file
     size_t offset = 0;
 
@@ -6924,7 +7090,14 @@ struct gguf_context * gguf_init_from_file_impl(FILE * file, struct gguf_init_par
             ctx->size += GGML_PAD(size_cur, ctx->alignment);
         }
     }
-    printf("offset now is %ld, offset %% PAGE_SIZE = %ld\n", offset, offset % 4096);
+    printf("offset now is %ld, offset %% PAGE_SIZE = %ld, ctx->size is %ld\n", offset, offset % 4096, ctx->size);
+    size_t offset_mod_page_size = offset % 4096;
+    void *uring_read_res = io_uring_read_data(file_name, offset - offset_mod_page_size, ctx->size + offset_mod_page_size);
+    if (uring_read_res == NULL) {
+        fprintf(stderr, "读取文件失败\n");
+        gguf_free(ctx);
+        return NULL;
+    }
     // exit(0);
 
     // load the tensor data only if requested
@@ -6962,16 +7135,26 @@ struct gguf_context * gguf_init_from_file_impl(FILE * file, struct gguf_init_par
             ok = ok && data != NULL;
 
             // read the binary blob with the tensor data
-            ok = ok && gguf_fread_el(file, data->data, ctx->size, &offset);
+            // ok = ok && gguf_fread_el(file, data->data, ctx->size, &offset);
 
-            if (!ok) {
-                fprintf(stderr, "%s: failed to read tensor data\n", __func__);
-                ggml_free(ctx_data);
-                gguf_free(ctx);
-                return NULL;
-            }
+            // if (!ok) {
+            //     fprintf(stderr, "%s: failed to read tensor data\n", __func__);
+            //     ggml_free(ctx_data);
+            //     gguf_free(ctx);
+            //     return NULL;
+            // }
+            char *uring_data = (char *)uring_read_res + offset_mod_page_size;
+            // for (int i = 0; i < ctx->size; i++) {
+            //     if (((char *)data->data)[i] != uring_data[i]) {
+            //         fprintf(stderr, "data not equal at %d, %d, %d\n", i, ((char *)data->data)[i], uring_data[i]);
+            //         break;
+            //     }
+            // }
+            // exit(0);
 
-            ctx->data = data->data;
+            // ctx->data = data->data;
+            data->data = uring_data;
+            ctx->data = uring_data;
         }
 
         ggml_set_no_alloc(ctx_data, true);
@@ -7022,7 +7205,7 @@ struct gguf_context * gguf_init_from_file(const char * fname, struct gguf_init_p
         return NULL;
     }
 
-    struct gguf_context * result = gguf_init_from_file_impl(file, params);
+    struct gguf_context * result = gguf_init_from_file_impl(file, params, fname);
     fclose(file);
     return result;
 }
