@@ -25,6 +25,7 @@
 #include "llama-vocab.h"
 #include "unicode.h"
 #include "ggml.h"
+#include "gguf.h"
 
 //
 // helpers

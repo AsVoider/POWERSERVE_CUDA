@@ -24,6 +24,7 @@
 #include "cpu_buffer.hpp"
 #include "ggml-cpu.h"
 #include "ggml.h"
+#include "gguf.h"
 #include "ggml_kv_cache.hpp"
 #include "graph/node.hpp"
 
