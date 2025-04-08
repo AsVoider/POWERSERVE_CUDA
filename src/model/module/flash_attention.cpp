@@ -10,7 +10,7 @@ TensorNode *FlashAttention::build(
     const TensorNode *v_cache,
     const std::vector<int> &pos,
     const CausalAttentionMask &mask,
-    bool is_need_bias = false
+    bool is_need_bias
 ) {
     auto batch_size{pos.size()};
     auto head_size{m_config.head_size};
@@ -73,7 +73,7 @@ TensorNode *FlashAttention::build(
     {
         k = rope_k;
         auto k_cache_view{g.view(
-            k_cache,
+            const_cast<TensorNode *>(k_cache),
             {batch_size * kv_gqa, 1, 1, 1},
             {k_cache->element_size(),
              k_cache->element_size() * batch_size * kv_gqa,
@@ -84,7 +84,7 @@ TensorNode *FlashAttention::build(
         k_cache_view->m_name = fmt::format("k_cache_view_{}_{}", L, pos[0]);
 
         auto v_cache_view{g.view(
-            v_cache,
+            const_cast<TensorNode *>(v_cache),
             {batch_size * kv_gqa, 1, 1, 1},
             {v_cache->element_size(),
              v_cache->element_size() * batch_size * kv_gqa,
@@ -109,7 +109,7 @@ TensorNode *FlashAttention::build(
         q->m_name = fmt::format("q_permute_{}_{}", L, pos[0]);
 
         k = g.view(
-            k_cache,
+            const_cast<TensorNode *>(k_cache),
             {head_size, n_kv, n_head_kv, 1},
             {k_cache->element_size(),
              k_cache->row_size(n_head_kv * head_size),
@@ -120,7 +120,7 @@ TensorNode *FlashAttention::build(
         k->m_name = fmt::format("k_view_{}_{}", L, pos[0]);
 
         v = g.view(
-            v_cache,
+            const_cast<TensorNode *>(v_cache),
             {head_size, n_kv, n_head_kv, 1},
             {v_cache->element_size(),
              v_cache->row_size(n_head_kv * head_size),
@@ -141,7 +141,14 @@ TensorNode *FlashAttention::build(
         auto fattn_res    = g.flash_attention(q, k, v, kq_mask, kq_scale, f_max_alibi_bias, logit_softcap);
         fattn_res->m_name = fmt::format("fattn_res_{}_{}", L, pos[0]);
 
-        reshaped_fattn_res         = g.view_tensor(fattn_res, {head_size * n_head, batch_size, 1, 1});
+        // reshaped_fattn_res         = g.view_tensor(fattn_res, {head_size * n_head, batch_size, 1, 1});
+        reshaped_fattn_res = g.view(
+            fattn_res, {head_size * n_head, batch_size, 1, 1},
+            {fattn_res->element_size(),
+             fattn_res->row_size(head_size * n_head),
+             fattn_res->row_size(head_size * n_head) * batch_size,
+             fattn_res->row_size(head_size * n_head) * batch_size}
+        );
         reshaped_fattn_res->m_name = fmt::format("reshaped_fattn_res_{}_{}", L, pos[0]);
     }
 

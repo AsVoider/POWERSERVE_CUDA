@@ -14,6 +14,9 @@ GGML_CUDAKV::GGML_CUDAKV(const ModelConfig::LLMConfig &config, void *stream) : c
     kv_shape.batch_size = 1UL;
     kv_shape.type       = DataType::FP16;
 
+    // // TODO : Add parameters
+    // sparsity_type = KVSparsityType::NONE;
+
     init_cache();
 }
 
@@ -131,6 +134,9 @@ auto GGML_CUDAKV::get_v_cache_tensor(size_t layer_id) -> Tensor * {
 auto GGML_CUDAKV::init_cache() -> void {
     k_cache.resize(kv_shape.n_layers);
     v_cache.resize(kv_shape.n_layers);
+    // if (sparsity_type not_eq KVSparsityType::NONE) {
+    //     k_meta.resize(kv_shape.n_layers);
+    // }
 
     auto k_size{kv_shape.get_k_size(kv_shape.n_ctx)};
     auto v_size{kv_shape.get_v_size(kv_shape.n_ctx)};
@@ -142,6 +148,15 @@ auto GGML_CUDAKV::init_cache() -> void {
         cuda_context_warp::malloc_cuda_buffer_async(
             reinterpret_cast<void **>(&v_cache[i].cache_data_ptr), v_size, stream
         );
+        // if (sparsity_type not_eq KVSparsityType::NONE) {
+        //     const size_t stride{sparsity_type == KVSparsityType::QUEST ? 2UL : 1UL};
+        //     cuda_context_warp::malloc_cuda_buffer_async(
+        //         reinterpret_cast<void **>(&k_meta[i].meta_data_ptr), k_size / KVBlockSize * stride, stream
+        //     );
+        //     cuda_context_warp::device_memset_async(
+        //         k_meta[i].meta_data_ptr, 0, k_size / KVBlockSize, stream
+        //     );
+        // }
         printf("layer: %ld, k_cache: %p, v_cache: %p\n", i, k_cache[i].cache_data_ptr, v_cache[i].cache_data_ptr);
     }
 }

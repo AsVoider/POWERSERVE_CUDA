@@ -116,6 +116,11 @@ CommandLineArgument parse_command_line(const std::string_view program_name, int 
     app.add_flag("--no-qnn", args.no_qnn, "Disable QNN processing.");
 
     /*
+     * Attention Configuration
+     */
+    app.add_flag("--fa", args.use_flash_attention, "If using flash attention.");
+
+    /*
      * Server Configuration
      */
     app.add_option("--host", args.host, "Set the ip address the server to listen.");

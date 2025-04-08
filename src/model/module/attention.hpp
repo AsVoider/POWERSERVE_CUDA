@@ -23,7 +23,7 @@ namespace powerserve {
 struct Attention {
 
 public:
-    constexpr static size_t KV_PADDING = 64;
+    constexpr static size_t KV_PADDING = 256;
 
 public:
     const ModelConfig::LLMConfig &m_config;

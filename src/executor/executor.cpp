@@ -35,7 +35,8 @@ void Executor::shed_op_to_backend() {
         case OpType::VIEW:
         case OpType::SOFTMAX_EXT:
         case OpType::GET_MASK:
-        case OpType::TRANSPOSE: {
+        case OpType::TRANSPOSE: 
+        case OpType::FLASH_ATTENTION: {
             op->compute_backend = op->output()->m_backend;
         } break;
 
@@ -70,9 +71,18 @@ void Executor::allocate_buffer_with_backend() {
         case OpType::GET_EMBEDDING:
         case OpType::CONT:
         case OpType::SOFTMAX_EXT:
-        case OpType::GET_MASK: {
+        case OpType::GET_MASK: 
+        case OpType::FLASH_ATTENTION: {
             auto out{op->output()};
-            out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+            auto out_type{out->m_dtype};
+            if (out_type == DataType::FP32) {
+                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+            } else if (out_type == DataType::FP16) {
+                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(short));
+            } else {
+                POWERSERVE_ASSERT(false and "data type not implemented");
+            }
+            // out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
         } break;
 
         case OpType::ROPE: {
@@ -434,6 +444,39 @@ void Executor::print_graph(std::ostream &os) {
             os << "TRANSPOSE: src " << static_cast<int>(x->m_backend) << " type is " << static_cast<int>(x->m_dtype)
                << " shape is ";
             for (auto &&p : x->m_shape) {
+                os << p << " ";
+            }
+            os << "dst " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype)
+               << " shape is ";
+            for (auto &&p : out->m_shape) {
+                os << p << " ";
+            }
+            os << std::endl;
+        } break;
+
+        case OpType::FLASH_ATTENTION: {
+            auto q                 = op->prev[0]->tensor();
+            auto k                 = op->prev[1]->tensor();
+            auto v                 = op->prev[2]->tensor();
+            auto mask              = op->prev[3]->tensor();
+            auto out               = op->output();
+            // auto [scale, max_bias, logit_softcap] = op->get_params<FlashAttentionParams>();
+            os << "FLASH_ATTENTION: q " << static_cast<int>(q->m_backend) << " type is " << static_cast<int>(q->m_dtype)
+               << " shape is ";
+            for (auto &&p : q->m_shape) {
+                os << p << " ";
+            }
+            os << "k " << static_cast<int>(k->m_backend) << " type is " << static_cast<int>(k->m_dtype) << " shape is ";
+            for (auto &&p : k->m_shape) {
+                os << p << " ";
+            }
+            os << "v " << static_cast<int>(v->m_backend) << " type is " << static_cast<int>(v->m_dtype) << " shape is ";
+            for (auto &&p : v->m_shape) {
+                os << p << " ";
+            }
+            os << "mask " << static_cast<int>(mask->m_backend) << " type is " << static_cast<int>(mask->m_dtype)
+               << " shape is ";
+            for (auto &&p : mask->m_shape) {
                 os << p << " ";
             }
             os << "dst " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype)

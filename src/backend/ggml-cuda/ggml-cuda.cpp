@@ -679,6 +679,29 @@ void GGML_CUDABackend::transpose(Tensor *out, const Tensor *x) const {
     buffer_out.m_stride = stride;
 }
 
+void GGML_CUDABackend::flash_attn(Tensor *out, const Tensor *q, const Tensor *k, const Tensor *v, const Tensor *mask, const float scale, const float max_bias, const float logit_softcap) {
+    auto ggml_tensor_out{convert_to_ggml_tensor(out)};
+    auto ggml_tensor_q{convert_to_ggml_tensor(q)};
+    auto ggml_tensor_k{convert_to_ggml_tensor(k)};
+    auto ggml_tensor_v{convert_to_ggml_tensor(v)};
+    auto ggml_tensor_mask{convert_to_ggml_tensor(mask)};
+
+    const int32_t precision{0};
+    memcpy(&ggml_tensor_out->op_params[0], &scale, sizeof(int32_t));
+    memcpy(&ggml_tensor_out->op_params[1], &max_bias, sizeof(int32_t));
+    memcpy(&ggml_tensor_out->op_params[2], &logit_softcap, sizeof(int32_t));
+    ggml_tensor_out->op_params[3] = precision;
+
+    ggml_tensor_out->src[0] = ggml_tensor_q.get();
+    ggml_tensor_out->src[1] = ggml_tensor_k.get();
+    ggml_tensor_out->src[2] = ggml_tensor_v.get();
+    ggml_tensor_out->src[3] = ggml_tensor_mask.get();
+
+    ggml_tensor_out->op = GGML_OP_FLASH_ATTN_EXT;
+
+    op_interfaces::op_flash_attn(*warp, ggml_tensor_out.get());
+}
+
 void GGML_CUDABackend::advance(const size_t &size) {
     m_kv->advanced_kv_cache_size(size);
 }
@@ -831,13 +854,29 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
             // get output tensor, mask tensor and pos, check backend, then set mask on GPU backend
             auto out         = op->output();
             auto [mask, pos] = op->get_params<GetMaskParams>();
-            POWERSERVE_ASSERT(out->m_dtype == DataType::FP32 and out->m_backend == TensorBackend::GGML_GPU);
+            POWERSERVE_ASSERT((out->m_dtype == DataType::FP16 or out->m_dtype == DataType::FP32) and out->m_backend == TensorBackend::GGML_GPU);
             auto n_kv       = out->m_shape[0];
             auto batch_size = out->m_shape[1];
             get_mask(out, pos, n_kv, batch_size);
         } break;
 
         case OpType::TRANSPOSE: {
+        } break;
+
+        case OpType::FLASH_ATTENTION: {
+            // printf("FLASH_ATTENTION\n");
+            // get output tensor, q tensor, k tensor, v tensor, mask tensor, scale and max_bias, check backend, then call
+            auto out               = op->output();
+            auto q                 = op->prev[0]->tensor();
+            auto k                 = op->prev[1]->tensor();
+            auto v                 = op->prev[2]->tensor();
+            auto mask              = op->prev[3]->tensor();
+            auto [scale, max_bias, logit_softcap] = op->get_params<FlashAttentionParams>();
+            POWERSERVE_ASSERT(
+                q->m_backend == TensorBackend::GGML_GPU and k->m_backend == TensorBackend::GGML_GPU and
+                v->m_backend == TensorBackend::GGML_GPU and out->m_backend == TensorBackend::GGML_GPU
+            );
+            flash_attn(out, q, k, v, mask, scale, max_bias, logit_softcap);
         } break;
 
         default:

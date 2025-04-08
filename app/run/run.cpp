@@ -17,6 +17,7 @@
 #include "core/timer.hpp"
 #include "model/model_loader.hpp"
 #include "model/module/norm_attention.hpp"
+#include "model/module/flash_attention.hpp"
 #include "sampler/sampler_chain.hpp"
 #include "speculative/spec_model.hpp"
 #include "tokenizer/tokenizer.hpp"
@@ -66,11 +67,21 @@ int main(int argc, char *argv[]) {
 #endif
     POWERSERVE_LOG_INFO("after platform init: {}", powerserve::perf_get_mem_result());
 
-    main_model->m_attn = std::make_shared<powerserve::NormAttention>(main_model->m_config->llm, main_model->m_weights);
-    if (args.use_spec) {
-        draft_model->m_attn =
-            std::make_shared<powerserve::NormAttention>(draft_model->m_config->llm, draft_model->m_weights);
+    if (args.use_flash_attention) {
+        main_model->m_attn = std::make_shared<powerserve::FlashAttention>(main_model->m_config->llm, main_model->m_weights);
+        if (args.use_spec) {
+            draft_model->m_attn = std::make_shared<powerserve::FlashAttention>(
+                draft_model->m_config->llm, draft_model->m_weights
+            );
+        }
+    } else {
+        main_model->m_attn = std::make_shared<powerserve::NormAttention>(main_model->m_config->llm, main_model->m_weights);
+        if (args.use_spec) {
+            draft_model->m_attn =
+                std::make_shared<powerserve::NormAttention>(draft_model->m_config->llm, draft_model->m_weights);
+        }
     }
+    
     POWERSERVE_LOG_INFO("after attn init: {}", powerserve::perf_get_mem_result());
 
     const std::string tokenizer_path = config.main_model_dir / powerserve::MODEL_VOCAB_FILENAME;

@@ -5,13 +5,14 @@
 #include "backend/ggml-cuda/cuda-ops/copy_ext.cuh"
 #include "backend/ggml-cuda/cuda-ops/get_mask.cuh"
 
+#include "binbcast.cuh"
 #include "common.cuh"
 #include "cpy.cuh"
+#include "fattn.cuh"
 #include "getrows.cuh"
-#include "softmax.cuh"
-#include "rope.cuh"
-#include "binbcast.cuh"
 #include "ggml-quants.h"
+#include "rope.cuh"
+#include "softmax.cuh"
 
 #include <exception>
 #include <functional>
@@ -553,6 +554,16 @@ op_interface op_interfaces::op_get_mask = [] (cuda_context_warp &ctx, ggml_tenso
     //     fclose(file);
     //     exit(0);
     // }
+};
+
+op_interface op_interfaces::op_flash_attn = [] (cuda_context_warp &ctx, ggml_tensor *dst) -> void {
+    if (ctx.ctx == nullptr) [[unlikely]] {
+        exit(1);
+    }
+
+    auto cuda_context_ptr{static_cast<ggml_backend_cuda_context *>(ctx.ctx)};
+
+    ggml_cuda_flash_attn_ext(cuda_context_ptr[0], dst);
 };
 
 cuda_mempool::~cuda_mempool() {

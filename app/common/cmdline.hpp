@@ -60,6 +60,9 @@ struct CommandLineArgument {
     /// The maximum number of tokens processed in one iteration
     uint32_t batch_size = 32;
 
+    // Use flash attention
+    bool use_flash_attention = false;
+
     /// Disable QNN backend
     bool no_qnn = false;
 

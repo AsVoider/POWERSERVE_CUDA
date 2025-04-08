@@ -118,9 +118,9 @@ public: // ! Math Ops
     void copy(Tensor *out, const Tensor *src) const;
     void print(const Tensor *x, size_t size = 0UL) const;
     void get_mask(Tensor *out, const std::vector<int> &pos, size_t kv_number, size_t batch_size);
-    // void reset_kv_batch_size(const size_t batch_size) const;
     void append_kv_cache(const Tensor *src, const size_t layer_id, const size_t token_num, bool is_k_cache);
     void transpose(Tensor *out, const Tensor *x) const;
+    void flash_attn(Tensor *out, const Tensor *q, const Tensor *k, const Tensor *v, const Tensor *mask, const float scale, const float max_bias, const float logit_softcap);
 
 public:
     void advance(const size_t &size) override;
