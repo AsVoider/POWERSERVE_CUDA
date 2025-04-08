@@ -887,12 +887,11 @@ void GGML_CUDABackend::graph_compute(std::vector<std::shared_ptr<OpNode>> &ops) 
     auto &last_op{ops.back()};
     auto last_out{last_op->output()};
     // if (last_out->m_name.substr(0, 7) == "logits_") {
-    cuda_context_warp::stream_sync(warp->get_stream());
     auto num_element{std::reduce(last_out->m_shape.begin(), last_out->m_shape.end(), 1, std::multiplies<size_t>())};
     last_out->m_data->m_data_host      = malloc(num_element * sizeof(float));
     last_out->m_data->m_is_host_malloc = true;
-    cuda_context_warp::copy_memory<2>(
-        last_out->m_data->m_data_host, last_out->m_data->m_data_device, num_element * sizeof(float)
+    cuda_context_warp::copy_memory_async<2>(
+        last_out->m_data->m_data_host, last_out->m_data->m_data_device, num_element * sizeof(float), warp->get_stream()
     );
     // }
 }

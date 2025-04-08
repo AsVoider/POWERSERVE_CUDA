@@ -8730,6 +8730,7 @@ void powerserve_compute_forward_dup(
         .nth = params->nth,
         .wsize = params->wsize,
         .wdata = params->wdata,
+        .threadpool = nullptr,
     };
 
     dst->src[0] = src0;
@@ -8769,6 +8770,7 @@ void powerserve_compute_forward_soft_max(
         .nth = params->nth,
         .wsize = params->wsize,
         .wdata = params->wdata,
+        .threadpool = nullptr,
     };
     dst->src[0] = src0;
     dst->src[1] = NULL;
@@ -8803,6 +8805,7 @@ void powerserve_compute_forward_softmax_ext(
         .nth = params->nth,
         .wsize = params->wsize,
         .wdata = params->wdata,
+        .threadpool = nullptr,
     };
     dst->src[0] = src0;
     dst->src[1] = src1;
@@ -8988,6 +8991,7 @@ void powerserve_compute_forward_rope(
         .nth = params->nth,
         .wsize = params->wsize,
         .wdata = params->wdata,
+        .threadpool = nullptr,
     };
     dst->src[0] = src0;
     dst->src[1] = src1;

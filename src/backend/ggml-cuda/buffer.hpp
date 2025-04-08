@@ -34,9 +34,9 @@ public:
         return m_data_host;
     }
 
-    static auto create_buffer(Shape shape, size_t type_size) -> BufferPtr {
+    static auto create_buffer(Shape shape, DataType d_type) -> BufferPtr {
         Stride stride{};
-        stride[0] = type_size;
+        stride[0] = get_type_size(d_type);
         for (size_t i{1}; i < shape.size(); ++i) {
             stride[i] = stride[i - 1] * shape[i - 1];
         }
@@ -48,9 +48,9 @@ public:
         return std::make_shared<Buffer_CUDA>(stride, cuda_data_ptr, nullptr, usage::COMPUTE, size, false, false);
     }
 
-    static auto create_buffer_view(BaseBuffer &p, Shape shape, size_t type_size, size_t offset = 0) -> BufferPtr {
+    static auto create_buffer_view(BaseBuffer &p, Shape shape, DataType d_type, size_t offset = 0) -> BufferPtr {
         Stride stride{};
-        stride[0] = type_size;
+        stride[0] = get_type_size(d_type);
         for (size_t i{1}; i < shape.size(); ++i) {
             stride[i] = stride[i - 1] * shape[i - 1];
         }

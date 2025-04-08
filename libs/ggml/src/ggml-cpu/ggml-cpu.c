@@ -3153,6 +3153,7 @@ void powerserve_compute_forward_mul_mat(
         .ith = params->ith,
         .nth = params->nth,
     };
+    GGML_UNUSED(pa);
 
     GGML_TENSOR_BINARY_OP_LOCALS
 

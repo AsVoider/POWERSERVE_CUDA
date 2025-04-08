@@ -35,7 +35,7 @@ function(ggml_add_cpu_backend_variant_impl tag_name)
         ggml-cpu/ops.cpp
         )
 
-    target_compile_features(${GGML_CPU_NAME} PRIVATE c_std_11 cxx_std_17)
+    target_compile_features(${GGML_CPU_NAME} PRIVATE c_std_11 cxx_std_20)
     target_include_directories(${GGML_CPU_NAME} PRIVATE . ggml-cpu)
 
     if (APPLE AND GGML_ACCELERATE)
@@ -462,6 +462,7 @@ function(ggml_add_cpu_backend_variant_impl tag_name)
     message(STATUS "Adding CPU backend variant ${GGML_CPU_NAME}: ${ARCH_FLAGS} ${ARCH_DEFINITIONS}")
     target_sources(${GGML_CPU_NAME} PRIVATE ${GGML_CPU_SOURCES})
     target_compile_options(${GGML_CPU_NAME} PRIVATE ${ARCH_FLAGS})
+    target_compile_options(${GGML_CPU_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-interference-size>)
     target_compile_definitions(${GGML_CPU_NAME} PRIVATE ${ARCH_DEFINITIONS})
 
     if (GGML_BACKEND_DL)

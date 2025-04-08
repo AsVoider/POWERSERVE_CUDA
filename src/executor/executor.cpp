@@ -75,22 +75,15 @@ void Executor::allocate_buffer_with_backend() {
         case OpType::FLASH_ATTENTION: {
             auto out{op->output()};
             auto out_type{out->m_dtype};
-            if (out_type == DataType::FP32) {
-                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
-            } else if (out_type == DataType::FP16) {
-                out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(short));
-            } else {
-                POWERSERVE_ASSERT(false and "data type not implemented");
-            }
-            // out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+            out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, out_type);
         } break;
 
         case OpType::ROPE: {
             auto src{op->prev[0]->tensor_view()};
             src->m_data = Platform::buffer_interfaces.at(src->m_backend)
-                              .create_buffer_view(*src->parent->m_data, src->m_shape, sizeof(float), 0UL);
+                              .create_buffer_view(*src->parent->m_data, src->m_shape, src->m_dtype, 0UL);
             auto out{op->output()};
-            out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+            out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, out->m_dtype);
         } break;
 
         case OpType::PERMUTE: {
@@ -98,7 +91,7 @@ void Executor::allocate_buffer_with_backend() {
             auto out{op->output()};
             auto [axes]{op->get_params<PermuteParams>()};
             out->m_data = Platform::buffer_interfaces.at(out->m_backend)
-                              .create_buffer_view(*x->m_data, out->m_shape, sizeof(float), 0UL);
+                              .create_buffer_view(*x->m_data, out->m_shape, out->m_dtype, 0UL);
             auto &x_stride{x->m_data->m_stride};
             Stride new_stride{};
             new_stride[axes[0]]   = x_stride[0];
@@ -113,7 +106,7 @@ void Executor::allocate_buffer_with_backend() {
             auto out{op->output()};
             auto [stride, offset]{op->get_params<ViewParams>()};
             out->m_data = Platform::buffer_interfaces.at(out->m_backend)
-                              .create_buffer_view(*x->m_data, out->m_shape, sizeof(float), offset);
+                              .create_buffer_view(*x->m_data, out->m_shape, out->m_dtype, offset);
             out->m_data->m_stride = std::move(stride);
         } break;
 
@@ -121,7 +114,7 @@ void Executor::allocate_buffer_with_backend() {
             auto x{op->prev[0]->tensor()};
             auto out{op->output()};
             out->m_data = Platform::buffer_interfaces.at(out->m_backend)
-                              .create_buffer_view(*x->m_data, out->m_shape, sizeof(float), 0UL);
+                              .create_buffer_view(*x->m_data, out->m_shape, out->m_dtype, 0UL);
             auto &x_stride{x->m_data->m_stride};
             Stride new_stride{x_stride[1], x_stride[0], x_stride[2], x_stride[3]};
             out->m_data->m_stride = std::move(new_stride);

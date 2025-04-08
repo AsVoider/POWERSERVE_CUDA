@@ -352,6 +352,10 @@ auto Graph::get_mask(const CausalAttentionMask &mask, Shape shape, const std::ve
     { out->m_backend = kq == nullptr ? TensorBackend::GGML_CPU : kq->m_backend; }
 
     {
+        out->m_dtype = out->m_backend == TensorBackend::GGML_CPU ? DataType::FP32 : DataType::FP16;
+    }
+
+    {
         size_t tmp_size{out->row_size(out->n_elements())};
         // fmt::println("get_mask: size: {}", tmp_size);
         backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
@@ -383,7 +387,7 @@ auto Graph::transpose(TensorNode *x) -> TensorViewNode * {
 
 auto Graph::make_contiguous(TensorNode *x) -> TensorNode * {
     auto out  = dup_tensor(x);
-    x->m_data = Platform::buffer_interfaces.at(x->m_backend).create_buffer(x->m_shape, sizeof(float));
+    x->m_data = Platform::buffer_interfaces.at(x->m_backend).create_buffer(x->m_shape, out->m_dtype);
     copy(out, x);
     return out;
 }
