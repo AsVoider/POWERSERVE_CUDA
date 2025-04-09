@@ -52,7 +52,9 @@ LlamaModel::~LlamaModel() {
 auto LlamaModel::forward(
     const std::vector<int> &tokens, const std::vector<int> &pos, const CausalAttentionMask &mask, bool lm_head
 ) -> LogitsVector {
-    Graph g(m_config->model_id);
+    m_graph = std::make_unique<Graph>(m_config->model_id);
+    // Graph g(m_config->model_id);
+    auto &g{*m_graph};
 
     g.pos_size = (pos.size() * sizeof(int) + 255) / 256 * 256;
 
@@ -98,7 +100,7 @@ auto LlamaModel::forward(
                 k_cache.m_name = fmt::format("k_cache_{}", L);
                 v_cache.m_name = fmt::format("v_cache_{}", L);
                 auto k_node{g.add_tensor(k_cache)};
-                auto v_node{g.add_tensor(v_cache)};
+                auto v_node{g.add_tensor(v_cache)};                
                 auto attn_o = m_attn->build(g, x, L, k_node, v_node, pos, mask);
 
                 if (L == llm_config.n_layers - 1) {
@@ -136,9 +138,10 @@ auto LlamaModel::forward(
     executor.split_graph();
     executor.allocate_buffer_with_backend();
 
-    // std::ofstream graph_file("graph_output_cpu.log");
+    // std::ofstream graph_file("graph_output_fa.log");
     // executor.print_graph(graph_file);
     // graph_file.close();
+    // exit(1);
 
     executor.run_with_backend();
 #if defined(POWERSERVE_WITH_QNN)

@@ -344,12 +344,16 @@ auto Graph::softmax_ext(TensorNode *x, TensorNode *mask, float scale, float max_
 
 auto Graph::get_mask(const CausalAttentionMask &mask, Shape shape, const std::vector<int> &pos, TensorNode *kq)
     -> TensorNode * {
-    auto out = new_tensor(DataType::FP32, shape);
+    auto out = new_tensor(DataType::FP16, shape);
     auto op  = new_op(OpType::GET_MASK);
     op->set_outputs({out});
     op->set_params(GetMaskParams{.mask = mask, .pos = pos});
 
     { out->m_backend = kq == nullptr ? TensorBackend::GGML_CPU : kq->m_backend; }
+
+    {
+        out->m_dtype = out->m_backend == TensorBackend::GGML_CPU ? DataType::FP32 : DataType::FP16;
+    }
 
     {
         size_t tmp_size{out->row_size(out->n_elements())};
@@ -383,7 +387,7 @@ auto Graph::transpose(TensorNode *x) -> TensorViewNode * {
 
 auto Graph::make_contiguous(TensorNode *x) -> TensorNode * {
     auto out  = dup_tensor(x);
-    x->m_data = Platform::buffer_interfaces.at(x->m_backend).create_buffer(x->m_shape, sizeof(float));
+    x->m_data = Platform::buffer_interfaces.at(x->m_backend).create_buffer(x->m_shape, out->m_dtype);
     copy(out, x);
     return out;
 }
@@ -412,7 +416,10 @@ auto Graph::flash_attention(
         auto backend{q->m_backend};
         POWERSERVE_ASSERT(backend == k->m_backend and backend == v->m_backend and backend == mask->m_backend);
         out->m_backend = backend;
-        out->m_data    = Platform::buffer_interfaces.at(backend).create_buffer(out->m_shape, sizeof(float));
+
+        size_t tmp_size{out->row_size(out->n_elements())};
+        backend_size[static_cast<size_t>(out->m_backend)] += tmp_size;
+        // fmt::println("flash_attention: size: {}", tmp_size);
     }
 
     return out;

@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "backend/ggml/interface.hpp"
 #include "core/buffer.hpp"
 #include "core/logger.hpp"
 #include "core/typedefs.hpp"
@@ -35,20 +36,20 @@ public:
         return m_data_host;
     }
 
-    static auto create_buffer(Shape shape, size_t type_size) -> BufferPtr {
+    static auto create_buffer(Shape shape, DataType d_type) -> BufferPtr {
         Stride stride;
-        stride[0] = type_size;
+        stride[0] = get_type_size(d_type);
         for (size_t i = 1; i < shape.size(); i++) {
             stride[i] = stride[i - 1] * shape[i - 1];
         }
         size_t size = stride.back() * shape.back();
-
-        return std::make_shared<CPUBuffer>(stride, malloc(size), true, size, usage::COMPUTE);
+        auto ptr{default_mempool->allocate(size)};
+        return std::make_shared<CPUBuffer>(stride, ptr, false, size, usage::COMPUTE);
     }
 
-    static auto create_buffer_view(BaseBuffer &parent, Shape shape, size_t type_size, size_t offset = 0) -> BufferPtr {
+    static auto create_buffer_view(BaseBuffer &parent, Shape shape, DataType d_type, size_t offset = 0) -> BufferPtr {
         Stride stride;
-        stride[0] = type_size;
+        stride[0] = get_type_size(d_type);
         for (size_t i = 1; i < shape.size(); i++) {
             stride[i] = stride[i - 1] * shape[i - 1];
         }

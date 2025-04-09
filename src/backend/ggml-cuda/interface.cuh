@@ -95,6 +95,7 @@ public:
     static op_interface op_silu_and_mul;
     static op_interface op_append_v_cache;
     static op_interface op_get_mask;
+    static op_interface op_flash_attn;
 };
 
 class cuda_mempool {

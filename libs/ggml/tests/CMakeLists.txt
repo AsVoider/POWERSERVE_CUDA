@@ -26,12 +26,15 @@ d to bad performance. For more info see: https://github.com/ggerganov/whisper.cp
     endif()
 endif()
 
-if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(aarch64|arm.*|ARM64)$")
     message(STATUS "ARM detected")
     #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=apple-m1")
 elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "ppc64le" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "ppc64")
     message(STATUS "PPC64 detected")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mpower9-vector")
+elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "loongarch64")
+    message(STATUS "loongarch64 detected")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mlsx -mlasx")
 else()
     message(STATUS "x86 detected")
     #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -mavx2 -mfma -mf16c")
@@ -50,6 +53,10 @@ else()
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mf16c")
     elseif (UNAME_S MATCHES "Linux")
         message(STATUS "Linux detected")
+        # must have to build on ubuntu22 with gcc11:
+        find_package(Threads)
+        set(GGML_EXTRA_LIBS  ${GGML_EXTRA_LIBS} Threads::Threads)
+
         execute_process(COMMAND grep "avx " /proc/cpuinfo OUTPUT_VARIABLE AVX1_M)
         if (AVX1_M MATCHES "avx")
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx")
@@ -276,7 +283,7 @@ set_property(TEST ${TEST_TARGET} PROPERTY ENVIRONMENT "LLVM_PROFILE_FILE=${TEST_
 
 set(TEST_TARGET test-arange)
 add_executable(${TEST_TARGET} ${TEST_TARGET}.cpp)
-target_link_libraries(${TEST_TARGET} PRIVATE ggml)
+target_link_libraries(${TEST_TARGET} PRIVATE ggml Threads::Threads)
 if (MSVC)
     target_link_options(${TEST_TARGET} PRIVATE "/STACK: 8388608") # 8MB
 endif()
@@ -392,7 +399,7 @@ set_property(TEST ${TEST_TARGET} PROPERTY ENVIRONMENT "LLVM_PROFILE_FILE=${TEST_
 
 set(TEST_TARGET test-backend-ops)
 add_executable(${TEST_TARGET} ${TEST_TARGET}.cpp)
-target_link_libraries(${TEST_TARGET} PRIVATE ggml)
+target_link_libraries(${TEST_TARGET} PRIVATE ggml Threads::Threads)
 add_test(NAME ${TEST_TARGET} COMMAND $<TARGET_FILE:${TEST_TARGET}>)
 set_property(TEST ${TEST_TARGET} PROPERTY ENVIRONMENT "LLVM_PROFILE_FILE=${TEST_TARGET}.profraw")
 

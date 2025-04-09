@@ -122,13 +122,13 @@ private:
     friend struct Graph;
 
 public:
-    void set_inputs(const std::vector<TensorNode *> &tensors) {
+    void set_inputs(const std::initializer_list<TensorNode *> &tensors) {
         for (auto tensor : tensors) {
             tensor->connect(this);
         }
     }
 
-    void set_outputs(const std::vector<TensorNode *> &tensors) {
+    void set_outputs(const std::initializer_list<TensorNode *> &tensors) {
         for (auto tensor : tensors) {
             connect(tensor);
         }

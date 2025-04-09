@@ -2,7 +2,8 @@
 
 constexpr int CUDA_DIAG_MASK_INF_BLOCK_SIZE = 32;
 
-static __global__ void mask_inf_f32(float * data, const int number_cols, const int number_rows, const int first_pos) {
+template <typename T>
+static __global__ void mask_inf_f32(T * data, const int number_cols, const int number_rows, const int first_pos) {
     const int col = blockDim.y * blockIdx.y + threadIdx.y; // 32 * col_block_id + thread_id
     const int row = blockDim.x * blockIdx.x + threadIdx.x; // 1 * row_id + 0
 
@@ -11,10 +12,15 @@ static __global__ void mask_inf_f32(float * data, const int number_cols, const i
     }
 
     const int i = row * number_cols + col;
-    data[i] = col > (first_pos + row % number_rows) ? -INFINITY : 0.0f;
+    if constexpr (std::is_same_v<T, float>) {
+        data[i] = col > (first_pos + row % number_rows) ? -INFINITY : 0.0f;
+    } else if constexpr (std::is_same_v<T, half>) {
+        data[i] = col > (first_pos + row % number_rows) ? __float2half(-INFINITY) : half{0.0f};
+    }
 }
 
-static void mask_inf_f32_cuda(float * data, const int kv_size, const int batch_size, const int first_pos, cudaStream_t stream) {
+template <typename T>
+static void mask_inf_f32_cuda(T * data, const int kv_size, const int batch_size, const int first_pos, cudaStream_t stream) {
     const dim3 block_dims{1, CUDA_DIAG_MASK_INF_BLOCK_SIZE, 1};
     const int block_num_x = (kv_size + CUDA_DIAG_MASK_INF_BLOCK_SIZE - 1) / CUDA_DIAG_MASK_INF_BLOCK_SIZE;
     const dim3 block_nums{static_cast<uint32_t>(batch_size), static_cast<uint32_t>(block_num_x), 1};
@@ -22,7 +28,7 @@ static void mask_inf_f32_cuda(float * data, const int kv_size, const int batch_s
 }
 
 void ggml_get_mask(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
-    GGML_ASSERT(dst->type == GGML_TYPE_F32);
+    GGML_ASSERT(dst->type == GGML_TYPE_F32 or dst->type == GGML_TYPE_F16);
 
     cudaStream_t stream = ctx.stream();
 
@@ -34,5 +40,12 @@ void ggml_get_mask(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     GGML_UNUSED(pos_size);
     // GGML_ASSERT(pos_size == batch_size);
 
-    mask_inf_f32_cuda((float *)dst->data, kv_number, batch_size, first_pos, stream);
+    // mask_inf_f32_cuda((float *)dst->data, kv_number, batch_size, first_pos, stream);
+    if (dst->type == GGML_TYPE_F32) {
+        mask_inf_f32_cuda<float>(static_cast<float *>(dst->data), kv_number, batch_size, first_pos, stream);
+    } else if (dst->type == GGML_TYPE_F16) {
+        mask_inf_f32_cuda<half>(static_cast<half *>(dst->data), kv_number, batch_size, first_pos, stream);
+    } else {
+        GGML_ASSERT(false and "Unsupported type");
+    }
 }

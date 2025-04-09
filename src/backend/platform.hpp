@@ -31,8 +31,8 @@
 
 namespace powerserve {
 
-using buffer_create_fn   = std::function<BufferPtr(Shape, size_t)>;
-using buffer_view_fn     = std::function<BufferPtr(BaseBuffer &, Shape, size_t, size_t)>;
+using buffer_create_fn   = std::function<BufferPtr(Shape, DataType)>;
+using buffer_view_fn     = std::function<BufferPtr(BaseBuffer &, Shape, DataType, size_t)>;
 using buffer_alloc_total = std::function<void(size_t)>;
 
 class BufferInterface {

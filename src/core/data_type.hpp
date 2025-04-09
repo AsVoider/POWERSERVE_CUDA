@@ -34,7 +34,7 @@ enum class DataType {
     COUNT,
 };
 
-static size_t get_type_size(DataType dtype) {
+static constexpr size_t get_type_size(DataType dtype) {
     switch (dtype) {
     case DataType::FP32:
         return sizeof(float);
@@ -53,7 +53,7 @@ static size_t get_type_size(DataType dtype) {
     }
 }
 
-static size_t get_block_size(DataType dtype) {
+static constexpr size_t get_block_size(DataType dtype) {
     switch (dtype) {
     case DataType::FP32:
         return ggml_blck_size(GGML_TYPE_F32);

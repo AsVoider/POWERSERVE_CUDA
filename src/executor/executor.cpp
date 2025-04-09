@@ -35,7 +35,8 @@ void Executor::shed_op_to_backend() {
         case OpType::VIEW:
         case OpType::SOFTMAX_EXT:
         case OpType::GET_MASK:
-        case OpType::TRANSPOSE: {
+        case OpType::TRANSPOSE: 
+        case OpType::FLASH_ATTENTION: {
             op->compute_backend = op->output()->m_backend;
         } break;
 
@@ -54,7 +55,7 @@ void Executor::shed_op_to_backend() {
 void Executor::allocate_buffer_with_backend() {
     for (size_t device{0UL}; device < m_graph.backend_size.size(); ++device) {
         auto device_size = m_graph.backend_size[device];
-        if (device_size == 0 or device == static_cast<size_t>(TensorBackend::GGML_CPU)) {
+        if (device_size == 0) {
             continue;
         }
         Platform::buffer_interfaces.at(static_cast<TensorBackend>(device)).alloc_total(device_size + m_graph.pos_size);
@@ -70,17 +71,19 @@ void Executor::allocate_buffer_with_backend() {
         case OpType::GET_EMBEDDING:
         case OpType::CONT:
         case OpType::SOFTMAX_EXT:
-        case OpType::GET_MASK: {
+        case OpType::GET_MASK: 
+        case OpType::FLASH_ATTENTION: {
             auto out{op->output()};
-            out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+            auto out_type{out->m_dtype};
+            out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, out_type);
         } break;
 
         case OpType::ROPE: {
             auto src{op->prev[0]->tensor_view()};
             src->m_data = Platform::buffer_interfaces.at(src->m_backend)
-                              .create_buffer_view(*src->parent->m_data, src->m_shape, sizeof(float), 0UL);
+                              .create_buffer_view(*src->parent->m_data, src->m_shape, src->m_dtype, 0UL);
             auto out{op->output()};
-            out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, sizeof(float));
+            out->m_data = Platform::buffer_interfaces.at(out->m_backend).create_buffer(out->m_shape, out->m_dtype);
         } break;
 
         case OpType::PERMUTE: {
@@ -88,7 +91,7 @@ void Executor::allocate_buffer_with_backend() {
             auto out{op->output()};
             auto [axes]{op->get_params<PermuteParams>()};
             out->m_data = Platform::buffer_interfaces.at(out->m_backend)
-                              .create_buffer_view(*x->m_data, out->m_shape, sizeof(float), 0UL);
+                              .create_buffer_view(*x->m_data, out->m_shape, out->m_dtype, 0UL);
             auto &x_stride{x->m_data->m_stride};
             Stride new_stride{};
             new_stride[axes[0]]   = x_stride[0];
@@ -103,7 +106,7 @@ void Executor::allocate_buffer_with_backend() {
             auto out{op->output()};
             auto [stride, offset]{op->get_params<ViewParams>()};
             out->m_data = Platform::buffer_interfaces.at(out->m_backend)
-                              .create_buffer_view(*x->m_data, out->m_shape, sizeof(float), offset);
+                              .create_buffer_view(*x->m_data, out->m_shape, out->m_dtype, offset);
             out->m_data->m_stride = std::move(stride);
         } break;
 
@@ -111,7 +114,7 @@ void Executor::allocate_buffer_with_backend() {
             auto x{op->prev[0]->tensor()};
             auto out{op->output()};
             out->m_data = Platform::buffer_interfaces.at(out->m_backend)
-                              .create_buffer_view(*x->m_data, out->m_shape, sizeof(float), 0UL);
+                              .create_buffer_view(*x->m_data, out->m_shape, out->m_dtype, 0UL);
             auto &x_stride{x->m_data->m_stride};
             Stride new_stride{x_stride[1], x_stride[0], x_stride[2], x_stride[3]};
             out->m_data->m_stride = std::move(new_stride);
@@ -434,6 +437,39 @@ void Executor::print_graph(std::ostream &os) {
             os << "TRANSPOSE: src " << static_cast<int>(x->m_backend) << " type is " << static_cast<int>(x->m_dtype)
                << " shape is ";
             for (auto &&p : x->m_shape) {
+                os << p << " ";
+            }
+            os << "dst " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype)
+               << " shape is ";
+            for (auto &&p : out->m_shape) {
+                os << p << " ";
+            }
+            os << std::endl;
+        } break;
+
+        case OpType::FLASH_ATTENTION: {
+            auto q                 = op->prev[0]->tensor();
+            auto k                 = op->prev[1]->tensor();
+            auto v                 = op->prev[2]->tensor();
+            auto mask              = op->prev[3]->tensor();
+            auto out               = op->output();
+            // auto [scale, max_bias, logit_softcap] = op->get_params<FlashAttentionParams>();
+            os << "FLASH_ATTENTION: q " << static_cast<int>(q->m_backend) << " type is " << static_cast<int>(q->m_dtype)
+               << " shape is ";
+            for (auto &&p : q->m_shape) {
+                os << p << " ";
+            }
+            os << "k " << static_cast<int>(k->m_backend) << " type is " << static_cast<int>(k->m_dtype) << " shape is ";
+            for (auto &&p : k->m_shape) {
+                os << p << " ";
+            }
+            os << "v " << static_cast<int>(v->m_backend) << " type is " << static_cast<int>(v->m_dtype) << " shape is ";
+            for (auto &&p : v->m_shape) {
+                os << p << " ";
+            }
+            os << "mask " << static_cast<int>(mask->m_backend) << " type is " << static_cast<int>(mask->m_dtype)
+               << " shape is ";
+            for (auto &&p : mask->m_shape) {
                 os << p << " ";
             }
             os << "dst " << static_cast<int>(out->m_backend) << " type is " << static_cast<int>(out->m_dtype)

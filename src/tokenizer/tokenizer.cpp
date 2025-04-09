@@ -16,6 +16,7 @@
 
 #include "core/logger.hpp"
 #include "ggml.h"
+#include "gguf.h"
 
 namespace powerserve {
 

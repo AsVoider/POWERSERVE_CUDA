@@ -1,17 +1,19 @@
 #include "backend/common/common.hpp"
+// #include "backend/ggml-cuda/cuda-ops/cache.cuh"
 
 namespace powerserve::ggml_cuda {
 
 class GGML_CUDAKV {
 public:
-    static constexpr int KVPaddingSize{256};
-    static constexpr int KVBlockSize{64};
-
     struct GGML_CUDACHUNK {
         uint8_t *cache_data_ptr{nullptr};
         size_t next_position{0};
         size_t valid_idx{0};
     };
+
+    // struct GGML_CUDAMETA {
+    //     uint8_t *meta_data_ptr{nullptr};
+    // };
 
     struct KVCacheShape {
         size_t kv_dim{0};     // 1024
@@ -35,6 +37,9 @@ public:
 
     std::vector<GGML_CUDACHUNK> k_cache;
     std::vector<GGML_CUDACHUNK> v_cache;
+
+    // KVSparsityType sparsity_type;
+    // std::vector<GGML_CUDAMETA> k_meta;
 
     GGML_CUDAKV(const ModelConfig::LLMConfig &config, void *stream = nullptr);
     ~GGML_CUDAKV() = default;
